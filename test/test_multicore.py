@@ -4,17 +4,8 @@ import multiprocessing
 import pickle
 from collections import defaultdict
 import warnings
-import sys
-# unittest only added in 3.4 self.subTest()
-if sys.version_info[0] < 3 or sys.version_info[1] < 4:
-    import unittest2 as unittest
-else:
-    import unittest
-# unittest.mock is not available in 2.7 (though unittest2 might contain it?)
-try:
-    import unittest.mock as mock
-except ImportError:
-    import mock
+import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -25,9 +16,6 @@ import imgaug2.random as iarandom
 from imgaug2 import augmenters as iaa
 from imgaug2.testutils import reseed
 from imgaug2.augmentables.batches import Batch, UnnormalizedBatch
-
-IS_SUPPORTING_CONTEXTS = (sys.version_info[0] == 3
-                          and sys.version_info[1] >= 4)
 
 
 class clean_context():
@@ -43,73 +31,21 @@ class clean_context():
 
 
 class Test__get_context(unittest.TestCase):
-    @unittest.skipUnless(not IS_SUPPORTING_CONTEXTS,
-                         "Behaviour happens only in python <=3.3")
-    @mock.patch("imgaug2.imgaug2.warn")
-    @mock.patch("platform.version")
-    def test_mocked_nixos_python2(self, mock_version, mock_warn):
-        with clean_context():
-            mock_version.return_value = "NixOS"
-            _ctx = multicore._get_context()
-            assert mock_warn.call_count == 1
-
-    @unittest.skipUnless(IS_SUPPORTING_CONTEXTS,
-                         "Behaviour is only supported in python 3.4+")
     @mock.patch("platform.version")
     @mock.patch("multiprocessing.get_context")
-    def test_mocked_nixos_python3(self, mock_gctx, mock_version):
+    def test_mocked_nixos_uses_spawn(self, mock_gctx, mock_version):
         with clean_context():
             mock_version.return_value = "NixOS"
             _ctx = multicore._get_context()
             mock_gctx.assert_called_once_with("spawn")
 
-    @unittest.skipUnless(not IS_SUPPORTING_CONTEXTS,
-                         "Behaviour happens only in python <=3.3")
     @mock.patch("platform.version")
-    def test_mocked_no_nixos_python2(self, mock_version):
+    @mock.patch("multiprocessing.get_context")
+    def test_mocked_no_nixos_uses_default(self, mock_gctx, mock_version):
         with clean_context():
             mock_version.return_value = "Ubuntu"
-            ctx = multicore._get_context()
-            assert ctx is multiprocessing
-
-    @unittest.skipUnless(IS_SUPPORTING_CONTEXTS,
-                         "Behaviour is only supported in python 3.4+")
-    @mock.patch("platform.system")
-    @mock.patch("multiprocessing.get_context")
-    @mock.patch("platform.version")
-    def test_mocked_no_nixos_python3(self, mock_version, mock_gctx, mock_system):
-        with clean_context():
-            mock_version.return_value = "Ubuntu"
-            mock_system.return_value = "Linux"
             _ctx = multicore._get_context()
-            assert mock_gctx.call_count == 1
-            assert mock_gctx.call_args_list[0][0][0] is None
-
-    @unittest.skipUnless(IS_SUPPORTING_CONTEXTS,
-                         "Behaviour is only supported in python 3.4+")
-    @mock.patch.object(sys, "version_info")
-    @mock.patch("platform.system")
-    @mock.patch("multiprocessing.get_context")
-    @mock.patch("platform.version")
-    def test_mocked_mac_and_37_cause_spawn(
-            self,
-            mock_version,
-            mock_gctx,
-            mock_system,
-            mock_vi
-    ):
-        with clean_context():
-            def version_info(index):
-                if isinstance(index, slice):
-                    return 3, 7
-                return 3 if index == 0 else 7
-
-            mock_vi.__getitem__.side_effect = version_info
-
-            mock_version.return_value = "foo"
-            mock_system.return_value = "Darwin"
-            _ctx = multicore._get_context()
-            mock_gctx.assert_called_once_with("spawn")
+            mock_gctx.assert_called_once_with(None)
 
 
 class TestPool(unittest.TestCase):
@@ -169,9 +105,7 @@ class TestPool(unittest.TestCase):
         # https://github.com/
         # python/cpython/blob/master/Lib/multiprocessing/context.py
         # L41.
-        fname = ("os.cpu_count" if IS_SUPPORTING_CONTEXTS
-                 else "multiprocessing.cpu_count")
-        patch_cpu_count = mock.patch(fname, mock_cpu_count)
+        patch_cpu_count = mock.patch("os.cpu_count", mock_cpu_count)
 
         with patch_pool, patch_cpu_count:
             # (cpu cores available, processes requested, processes started)

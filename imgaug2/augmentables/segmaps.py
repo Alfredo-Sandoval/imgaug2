@@ -6,7 +6,6 @@ E.g. masks, semantic or instance segmentation maps.
 
 
 import numpy as np
-import six.moves as sm
 
 import imgaug2.imgaug as ia
 from imgaug2.augmenters import blend as blendlib
@@ -377,7 +376,7 @@ class SegmentationMapsOnImage(IAugmentable):
             )
 
             ids_in_map = np.unique(arr)
-            for c, color in zip(sm.xrange(nb_classes), colors):
+            for c, color in zip(range(nb_classes), colors):
                 if c in ids_in_map:
                     class_mask = arr == c
                     segmap_drawn[class_mask] = color

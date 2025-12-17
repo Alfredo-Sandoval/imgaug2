@@ -15,7 +15,6 @@ List of augmenters:
 """
 
 import numpy as np
-import six.moves as sm
 import skimage.exposure as ski_exposure
 import cv2
 
@@ -75,7 +74,7 @@ class _ContrastFuncWrapper(meta.Augmenter):
                 # TODO This was previously a cast of image to float64. Do the
                 #      adjust_* functions return float64?
                 result = []
-                for c in sm.xrange(nb_channels):
+                for c in range(nb_channels):
                     samples_i_c = [sample_i[c] for sample_i in samples_i]
                     args = tuple([image[..., c]] + samples_i_c)
                     result.append(self.func(*args))
@@ -1054,7 +1053,7 @@ class AllChannelsCLAHE(meta.Augmenter):
             nb_channels = image.shape[2]
             c_param = 0
             image_warped = []
-            for c in sm.xrange(nb_channels):
+            for c in range(nb_channels):
                 if tgs_px_w_i[c_param] > 1 or tgs_px_h_i[c_param] > 1:
                     clahe = cv2.createCLAHE(
                         clipLimit=clip_limit_i[c_param],
@@ -1390,7 +1389,7 @@ class AllChannelsHistogramEqualization(meta.Augmenter):
 
             image_warped = [
                 cv2.equalizeHist(_normalize_cv2_input_arr_(image[..., c]))
-                for c in sm.xrange(image.shape[2])]
+                for c in range(image.shape[2])]
             image_warped = np.array(image_warped, dtype=image_warped[0].dtype)
             image_warped = image_warped.transpose((1, 2, 0))
 

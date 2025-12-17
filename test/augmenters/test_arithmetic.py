@@ -1,17 +1,8 @@
 
 import functools
-import sys
 import warnings
-# unittest only added in 3.4 self.subTest()
-if sys.version_info[0] < 3 or sys.version_info[1] < 4:
-    import unittest2 as unittest
-else:
-    import unittest
-# unittest.mock is not available in 2.7 (though unittest2 might contain it?)
-try:
-    import unittest.mock as mock
-except ImportError:
-    import mock
+import unittest
+from unittest import mock
 
 import numpy as np
 import cv2
@@ -6323,9 +6314,6 @@ class TestSolarize(unittest.TestCase):
 
 
 class TestContrastNormalization(unittest.TestCase):
-    @unittest.skipIf(sys.version_info[0] <= 2,
-                     "Warning is not generated in 2.7 on travis, but locally "
-                     "in 2.7 it is?!")
     def test_deprecation_warning(self):
         with warnings.catch_warnings(record=True) as caught_warnings:
             warnings.simplefilter("always")

@@ -70,7 +70,6 @@ Added in 0.4.0.
 
 import warnings
 
-import six.moves as sm
 import numpy as np
 import skimage.filters
 
@@ -510,9 +509,9 @@ def _apply_glass_blur_imgaug_loop(
     nb_width = x_shape[1] - 2 * max_delta
 
     # locally shuffle pixels
-    for i in sm.xrange(iterations):
-        for j in sm.xrange(nb_height):
-            for k in sm.xrange(nb_width):
+    for i in range(iterations):
+        for j in range(nb_height):
+            for k in range(nb_width):
                 h = x_shape[0] - max_delta - j
                 w = x_shape[1] - max_delta - k
                 dx, dy = dxxdyy[i, j, k]

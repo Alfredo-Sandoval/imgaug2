@@ -21,7 +21,6 @@ List of augmenters:
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
-import six
 import cv2
 
 import imgaug2.imgaug as ia
@@ -2526,8 +2525,7 @@ class BlendAlphaBoundingBoxes(BlendAlphaMask):
             random_state=random_state, deterministic=deterministic)
 
 
-@six.add_metaclass(ABCMeta)
-class IBatchwiseMaskGenerator(object):
+class IBatchwiseMaskGenerator(metaclass=ABCMeta):
     """Interface for classes generating masks for batches.
 
     Child classes are supposed to receive a batch and generate an iterable
@@ -2856,7 +2854,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
             ``[0.0, 1.0]``
 
         """
-        # import has to be deferred, otherwise python 2.7 fails
+        # Import is deferred to avoid import cycles during module import.
         from imgaug2.augmenters import color as colorlib
 
         image_hsv = colorlib.change_colorspace_(

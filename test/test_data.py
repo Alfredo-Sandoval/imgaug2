@@ -1,16 +1,7 @@
 
 import warnings
-import sys
-# unittest only added in 3.4 self.subTest()
-if sys.version_info[0] < 3 or sys.version_info[1] < 4:
-    import unittest2 as unittest
-else:
-    import unittest
-# unittest.mock is not available in 2.7 (though unittest2 might contain it?)
-try:
-    import unittest.mock as mock
-except ImportError:
-    import mock
+import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -218,8 +209,8 @@ class Test_quokka_heatmap(unittest.TestCase):
         hm = iadata.quokka_heatmap(extract="square")
         assert hm.shape == (643, 643, 3)
         assert hm.arr_0to1.shape == (643, 643, 1)
-        # TODO this value is 0.48026073 in python 2.7, while 0.48026952 in
-        #      3.7 -- why?
+        # Note: This average value can vary slightly across environments due to
+        # differences in underlying image/resize implementations.
         assert np.allclose(
             np.average(hm.arr_0to1),
             0.48026952,

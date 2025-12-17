@@ -1,7 +1,6 @@
 
 import imageio
 import numpy as np
-import six.moves as sm
 from skimage import data
 from scipy import ndimage
 import cv2
@@ -173,7 +172,7 @@ class ElasticTransformationScipy(iaa.ElasticTransformation):
             x_shifted = x + (-1) * dx
             y_shifted = y + (-1) * dy
 
-            for c in sm.xrange(image.shape[2]):
+            for c in range(image.shape[2]):
                 remapped_flat = ndimage.interpolation.map_coordinates(
                     image[..., c],
                     (y_shifted.flatten(), x_shifted.flatten()),
@@ -268,7 +267,7 @@ class ElasticTransformationCv2(iaa.ElasticTransformation):
             x_shifted = x + (-1) * dx
             y_shifted = y + (-1) * dy
 
-            for c in sm.xrange(image.shape[2]):
+            for c in range(image.shape[2]):
                 remapped_flat = ndimage.interpolation.map_coordinates(
                     image[..., c],
                     (x_shifted.flatten(), y_shifted.flatten()),

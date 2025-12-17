@@ -1,17 +1,8 @@
 
 import warnings
-import sys
 import itertools
-# unittest only added in 3.4 self.subTest()
-if sys.version_info[0] < 3 or sys.version_info[1] < 4:
-    import unittest2 as unittest
-else:
-    import unittest
-# unittest.mock is not available in 2.7 (though unittest2 might contain it?)
-try:
-    import unittest.mock as mock
-except ImportError:
-    import mock
+import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -229,7 +220,6 @@ class Test_blur_gaussian_(unittest.TestCase):
             assert np.all(image_aug[image_cp == 255] < 255)
 
     def test_warnings(self):
-        # note that self.assertWarningRegex does not exist in python 2.7
         with warnings.catch_warnings(record=True) as caught_warnings:
             warnings.simplefilter("always")
 

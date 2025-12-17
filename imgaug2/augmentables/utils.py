@@ -1,7 +1,6 @@
 """Utility functions used in augmentable modules."""
 import copy as copylib
 import numpy as np
-import six.moves as sm
 import imgaug2.imgaug as ia
 
 
@@ -224,7 +223,7 @@ def interpolate_point_pair(point_a, point_b, nb_steps):
     return [
         (x1 + (i + 1) * step_size[0], y1 + (i + 1) * step_size[1])
         for i
-        in sm.xrange(nb_steps)]
+        in range(nb_steps)]
 
 
 def interpolate_points(points, nb_steps, closed=True):

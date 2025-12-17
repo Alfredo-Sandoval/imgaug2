@@ -5,16 +5,10 @@ based on commit d861cb290531ad15825f21dc4cc35c5d4f407259 from 20.07.2017.
 
 # Based on: https://gist.github.com/KdotJPG/b1270127455a94ac5d19
 
-import sys
 from ctypes import c_long
 from math import floor as _floor
 
-
-if sys.version_info[0] < 3:
-    def floor(num):
-        return int(_floor(num))
-else:
-    floor = _floor
+floor = _floor
 
 
 STRETCH_CONSTANT_2D = -0.211324865405187    # (1/Math.sqrt(2+1)-1)/2

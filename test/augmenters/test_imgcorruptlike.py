@@ -1,16 +1,7 @@
 
-import sys
-# unittest only added in 3.4 self.subTest()
-if sys.version_info[0] < 3 or sys.version_info[1] < 4:
-    import unittest2 as unittest
-else:
-    import unittest
-# unittest.mock is not available in 2.7 (though unittest2 might contain it?)
-try:
-    import unittest.mock as mock
-except ImportError:
-    import mock
 import functools
+import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -20,18 +11,19 @@ from imgaug2 import random as iarandom
 from imgaug2 import parameters as iap
 from imgaug2.testutils import runtest_pickleable_uint8_img
 
-# imagecorruptions cannot be installed in <=3.4 due to their
-# scikit-image requirement
-SUPPORTS_LIBRARY = (sys.version_info[0] == 3 and sys.version_info[1] >= 5)
-
-if SUPPORTS_LIBRARY:
+try:
     import imagecorruptions
     from imagecorruptions import corrupt
+except ImportError:
+    imagecorruptions = None
+    corrupt = None
+
+SUPPORTS_LIBRARY = imagecorruptions is not None
 
 
 class Test_get_imgcorrupt_subset(unittest.TestCase):
     @unittest.skipUnless(SUPPORTS_LIBRARY,
-                         "imagecorruptions can only be tested for python 3.5+")
+                         "imagecorruptions is not installed")
     def test_by_comparison_with_imagecorruptions(self):
         subset_names = ["common", "validation", "all"]
         for subset in subset_names:
@@ -47,7 +39,7 @@ class Test_get_imgcorrupt_subset(unittest.TestCase):
                     ) is func
 
     @unittest.skipUnless(SUPPORTS_LIBRARY,
-                         "imagecorruptions can only be tested for python 3.5+")
+                         "imagecorruptions is not installed")
     def test_subset_functions(self):
         subset_names = ["common", "validation", "all"]
         for subset in subset_names:

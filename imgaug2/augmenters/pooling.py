@@ -13,7 +13,6 @@ List of augmenters:
 from abc import ABCMeta, abstractmethod
 import functools
 
-import six
 import numpy as np
 
 import imgaug2.imgaug as ia
@@ -38,8 +37,7 @@ def _compute_shape_after_pooling(image_shape, ksize_h, ksize_w):
     ] + list(image_shape[2:]))
 
 
-@six.add_metaclass(ABCMeta)
-class _AbstractPoolingBase(meta.Augmenter):
+class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
     # TODO add floats as ksize denoting fractions of image sizes
     #      (note possible overlap with fractional kernel sizes here)
     def __init__(self, kernel_size, keep_size=True,

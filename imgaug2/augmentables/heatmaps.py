@@ -2,7 +2,6 @@
 
 
 import numpy as np
-import six.moves as sm
 
 import imgaug2.imgaug as ia
 from imgaug2.augmentables.base import IAugmentable
@@ -159,7 +158,7 @@ class HeatmapsOnImage(IAugmentable):
         heatmaps_uint8 = self.to_uint8()
         heatmaps_drawn = []
 
-        for c in sm.xrange(heatmaps_uint8.shape[2]):
+        for c in range(heatmaps_uint8.shape[2]):
             # We use c:c+1 here to get a (H,W,1) array. Otherwise imresize
             # would have to re-attach an axis.
             heatmap_c = heatmaps_uint8[..., c : c + 1]

@@ -1,16 +1,7 @@
 
 import copy as copylib
-import sys
-# unittest only added in 3.4 self.subTest()
-if sys.version_info[0] < 3 or sys.version_info[1] < 4:
-    import unittest2 as unittest
-else:
-    import unittest
-# unittest.mock is not available in 2.7 (though unittest2 might contain it?)
-try:
-    import unittest.mock as mock
-except ImportError:
-    import mock
+import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -19,19 +10,8 @@ import imgaug2.augmenters as iaa
 from imgaug2.testutils import reseed
 import imgaug2.random as iarandom
 
-NP_VERSION = np.__version__
-IS_NP_117_OR_HIGHER = (
-    NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
-    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
-    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
-    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
-    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
-    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
-    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
-    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
-    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
-    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
-)
+NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
+IS_NP_117_OR_HIGHER = NP_VERSION >= (1, 17)
 
 
 class _Base(unittest.TestCase):

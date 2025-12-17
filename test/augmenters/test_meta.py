@@ -1,24 +1,12 @@
 
 import os
 import warnings
-import sys
 import itertools
 import copy
 from abc import ABCMeta, abstractmethod
-# unittest only added in 3.4 self.subTest()
-if sys.version_info[0] < 3 or sys.version_info[1] < 4:
-    import unittest2 as unittest
-else:
-    import unittest
-# unittest.mock is not available in 2.7 (though unittest2 might contain it?)
-try:
-    import unittest.mock as mock
-except ImportError:
-    import mock
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+import unittest
+from unittest import mock
+import pickle
 
 import numpy as np
 
@@ -43,7 +31,7 @@ from imgaug2.augmentables.polys import _ConcavePolygonRecoverer
 from imgaug2.augmentables.batches import _BatchInAugmentation
 
 
-IS_PY36_OR_HIGHER = (sys.version_info[0] == 3 and sys.version_info[1] >= 6)
+IS_PY36_OR_HIGHER = True
 
 
 class _InplaceDummyAugmenterImgsArray(iaa.meta.Augmenter):
@@ -1213,8 +1201,8 @@ class TestAssertLambda(unittest.TestCase):
         runtest_pickleable_uint8_img(aug, iterations=2)
 
 
-# in py3+, this could be a classmethod of TestAssertLambda,
-# but in py2.7 such classmethods are not pickle-able and would cause an error
+# Keep this as a top-level function so it is pickleable (used in pickling
+# related tests).
 def _assertlambda_pickleable_callback_images(images, random_state,
                                              parents, hooks):
     return np.any(images[0] > 0)
@@ -3483,8 +3471,7 @@ class TestAugmenter_draw_grid(unittest.TestCase):
             _ = aug.draw_grid(np.zeros((2,), dtype=np.uint8), rows=2, cols=2)
 
 
-@six.add_metaclass(ABCMeta)
-class _TestAugmenter_augment_cbaois(object):
+class _TestAugmenter_augment_cbaois(object, metaclass=ABCMeta):
     """Class that is used to test augment_polygons() and augment_line_strings().
 
     Originally this was only used for polygons and then made more flexible.

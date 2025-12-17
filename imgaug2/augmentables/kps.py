@@ -3,7 +3,6 @@
 
 import numpy as np
 import scipy.spatial.distance
-import six.moves as sm
 
 import imgaug2.imgaug as ia
 from imgaug2.augmentables.base import IAugmentable
@@ -1194,7 +1193,7 @@ class KeypointsOnImage(IAugmentable):
             )
 
         keypoints = []
-        for i in sm.xrange(nb_keypoints):
+        for i in range(nb_keypoints):
             maxidx_flat = np.argmax(image[..., i])
             maxidx_ndim = np.unravel_index(maxidx_flat, (height, width))
 
@@ -1340,7 +1339,7 @@ class KeypointsOnImage(IAugmentable):
             )
 
         keypoints = []
-        for i in sm.xrange(nb_keypoints):
+        for i in range(nb_keypoints):
             # TODO introduce voting here among all distance values that have
             #      min/max values
             if inverted:

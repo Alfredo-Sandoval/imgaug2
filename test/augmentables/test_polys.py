@@ -1,16 +1,7 @@
 
 import warnings
-import sys
-# unittest only added in 3.4 self.subTest()
-if sys.version_info[0] < 3 or sys.version_info[1] < 4:
-    import unittest2 as unittest
-else:
-    import unittest
-# unittest.mock is not available in 2.7 (though unittest2 might contain it?)
-try:
-    import unittest.mock as mock
-except ImportError:
-    import mock
+import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -3540,7 +3531,6 @@ class Test_ConcavePolygonRecoverer(unittest.TestCase):
         points = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
         points_fit = cpr._fit_best_valid_polygon(
             points, random_state=rng.copy())
-        # doing this without the list(.) wrappers fails on python2.7
         assert list(points_fit) == list(range(len(points)))
 
         # square-like, but top line has one point in its center which's

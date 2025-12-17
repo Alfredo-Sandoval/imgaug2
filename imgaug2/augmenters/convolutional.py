@@ -17,7 +17,6 @@ import itertools
 
 import numpy as np
 import cv2
-import six.moves as sm
 
 import imgaug2.imgaug as ia
 from imgaug2.augmenters import meta
@@ -156,7 +155,7 @@ def convolve_(image, kernel):
                 image = np.copy(image)
             image = cv2.filter2D(image, -1, matrices[0], dst=image)
     else:
-        for channel in sm.xrange(nb_channels):
+        for channel in range(nb_channels):
             if matrices[channel] is not None:
                 arr_channel = np.copy(image[..., channel])
                 image[..., channel] = cv2.filter2D(

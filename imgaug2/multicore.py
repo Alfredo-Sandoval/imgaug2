@@ -1,5 +1,4 @@
 """Classes and functions dealing with augmentation on multiple CPU cores."""
-import sys
 import multiprocessing
 import threading
 import traceback
@@ -22,14 +21,6 @@ _CONTEXT = None
 
 # Added in 0.4.0.
 def _get_context_method():
-    vinfo = sys.version_info
-
-    # get_context() is only supported in 3.5 and later (same for
-    # set_start_method)
-    get_context_unsupported = (
-        vinfo[0] == 2
-        or (vinfo[0] == 3 and vinfo[1] <= 3))
-
     method = None
     # Fix random hanging code in NixOS by switching to spawn method,
     # see issue #414
@@ -41,38 +32,12 @@ def _get_context_method():
     #      errors
     if "NixOS" in platform.version():
         method = "spawn"
-        if get_context_unsupported:
-            ia.warn("Detected usage of imgaug2.multicore in python <=3.4 "
-                    "and NixOS. This is known to sometimes cause endlessly "
-                    "hanging programs when also making use of multicore "
-                    "augmentation (aka background augmentation). Use "
-                    "python 3.5 or later to prevent this.")
-    elif platform.system() == "Darwin" and vinfo[0:2] == (3, 7):
-        # On Mac with python 3.7 there seems to be a problem with matplotlib,
-        # resulting in the error "libc++abi.dylib: terminating with uncaught
-        # exception of type std::runtime_error: Couldn't close file".
-        # The error seems to be due to opened files that get closed in
-        # child processes and can be prevented by switching to spawn mode.
-        # See https://github.com/matplotlib/matplotlib/issues/15410
-        # and https://bugs.python.org/issue33725.
-        # It is possible that this problem also affects other python versions,
-        # but here it only appeared (consistently) in the 3.7 tests and the
-        # reports also seem to be focused around 3.7, suggesting explicitly
-        # to update to 3.8.2.
-        method = "spawn"
-
-    if get_context_unsupported:
-        return False
     return method
 
 
 # Added in 0.4.0.
 def _set_context(method):
-    # method=False indicates that multiprocessing module (i.e. no context)
-    # should be used, e.g. because get_context() is not supported
-    globals()["_CONTEXT"] = (
-        multiprocessing if method is False
-        else multiprocessing.get_context(method))
+    globals()["_CONTEXT"] = multiprocessing.get_context(method)
 
 
 # Added in 0.4.0.
@@ -467,8 +432,6 @@ def _create_output_buffer_left(output_buffer_size):
     return output_buffer_left
 
 
-# This could be a classmethod or staticmethod of Pool in 3.x, but in 2.7 that
-# leads to pickle errors.
 def _Pool_initialize_worker(augseq, seed_start):
     # pylint: disable=invalid-name, protected-access
 
@@ -486,11 +449,7 @@ def _Pool_initialize_worker(augseq, seed_start):
         process_name = _get_context().current_process().name
         # pylint: enable=not-callable
 
-        # time_ns() exists only in 3.7+
-        if sys.version_info[0] == 3 and sys.version_info[1] >= 7:
-            seed_offset = time.time_ns()
-        else:
-            seed_offset = int(time.time() * 10**6) % 10**6
+        seed_offset = time.time_ns()
         seed = hash(process_name) + seed_offset
         _reseed_global_local(seed, augseq)
     Pool._WORKER_SEED_START = seed_start
@@ -499,8 +458,6 @@ def _Pool_initialize_worker(augseq, seed_start):
     Pool._WORKER_AUGSEQ.localize_random_state_()
 
 
-# This could be a classmethod or staticmethod of Pool in 3.x, but in 2.7 that
-# leads to pickle errors.
 def _Pool_worker(batch_idx, batch):
     # pylint: disable=invalid-name, protected-access
     assert ia.is_single_integer(batch_idx), (
@@ -526,9 +483,6 @@ def _Pool_worker(batch_idx, batch):
     return result
 
 
-# could be a classmethod or staticmethod of Pool in 3.x, but in 2.7 that leads
-# to pickle errors starworker is here necessary, because starmap does not exist
-# in 2.7
 def _Pool_starworker(inputs):
     # pylint: disable=invalid-name
     return _Pool_worker(*inputs)

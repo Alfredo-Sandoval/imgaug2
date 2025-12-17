@@ -6,16 +6,10 @@ import sys
 import os
 import types
 import functools
-# collections.abc exists since 3.3 and is expected to be used for 3.8+
-try:
-    from collections.abc import Iterable
-except ImportError:
-    from collections import Iterable
+from collections.abc import Iterable
 
 import numpy as np
 import cv2
-import six
-import six.moves as sm
 import skimage.draw
 import skimage.measure
 try:
@@ -77,8 +71,8 @@ _UINT8_DTYPE = np.dtype("uint8")
 class DeprecationWarning(Warning):  # pylint: disable=redefined-builtin
     """Warning for deprecated calls.
 
-    Since python 2.7 DeprecatedWarning is silent by default. So we define
-    our own DeprecatedWarning here so that it is not silent by default.
+    We define our own DeprecationWarning subclass so that deprecations in
+    imgaug2 are consistently visible and distinguishable.
 
     """
 
@@ -182,11 +176,7 @@ class deprecated(object):  # pylint: disable=invalid-name
             import inspect
             # arg_names = func.__code__.co_varnames
 
-            # getargspec() was deprecated in py3, but doesn't exist in py2
-            if hasattr(inspect, "getfullargspec"):
-                arg_names = inspect.getfullargspec(func)[0]
-            else:
-                arg_names = inspect.getargspec(func)[0]
+            arg_names = inspect.getfullargspec(func)[0]
 
             if "self" in arg_names or "cls" in arg_names:
                 main_msg = "Method ``%s.%s()`` is deprecated." % (
@@ -344,7 +334,7 @@ def is_string(val):
         ``True`` if the variable is a string. Otherwise ``False``.
 
     """
-    return isinstance(val, six.string_types)
+    return isinstance(val, str)
 
 
 def is_single_bool(val):
@@ -413,9 +403,6 @@ def is_callable(val):
         ``True`` if the variable is a callable. Otherwise ``False``.
 
     """
-    # python 3.x with x <= 2 does not support callable(), apparently
-    if sys.version_info[0] == 3 and sys.version_info[1] <= 2:
-        return hasattr(val, '__call__')
     return callable(val)
 
 
@@ -1114,7 +1101,7 @@ def imresize_many_images(images, sizes=None, interpolation=None):
         if nb_channels is not None and nb_channels > 512:
             channels = [
                 cv2.resize(image[..., c], (width_target, height_target),
-                           interpolation=inter) for c in sm.xrange(nb_channels)]
+                           interpolation=inter) for c in range(nb_channels)]
             result_img = np.stack(channels, axis=-1)
         else:
             result_img = cv2.resize(
@@ -1882,8 +1869,8 @@ def draw_grid(images, rows=None, cols=None):
     dtype = images.dtype if is_np_array(images) else images[0].dtype
     grid = np.zeros((height, width, nb_channels), dtype=dtype)
     cell_idx = 0
-    for row_idx in sm.xrange(rows):
-        for col_idx in sm.xrange(cols):
+    for row_idx in range(rows):
+        for col_idx in range(cols):
             if cell_idx < nb_images:
                 image = images[cell_idx]
                 cell_y1 = cell_height * row_idx

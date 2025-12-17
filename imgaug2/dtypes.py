@@ -1,7 +1,6 @@
 """Functions to interact/analyze with numpy dtypes."""
 
 import numpy as np
-import six.moves as sm
 
 import imgaug2.imgaug as ia
 
@@ -145,7 +144,7 @@ def restore_dtypes_(images, dtypes, clip=True, round=True):
 def copy_dtypes_for_restore(images, force_list=False):
     if ia.is_np_array(images):
         if force_list:
-            return [images.dtype for _ in sm.xrange(len(images))]
+            return [images.dtype for _ in range(len(images))]
         return images.dtype
     return [image.dtype for image in images]
 

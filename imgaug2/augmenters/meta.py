@@ -26,11 +26,8 @@ import copy as copy_module
 import re
 import itertools
 import functools
-import sys
 
 import numpy as np
-import six
-import six.moves as sm
 
 import imgaug2.imgaug as ia
 from imgaug2.augmentables.batches import (Batch, UnnormalizedBatch,
@@ -218,8 +215,7 @@ class _maybe_deterministic_ctx(object):  # pylint: disable=invalid-name
             self.random_state.state = self.old_state
 
 
-@six.add_metaclass(ABCMeta)
-class Augmenter(object):
+class Augmenter(metaclass=ABCMeta):
     """
     Base class for Augmenter objects.
     All augmenters derive from this class.
@@ -1953,37 +1949,8 @@ class Augmenter(object):
             images = kwargs.get("images", None)
             iabase._warn_on_suspicious_multi_image_shapes(images)
 
-        # Decide whether to return the final tuple in the order of the kwargs
-        # keys or the default order based on python version. Only 3.6+ uses
-        # an ordered dict implementation for kwargs.
-        order = "standard"
-        nb_keys = len(list(kwargs.keys()))
-        vinfo = sys.version_info
-        is_py36_or_newer = vinfo[0] > 3 or (vinfo[0] == 3 and vinfo[1] >= 6)
-        if is_py36_or_newer:
-            order = "kwargs_keys"
-        elif not return_batch and nb_keys > 2:
-            raise ValueError(
-                "Requested more than two outputs in augment(), but detected "
-                "python version is below 3.6. More than two outputs are only "
-                "supported for 3.6+ as earlier python versions offer no way "
-                "to retrieve the order of the provided named arguments. To "
-                "still use more than two outputs, add 'return_batch=True' as "
-                "an argument and retrieve the outputs manually from the "
-                "returned UnnormalizedBatch instance, e.g. via "
-                "'batch.images_aug' to get augmented images."
-            )
-        elif not return_batch and nb_keys == 2 and images is None:
-            raise ValueError(
-                "Requested two outputs from augment() that were not 'images', "
-                "but detected python version is below 3.6. For security "
-                "reasons, only single-output requests or requests with two "
-                "outputs of which one is 'images' are allowed in <3.6. "
-                "'images' will then always be returned first. If you don't "
-                "want this, use 'return_batch=True' mode in augment(), which "
-                "returns a single UnnormalizedBatch instance instead and "
-                "supports any combination of outputs."
-            )
+        # Python 3.7+ preserves kwargs order, which is guaranteed for 3.9+.
+        order = "kwargs_keys"
 
         # augment batch
         batch = UnnormalizedBatch(
@@ -2273,7 +2240,7 @@ class Augmenter(object):
             "Expected 'n' to be None or >=1, got %s." % (n,))
         if n is None:
             return self.to_deterministic(1)[0]
-        return [self._to_deterministic() for _ in sm.xrange(n)]
+        return [self._to_deterministic() for _ in range(n)]
 
     def _to_deterministic(self):
         """Convert this augmenter from a stochastic to a deterministic one.
@@ -3138,7 +3105,7 @@ class Sequential(Augmenter, list):
             if self.random_order:
                 order = random_state.permutation(len(self))
             else:
-                order = sm.xrange(len(self))
+                order = range(len(self))
 
             for index in order:
                 batch = self[index].augment_batch_(
@@ -4754,8 +4721,8 @@ class AssertShape(Lambda):
                 cls._compare(observed, expected, dim_idx, augm_idx)
 
 
-# turning these checks below into classmethods of AssertShape breaks pickling
-# in python 2.7
+# Keep these checks as top-level callables to avoid pickling issues when they
+# are sent to multiprocessing workers.
 # Added in 0.4.0.
 class _AssertShapeImagesCheck(object):
     def __init__(self, shape):

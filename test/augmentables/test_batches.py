@@ -1,16 +1,7 @@
 
 import warnings
-import sys
-# unittest only added in 3.4 self.subTest()
-if sys.version_info[0] < 3 or sys.version_info[1] < 4:
-    import unittest2 as unittest
-else:
-    import unittest
-# unittest.mock is not available in 2.7 (though unittest2 might contain it?)
-try:
-    import unittest.mock as mock
-except ImportError:
-    import mock
+import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -194,7 +185,6 @@ class TestBatch(unittest.TestCase):
 
     def test_warnings_for_deprecated_properties(self):
         batch = ia.Batch()
-        # self.assertWarns does not exist in py2.7
         deprecated_attr_names = ["images", "heatmaps", "segmentation_maps",
                                  "keypoints", "bounding_boxes"]
         for attr_name in deprecated_attr_names:

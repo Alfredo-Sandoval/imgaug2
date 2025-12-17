@@ -6,7 +6,6 @@ import collections
 
 import numpy as np
 import scipy.spatial.distance
-import six.moves as sm
 import skimage.draw
 import skimage.measure
 
@@ -2688,7 +2687,7 @@ class _ConcavePolygonRecoverer(object):
 
         poly = Polygon(points)
         if poly.is_valid:
-            return sm.xrange(len(points))
+            return range(len(points))
 
         hull = scipy.spatial.ConvexHull(points)
         points_kept = list(hull.vertices)

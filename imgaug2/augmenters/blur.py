@@ -15,7 +15,6 @@ List of augmenters:
 import numpy as np
 from scipy import ndimage
 import cv2
-import six.moves as sm
 
 import imgaug2.imgaug as ia
 from imgaug2.imgaug import _normalize_cv2_input_arr_
@@ -225,7 +224,7 @@ def _blur_gaussian_scipy_(image, sigma, ksize):
                                               mode="mirror")
     else:
         nb_channels = image.shape[2]
-        for channel in sm.xrange(nb_channels):
+        for channel in range(nb_channels):
             image[:, :, channel] = ndimage.gaussian_filter(
                 image[:, :, channel], sigma, mode="mirror")
 
@@ -408,7 +407,7 @@ def blur_avg_(image, k):
                 _normalize_cv2_input_arr_(image[..., c]),
                 (k_width, k_height)
             )
-            for c in sm.xrange(shape[-1])
+            for c in range(shape[-1])
         ]
         image_aug = np.stack(channels, axis=-1)
 
@@ -906,7 +905,7 @@ class MedianBlur(meta.Augmenter):
                     channels = [
                         cv2.medianBlur(
                             _normalize_cv2_input_arr_(image[..., c]), ksize)
-                        for c in sm.xrange(image.shape[-1])
+                        for c in range(image.shape[-1])
                     ]
                     image_aug = np.stack(channels, axis=-1)
 
