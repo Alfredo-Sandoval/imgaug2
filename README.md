@@ -1,11 +1,10 @@
-# imgaug
+# imgaug2
+
+> **Community-maintained fork of [aleju/imgaug](https://github.com/aleju/imgaug)**
+> The original project is no longer actively maintained. This fork continues development with bug fixes, Python 3.12+ support, and modernization.
 
 This python library helps you with augmenting images for your machine learning projects.
 It converts a set of input images into a new, much larger set of slightly altered images.
-
-[![Build Status](https://travis-ci.org/aleju/imgaug.svg?branch=master)](https://travis-ci.org/aleju/imgaug)
-[![codecov](https://codecov.io/gh/aleju/imgaug/branch/master/graph/badge.svg)](https://codecov.io/gh/aleju/imgaug)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/1370ce38e99e40af842d47a8dd721444)](https://www.codacy.com/app/aleju/imgaug?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=aleju/imgaug&amp;utm_campaign=Badge_Grade)
 
 <table>
 
