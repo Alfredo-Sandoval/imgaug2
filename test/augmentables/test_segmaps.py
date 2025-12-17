@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import itertools
 import warnings
@@ -16,8 +15,8 @@ except ImportError:
 
 import numpy as np
 
-import imgaug as ia
-import imgaug.augmentables.segmaps as segmapslib
+import imgaug2 as ia
+import imgaug2.augmentables.segmaps as segmapslib
 
 
 # old style segmentation maps (class name differs to new style by "Map"

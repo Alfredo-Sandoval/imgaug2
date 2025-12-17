@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import sys
 # unittest only added in 3.4 self.subTest()
@@ -15,10 +14,10 @@ except ImportError:
 import numpy as np
 import cv2
 
-import imgaug as ia
-from imgaug import augmenters as iaa
-from imgaug import parameters as iap
-from imgaug.testutils import (reseed, runtest_pickleable_uint8_img,
+import imgaug2 as ia
+from imgaug2 import augmenters as iaa
+from imgaug2 import parameters as iap
+from imgaug2.testutils import (reseed, runtest_pickleable_uint8_img,
                               is_parameter_instance)
 
 

@@ -1,13 +1,12 @@
-from __future__ import print_function, division
 
 import time
 
 import numpy as np
 from skimage import data
 
-import imgaug as ia
-import imgaug.multicore as multicore
-from imgaug import augmenters as iaa
+import imgaug2 as ia
+import imgaug2.multicore as multicore
+from imgaug2 import augmenters as iaa
 
 
 def main():

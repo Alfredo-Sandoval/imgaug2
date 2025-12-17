@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import sys
 # unittest only added in 3.4 self.subTest()
@@ -13,13 +12,13 @@ except ImportError:
     import mock
 
 import numpy as np
-import six.moves as sm
 
-from imgaug import augmenters as iaa
-from imgaug import parameters as iap
-from imgaug import dtypes as iadt
-from imgaug import random as iarandom
-from imgaug.testutils import reseed, runtest_pickleable_uint8_img
+
+from imgaug2 import augmenters as iaa
+from imgaug2 import parameters as iap
+from imgaug2 import dtypes as iadt
+from imgaug2 import random as iarandom
+from imgaug2.testutils import reseed, runtest_pickleable_uint8_img
 
 
 # TODO add tests for EdgeDetect
@@ -495,12 +494,12 @@ class TestConvolve(unittest.TestCase):
             ]])
 
         expected = []
-        for i in sm.xrange(5):
+        for i in range(5):
             expected.append(self.img * i)
 
         aug = iaa.Convolve(matrix=_matrix_generator)
         seen = [False] * 5
-        for _ in sm.xrange(200):
+        for _ in range(200):
             observed = aug.augment_image(self.img)
             found = False
             for i, expected_i in enumerate(expected):
@@ -895,7 +894,7 @@ class TestSharpen(unittest.TestCase):
     )
     nb_iterations = 250
     distances = []
-    for _ in sm.xrange(nb_iterations):
+    for _ in range(nb_iterations):
         observed = aug.augment_image(base_img)
         distance = np.average(
             np.abs(
@@ -935,7 +934,7 @@ class TestSharpen(unittest.TestCase):
     )
     nb_iterations = 250
     distances = []
-    for _ in sm.xrange(nb_iterations):
+    for _ in range(nb_iterations):
         observed = aug.augment_image(base_img)
         distance = np.average(
             np.abs(

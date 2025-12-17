@@ -68,8 +68,7 @@ setup(
     include_package_data=True,
     package_data={
         "": ["LICENSE", "README.md", "requirements.txt"],
-        "imgaug": ["DejaVuSans.ttf", "quokka.jpg", "quokka_annotations.json", "quokka_depth_map_halfres.png"],
-        "imgaug.checks": ["README.md"]
+        "imgaug2": ["DejaVuSans.ttf", "quokka.jpg", "quokka_annotations.json", "quokka_depth_map_halfres.png"],
     },
     license="MIT",
     description="Image augmentation library for deep neural networks",

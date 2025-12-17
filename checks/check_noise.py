@@ -1,10 +1,9 @@
-from __future__ import print_function, division
 
 import numpy as np
 
-import imgaug as ia
-from imgaug import augmenters as iaa
-from imgaug import parameters as iap
+import imgaug2 as ia
+from imgaug2 import augmenters as iaa
+from imgaug2 import parameters as iap
 
 
 def main():

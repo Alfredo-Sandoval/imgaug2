@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import warnings
 import sys
@@ -15,12 +14,12 @@ except ImportError:
 
 import numpy as np
 
-from imgaug import dtypes as iadt
-from imgaug.testutils import ensure_deprecation_warning
+from imgaug2 import dtypes as iadt
+from imgaug2.testutils import ensure_deprecation_warning
 
 
 class Test_normalize_dtypes(unittest.TestCase):
-    @mock.patch("imgaug.dtypes.normalize_dtype")
+    @mock.patch("imgaug2.dtypes.normalize_dtype")
     def test_single_non_list(self, mock_nd):
         mock_nd.return_value = "foo"
         dtypes = iadt.normalize_dtypes("int16")
@@ -40,7 +39,7 @@ class Test_normalize_dtypes(unittest.TestCase):
         assert isinstance(dtypes, list)
         assert len(dtypes) == 0
 
-    @mock.patch("imgaug.dtypes.normalize_dtype")
+    @mock.patch("imgaug2.dtypes.normalize_dtype")
     def test_list_of_dtype_names(self, mock_nd):
         mock_nd.return_value = "foo"
         dtypes = iadt.normalize_dtypes(["int16", "int32"])
@@ -555,7 +554,7 @@ class Test_get_minimal_dtype(unittest.TestCase):
                 promoted_dt = iadt.get_minimal_dtype(dt_list)
                 assert promoted_dt.name == expected.name
 
-    @mock.patch("imgaug.dtypes.increase_itemsize_of_dtype")
+    @mock.patch("imgaug2.dtypes.increase_itemsize_of_dtype")
     def test_calls_increase_itemsize_factor(self, mock_iibf):
         dt = np.int8
         factor = 2
@@ -566,8 +565,8 @@ class Test_get_minimal_dtype(unittest.TestCase):
 
 
 class Test_promote_array_dtypes_(unittest.TestCase):
-    @mock.patch("imgaug.dtypes.get_minimal_dtype")
-    @mock.patch("imgaug.dtypes.change_dtypes_")
+    @mock.patch("imgaug2.dtypes.get_minimal_dtype")
+    @mock.patch("imgaug2.dtypes.change_dtypes_")
     def test_calls_subfunctions(self, mock_cd, mock_gmd):
         mock_gmd.return_value = np.dtype("int16")
         mock_cd.return_value = "foo"
@@ -583,8 +582,8 @@ class Test_promote_array_dtypes_(unittest.TestCase):
         assert mock_cd.call_args_list[0][0][0] is arrays
         assert observed == "foo"
 
-    @mock.patch("imgaug.dtypes.get_minimal_dtype")
-    @mock.patch("imgaug.dtypes.change_dtypes_")
+    @mock.patch("imgaug2.dtypes.get_minimal_dtype")
+    @mock.patch("imgaug2.dtypes.change_dtypes_")
     def test_calls_subfunctions_dtypes_set(self, mock_cd, mock_gmd):
         mock_gmd.return_value = np.dtype("int16")
         mock_cd.return_value = "foo"
@@ -602,8 +601,8 @@ class Test_promote_array_dtypes_(unittest.TestCase):
         assert mock_cd.call_args_list[0][0][0] is arrays
         assert observed == "foo"
 
-    @mock.patch("imgaug.dtypes.get_minimal_dtype")
-    @mock.patch("imgaug.dtypes.change_dtypes_")
+    @mock.patch("imgaug2.dtypes.get_minimal_dtype")
+    @mock.patch("imgaug2.dtypes.change_dtypes_")
     def test_calls_subfunctions_increase_itemsize_factor_set(self, mock_cd,
                                                              mock_gmd):
         mock_gmd.return_value = np.dtype("int16")
@@ -1084,7 +1083,7 @@ class Test_gate_dtypes_strs(unittest.TestCase):
 
 
 class Test_gate_dtypes(unittest.TestCase):
-    @ensure_deprecation_warning("imgaug.dtypes.gate_dtypes_strs")
+    @ensure_deprecation_warning("imgaug2.dtypes.gate_dtypes_strs")
     def test_standard_scenario_all_allowed(self):
         dtypes = [np.dtype("uint8"), np.dtype("uint8"),
                   np.dtype("float32"), np.dtype("int64")]
@@ -1094,7 +1093,7 @@ class Test_gate_dtypes(unittest.TestCase):
 
         iadt.gate_dtypes(dtypes, allowed, disallowed)
 
-    @ensure_deprecation_warning("imgaug.dtypes.gate_dtypes_strs")
+    @ensure_deprecation_warning("imgaug2.dtypes.gate_dtypes_strs")
     def test_standard_scenario_one_disallowed(self):
         dtypes = [np.dtype("uint8"), np.dtype("uint8"),
                   np.dtype("float32"), np.dtype("int64")]
@@ -1105,7 +1104,7 @@ class Test_gate_dtypes(unittest.TestCase):
             iadt.gate_dtypes(dtypes, allowed, disallowed)
         assert "Got dtype 'int64'" in str(context.exception)
 
-    @ensure_deprecation_warning("imgaug.dtypes.gate_dtypes_strs")
+    @ensure_deprecation_warning("imgaug2.dtypes.gate_dtypes_strs")
     def test_standard_scenario_all_allowed_dtype_names(self):
         dtypes = [np.dtype("uint8"), np.dtype("uint8"), np.dtype("float32"),
                   np.dtype("int64")]
@@ -1114,7 +1113,7 @@ class Test_gate_dtypes(unittest.TestCase):
 
         iadt.gate_dtypes(dtypes, allowed, disallowed)
 
-    @ensure_deprecation_warning("imgaug.dtypes.gate_dtypes_strs")
+    @ensure_deprecation_warning("imgaug2.dtypes.gate_dtypes_strs")
     def test_standard_scenario_one_disallowed_dtype_names(self):
         dtypes = [np.dtype("uint8"), np.dtype("uint8"), np.dtype("float32"),
                   np.dtype("int64")]
@@ -1125,7 +1124,7 @@ class Test_gate_dtypes(unittest.TestCase):
             iadt.gate_dtypes(dtypes, allowed, disallowed)
         assert "Got dtype 'int64'" in str(context.exception)
 
-    @ensure_deprecation_warning("imgaug.dtypes.gate_dtypes_strs")
+    @ensure_deprecation_warning("imgaug2.dtypes.gate_dtypes_strs")
     def test_standard_scenario_all_allowed_dtype_functions(self):
         dtypes = [np.dtype("uint8"), np.dtype("uint8"), np.dtype("float32"),
                   np.dtype("int64")]
@@ -1134,7 +1133,7 @@ class Test_gate_dtypes(unittest.TestCase):
 
         iadt.gate_dtypes(dtypes, allowed, disallowed)
 
-    @ensure_deprecation_warning("imgaug.dtypes.gate_dtypes_strs")
+    @ensure_deprecation_warning("imgaug2.dtypes.gate_dtypes_strs")
     def test_standard_scenario_one_disallowed_dtype_functions(self):
         dtypes = [np.dtype("uint8"), np.dtype("uint8"), np.dtype("float32"),
                   np.dtype("int64")]
@@ -1145,13 +1144,13 @@ class Test_gate_dtypes(unittest.TestCase):
             iadt.gate_dtypes(dtypes, allowed, disallowed)
         assert "Got dtype 'int64'" in str(context.exception)
 
-    @ensure_deprecation_warning("imgaug.dtypes.gate_dtypes_strs")
+    @ensure_deprecation_warning("imgaug2.dtypes.gate_dtypes_strs")
     def test_single_array_allowed(self):
         arr = np.zeros((1, 1, 3), dtype=np.int8)
 
         iadt.gate_dtypes(arr, ["int8"], [])
 
-    @ensure_deprecation_warning("imgaug.dtypes.gate_dtypes_strs")
+    @ensure_deprecation_warning("imgaug2.dtypes.gate_dtypes_strs")
     def test_single_array_disallowed(self):
         arr = np.zeros((1, 1, 3), dtype=np.int8)
 
@@ -1160,13 +1159,13 @@ class Test_gate_dtypes(unittest.TestCase):
 
         assert "Got dtype 'int8'" in str(context.exception)
 
-    @ensure_deprecation_warning("imgaug.dtypes.gate_dtypes_strs")
+    @ensure_deprecation_warning("imgaug2.dtypes.gate_dtypes_strs")
     def test_list_of_single_array(self):
         arr = np.zeros((1, 1, 3), dtype=np.int8)
 
         iadt.gate_dtypes([arr], [np.dtype("int8")], [])
 
-    @ensure_deprecation_warning("imgaug.dtypes.gate_dtypes_strs")
+    @ensure_deprecation_warning("imgaug2.dtypes.gate_dtypes_strs")
     def test_list_of_two_arrays_same_dtypes(self):
         arrays = [
             np.zeros((1, 1, 3), dtype=np.int8),
@@ -1175,7 +1174,7 @@ class Test_gate_dtypes(unittest.TestCase):
 
         iadt.gate_dtypes(arrays, [np.dtype("int8")], [])
 
-    @ensure_deprecation_warning("imgaug.dtypes.gate_dtypes_strs")
+    @ensure_deprecation_warning("imgaug2.dtypes.gate_dtypes_strs")
     def test_list_of_two_arrays_different_dtypes(self):
         arrays = [
             np.zeros((1, 1, 3), dtype=np.int8),
@@ -1184,7 +1183,7 @@ class Test_gate_dtypes(unittest.TestCase):
 
         iadt.gate_dtypes(arrays, ["int8", "uint8"], [])
 
-    @ensure_deprecation_warning("imgaug.dtypes.gate_dtypes_strs")
+    @ensure_deprecation_warning("imgaug2.dtypes.gate_dtypes_strs")
     def test_list_of_two_arrays_same_dtypes_one_disallowed(self):
         arrays = [
             np.zeros((1, 1, 3), dtype=np.int8),
@@ -1196,7 +1195,7 @@ class Test_gate_dtypes(unittest.TestCase):
 
         assert "Got dtype 'uint8', which" in str(context.exception)
 
-    @ensure_deprecation_warning("imgaug.dtypes.gate_dtypes_strs")
+    @ensure_deprecation_warning("imgaug2.dtypes.gate_dtypes_strs")
     def test_single_dtype_function(self):
         dtype = np.int8
 

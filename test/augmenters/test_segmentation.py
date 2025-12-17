@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import sys
 import warnings
@@ -15,19 +14,19 @@ except ImportError:
     import mock
 
 import numpy as np
-import six.moves as sm
 
-from imgaug import augmenters as iaa
-from imgaug import parameters as iap
-from imgaug import dtypes as iadt
-from imgaug import random as iarandom
-from imgaug.testutils import (
+
+from imgaug2 import augmenters as iaa
+from imgaug2 import parameters as iap
+from imgaug2 import dtypes as iadt
+from imgaug2 import random as iarandom
+from imgaug2.testutils import (
     reseed,
     runtest_pickleable_uint8_img,
     temporary_constants,
     is_parameter_instance
 )
-from imgaug.imgaug import _NUMBA_INSTALLED
+from imgaug2.imgaug import _NUMBA_INSTALLED
 
 
 # On systems without numba we are forced to use numpy-based segment
@@ -36,7 +35,7 @@ _NP_REPLACE = [True, False] if _NUMBA_INSTALLED else [True]
 
 
 def _create_replace_np_context(use_np_replace):
-    cnames = ["imgaug.augmenters.segmentation._NUMBA_INSTALLED"]
+    cnames = ["imgaug2.augmenters.segmentation._NUMBA_INSTALLED"]
     values = [not use_np_replace]
     return temporary_constants(cnames, values)
 
@@ -140,7 +139,7 @@ class TestSuperpixels(unittest.TestCase):
                     aug = iaa.Superpixels(p_replace=0.5, n_segments=2)
                     seen = {"none": False, "left": False, "right": False,
                             "both": False}
-                    for _ in sm.xrange(100):
+                    for _ in range(100):
                         observed = aug.augment_image(self.base_img)
                         if _eq(observed, self.base_img, 2):
                             seen["none"] = True
@@ -357,7 +356,7 @@ class Test_segment_voronoi(unittest.TestCase):
         ])
         if nb_channels is not None:
             image = np.tile(image[:, :, np.newaxis], (1, 1, nb_channels))
-            for c in sm.xrange(nb_channels):
+            for c in range(nb_channels):
                 image[..., c] += c
         cell_coordinates = np.float32([
             [1.0, 1.0],
@@ -554,7 +553,7 @@ class TestVoronoi(unittest.TestCase):
         mock_imresize = mock.MagicMock()
         mock_imresize.return_value = image
 
-        fname = "imgaug.imresize_single_image"
+        fname = "imgaug2.imresize_single_image"
         with mock.patch(fname, mock_imresize):
             _image_aug = aug(image=image)
 
@@ -568,7 +567,7 @@ class TestVoronoi(unittest.TestCase):
         mock_imresize = mock.MagicMock()
         mock_imresize.return_value = image
 
-        fname = "imgaug.imresize_single_image"
+        fname = "imgaug2.imresize_single_image"
         with mock.patch(fname, mock_imresize):
             _image_aug = aug(image=image)
 
@@ -582,7 +581,7 @@ class TestVoronoi(unittest.TestCase):
         mock_imresize = mock.MagicMock()
         mock_imresize.return_value = image
 
-        fname = "imgaug.imresize_single_image"
+        fname = "imgaug2.imresize_single_image"
         with mock.patch(fname, mock_imresize):
             _image_aug = aug(image=image)
 
@@ -597,7 +596,7 @@ class TestVoronoi(unittest.TestCase):
         mock_imresize = mock.MagicMock()
         mock_imresize.return_value = image
 
-        fname = "imgaug.imresize_single_image"
+        fname = "imgaug2.imresize_single_image"
         with mock.patch(fname, mock_imresize):
             _image_aug = aug(image=image)
 
@@ -650,7 +649,7 @@ class TestVoronoi(unittest.TestCase):
         else:
             mock_segment_voronoi.return_value = image
 
-        fname = "imgaug.augmenters.segmentation.segment_voronoi"
+        fname = "imgaug2.augmenters.segmentation.segment_voronoi"
         with mock.patch(fname, mock_segment_voronoi):
             image_aug = aug(image=image)
 
@@ -673,7 +672,7 @@ class TestVoronoi(unittest.TestCase):
         mock_segment_voronoi = mock.MagicMock()
         mock_segment_voronoi.return_value = image[..., np.newaxis]
 
-        fname = "imgaug.augmenters.segmentation.segment_voronoi"
+        fname = "imgaug2.augmenters.segmentation.segment_voronoi"
         with mock.patch(fname, mock_segment_voronoi):
             _image_aug = aug(image=image)
 
@@ -688,7 +687,7 @@ class TestVoronoi(unittest.TestCase):
         mock_segment_voronoi = mock.MagicMock()
         mock_segment_voronoi.return_value = image[..., np.newaxis]
 
-        fname = "imgaug.augmenters.segmentation.segment_voronoi"
+        fname = "imgaug2.augmenters.segmentation.segment_voronoi"
         with mock.patch(fname, mock_segment_voronoi):
             _image_aug = aug(image=image)
 
@@ -703,7 +702,7 @@ class TestVoronoi(unittest.TestCase):
         mock_segment_voronoi = mock.MagicMock()
         mock_segment_voronoi.return_value = image[..., np.newaxis]
 
-        fname = "imgaug.augmenters.segmentation.segment_voronoi"
+        fname = "imgaug2.augmenters.segmentation.segment_voronoi"
         with mock.patch(fname, mock_segment_voronoi):
             _image_aug = aug(image=image)
 
@@ -827,7 +826,7 @@ class TestUniformVoronoi(unittest.TestCase):
 
         mock_voronoi = mock.MagicMock()
         mock_voronoi.return_value = mock_voronoi
-        fname = "imgaug.augmenters.segmentation.Voronoi.__init__"
+        fname = "imgaug2.augmenters.segmentation.Voronoi.__init__"
         with mock.patch(fname, mock_voronoi):
             _ = iaa.UniformVoronoi(
                 100,
@@ -876,7 +875,7 @@ class TestRegularGridVoronoi(unittest.TestCase):
 
         mock_voronoi = mock.MagicMock()
         mock_voronoi.return_value = mock_voronoi
-        fname = "imgaug.augmenters.segmentation.Voronoi.__init__"
+        fname = "imgaug2.augmenters.segmentation.Voronoi.__init__"
         with mock.patch(fname, mock_voronoi):
             _ = iaa.RegularGridVoronoi(
                 10,
@@ -940,7 +939,7 @@ class TestRelativeRegularGridVoronoi(unittest.TestCase):
 
         mock_voronoi = mock.MagicMock()
         mock_voronoi.return_value = mock_voronoi
-        fname = "imgaug.augmenters.segmentation.Voronoi.__init__"
+        fname = "imgaug2.augmenters.segmentation.Voronoi.__init__"
         with mock.patch(fname, mock_voronoi):
             _ = iaa.RelativeRegularGridVoronoi(
                 0.1,
@@ -1500,7 +1499,7 @@ class TestUniformPointsSampler(unittest.TestCase):
         images = [np.zeros((10, 10, 1), dtype=np.uint8)]
 
         seen = {1: False, 10: False}
-        for i in sm.xrange(50):
+        for i in range(50):
             points = sampler.sample_points(images, i)[0]
             seen[len(points)] = True
             if np.all(seen.values()):
@@ -1513,7 +1512,7 @@ class TestUniformPointsSampler(unittest.TestCase):
         sampler = iaa.UniformPointsSampler(iap.Choice([1, 10]))
         images = [
             np.zeros((10, 10, 1), dtype=np.uint8)
-            for _ in sm.xrange(50)]
+            for _ in range(50)]
 
         points = sampler.sample_points(images, 1)
         point_counts = set([len(points_i) for points_i in points])

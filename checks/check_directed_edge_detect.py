@@ -1,11 +1,10 @@
-from __future__ import print_function, division
 from itertools import cycle
 
 import numpy as np
 from skimage import data
 import cv2
 
-from imgaug import augmenters as iaa
+from imgaug2 import augmenters as iaa
 
 POINT_SIZE = 5
 DEG_PER_STEP = 1

@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import sys
 # unittest only added in 3.4 self.subTest()
@@ -15,12 +14,12 @@ except ImportError:
 import numpy as np
 import cv2
 
-import imgaug as ia
-from imgaug import augmenters as iaa
-from imgaug import random as iarandom
-from imgaug.testutils import reseed, runtest_pickleable_uint8_img
-import imgaug.augmenters.color as colorlib
-import imgaug.augmenters.artistic as artisticlib
+import imgaug2 as ia
+from imgaug2 import augmenters as iaa
+from imgaug2 import random as iarandom
+from imgaug2.testutils import reseed, runtest_pickleable_uint8_img
+import imgaug2.augmenters.color as colorlib
+import imgaug2.augmenters.artistic as artisticlib
 
 
 class Test_stylize_cartoon(unittest.TestCase):
@@ -130,7 +129,7 @@ class Test_stylize_cartoon(unittest.TestCase):
         assert np.allclose(mock_msf.call_args_list[0][1]["sp"], 10*0.5)
         assert np.allclose(mock_msf.call_args_list[0][1]["sr"], 20*0.5)
 
-    @mock.patch("imgaug.augmenters.artistic._suppress_edge_blobs")
+    @mock.patch("imgaug2.augmenters.artistic._suppress_edge_blobs")
     def test_suppress_edges_true(self, mock_seb):
         image = np.arange(4*4*3).astype(np.uint8).reshape((4, 4, 3))
         mock_seb.return_value = np.copy(image[..., 0])
@@ -139,7 +138,7 @@ class Test_stylize_cartoon(unittest.TestCase):
 
         assert mock_seb.call_count == 2
 
-    @mock.patch("imgaug.augmenters.artistic._suppress_edge_blobs")
+    @mock.patch("imgaug2.augmenters.artistic._suppress_edge_blobs")
     def test_suppress_edges_false(self, mock_seb):
         image = np.arange(4*4*3).astype(np.uint8).reshape((4, 4, 3))
 
@@ -147,7 +146,7 @@ class Test_stylize_cartoon(unittest.TestCase):
 
         assert mock_seb.call_count == 0
 
-    @mock.patch("imgaug.augmenters.artistic._find_edges_laplacian")
+    @mock.patch("imgaug2.augmenters.artistic._find_edges_laplacian")
     def test_large_image(self, mock_fel):
         def _side_effect_fel(image, edge_multiplier, from_colorspace):
             return image[..., 0]
@@ -216,7 +215,7 @@ class TestCartoon(unittest.TestCase):
         assert len(np.unique(np.round(samples[2]*100, decimals=0))) > 1
         assert len(np.unique(np.round(samples[3]*100, decimals=0))) > 1
 
-    @mock.patch("imgaug.augmenters.artistic.stylize_cartoon")
+    @mock.patch("imgaug2.augmenters.artistic.stylize_cartoon")
     def test_call_of_stylize_cartoon(self, mock_sc):
         image = np.arange(4*4*3).astype(np.uint8).reshape((4, 4, 3))
         aug = iaa.Cartoon()

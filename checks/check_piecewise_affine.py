@@ -1,10 +1,9 @@
-from __future__ import print_function, division
 
 import numpy as np
 
-import imgaug as ia
-import imgaug.random as iarandom
-from imgaug import augmenters as iaa
+import imgaug2 as ia
+import imgaug2.random as iarandom
+from imgaug2 import augmenters as iaa
 
 iarandom.seed(3)
 

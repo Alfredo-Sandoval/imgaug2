@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import sys
 # unittest only added in 3.4 self.subTest()
@@ -21,11 +20,11 @@ import numpy as np
 import cv2
 import imageio
 
-import imgaug as ia
-from imgaug import augmenters as iaa
-from imgaug import random as iarandom
-from imgaug.testutils import reseed, TemporaryDirectory
-import imgaug.augmenters.debug as debuglib
+import imgaug2 as ia
+from imgaug2 import augmenters as iaa
+from imgaug2 import random as iarandom
+from imgaug2.testutils import reseed, TemporaryDirectory
+import imgaug2.augmenters.debug as debuglib
 
 
 class Test_draw_debug_image(unittest.TestCase):

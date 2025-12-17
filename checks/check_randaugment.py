@@ -1,9 +1,8 @@
-from __future__ import print_function, division, absolute_import
 
 import numpy as np
 
-import imgaug as ia
-import imgaug.augmenters as iaa
+import imgaug2 as ia
+import imgaug2.augmenters as iaa
 
 
 def main():

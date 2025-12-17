@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import itertools
 import sys
@@ -20,10 +19,10 @@ except ImportError:
 import numpy as np
 import cv2
 
-from imgaug import augmenters as iaa
-from imgaug import parameters as iap
-from imgaug import random as iarandom
-from imgaug.testutils import (reseed, runtest_pickleable_uint8_img,
+from imgaug2 import augmenters as iaa
+from imgaug2 import parameters as iap
+from imgaug2 import random as iarandom
+from imgaug2.testutils import (reseed, runtest_pickleable_uint8_img,
                               is_parameter_instance, remove_prefetching)
 
 

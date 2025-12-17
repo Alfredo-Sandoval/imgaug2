@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import warnings
 import sys
@@ -15,9 +14,9 @@ except ImportError:
 
 import numpy as np
 
-import imgaug as ia
-import imgaug.data as iadata
-from imgaug.data import _quokka_normalize_extract, _compute_resized_shape
+import imgaug2 as ia
+import imgaug2.data as iadata
+from imgaug2.data import _quokka_normalize_extract, _compute_resized_shape
 
 
 class Test__quokka_normalize_extract(unittest.TestCase):

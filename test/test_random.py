@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import copy as copylib
 import sys
@@ -15,23 +14,23 @@ except ImportError:
 
 import numpy as np
 
-import imgaug as ia
-import imgaug.augmenters as iaa
-from imgaug.testutils import reseed
-import imgaug.random as iarandom
+import imgaug2 as ia
+import imgaug2.augmenters as iaa
+from imgaug2.testutils import reseed
+import imgaug2.random as iarandom
 
 NP_VERSION = np.__version__
 IS_NP_117_OR_HIGHER = (
-    NP_VERSION.startswith("2.")
-    or NP_VERSION.startswith("1.25")
-    or NP_VERSION.startswith("1.24")
-    or NP_VERSION.startswith("1.23")
-    or NP_VERSION.startswith("1.22")
-    or NP_VERSION.startswith("1.21")
-    or NP_VERSION.startswith("1.20")
-    or NP_VERSION.startswith("1.19")
-    or NP_VERSION.startswith("1.18")
-    or NP_VERSION.startswith("1.17")
+    NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
+    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
+    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
+    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
+    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
+    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
+    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
+    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
+    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
+    or NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
 )
 
 
@@ -50,7 +49,7 @@ class TestConstants(_Base):
 
 
 class TestRNG(_Base):
-    @mock.patch("imgaug.random.normalize_generator_")
+    @mock.patch("imgaug2.random.normalize_generator_")
     def test___init___calls_normalize_mocked(self, mock_norm):
         _ = iarandom.RNG(0)
         mock_norm.assert_called_once_with(0)
@@ -61,7 +60,7 @@ class TestRNG(_Base):
 
         assert rng2.generator is rng1.generator
 
-    @mock.patch("imgaug.random.get_generator_state")
+    @mock.patch("imgaug2.random.get_generator_state")
     def test_state_getter_mocked(self, mock_get):
         mock_get.return_value = "mock"
         rng = iarandom.RNG(0)
@@ -69,14 +68,14 @@ class TestRNG(_Base):
         assert result == "mock"
         mock_get.assert_called_once_with(rng.generator)
 
-    @mock.patch("imgaug.random.RNG.set_state_")
+    @mock.patch("imgaug2.random.RNG.set_state_")
     def test_state_setter_mocked(self, mock_set):
         rng = iarandom.RNG(0)
         state = {"foo"}
         rng.state = state
         mock_set.assert_called_once_with(state)
 
-    @mock.patch("imgaug.random.set_generator_state_")
+    @mock.patch("imgaug2.random.set_generator_state_")
     def test_set_state__mocked(self, mock_set):
         rng = iarandom.RNG(0)
         state = {"foo"}
@@ -84,7 +83,7 @@ class TestRNG(_Base):
         assert result is rng
         mock_set.assert_called_once_with(rng.generator, state)
 
-    @mock.patch("imgaug.random.set_generator_state_")
+    @mock.patch("imgaug2.random.set_generator_state_")
     def test_use_state_of__mocked(self, mock_set):
         rng1 = iarandom.RNG(0)
         rng2 = mock.MagicMock()
@@ -94,14 +93,14 @@ class TestRNG(_Base):
         assert result == rng1
         mock_set.assert_called_once_with(rng1.generator, state)
 
-    @mock.patch("imgaug.random.get_global_rng")
+    @mock.patch("imgaug2.random.get_global_rng")
     def test_is_global__is_global__rng_mocked(self, mock_get):
         rng1 = iarandom.RNG(0)
         rng2 = iarandom.RNG(rng1.generator)
         mock_get.return_value = rng2
         assert rng1.is_global_rng() is True
 
-    @mock.patch("imgaug.random.get_global_rng")
+    @mock.patch("imgaug2.random.get_global_rng")
     def test_is_global_rng__is_not_global__mocked(self, mock_get):
         rng1 = iarandom.RNG(0)
         # different instance with same state/seed should still be viewed as
@@ -110,21 +109,21 @@ class TestRNG(_Base):
         mock_get.return_value = rng2
         assert rng1.is_global_rng() is False
 
-    @mock.patch("imgaug.random.get_global_rng")
+    @mock.patch("imgaug2.random.get_global_rng")
     def test_equals_global_rng__is_global__mocked(self, mock_get):
         rng1 = iarandom.RNG(0)
         rng2 = iarandom.RNG(0)
         mock_get.return_value = rng2
         assert rng1.equals_global_rng() is True
 
-    @mock.patch("imgaug.random.get_global_rng")
+    @mock.patch("imgaug2.random.get_global_rng")
     def test_equals_global_rng__is_not_global__mocked(self, mock_get):
         rng1 = iarandom.RNG(0)
         rng2 = iarandom.RNG(1)
         mock_get.return_value = rng2
         assert rng1.equals_global_rng() is False
 
-    @mock.patch("imgaug.random.generate_seed_")
+    @mock.patch("imgaug2.random.generate_seed_")
     def test_generate_seed__mocked(self, mock_gen):
         rng = iarandom.RNG(0)
         mock_gen.return_value = -1
@@ -132,7 +131,7 @@ class TestRNG(_Base):
         assert seed == -1
         mock_gen.assert_called_once_with(rng.generator)
 
-    @mock.patch("imgaug.random.generate_seeds_")
+    @mock.patch("imgaug2.random.generate_seeds_")
     def test_generate_seeds__mocked(self, mock_gen):
         rng = iarandom.RNG(0)
         mock_gen.return_value = [-1, -2]
@@ -140,14 +139,14 @@ class TestRNG(_Base):
         assert seeds == [-1, -2]
         mock_gen.assert_called_once_with(rng.generator, 2)
 
-    @mock.patch("imgaug.random.reset_generator_cache_")
+    @mock.patch("imgaug2.random.reset_generator_cache_")
     def test_reset_cache__mocked(self, mock_reset):
         rng = iarandom.RNG(0)
         result = rng.reset_cache_()
         assert result is rng
         mock_reset.assert_called_once_with(rng.generator)
 
-    @mock.patch("imgaug.random.derive_generators_")
+    @mock.patch("imgaug2.random.derive_generators_")
     def test_derive_rng__mocked(self, mock_derive):
         gen = iarandom.convert_seed_to_generator(0)
         mock_derive.return_value = [gen]
@@ -156,7 +155,7 @@ class TestRNG(_Base):
         assert result.generator is gen
         mock_derive.assert_called_once_with(rng.generator, 1)
 
-    @mock.patch("imgaug.random.derive_generators_")
+    @mock.patch("imgaug2.random.derive_generators_")
     def test_derive_rngs__mocked(self, mock_derive):
         gen1 = iarandom.convert_seed_to_generator(0)
         gen2 = iarandom.convert_seed_to_generator(1)
@@ -167,7 +166,7 @@ class TestRNG(_Base):
         assert result[1].generator is gen2
         mock_derive.assert_called_once_with(rng.generator, 2)
 
-    @mock.patch("imgaug.random.is_generator_equal_to")
+    @mock.patch("imgaug2.random.is_generator_equal_to")
     def test_equals_mocked(self, mock_equal):
         mock_equal.return_value = "foo"
         rng1 = iarandom.RNG(0)
@@ -197,14 +196,14 @@ class TestRNG(_Base):
         rng2.advance_()
         assert not rng1.equals(rng2)
 
-    @mock.patch("imgaug.random.advance_generator_")
+    @mock.patch("imgaug2.random.advance_generator_")
     def test_advance__mocked(self, mock_advance):
         rng = iarandom.RNG(0)
         result = rng.advance_()
         assert result is rng
         mock_advance.assert_called_once_with(rng.generator)
 
-    @mock.patch("imgaug.random.copy_generator")
+    @mock.patch("imgaug2.random.copy_generator")
     def test_copy_mocked(self, mock_copy):
         rng1 = iarandom.RNG(0)
         rng2 = iarandom.RNG(1)
@@ -213,8 +212,8 @@ class TestRNG(_Base):
         assert result.generator is rng2.generator
         mock_copy.assert_called_once_with(rng1.generator)
 
-    @mock.patch("imgaug.random.RNG.copy")
-    @mock.patch("imgaug.random.RNG.is_global_rng")
+    @mock.patch("imgaug2.random.RNG.copy")
+    @mock.patch("imgaug2.random.RNG.is_global_rng")
     def test_copy_unless_global_rng__is_global__mocked(self, mock_is_global,
                                                        mock_copy):
         rng = iarandom.RNG(0)
@@ -225,8 +224,8 @@ class TestRNG(_Base):
         mock_is_global.assert_called_once_with()
         assert mock_copy.call_count == 0
 
-    @mock.patch("imgaug.random.RNG.copy")
-    @mock.patch("imgaug.random.RNG.is_global_rng")
+    @mock.patch("imgaug2.random.RNG.copy")
+    @mock.patch("imgaug2.random.RNG.is_global_rng")
     def test_copy_unless_global_rng__is_not_global__mocked(self, mock_is_global,
                                                            mock_copy):
         rng = iarandom.RNG(0)
@@ -247,7 +246,7 @@ class TestRNG(_Base):
         rngs = rng.duplicate(2)
         assert rngs == [rng, rng]
 
-    @mock.patch("imgaug.random.create_fully_random_generator")
+    @mock.patch("imgaug2.random.create_fully_random_generator")
     def test_create_fully_random_mocked(self, mock_create):
         gen = iarandom.convert_seed_to_generator(0)
         mock_create.return_value = gen
@@ -255,7 +254,7 @@ class TestRNG(_Base):
         mock_create.assert_called_once_with()
         assert rng.generator is gen
 
-    @mock.patch("imgaug.random.derive_generators_")
+    @mock.patch("imgaug2.random.derive_generators_")
     def test_create_pseudo_random__mocked(self, mock_get):
         rng_glob = iarandom.get_global_rng()
         rng = iarandom.RNG(0)
@@ -264,7 +263,7 @@ class TestRNG(_Base):
         assert result.generator is rng.generator
         mock_get.assert_called_once_with(rng_glob.generator, 1)
 
-    @mock.patch("imgaug.random.polyfill_integers")
+    @mock.patch("imgaug2.random.polyfill_integers")
     def test_integers_mocked(self, mock_func):
         mock_func.return_value = "foo"
         rng = iarandom.RNG(0)
@@ -277,7 +276,7 @@ class TestRNG(_Base):
             rng.generator, low=0, high=1, size=(1,), dtype="int64",
             endpoint=True)
 
-    @mock.patch("imgaug.random.polyfill_random")
+    @mock.patch("imgaug2.random.polyfill_random")
     def test_random_mocked(self, mock_func):
         mock_func.return_value = "foo"
         rng = iarandom.RNG(0)
@@ -687,8 +686,8 @@ class Test_get_global_rng(_Base):
 
 
 class Test_seed(_Base):
-    @mock.patch("imgaug.random._seed_np117_")
-    @mock.patch("imgaug.random._seed_np116_")
+    @mock.patch("imgaug2.random._seed_np117_")
+    @mock.patch("imgaug2.random._seed_np116_")
     def test_mocked_call(self, mock_np116, mock_np117):
         iarandom.seed(1)
 
@@ -743,7 +742,7 @@ class Test_seed(_Base):
 
 
 class Test_normalize_generator(_Base):
-    @mock.patch("imgaug.random.normalize_generator_")
+    @mock.patch("imgaug2.random.normalize_generator_")
     def test_mocked_call(self, mock_subfunc):
         mock_subfunc.return_value = "foo"
         inputs = ["bar"]
@@ -757,8 +756,8 @@ class Test_normalize_generator(_Base):
 
 
 class Test_normalize_generator_(_Base):
-    @mock.patch("imgaug.random._normalize_generator_np117_")
-    @mock.patch("imgaug.random._normalize_generator_np116_")
+    @mock.patch("imgaug2.random._normalize_generator_np117_")
+    @mock.patch("imgaug2.random._normalize_generator_np116_")
     def test_mocked_call(self, mock_np116, mock_np117):
         mock_np116.return_value = "np116"
         mock_np117.return_value = "np117"
@@ -831,8 +830,8 @@ class Test_normalize_generator_(_Base):
 
 
 class Test_convert_seed_to_generator(_Base):
-    @mock.patch("imgaug.random._convert_seed_to_generator_np117")
-    @mock.patch("imgaug.random._convert_seed_to_generator_np116")
+    @mock.patch("imgaug2.random._convert_seed_to_generator_np117")
+    @mock.patch("imgaug2.random._convert_seed_to_generator_np116")
     def test_mocked_call(self, mock_np116, mock_np117):
         mock_np116.return_value = "np116"
         mock_np117.return_value = "np117"
@@ -886,8 +885,8 @@ class Test_create_pseudo_random_generator_(_Base):
 
 
 class Test_create_fully_random_generator(_Base):
-    @mock.patch("imgaug.random._create_fully_random_generator_np117")
-    @mock.patch("imgaug.random._create_fully_random_generator_np116")
+    @mock.patch("imgaug2.random._create_fully_random_generator_np117")
+    @mock.patch("imgaug2.random._create_fully_random_generator_np116")
     def test_mocked_call(self, mock_np116, mock_np117):
         mock_np116.return_value = "np116"
         mock_np117.return_value = "np117"
@@ -930,7 +929,7 @@ class Test_create_fully_random_generator(_Base):
 
 
 class Test_generate_seed_(_Base):
-    @mock.patch("imgaug.random.generate_seeds_")
+    @mock.patch("imgaug2.random.generate_seeds_")
     def test_mocked_call(self, mock_seeds):
         gen = iarandom.convert_seed_to_generator(0)
 
@@ -940,7 +939,7 @@ class Test_generate_seed_(_Base):
 
 
 class Test_generate_seeds_(_Base):
-    @mock.patch("imgaug.random.polyfill_integers")
+    @mock.patch("imgaug2.random.polyfill_integers")
     def test_mocked_call(self, mock_integers):
         gen = iarandom.convert_seed_to_generator(0)
 
@@ -960,7 +959,7 @@ class Test_generate_seeds_(_Base):
 
 
 class Test_copy_generator(_Base):
-    @mock.patch("imgaug.random._copy_generator_np116")
+    @mock.patch("imgaug2.random._copy_generator_np116")
     def test_mocked_call_with_random_state(self, mock_np116):
         mock_np116.return_value = "np116"
         gen = np.random.RandomState(1)
@@ -972,7 +971,7 @@ class Test_copy_generator(_Base):
 
     @unittest.skipIf(not IS_NP_117_OR_HIGHER,
                      "Function uses classes from numpy 1.17+")
-    @mock.patch("imgaug.random._copy_generator_np117")
+    @mock.patch("imgaug2.random._copy_generator_np117")
     def test_mocked_call_with_generator(self, mock_np117):
         mock_np117.return_value = "np117"
         gen = np.random.Generator(iarandom.BIT_GENERATOR(1))
@@ -1002,8 +1001,8 @@ class Test_copy_generator(_Base):
 
 
 class Test_copy_generator_unless_global_generator(_Base):
-    @mock.patch("imgaug.random.get_global_rng")
-    @mock.patch("imgaug.random.copy_generator")
+    @mock.patch("imgaug2.random.get_global_rng")
+    @mock.patch("imgaug2.random.copy_generator")
     def test_mocked_gen_is_global(self, mock_copy, mock_get_global_rng):
         gen = iarandom.convert_seed_to_generator(1)
         mock_copy.return_value = "foo"
@@ -1015,8 +1014,8 @@ class Test_copy_generator_unless_global_generator(_Base):
         assert mock_copy.call_count == 0
         assert result is gen
 
-    @mock.patch("imgaug.random.get_global_rng")
-    @mock.patch("imgaug.random.copy_generator")
+    @mock.patch("imgaug2.random.get_global_rng")
+    @mock.patch("imgaug2.random.copy_generator")
     def test_mocked_gen_is_not_global(self, mock_copy, mock_get_global_rng):
         gen1 = iarandom.convert_seed_to_generator(1)
         gen2 = iarandom.convert_seed_to_generator(2)
@@ -1031,8 +1030,8 @@ class Test_copy_generator_unless_global_generator(_Base):
 
 
 class Test_reset_generator_cache_(_Base):
-    @mock.patch("imgaug.random._reset_generator_cache_np117_")
-    @mock.patch("imgaug.random._reset_generator_cache_np116_")
+    @mock.patch("imgaug2.random._reset_generator_cache_np117_")
+    @mock.patch("imgaug2.random._reset_generator_cache_np116_")
     def test_mocked_call(self, mock_np116, mock_np117):
         mock_np116.return_value = "np116"
         mock_np117.return_value = "np117"
@@ -1088,7 +1087,7 @@ class Test_reset_generator_cache_(_Base):
 
 
 class Test_derive_generator_(_Base):
-    @mock.patch("imgaug.random.derive_generators_")
+    @mock.patch("imgaug2.random.derive_generators_")
     def test_mocked_call(self, mock_derive_gens):
         mock_derive_gens.return_value = ["foo"]
         gen = iarandom.convert_seed_to_generator(1)
@@ -1110,8 +1109,8 @@ class Test_derive_generator_(_Base):
 
 
 class Test_derive_generators_(_Base):
-    @mock.patch("imgaug.random._derive_generators_np117_")
-    @mock.patch("imgaug.random._derive_generators_np116_")
+    @mock.patch("imgaug2.random._derive_generators_np117_")
+    @mock.patch("imgaug2.random._derive_generators_np116_")
     def test_mocked_call(self, mock_np116, mock_np117):
         mock_np116.return_value = "np116"
         mock_np117.return_value = "np117"
@@ -1162,8 +1161,8 @@ class Test_derive_generators_(_Base):
 
 
 class Test_get_generator_state(_Base):
-    @mock.patch("imgaug.random._get_generator_state_np117")
-    @mock.patch("imgaug.random._get_generator_state_np116")
+    @mock.patch("imgaug2.random._get_generator_state_np117")
+    @mock.patch("imgaug2.random._get_generator_state_np116")
     def test_mocked_call(self, mock_np116, mock_np117):
         mock_np116.return_value = "np116"
         mock_np117.return_value = "np117"
@@ -1194,8 +1193,8 @@ class Test_get_generator_state(_Base):
 
 
 class Test_set_generator_state_(_Base):
-    @mock.patch("imgaug.random._set_generator_state_np117_")
-    @mock.patch("imgaug.random._set_generator_state_np116_")
+    @mock.patch("imgaug2.random._set_generator_state_np117_")
+    @mock.patch("imgaug2.random._set_generator_state_np116_")
     def test_mocked_call(self, mock_np116, mock_np117):
         gen = iarandom.convert_seed_to_generator(1)
         state = {"state": 0}
@@ -1277,8 +1276,8 @@ class Test_set_generator_state_(_Base):
 
 
 class Test_is_generator_equal_to(_Base):
-    @mock.patch("imgaug.random._is_generator_equal_to_np117")
-    @mock.patch("imgaug.random._is_generator_equal_to_np116")
+    @mock.patch("imgaug2.random._is_generator_equal_to_np117")
+    @mock.patch("imgaug2.random._is_generator_equal_to_np116")
     def test_mocked_call(self, mock_np116, mock_np117):
         mock_np116.return_value = "np116"
         mock_np117.return_value = "np117"
@@ -1387,8 +1386,8 @@ class Test_is_generator_equal_to(_Base):
 
 
 class Test_advance_generator_(_Base):
-    @mock.patch("imgaug.random._advance_generator_np117_")
-    @mock.patch("imgaug.random._advance_generator_np116_")
+    @mock.patch("imgaug2.random._advance_generator_np117_")
+    @mock.patch("imgaug2.random._advance_generator_np116_")
     def test_mocked_call(self, mock_np116, mock_np117):
         gen = iarandom.convert_seed_to_generator(1)
 

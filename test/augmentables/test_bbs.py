@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import warnings
 import sys
@@ -15,10 +14,10 @@ except ImportError:
 
 import numpy as np
 
-import imgaug as ia
-import imgaug.random as iarandom
-from imgaug.augmentables.bbs import _LabelOnImageDrawer
-from imgaug.testutils import wrap_shift_deprecation, assertWarns
+import imgaug2 as ia
+import imgaug2.random as iarandom
+from imgaug2.augmentables.bbs import _LabelOnImageDrawer
+from imgaug2.testutils import wrap_shift_deprecation, assertWarns
 
 
 class TestBoundingBox_project_(unittest.TestCase):
@@ -690,7 +689,7 @@ class TestBoundingBox(unittest.TestCase):
                                               partly=partly, fully=fully)
                 assert observed is expected
 
-    @mock.patch("imgaug.augmentables.bbs._LabelOnImageDrawer")
+    @mock.patch("imgaug2.augmentables.bbs._LabelOnImageDrawer")
     def test_draw_label_on_image_mocked(self, mock_drawer):
         mock_drawer.return_value = mock_drawer
         image = np.zeros((10, 10, 3), dtype=np.uint8)
@@ -710,7 +709,7 @@ class TestBoundingBox(unittest.TestCase):
 
         assert mock_drawer.draw_on_image.call_count == 1
 
-    @mock.patch("imgaug.augmentables.bbs._LabelOnImageDrawer")
+    @mock.patch("imgaug2.augmentables.bbs._LabelOnImageDrawer")
     def test_draw_label_on_image_mocked_inplace(self, mock_drawer):
         mock_drawer.return_value = mock_drawer
         image = np.zeros((10, 10, 3), dtype=np.uint8)
@@ -1077,7 +1076,7 @@ class TestBoundingBox(unittest.TestCase):
 
         assert "Expected 'other'" in str(cm.exception)
 
-    @mock.patch("imgaug.augmentables.bbs.BoundingBox.coords_almost_equals")
+    @mock.patch("imgaug2.augmentables.bbs.BoundingBox.coords_almost_equals")
     def test_almost_equals(self, mock_cae):
         bb = ia.BoundingBox(x1=1, y1=3, x2=1, y2=3)
         other = ia.BoundingBox(x1=1, y1=3, x2=1, y2=3)

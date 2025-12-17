@@ -1,6 +1,5 @@
-from __future__ import print_function, division, absolute_import
-import imgaug.augmenters as iaa
-import imgaug as ia
+import imgaug2.augmenters as iaa
+import imgaug2 as ia
 import timeit
 
 
@@ -11,8 +10,8 @@ def main():
                 "iaa.quantize_uniform_to_n_bits(image, %d)" % (nb_bits,),
                 number=1000,
                 setup=(
-                    "import imgaug as ia; "
-                    "import imgaug.augmenters as iaa; "
+                    "import imgaug2 as ia; "
+                    "import imgaug2.augmenters as iaa; "
                     "image = ia.quokka_square((%d, %d))" % (size, size))
             )
             time_pil = timeit.timeit(
@@ -24,7 +23,7 @@ def main():
                     "import numpy as np; "
                     "import PIL.Image; "
                     "import PIL.ImageOps; "
-                    "import imgaug as ia; "
+                    "import imgaug2 as ia; "
                     "image = ia.quokka_square((%d, %d))" % (size, size))
             )
             print("[size=%04d, bits=%d] iaa=%.4f pil=%.4f" % (

@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 from abc import ABCMeta, abstractproperty, abstractmethod
 import sys
@@ -14,19 +13,18 @@ except ImportError:
     import mock
 
 import numpy as np
-import six
-import six.moves as sm
 
-import imgaug as ia
-from imgaug import augmenters as iaa
-from imgaug import parameters as iap
-from imgaug import dtypes as iadt
-from imgaug.testutils import (reseed, assert_cbaois_equal,
+
+import imgaug2 as ia
+from imgaug2 import augmenters as iaa
+from imgaug2 import parameters as iap
+from imgaug2 import dtypes as iadt
+from imgaug2.testutils import (reseed, assert_cbaois_equal,
                               runtest_pickleable_uint8_img,
                               is_parameter_instance)
-from imgaug.augmentables.heatmaps import HeatmapsOnImage
-from imgaug.augmentables.segmaps import SegmentationMapsOnImage
-import imgaug.augmenters.flip as fliplib
+from imgaug2.augmentables.heatmaps import HeatmapsOnImage
+from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
+import imgaug2.augmenters.flip as fliplib
 
 
 class TestHorizontalFlip(unittest.TestCase):
@@ -141,7 +139,7 @@ class _TestFliplrAndFlipudBase(object):
     def test_images_p_is_0(self):
         aug = self.create_aug(0)
 
-        for _ in sm.xrange(3):
+        for _ in range(3):
             observed = aug.augment_images(self.images)
             expected = self.images
             assert np.array_equal(observed, expected)
@@ -149,7 +147,7 @@ class _TestFliplrAndFlipudBase(object):
     def test_images_p_is_0__deterministic(self):
         aug = self.create_aug(0).to_deterministic()
 
-        for _ in sm.xrange(3):
+        for _ in range(3):
             observed = aug.augment_images(self.images)
             expected = self.images
             assert np.array_equal(observed, expected)
@@ -183,7 +181,7 @@ class _TestFliplrAndFlipudBase(object):
         if deterministic:
             aug = aug.to_deterministic()
 
-        for _ in sm.xrange(3):
+        for _ in range(3):
             observed = getattr(aug, augf_name)(cbaoi)
             assert_cbaois_equal(observed, cbaoi)
 
@@ -207,7 +205,7 @@ class _TestFliplrAndFlipudBase(object):
     def test_images_p_is_1(self):
         aug = self.create_aug(1.0)
 
-        for _ in sm.xrange(3):
+        for _ in range(3):
             observed = aug.augment_images(self.images)
             expected = self.images_flipped
             assert np.array_equal(observed, expected)
@@ -215,7 +213,7 @@ class _TestFliplrAndFlipudBase(object):
     def test_images_p_is_1__deterministic(self):
         aug = self.create_aug(1.0).to_deterministic()
 
-        for _ in sm.xrange(3):
+        for _ in range(3):
             observed = aug.augment_images(self.images)
             expected = self.images_flipped
             assert np.array_equal(observed, expected)
@@ -258,7 +256,7 @@ class _TestFliplrAndFlipudBase(object):
         if deterministic:
             aug = aug.to_deterministic()
 
-        for _ in sm.xrange(3):
+        for _ in range(3):
             observed = getattr(aug, augf_name)(cbaoi)
             assert_cbaois_equal(observed, cbaoi_flipped)
 
@@ -286,7 +284,7 @@ class _TestFliplrAndFlipudBase(object):
 
         nb_iterations = 1000
         nb_images_flipped = 0
-        for _ in sm.xrange(nb_iterations):
+        for _ in range(nb_iterations):
             observed = aug.augment_images(self.images)
             if np.array_equal(observed, self.images_flipped):
                 nb_images_flipped += 1
@@ -299,7 +297,7 @@ class _TestFliplrAndFlipudBase(object):
 
         nb_iterations = 1000
         nb_images_flipped_det = 0
-        for _ in sm.xrange(nb_iterations):
+        for _ in range(nb_iterations):
             observed = aug.augment_images(self.images)
             if np.array_equal(observed, self.images_flipped):
                 nb_images_flipped_det += 1
@@ -343,7 +341,7 @@ class _TestFliplrAndFlipudBase(object):
 
         nb_iterations = 250
         nb_cbaoi_flipped = 0
-        for _ in sm.xrange(nb_iterations):
+        for _ in range(nb_iterations):
             observed = getattr(aug, augf_name)(cbaoi)
             if np.allclose(observed[0].items[0].coords,
                            cbaoi_flipped[0].items[0].coords):
@@ -358,7 +356,7 @@ class _TestFliplrAndFlipudBase(object):
 
         nb_iterations = 10
         nb_cbaoi_flipped = 0
-        for _ in sm.xrange(nb_iterations):
+        for _ in range(nb_iterations):
             observed = getattr(aug, augf_name)(cbaoi)
             if np.allclose(observed[0].items[0].coords,
                            cbaoi_flipped[0].items[0].coords):
@@ -371,9 +369,9 @@ class _TestFliplrAndFlipudBase(object):
         aug = self.create_aug(0.5)
         nb_iterations = 1000
         nb_flipped_by_pos = [0] * len(images_multi)
-        for _ in sm.xrange(nb_iterations):
+        for _ in range(nb_iterations):
             observed = aug.augment_images(images_multi)
-            for i in sm.xrange(len(images_multi)):
+            for i in range(len(images_multi)):
                 if np.array_equal(observed[i], self.image_flipped):
                     nb_flipped_by_pos[i] += 1
 
@@ -385,9 +383,9 @@ class _TestFliplrAndFlipudBase(object):
         aug = self.create_aug(0.5).to_deterministic()
         nb_iterations = 10
         nb_flipped_by_pos_det = [0] * len(images_multi)
-        for _ in sm.xrange(nb_iterations):
+        for _ in range(nb_iterations):
             observed = aug.augment_images(images_multi)
-            for i in sm.xrange(len(images_multi)):
+            for i in range(len(images_multi)):
                 if np.array_equal(observed[i], self.image_flipped):
                     nb_flipped_by_pos_det[i] += 1
 
@@ -397,7 +395,7 @@ class _TestFliplrAndFlipudBase(object):
     def test_images_p_is_stochastic_parameter(self):
         aug = self.create_aug(p=iap.Choice([0, 1], p=[0.7, 0.3]))
         seen = [0, 0]
-        for _ in sm.xrange(1000):
+        for _ in range(1000):
             observed = aug.augment_image(self.image)
             if np.array_equal(observed, self.image):
                 seen[0] += 1
@@ -722,8 +720,8 @@ class Test_fliplr(unittest.TestCase):
     def setUp(self):
         reseed()
 
-    @mock.patch("imgaug.augmenters.flip._fliplr_sliced")
-    @mock.patch("imgaug.augmenters.flip._fliplr_cv2")
+    @mock.patch("imgaug2.augmenters.flip._fliplr_sliced")
+    @mock.patch("imgaug2.augmenters.flip._fliplr_cv2")
     def test__fliplr_cv2_called_mocked(self, mock_cv2, mock_sliced):
         for dtype in ["uint8", "uint16", "int8", "int16"]:
             mock_cv2.reset_mock()
@@ -735,8 +733,8 @@ class Test_fliplr(unittest.TestCase):
             mock_cv2.assert_called_once_with(arr)
             assert mock_sliced.call_count == 0
 
-    @mock.patch("imgaug.augmenters.flip._fliplr_sliced")
-    @mock.patch("imgaug.augmenters.flip._fliplr_cv2")
+    @mock.patch("imgaug2.augmenters.flip._fliplr_sliced")
+    @mock.patch("imgaug2.augmenters.flip._fliplr_cv2")
     def test__fliplr_sliced_called_mocked(self, mock_cv2, mock_sliced):
         try:
             f128 = [np.dtype("float128").name]
@@ -796,7 +794,7 @@ class Test_fliplr(unittest.TestCase):
         ])
         if nb_channels is not None:
             arr = np.tile(arr[..., np.newaxis], (1, 1, nb_channels))
-            for c in sm.xrange(nb_channels):
+            for c in range(nb_channels):
                 arr[..., c] += c
 
         arr_flipped = func(arr)
@@ -808,7 +806,7 @@ class Test_fliplr(unittest.TestCase):
         ])
         if nb_channels is not None:
             expected = np.tile(expected[..., np.newaxis], (1, 1, nb_channels))
-            for c in sm.xrange(nb_channels):
+            for c in range(nb_channels):
                 expected[..., c] += c
         assert arr_flipped.dtype.name == "uint8"
         assert arr_flipped.shape == arr.shape
@@ -992,7 +990,7 @@ class Test_flipud(unittest.TestCase):
         ])
         if nb_channels is not None:
             arr = np.tile(arr[..., np.newaxis], (1, 1, nb_channels))
-            for c in sm.xrange(nb_channels):
+            for c in range(nb_channels):
                 arr[..., c] += c
 
         arr_flipped = func(arr)
@@ -1004,7 +1002,7 @@ class Test_flipud(unittest.TestCase):
         ])
         if nb_channels is not None:
             expected = np.tile(expected[..., np.newaxis], (1, 1, nb_channels))
-            for c in sm.xrange(nb_channels):
+            for c in range(nb_channels):
                 expected[..., c] += c
         assert arr_flipped.dtype.name == "uint8"
         assert arr_flipped.shape == arr.shape

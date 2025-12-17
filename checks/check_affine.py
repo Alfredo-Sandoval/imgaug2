@@ -1,11 +1,10 @@
-from __future__ import print_function, division
 
 import imageio
 import numpy as np
 from skimage import data
 
-import imgaug as ia
-from imgaug import augmenters as iaa
+import imgaug2 as ia
+from imgaug2 import augmenters as iaa
 
 NB_ROWS = 10
 NB_COLS = 10

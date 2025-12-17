@@ -1,6 +1,6 @@
-from imgaug import augmenters as iaa
-import imgaug as ia
-import imgaug.random as iarandom
+from imgaug2 import augmenters as iaa
+import imgaug2 as ia
+import imgaug2.random as iarandom
 
 iarandom.seed(1)
 

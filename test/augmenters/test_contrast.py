@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import itertools
 import sys
@@ -15,20 +14,20 @@ except ImportError:
 import warnings
 
 import numpy as np
-import six.moves as sm
+
 import skimage
 import skimage.data
 import cv2
 
-import imgaug as ia
-from imgaug import augmenters as iaa
-from imgaug import parameters as iap
-from imgaug import dtypes as iadt
-from imgaug.augmenters import contrast as contrast_lib
-from imgaug.testutils import (ArgCopyingMagicMock, keypoints_equal, reseed,
+import imgaug2 as ia
+from imgaug2 import augmenters as iaa
+from imgaug2 import parameters as iap
+from imgaug2 import dtypes as iadt
+from imgaug2.augmenters import contrast as contrast_lib
+from imgaug2.testutils import (ArgCopyingMagicMock, keypoints_equal, reseed,
                               runtest_pickleable_uint8_img, assertWarns,
                               is_parameter_instance)
-from imgaug.augmentables.batches import _BatchInAugmentation
+from imgaug2.augmentables.batches import _BatchInAugmentation
 
 
 class TestGammaContrast(unittest.TestCase):
@@ -81,7 +80,7 @@ class TestGammaContrast(unittest.TestCase):
         aug = iaa.GammaContrast((0.5, 2.0), per_channel=0.5)
         seen = [False, False]
         img1000d = np.zeros((1, 1, 1000), dtype=np.uint8) + 128
-        for _ in sm.xrange(100):
+        for _ in range(100):
             img_aug = aug.augment_image(img1000d)
             assert img_aug.dtype.name == "uint8"
             nb_values_uq = len(set(img_aug.flatten().tolist()))
@@ -197,7 +196,7 @@ class TestGammaContrast(unittest.TestCase):
                             image = np.full((3, 3), value, dtype=dtype)
                             image = np.tile(image[..., np.newaxis],
                                             (1, 1, nb_channels))
-                            for c in sm.xrange(nb_channels):
+                            for c in range(nb_channels):
                                 image[..., c] += c
                             expected = (
                                 (
@@ -213,7 +212,7 @@ class TestGammaContrast(unittest.TestCase):
                             # mapping distribution can behave exponential with
                             # slow start and fast growth at the end
                             assert len(np.unique(image_aug)) <= nb_channels
-                            for c in sm.xrange(nb_channels):
+                            for c in range(nb_channels):
                                 value_aug = int(image_aug[0, 0, c])
                                 value_expected = int(expected[0, 0, c])
                                 diff = abs(value_aug - value_expected)
@@ -253,7 +252,7 @@ class TestGammaContrast(unittest.TestCase):
                             image = np.full((3, 3), value, dtype=dtype)
                             image = np.tile(image[..., np.newaxis],
                                             (1, 1, nb_channels))
-                            for c in sm.xrange(nb_channels):
+                            for c in range(nb_channels):
                                 image[..., c] += float(c)
                             expected = (
                                 image.astype(np.float64)
@@ -262,7 +261,7 @@ class TestGammaContrast(unittest.TestCase):
                             image_aug = aug.augment_image(image)
                             assert image_aug.shape == (3, 3, nb_channels)
                             assert image_aug.dtype.name == dtype.name
-                            for c in sm.xrange(nb_channels):
+                            for c in range(nb_channels):
                                 value_aug = image_aug[0, 0, c]
                                 value_expected = expected[0, 0, c]
                                 assert _allclose(value_aug, value_expected)
@@ -344,7 +343,7 @@ class TestSigmoidContrast(unittest.TestCase):
                                   per_channel=0.5)
         seen = [False, False]
         img1000d = np.zeros((1, 1, 1000), dtype=np.uint8) + 128
-        for _ in sm.xrange(100):
+        for _ in range(100):
             img_aug = aug.augment_image(img1000d)
             assert img_aug.dtype.name == "uint8"
             nb_values_uq = len(set(img_aug.flatten().tolist()))
@@ -564,7 +563,7 @@ class TestLogContrast(unittest.TestCase):
         aug = iaa.LogContrast((0.5, 2.0), per_channel=0.5)
         seen = [False, False]
         img1000d = np.zeros((1, 1, 1000), dtype=np.uint8) + 128
-        for _ in sm.xrange(100):
+        for _ in range(100):
             img_aug = aug.augment_image(img1000d)
             assert img_aug.dtype.name == "uint8"
             nb_values_uq = len(set(img_aug.flatten().tolist()))
@@ -759,7 +758,7 @@ class TestLinearContrast(unittest.TestCase):
         # must not use just value 128 here, otherwise nothing will change as
         # all values would have distance 0 to 128
         img1000d = np.zeros((1, 1, 1000), dtype=np.uint8) + 128 + 20
-        for _ in sm.xrange(100):
+        for _ in range(100):
             img_aug = aug.augment_image(img1000d)
             assert img_aug.dtype.name == "uint8"
             nb_values_uq = len(set(img_aug.flatten().tolist()))
@@ -1070,7 +1069,7 @@ class TestAllChannelsCLAHE(unittest.TestCase):
         img1000d[0, 0, :] = 90
         img1000d[0, 1, :] = 100
         img1000d[0, 2, :] = 110
-        for _ in sm.xrange(100):
+        for _ in range(100):
             with assertWarns(self, iaa.SuspiciousSingleImageShapeWarning):
                 img_aug = aug.augment_image(img1000d)
             assert img_aug.dtype.name == "uint8"
@@ -1306,7 +1305,7 @@ class TestCLAHE(unittest.TestCase):
         assert icba.from_colorspace == iaa.CSPACE_BGR
         assert icba.to_colorspace == iaa.CSPACE_HSV
 
-    @mock.patch("imgaug.augmenters.color.change_colorspace_")
+    @mock.patch("imgaug2.augmenters.color.change_colorspace_")
     def test_single_image_grayscale(self, mock_cs):
         img = [
             [0, 1, 2, 3, 4],
@@ -1342,7 +1341,7 @@ class TestCLAHE(unittest.TestCase):
 
     @classmethod
     def _test_single_image_3d_rgb_to_x(cls, to_colorspace, channel_idx):
-        fname_cs = "imgaug.augmenters.color.change_colorspace_"
+        fname_cs = "imgaug2.augmenters.color.change_colorspace_"
         with mock.patch(fname_cs) as mock_cs:
             img = [
                 [0, 1, 2, 3, 4],
@@ -1414,7 +1413,7 @@ class TestCLAHE(unittest.TestCase):
     def test_single_image_3d_rgb_to_hls(self):
         self._test_single_image_3d_rgb_to_x(iaa.CSPACE_HLS, 1)
 
-    @mock.patch("imgaug.augmenters.color.change_colorspace_")
+    @mock.patch("imgaug2.augmenters.color.change_colorspace_")
     def test_single_image_4d_rgb_to_lab(self, mock_cs):
         channel_idx = 0
 
@@ -1477,7 +1476,7 @@ class TestCLAHE(unittest.TestCase):
 
         assert np.array_equal(mock_cs.call_args_list[1][0][0], expected2)
 
-    @mock.patch("imgaug.augmenters.color.change_colorspace_")
+    @mock.patch("imgaug2.augmenters.color.change_colorspace_")
     def test_single_image_5d_rgb_to_lab(self, mock_cs):
         img = [
             [0, 1, 2, 3, 4],
@@ -1543,7 +1542,7 @@ class TestCLAHE(unittest.TestCase):
 
     @classmethod
     def _test_many_images_rgb_to_lab_list(cls, with_3d_images):
-        fname_cs = "imgaug.augmenters.color.change_colorspace_"
+        fname_cs = "imgaug2.augmenters.color.change_colorspace_"
         with mock.patch(fname_cs) as mock_cs:
             img = [
                 [0, 1, 2, 3, 4],
@@ -1556,9 +1555,9 @@ class TestCLAHE(unittest.TestCase):
             n_3d_imgs = 3 if with_3d_images else 0
 
             imgs = []
-            for i in sm.xrange(n_imgs):
+            for i in range(n_imgs):
                 imgs.append(img + i)
-            for i in sm.xrange(n_3d_imgs):
+            for i in range(n_3d_imgs):
                 imgs.append(np.tile(img[..., np.newaxis], (1, 1, 3)) + 2 + i)
 
             def side_effect_change_colorspace(image, _to_colorspace,
@@ -1609,7 +1608,7 @@ class TestCLAHE(unittest.TestCase):
                 == 5 if with_3d_images else 2)
 
             # indices: call 0, args, arg 0, image i in list of images
-            for i in sm.xrange(0, 2):
+            for i in range(0, 2):
                 expected = imgs[i][..., np.newaxis]
                 assert np.array_equal(
                     mock_all_channel_clahe
@@ -1620,7 +1619,7 @@ class TestCLAHE(unittest.TestCase):
                 )
 
             if with_3d_images:
-                for i in sm.xrange(2, 5):
+                for i in range(2, 5):
                     expected = imgs[i]
                     if expected.shape[2] == 4:
                         expected = expected[..., 0:3]
@@ -1653,7 +1652,7 @@ class TestCLAHE(unittest.TestCase):
 
     @classmethod
     def _test_many_images_rgb_to_lab_array(cls, nb_channels, nb_images):
-        fname_cs = "imgaug.augmenters.color.change_colorspace_"
+        fname_cs = "imgaug2.augmenters.color.change_colorspace_"
         with mock.patch(fname_cs) as mock_cs:
             with_color_conversion = (
                 True if nb_channels is not None and nb_channels in [3, 4]
@@ -1724,7 +1723,7 @@ class TestCLAHE(unittest.TestCase):
 
             # indices: call 0, args, arg 0, image i in list of images
             if not with_color_conversion:
-                for i in sm.xrange(nb_images):
+                for i in range(nb_images):
                     expected = imgs[i]
                     if expected.ndim == 2:
                         expected = expected[..., np.newaxis]
@@ -1738,7 +1737,7 @@ class TestCLAHE(unittest.TestCase):
                         expected
                     )
             else:
-                for i in sm.xrange(nb_images):
+                for i in range(nb_images):
                     expected = imgs[i]
                     if expected.shape[2] == 4:
                         expected = expected[..., 0:3]
@@ -1788,7 +1787,7 @@ class TestCLAHE(unittest.TestCase):
                     img = np.tile(img[..., np.newaxis], (1, 1, nb_channels))
 
                 all_same = True
-                for _ in sm.xrange(10):
+                for _ in range(10):
                     result1 = clahe.augment_image(img)
                     result2 = clahe.augment_image(img)
                     same = np.array_equal(result1, result2)
@@ -1799,7 +1798,7 @@ class TestCLAHE(unittest.TestCase):
 
                 clahe_det = clahe.to_deterministic()
                 all_same = True
-                for _ in sm.xrange(10):
+                for _ in range(10):
                     result1 = clahe_det.augment_image(img)
                     result2 = clahe_det.augment_image(img)
                     same = np.array_equal(result1, result2)
@@ -1883,7 +1882,7 @@ class TestAllChannelsHistogramEqualization(unittest.TestCase):
                 else:
                     assert isinstance(imgs_aug, list)
                 assert len(imgs_aug) == nb_images
-                for i in sm.xrange(nb_images):
+                for i in range(nb_images):
                     assert imgs_aug[i].dtype.name == "uint8"
                     assert np.array_equal(imgs_aug[i], imgs[i] + 1)
 
@@ -1909,7 +1908,7 @@ class TestAllChannelsHistogramEqualization(unittest.TestCase):
         imgs_aug = aug.augment_images(imgs)
         assert imgs_aug.dtype.name == "uint8"
         assert len(imgs_aug) == nb_images
-        for i in sm.xrange(nb_images):
+        for i in range(nb_images):
             assert imgs_aug[i].shape == img.shape
             assert np.max(imgs_aug[i]) > np.max(img)
         assert len(np.unique(imgs_aug[0])) > len(np.unique(imgs_aug[1]))
@@ -1937,7 +1936,7 @@ class TestAllChannelsHistogramEqualization(unittest.TestCase):
                 dynamic_range = max_value + abs(min_value)
                 if np.dtype(dtype).kind == "f":
                     img = np.zeros((16,), dtype=dtype)
-                    for i in sm.xrange(16):
+                    for i in range(16):
                         img[i] = min_value + i * (0.01 * dynamic_range)
                     img = img.reshape((4, 4))
                 else:
@@ -2068,7 +2067,7 @@ class TestHistogramEqualization(unittest.TestCase):
                     if nb_channels == 1:
                         expected = expected[..., np.newaxis]
                 elif nb_channels == 5:
-                    for c in sm.xrange(expected.shape[2]):
+                    for c in range(expected.shape[2]):
                         expected[..., c:c+1] = cv2.equalizeHist(
                             expected[..., c]
                         )[..., np.newaxis]

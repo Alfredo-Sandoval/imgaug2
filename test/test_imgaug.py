@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import time
 import warnings
@@ -17,13 +16,13 @@ except ImportError:
 import matplotlib
 matplotlib.use('Agg')  # fix execution of tests involving matplotlib on travis
 import numpy as np
-import six.moves as sm
+
 import cv2
 
-import imgaug as ia
-from imgaug import dtypes as iadt
-import imgaug.random as iarandom
-from imgaug.testutils import assertWarns
+import imgaug2 as ia
+from imgaug2 import dtypes as iadt
+import imgaug2.random as iarandom
+from imgaug2.testutils import assertWarns
 
 # TODO clean up this file
 
@@ -297,7 +296,7 @@ def test_is_callable():
         assert ia.is_callable(value) is False
 
 
-@mock.patch("imgaug.random.seed")
+@mock.patch("imgaug2.random.seed")
 def test_seed(mock_seed):
     ia.seed(10017)
     mock_seed.assert_called_once_with(10017)
@@ -314,7 +313,7 @@ def test_current_random_state():
     assert "is deprecated" in str(caught_warnings[-1].message)
 
 
-@mock.patch("imgaug.random.RNG")
+@mock.patch("imgaug2.random.RNG")
 def test_new_random_state__induce_pseudo_random(mock_rng):
     with warnings.catch_warnings(record=True) as caught_warnings:
         warnings.simplefilter("always")
@@ -326,7 +325,7 @@ def test_new_random_state__induce_pseudo_random(mock_rng):
     assert "is deprecated" in str(caught_warnings[-1].message)
 
 
-@mock.patch("imgaug.random.RNG")
+@mock.patch("imgaug2.random.RNG")
 def test_new_random_state__induce_fully_random(mock_rng):
     with warnings.catch_warnings(record=True) as caught_warnings:
         warnings.simplefilter("always")
@@ -338,7 +337,7 @@ def test_new_random_state__induce_fully_random(mock_rng):
     assert "is deprecated" in str(caught_warnings[-1].message)
 
 
-@mock.patch("imgaug.random.RNG")
+@mock.patch("imgaug2.random.RNG")
 def test_new_random_state__use_seed(mock_rng):
     with warnings.catch_warnings(record=True) as caught_warnings:
         warnings.simplefilter("always")
@@ -350,7 +349,7 @@ def test_new_random_state__use_seed(mock_rng):
     assert "is deprecated" in str(caught_warnings[-1].message)
 
 
-@mock.patch("imgaug.random.RNG")
+@mock.patch("imgaug2.random.RNG")
 def test_dummy_random_state(mock_rng):
     with warnings.catch_warnings(record=True) as caught_warnings:
         warnings.simplefilter("always")
@@ -362,8 +361,8 @@ def test_dummy_random_state(mock_rng):
     assert "is deprecated" in str(caught_warnings[-1].message)
 
 
-@mock.patch("imgaug.random.copy_generator")
-@mock.patch("imgaug.random.copy_generator_unless_global_generator")
+@mock.patch("imgaug2.random.copy_generator")
+@mock.patch("imgaug2.random.copy_generator_unless_global_generator")
 def test_copy_random_state__not_global(mock_copy_gen_glob, mock_copy_gen):
     with warnings.catch_warnings(record=True) as caught_warnings:
         warnings.simplefilter("always")
@@ -377,8 +376,8 @@ def test_copy_random_state__not_global(mock_copy_gen_glob, mock_copy_gen):
     assert "is deprecated" in str(caught_warnings[-1].message)
 
 
-@mock.patch("imgaug.random.copy_generator")
-@mock.patch("imgaug.random.copy_generator_unless_global_generator")
+@mock.patch("imgaug2.random.copy_generator")
+@mock.patch("imgaug2.random.copy_generator_unless_global_generator")
 def test_copy_random_state__also_global(mock_copy_gen_glob, mock_copy_gen):
     with warnings.catch_warnings(record=True) as caught_warnings:
         warnings.simplefilter("always")
@@ -392,7 +391,7 @@ def test_copy_random_state__also_global(mock_copy_gen_glob, mock_copy_gen):
     assert "is deprecated" in str(caught_warnings[-1].message)
 
 
-@mock.patch("imgaug.random.derive_generator_")
+@mock.patch("imgaug2.random.derive_generator_")
 def test_derive_random_state(mock_derive):
     with warnings.catch_warnings(record=True) as caught_warnings:
         warnings.simplefilter("always")
@@ -405,7 +404,7 @@ def test_derive_random_state(mock_derive):
     assert "is deprecated" in str(caught_warnings[-1].message)
 
 
-@mock.patch("imgaug.random.derive_generators_")
+@mock.patch("imgaug2.random.derive_generators_")
 def test_derive_random_states(mock_derive):
     with warnings.catch_warnings(record=True) as caught_warnings:
         warnings.simplefilter("always")
@@ -418,7 +417,7 @@ def test_derive_random_states(mock_derive):
     assert "is deprecated" in str(caught_warnings[-1].message)
 
 
-@mock.patch("imgaug.random.advance_generator_")
+@mock.patch("imgaug2.random.advance_generator_")
 def test_forward_random_state(mock_advance):
     with warnings.catch_warnings(record=True) as caught_warnings:
         warnings.simplefilter("always")
@@ -926,7 +925,7 @@ def test_pool():
             arr_pooled = ia.pool(arr, 2, func)
             assert arr_pooled.shape == (2, 2, 3)
             assert arr_pooled.dtype == np.dtype(dtype)
-            for c in sm.xrange(3):
+            for c in range(3):
                 assert arr_pooled[0, 0, c] == int(func([0, 1, 4, 5])) + c
                 assert arr_pooled[0, 1, c] == int(func([2, 3, 6, 7])) + c
                 assert arr_pooled[1, 0, c] == int(func([8, 9, 12, 13])) + c
@@ -993,7 +992,7 @@ def test_pool():
             arr_pooled = ia.pool(arr, 2, func)
             assert arr_pooled.shape == (2, 2, 3)
             assert arr_pooled.dtype == np.dtype(dtype)
-            for c in sm.xrange(3):
+            for c in range(3):
                 assert arr_pooled[0, 0, c] == func([0, 1, 4, 5]) + c
                 assert arr_pooled[0, 1, c] == func([2, 3, 6, 7]) + c
                 assert arr_pooled[1, 0, c] == func([8, 9, 12, 13]) + c
@@ -1542,7 +1541,7 @@ def test_draw_grid():
 
 
 def test_classes_and_functions_marked_deprecated():
-    import imgaug.imgaug as iia
+    import imgaug2.imgaug as iia
 
     # class
     with warnings.catch_warnings(record=True) as caught_warnings:
@@ -1558,7 +1557,7 @@ def test_classes_and_functions_marked_deprecated():
         assert len(caught_warnings) == 1
         assert "is deprecated" in str(caught_warnings[-1].message)
 
-    # no deprecated warning for calls to imgaug.<name>
+    # no deprecated warning for calls to imgaug2.<name>
     with warnings.catch_warnings(record=True) as caught_warnings:
         warnings.simplefilter("always")
         _kp = ia.Keypoint(x=1, y=2)

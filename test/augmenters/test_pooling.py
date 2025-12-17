@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import itertools
 import sys
@@ -14,14 +13,14 @@ except ImportError:
     import mock
 
 import numpy as np
-import six.moves as sm
 
-import imgaug as ia
-import imgaug.random as iarandom
-import imgaug.augmenters.pooling as iapooling
-from imgaug import augmenters as iaa
-from imgaug import parameters as iap
-from imgaug.testutils import (reseed,
+
+import imgaug2 as ia
+import imgaug2.random as iarandom
+import imgaug2.augmenters.pooling as iapooling
+from imgaug2 import augmenters as iaa
+from imgaug2 import parameters as iap
+from imgaug2.testutils import (reseed,
                               assert_cbaois_equal,
                               runtest_pickleable_uint8_img,
                               is_parameter_instance)
@@ -72,10 +71,10 @@ class _TestPoolingAugmentersBase(object):
     def augmenter(self):
         raise NotImplementedError()
 
-    @mock.patch("imgaug.augmenters.pooling._AbstractPoolingBase."
+    @mock.patch("imgaug2.augmenters.pooling._AbstractPoolingBase."
                 "_augment_hms_and_segmaps_by_samples")
     def test_augment_segmaps(self, mock_aug_segmaps):
-        from imgaug.augmentables.segmaps import SegmentationMapsOnImage
+        from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
         arr = np.int32([
             [1, 2, 3],
             [4, 5, 6]
@@ -100,7 +99,7 @@ class _TestPoolingAugmentersBase(object):
         assert_cbaois_equal(cbaoi_aug, cbaoi)
 
     def _test_augment_keypoints__kernel_size_is_noop(self, kernel_size):
-        from imgaug.augmentables.kps import Keypoint, KeypointsOnImage
+        from imgaug2.augmentables.kps import Keypoint, KeypointsOnImage
         kps = [Keypoint(x=1.5, y=5.5), Keypoint(x=5.5, y=1.5)]
         kpsoi = KeypointsOnImage(kps, shape=(6, 6, 3))
         self._test_augment_cbaoi__kernel_size_is_noop(
@@ -113,7 +112,7 @@ class _TestPoolingAugmentersBase(object):
         self._test_augment_keypoints__kernel_size_is_noop(1)
 
     def _test_augment_polygons__kernel_size_is_noop(self, kernel_size):
-        from imgaug.augmentables.polys import Polygon, PolygonsOnImage
+        from imgaug2.augmentables.polys import Polygon, PolygonsOnImage
         ps = [Polygon([(1, 1), (2, 1), (2, 2)])]
         psoi = PolygonsOnImage(ps, shape=(6, 6, 3))
         self._test_augment_cbaoi__kernel_size_is_noop(
@@ -126,7 +125,7 @@ class _TestPoolingAugmentersBase(object):
         self._test_augment_polygons__kernel_size_is_noop(1)
 
     def _test_augment_line_strings__kernel_size_is_noop(self, kernel_size):
-        from imgaug.augmentables.lines import LineString, LineStringsOnImage
+        from imgaug2.augmentables.lines import LineString, LineStringsOnImage
         ls = [LineString([(1, 1), (2, 1), (2, 2)])]
         lsoi = LineStringsOnImage(ls, shape=(6, 6, 3))
         self._test_augment_cbaoi__kernel_size_is_noop(
@@ -139,7 +138,7 @@ class _TestPoolingAugmentersBase(object):
         self._test_augment_line_strings__kernel_size_is_noop(1)
 
     def _test_augment_bounding_boxes__kernel_size_is_noop(self, kernel_size):
-        from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+        from imgaug2.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
         bbs = [BoundingBox(x1=1, y1=2, x2=3, y2=4)]
         bbsoi = BoundingBoxesOnImage(bbs, shape=(6, 6, 3))
         self._test_augment_cbaoi__kernel_size_is_noop(
@@ -152,7 +151,7 @@ class _TestPoolingAugmentersBase(object):
         self._test_augment_bounding_boxes__kernel_size_is_noop(1)
 
     def _test_augment_heatmaps__kernel_size_is_noop(self, kernel_size):
-        from imgaug.augmentables.heatmaps import HeatmapsOnImage
+        from imgaug2.augmentables.heatmaps import HeatmapsOnImage
         arr = np.float32([
             [0.5, 0.6, 0.7],
             [0.4, 0.5, 0.6]
@@ -172,7 +171,7 @@ class _TestPoolingAugmentersBase(object):
         self._test_augment_heatmaps__kernel_size_is_noop(1)
 
     def _test_augment_segmaps__kernel_size_is_noop(self, kernel_size):
-        from imgaug.augmentables.segmaps import SegmentationMapsOnImage
+        from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
         arr = np.int32([
             [0, 1, 2],
             [1, 2, 3]
@@ -198,28 +197,28 @@ class _TestPoolingAugmentersBase(object):
         assert_cbaois_equal(observed, cbaoi)
 
     def test_augment_keypoints__kernel_size_is_two__keep_size(self):
-        from imgaug.augmentables.kps import Keypoint, KeypointsOnImage
+        from imgaug2.augmentables.kps import Keypoint, KeypointsOnImage
         kps = [Keypoint(x=1.5, y=5.5), Keypoint(x=5.5, y=1.5)]
         kpsoi = KeypointsOnImage(kps, shape=(6, 6, 3))
         self._test_augment_cbaoi__kernel_size_is_two__keep_size(
             kpsoi, "augment_keypoints")
 
     def test_augment_polygons__kernel_size_is_two__keep_size(self):
-        from imgaug.augmentables.polys import Polygon, PolygonsOnImage
+        from imgaug2.augmentables.polys import Polygon, PolygonsOnImage
         polys = [Polygon([(0, 0), (2, 0), (2, 2)])]
         psoi = PolygonsOnImage(polys, shape=(6, 6, 3))
         self._test_augment_cbaoi__kernel_size_is_two__keep_size(
             psoi, "augment_polygons")
 
     def test_augment_line_strings__kernel_size_is_two__keep_size(self):
-        from imgaug.augmentables.lines import LineString, LineStringsOnImage
+        from imgaug2.augmentables.lines import LineString, LineStringsOnImage
         ls = [LineString([(0, 0), (2, 0), (2, 2)])]
         lsoi = LineStringsOnImage(ls, shape=(6, 6, 3))
         self._test_augment_cbaoi__kernel_size_is_two__keep_size(
             lsoi, "augment_line_strings")
 
     def test_augment_bounding_boxes__kernel_size_is_two__keep_size(self):
-        from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+        from imgaug2.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
         bbs = [BoundingBox(x1=0, y1=0, x2=2, y2=2)]
         bbsoi = BoundingBoxesOnImage(bbs, shape=(6, 6, 3))
         self._test_augment_cbaoi__kernel_size_is_two__keep_size(
@@ -232,7 +231,7 @@ class _TestPoolingAugmentersBase(object):
         assert_cbaois_equal(observed, expected)
 
     def test_augment_keypoints__kernel_size_is_two__no_keep_size(self):
-        from imgaug.augmentables.kps import Keypoint, KeypointsOnImage
+        from imgaug2.augmentables.kps import Keypoint, KeypointsOnImage
         kps = [Keypoint(x=1.5, y=5.5), Keypoint(x=5.5, y=1.5)]
         kpsoi = KeypointsOnImage(kps, shape=(6, 6, 3))
         expected = KeypointsOnImage.from_xy_array(
@@ -245,7 +244,7 @@ class _TestPoolingAugmentersBase(object):
             kpsoi, expected, "augment_keypoints")
 
     def test_augment_polygons__kernel_size_is_two__no_keep_size(self):
-        from imgaug.augmentables.polys import Polygon, PolygonsOnImage
+        from imgaug2.augmentables.polys import Polygon, PolygonsOnImage
         ps = [Polygon([(1.5, 1.5), (5.5, 1.5), (5.5, 5.5)])]
         psoi = PolygonsOnImage(ps, shape=(6, 6, 3))
         expected = PolygonsOnImage([
@@ -255,7 +254,7 @@ class _TestPoolingAugmentersBase(object):
             psoi, expected, "augment_polygons")
 
     def test_augment_line_strings__kernel_size_is_two__no_keep_size(self):
-        from imgaug.augmentables.lines import LineString, LineStringsOnImage
+        from imgaug2.augmentables.lines import LineString, LineStringsOnImage
         ls = [LineString([(1.5, 1.5), (5.5, 1.5), (5.5, 5.5)])]
         lsoi = LineStringsOnImage(ls, shape=(6, 6, 3))
         expected = LineStringsOnImage([
@@ -265,7 +264,7 @@ class _TestPoolingAugmentersBase(object):
             lsoi, expected, "augment_line_strings")
 
     def test_augment_bounding_boxes__kernel_size_is_two__no_keep_size(self):
-        from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+        from imgaug2.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
         bbs = [BoundingBox(x1=1.5, y1=2.5, x2=3.5, y2=4.5)]
         bbsoi = BoundingBoxesOnImage(bbs, shape=(6, 6, 3))
         expected = BoundingBoxesOnImage([
@@ -275,7 +274,7 @@ class _TestPoolingAugmentersBase(object):
             bbsoi, expected, "augment_bounding_boxes")
 
     def test_augment_heatmaps__kernel_size_is_two__keep_size(self):
-        from imgaug.augmentables.heatmaps import HeatmapsOnImage
+        from imgaug2.augmentables.heatmaps import HeatmapsOnImage
         arr = np.float32([
             [0.5, 0.6, 0.7],
             [0.4, 0.5, 0.6]
@@ -289,7 +288,7 @@ class _TestPoolingAugmentersBase(object):
         assert np.allclose(heatmaps_aug.arr_0to1, arr[..., np.newaxis])
 
     def test_augment_heatmaps__kernel_size_is_two__no_keep_size(self):
-        from imgaug.augmentables.heatmaps import HeatmapsOnImage
+        from imgaug2.augmentables.heatmaps import HeatmapsOnImage
         arr = np.float32([
             [0.5, 0.6, 0.7],
             [0.4, 0.5, 0.6]
@@ -305,7 +304,7 @@ class _TestPoolingAugmentersBase(object):
         assert np.allclose(heatmaps_aug.arr_0to1, expected.arr_0to1)
 
     def test_augment_segmaps__kernel_size_is_two__keep_size(self):
-        from imgaug.augmentables.segmaps import SegmentationMapsOnImage
+        from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
         arr = np.int32([
             [0, 1, 2],
             [1, 2, 3]
@@ -319,7 +318,7 @@ class _TestPoolingAugmentersBase(object):
         assert np.allclose(segmaps_aug.arr, arr[..., np.newaxis])
 
     def test_augment_segmaps__kernel_size_is_two__no_keep_size(self):
-        from imgaug.augmentables.segmaps import SegmentationMapsOnImage
+        from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
         arr = np.int32([
             [0, 1, 2],
             [1, 2, 3]
@@ -336,7 +335,7 @@ class _TestPoolingAugmentersBase(object):
 
     def _test_augment_keypoints__kernel_size_differs(self, shape,
                                                      shape_exp):
-        from imgaug.augmentables.kps import Keypoint, KeypointsOnImage
+        from imgaug2.augmentables.kps import Keypoint, KeypointsOnImage
         kps = [Keypoint(x=1.5, y=5.5), Keypoint(x=5.5, y=1.5)]
         kpsoi = KeypointsOnImage(kps, shape=shape)
         aug = self.augmenter(
@@ -360,7 +359,7 @@ class _TestPoolingAugmentersBase(object):
         self._test_augment_keypoints__kernel_size_differs((5, 6, 3), (2, 3, 3))
 
     def _test_augment_polygons__kernel_size_differs(self, shape, shape_exp):
-        from imgaug.augmentables.polys import Polygon, PolygonsOnImage
+        from imgaug2.augmentables.polys import Polygon, PolygonsOnImage
         polys = [Polygon([(1.5, 5.5), (5.5, 1.5), (5.5, 5.5)])]
         psoi = PolygonsOnImage(polys, shape=shape)
         aug = self.augmenter(
@@ -385,7 +384,7 @@ class _TestPoolingAugmentersBase(object):
         self._test_augment_polygons__kernel_size_differs((5, 6, 3), (2, 3, 3))
 
     def _test_augment_line_strings__kernel_size_differs(self, shape, shape_exp):
-        from imgaug.augmentables.lines import LineString, LineStringsOnImage
+        from imgaug2.augmentables.lines import LineString, LineStringsOnImage
         ls = [LineString([(1.5, 5.5), (5.5, 1.5), (5.5, 5.5)])]
         lsoi = LineStringsOnImage(ls, shape=shape)
         aug = self.augmenter(
@@ -413,7 +412,7 @@ class _TestPoolingAugmentersBase(object):
 
     def _test_augment_bounding_boxes__kernel_size_differs(self, shape,
                                                           shape_exp):
-        from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+        from imgaug2.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
         bbs = [BoundingBox(x1=1.5, y1=2.5, x2=5.5, y2=6.5)]
         bbsoi = BoundingBoxesOnImage(bbs, shape=shape)
         aug = self.augmenter(
@@ -457,7 +456,7 @@ class _TestPoolingAugmentersBase(object):
         cbaoi_batch = [cbaoi, cbaoi, cbaoi_empty, cbaoi]
 
         nb_iterations = 10
-        for _ in sm.xrange(nb_iterations):
+        for _ in range(nb_iterations):
             aug_det = aug.to_deterministic()
             images_aug = aug_det.augment_images(images_batch)
             cbaois_aug = getattr(aug_det, augf_name)(cbaoi_batch)
@@ -485,7 +484,7 @@ class _TestPoolingAugmentersBase(object):
                 assert len(cbaoi_aug.items) == 0
 
     def test_keypoint_alignment(self):
-        from imgaug.augmentables.kps import Keypoint, KeypointsOnImage
+        from imgaug2.augmentables.kps import Keypoint, KeypointsOnImage
         kps = [Keypoint(x=10, y=10), Keypoint(x=30, y=30)]
         kpsoi = KeypointsOnImage(kps, shape=(40, 40, 1))
         kpsoi_empty = KeypointsOnImage([], shape=(40, 40, 1))
@@ -497,7 +496,7 @@ class _TestPoolingAugmentersBase(object):
             "augment_keypoints")
 
     def test_polygon_alignment(self):
-        from imgaug.augmentables.polys import Polygon, PolygonsOnImage
+        from imgaug2.augmentables.polys import Polygon, PolygonsOnImage
         polys = [Polygon([(10, 10), (30, 10), (30, 30)])]
         psoi = PolygonsOnImage(polys, shape=(40, 40, 1))
         psoi_empty = PolygonsOnImage([], shape=(40, 40, 1))
@@ -509,7 +508,7 @@ class _TestPoolingAugmentersBase(object):
             "augment_polygons")
 
     def test_line_strings_alignment(self):
-        from imgaug.augmentables.lines import LineString, LineStringsOnImage
+        from imgaug2.augmentables.lines import LineString, LineStringsOnImage
         lss = [LineString([(10, 10), (30, 10), (30, 30)])]
         lsoi = LineStringsOnImage(lss, shape=(40, 40, 1))
         lsoi_empty = LineStringsOnImage([], shape=(40, 40, 1))
@@ -521,7 +520,7 @@ class _TestPoolingAugmentersBase(object):
             "augment_line_strings")
 
     def test_bounding_boxes_alignment(self):
-        from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+        from imgaug2.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
         bbs = [BoundingBox(x1=10, y1=10, x2=30, y2=30)]
         bbsoi = BoundingBoxesOnImage(bbs, shape=(40, 40, 1))
         bbsoi_empty = BoundingBoxesOnImage([], shape=(40, 40, 1))
@@ -540,22 +539,22 @@ class _TestPoolingAugmentersBase(object):
         assert_cbaois_equal(cbaoi_aug, expected)
 
     def test_empty_keypoints(self):
-        from imgaug.augmentables.kps import KeypointsOnImage
+        from imgaug2.augmentables.kps import KeypointsOnImage
         cbaoi = KeypointsOnImage([], shape=(5, 6, 3))
         self._test_empty_cbaoi(cbaoi, "augment_keypoints")
 
     def test_empty_polygons(self):
-        from imgaug.augmentables.polys import PolygonsOnImage
+        from imgaug2.augmentables.polys import PolygonsOnImage
         cbaoi = PolygonsOnImage([], shape=(5, 6, 3))
         self._test_empty_cbaoi(cbaoi, "augment_polygons")
 
     def test_empty_line_strings(self):
-        from imgaug.augmentables.lines import LineStringsOnImage
+        from imgaug2.augmentables.lines import LineStringsOnImage
         cbaoi = LineStringsOnImage([], shape=(5, 6, 3))
         self._test_empty_cbaoi(cbaoi, "augment_line_strings")
 
     def test_empty_bounding_boxes(self):
-        from imgaug.augmentables.bbs import BoundingBoxesOnImage
+        from imgaug2.augmentables.bbs import BoundingBoxesOnImage
         cbaoi = BoundingBoxesOnImage([], shape=(5, 6, 3))
         self._test_empty_cbaoi(cbaoi, "augment_bounding_boxes")
 

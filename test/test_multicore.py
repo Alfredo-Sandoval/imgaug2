@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import time
 import multiprocessing
@@ -18,14 +17,14 @@ except ImportError:
     import mock
 
 import numpy as np
-import six.moves as sm
 
-import imgaug as ia
-import imgaug.multicore as multicore
-import imgaug.random as iarandom
-from imgaug import augmenters as iaa
-from imgaug.testutils import reseed
-from imgaug.augmentables.batches import Batch, UnnormalizedBatch
+
+import imgaug2 as ia
+import imgaug2.multicore as multicore
+import imgaug2.random as iarandom
+from imgaug2 import augmenters as iaa
+from imgaug2.testutils import reseed
+from imgaug2.augmentables.batches import Batch, UnnormalizedBatch
 
 IS_SUPPORTING_CONTEXTS = (sys.version_info[0] == 3
                           and sys.version_info[1] >= 4)
@@ -46,7 +45,7 @@ class clean_context():
 class Test__get_context(unittest.TestCase):
     @unittest.skipUnless(not IS_SUPPORTING_CONTEXTS,
                          "Behaviour happens only in python <=3.3")
-    @mock.patch("imgaug.imgaug.warn")
+    @mock.patch("imgaug2.imgaug2.warn")
     @mock.patch("platform.version")
     def test_mocked_nixos_python2(self, mock_version, mock_warn):
         with clean_context():
@@ -449,7 +448,7 @@ class TestPool(unittest.TestCase):
         augseq = iaa.AddElementwise((0, 255))
         image = np.zeros((10, 10, 1), dtype=np.uint8)
         batch = ia.Batch(images=np.uint8([image, image]))
-        batches = [batch.deepcopy() for _ in sm.xrange(nb_batches)]
+        batches = [batch.deepcopy() for _ in range(nb_batches)]
 
         # seed=1
         with multicore.Pool(augseq, processes=2, maxtasksperchild=30,
@@ -497,7 +496,7 @@ class TestPool(unittest.TestCase):
         # contains images AND keypoints
         kps = ia.KeypointsOnImage([ia.Keypoint(x=2, y=0)], shape=(10, 10, 1))
         batch = ia.Batch(images=np.uint8([image, image]), keypoints=[kps, kps])
-        batches = [batch.deepcopy() for _ in sm.xrange(60)]
+        batches = [batch.deepcopy() for _ in range(60)]
 
         # seed=1
         with multicore.Pool(augseq, processes=2, maxtasksperchild=30,
@@ -546,7 +545,7 @@ class TestPool(unittest.TestCase):
         augseq = iaa.AddElementwise((0, 255))
         image = np.zeros((10, 10, 1), dtype=np.uint8)
         batch = ia.Batch(images=np.uint8([image, image]))
-        batches = [batch.deepcopy() for _ in sm.xrange(20)]
+        batches = [batch.deepcopy() for _ in range(20)]
 
         with multicore.Pool(augseq, processes=2, maxtasksperchild=5) as pool:
             batches_aug = pool.map_batches(batches, chunksize=2)
@@ -565,7 +564,7 @@ class TestPool(unittest.TestCase):
         # batch contains images AND keypoints
         kps = ia.KeypointsOnImage([ia.Keypoint(x=2, y=0)], shape=(10, 10, 1))
         batch = ia.Batch(images=np.uint8([image, image]), keypoints=[kps, kps])
-        batches = [batch.deepcopy() for _ in sm.xrange(20)]
+        batches = [batch.deepcopy() for _ in range(20)]
 
         with multicore.Pool(augseq, processes=2, maxtasksperchild=5) as pool:
             batches_aug = pool.map_batches(batches, chunksize=2)
@@ -589,7 +588,7 @@ class TestPool(unittest.TestCase):
             for batch_aug in batches_aug:
                 ids.add(int(batch_aug.images_unaug.flat[0]))
                 ids.add(int(batch_aug.images_unaug.flat[1]))
-            for idx in sm.xrange(2*100):
+            for idx in range(2*100):
                 assert idx in ids
             assert len(ids) == 200
 
@@ -598,7 +597,7 @@ class TestPool(unittest.TestCase):
             for batch_aug in batches_aug:
                 ids.add(int(batch_aug.images_aug.flat[0]))
                 ids.add(int(batch_aug.images_aug.flat[1]))
-            for idx in sm.xrange(2*100):
+            for idx in range(2*100):
                 assert idx in ids
             assert len(ids) == 200
 
@@ -609,7 +608,7 @@ class TestPool(unittest.TestCase):
         batches = [
             ia.Batch(images=np.uint8([image + b_idx*2, image + b_idx*2+1]))
             for b_idx
-            in sm.xrange(100)]
+            in range(100)]
 
         with multicore.Pool(augseq, processes=2, maxtasksperchild=25) as pool:
             batches_aug = pool.map_batches(batches)
@@ -675,7 +674,7 @@ class Test_Pool_initialize_worker(unittest.TestCase):
         multicore.Pool._WORKER_AUGSEQ = None
         multicore.Pool._WORKER_SEED_START = None
 
-    @mock.patch("imgaug.multicore.Pool")
+    @mock.patch("imgaug2.multicore.Pool")
     def test_with_seed_start(self, mock_ia_pool):
         augseq = mock.MagicMock()
         multicore._Pool_initialize_worker(augseq, 1)
@@ -685,7 +684,7 @@ class Test_Pool_initialize_worker(unittest.TestCase):
 
     @mock.patch.object(sys, 'version_info')
     @mock.patch("time.time_ns", create=True)  # doesnt exist in <=3.6
-    @mock.patch("imgaug.random.seed")
+    @mock.patch("imgaug2.random.seed")
     @mock.patch("multiprocessing.current_process")
     def test_without_seed_start_simulate_py37_or_higher(self,
                                                         mock_cp,
@@ -713,7 +712,7 @@ class Test_Pool_initialize_worker(unittest.TestCase):
 
     @mock.patch.object(sys, 'version_info')
     @mock.patch("time.time")
-    @mock.patch("imgaug.random.seed")
+    @mock.patch("imgaug2.random.seed")
     @mock.patch("multiprocessing.current_process")
     def test_without_seed_start_simulate_py36_or_lower(self,
                                                        mock_cp,
@@ -739,7 +738,7 @@ class Test_Pool_initialize_worker(unittest.TestCase):
         seed_local = augseq.seed_.call_args_list[0][0][0]
         assert seed_global != seed_local
 
-    @mock.patch("imgaug.random.seed")
+    @mock.patch("imgaug2.random.seed")
     def test_without_seed_start(self, mock_ia_seed):
         augseq = mock.MagicMock()
 
@@ -786,7 +785,7 @@ class Test_Pool_worker(unittest.TestCase):
         assert augseq.augment_batch_.call_count == 1
         augseq.augment_batch_.assert_called_once_with(batch)
 
-    @mock.patch("imgaug.random.seed")
+    @mock.patch("imgaug2.random.seed")
     def test_with_seed_start(self, mock_ia_seed):
         augseq = mock.MagicMock()
         augseq.augment_batch_.return_value = "augmented_batch_"
@@ -829,7 +828,7 @@ class Test_Pool_starworker(unittest.TestCase):
         multicore.Pool._WORKER_AUGSEQ = None
         multicore.Pool._WORKER_SEED_START = None
 
-    @mock.patch("imgaug.multicore._Pool_worker")
+    @mock.patch("imgaug2.multicore._Pool_worker")
     def test_simple_call(self, mock_worker):
         image = np.zeros((1, 1, 3), dtype=np.uint8)
         batch = UnnormalizedBatch(images=[image])
@@ -847,7 +846,7 @@ class Test_Pool_starworker(unittest.TestCase):
 # it is outside of the test as putting it inside of it caused issues
 # with spawn mode not being able to pickle this method, see issue #414.
 def _batch_loader_load_func():
-    for _ in sm.xrange(20):
+    for _ in range(20):
         yield ia.Batch(images=np.zeros((2, 4, 4, 3), dtype=np.uint8))
 # ---------
 
@@ -862,7 +861,7 @@ class TestBatchLoader(unittest.TestCase):
         with warnings.catch_warnings(record=True) as caught_warnings:
             for nb_workers in [1, 2]:
                 # repeat these tests many times to catch rarer race conditions
-                for _ in sm.xrange(5):
+                for _ in range(5):
                     loader = multicore.BatchLoader(
                         _batch_loader_load_func, queue_size=2,
                         nb_workers=nb_workers, threaded=True)

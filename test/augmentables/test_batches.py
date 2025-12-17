@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import warnings
 import sys
@@ -15,10 +14,10 @@ except ImportError:
 
 import numpy as np
 
-import imgaug as ia
-import imgaug.augmenters as iaa
-from imgaug.testutils import reseed
-from imgaug.augmentables.batches import _BatchInAugmentation
+import imgaug2 as ia
+import imgaug2.augmenters as iaa
+from imgaug2.testutils import reseed
+from imgaug2.augmentables.batches import _BatchInAugmentation
 
 
 ATTR_NAMES = ["images", "heatmaps", "segmentation_maps", "keypoints",

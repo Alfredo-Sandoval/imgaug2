@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import sys
 # unittest only added in 3.4 self.subTest()
@@ -14,7 +13,7 @@ except ImportError:
 
 import numpy as np
 
-from imgaug.augmentables.utils import (
+from imgaug2.augmentables.utils import (
     interpolate_points,
     interpolate_point_pair,
     interpolate_points_by_max_distance,

@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import sys
 # unittest only added in 3.4 self.subTest()
@@ -15,11 +14,11 @@ import functools
 
 import numpy as np
 
-import imgaug as ia
-from imgaug import augmenters as iaa
-from imgaug import random as iarandom
-from imgaug import parameters as iap
-from imgaug.testutils import runtest_pickleable_uint8_img
+import imgaug2 as ia
+from imgaug2 import augmenters as iaa
+from imgaug2 import random as iarandom
+from imgaug2 import parameters as iap
+from imgaug2.testutils import runtest_pickleable_uint8_img
 
 # imagecorruptions cannot be installed in <=3.4 due to their
 # scikit-image requirement

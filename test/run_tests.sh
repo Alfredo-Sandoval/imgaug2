@@ -1,7 +1,7 @@
 #!/bin/bash
-# This is expected to be executed from /imgaug, not from /imgaug/test.
+# This is expected to be executed from /imgaug2, not from /imgaug2/test.
 # That way it is ensured that you use the current code of the library in
-# the imgaug/imgaug/ subfolder, not the installed version of the library.
+# the imgaug2/imgaug2/ subfolder, not the installed version of the library.
 #
 # The command below executes all tests.
 # To execute only one specific test, use e.g.

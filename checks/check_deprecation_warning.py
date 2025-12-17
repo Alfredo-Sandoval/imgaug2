@@ -1,6 +1,5 @@
-from __future__ import print_function, absolute_import, division
 
-import imgaug as ia
+import imgaug2 as ia
 
 
 class Dummy1(object):

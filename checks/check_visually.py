@@ -3,15 +3,14 @@ Tests to visually inspect the results of the library's functionality.
 Run checks via
     python check_visually.py
 """
-from __future__ import print_function, division
 
 import argparse
 
 import numpy as np
 from skimage import data
 
-import imgaug as ia
-from imgaug import augmenters as iaa
+import imgaug2 as ia
+from imgaug2 import augmenters as iaa
 
 
 def main():

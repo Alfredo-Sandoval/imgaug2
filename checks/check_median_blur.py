@@ -1,11 +1,10 @@
-from __future__ import print_function, division
 
 import cv2
 import numpy as np
 from skimage import data
 
-import imgaug as ia
-from imgaug import augmenters as iaa
+import imgaug2 as ia
+from imgaug2 import augmenters as iaa
 
 TIME_PER_STEP = 5000
 NB_AUGS_PER_IMAGE = 10

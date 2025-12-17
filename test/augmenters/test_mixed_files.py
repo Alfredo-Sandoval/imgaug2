@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import sys
 # unittest only added in 3.4 self.subTest()
@@ -15,11 +14,11 @@ except ImportError:
 import numpy as np
 import skimage
 import skimage.data
-import six.moves as sm
 
-import imgaug as ia
-from imgaug import augmenters as iaa
-from imgaug.testutils import (create_random_images, array_equal_lists,
+
+import imgaug2 as ia
+from imgaug2 import augmenters as iaa
+from imgaug2.testutils import (create_random_images, array_equal_lists,
                               keypoints_equal, reseed, assertWarns)
 
 
@@ -137,8 +136,8 @@ class TestKeypointAugmentation(unittest.TestCase):
 
     def test_many_augmenters(self):
         keypoints = []
-        for y in sm.xrange(40//5):
-            for x in sm.xrange(60//5):
+        for y in range(40//5):
+            for x in range(60//5):
                 keypoints.append(ia.Keypoint(y=y*5, x=x*5))
 
         keypoints_oi = ia.KeypointsOnImage(keypoints, shape=(40, 60, 3))
@@ -186,7 +185,7 @@ class TestKeypointAugmentation(unittest.TestCase):
 
         for aug in augs:
             dss = []
-            for i in sm.xrange(10):
+            for i in range(10):
                 aug_det = aug.to_deterministic()
 
                 kp_fully_empty_aug = aug_det.augment_keypoints([])

@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 import warnings
 import sys
@@ -15,8 +14,8 @@ except ImportError:
 
 import numpy as np
 
-import imgaug.augmenters as iaa
-import imgaug.augmenters.overlay as overlay
+import imgaug2.augmenters as iaa
+import imgaug2.augmenters.overlay as overlay
 
 
 class Test_blend_alpha(unittest.TestCase):
@@ -31,7 +30,7 @@ class Test_blend_alpha(unittest.TestCase):
 
         assert len(caught_warnings) == 1
         assert (
-            "imgaug.augmenters.blend.blend_alpha"
+            "imgaug2.augmenters.blend.blend_alpha"
             in str(caught_warnings[-1].message)
         )
 
@@ -47,7 +46,7 @@ class TestAlpha(unittest.TestCase):
 
         assert len(caught_warnings) == 2
         assert (
-            "imgaug.augmenters.blend.BlendAlpha"
+            "imgaug2.augmenters.blend.BlendAlpha"
             in str(caught_warnings[0].message)
         )
 
@@ -63,7 +62,7 @@ class TestAlphaElementwise(unittest.TestCase):
 
         assert len(caught_warnings) == 2
         assert (
-            "imgaug.augmenters.blend.BlendAlphaElementwise"
+            "imgaug2.augmenters.blend.BlendAlphaElementwise"
             in str(caught_warnings[0].message)
         )
 
@@ -78,7 +77,7 @@ class TestSimplexNoiseAlpha(unittest.TestCase):
 
         assert len(caught_warnings) == 2
         assert (
-            "imgaug.augmenters.blend.BlendAlphaSimplexNoise"
+            "imgaug2.augmenters.blend.BlendAlphaSimplexNoise"
             in str(caught_warnings[0].message)
         )
 
@@ -93,6 +92,6 @@ class TestFrequencyNoiseAlpha(unittest.TestCase):
 
         assert len(caught_warnings) == 2
         assert (
-            "imgaug.augmenters.blend.BlendAlphaFrequencyNoise"
+            "imgaug2.augmenters.blend.BlendAlphaFrequencyNoise"
             in str(caught_warnings[0].message)
         )
