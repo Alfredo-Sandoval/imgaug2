@@ -1,0 +1,126 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "imgaug2"
+version = "0.5.0"
+description = "Image augmentation library for deep neural networks"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+  {name = "Alfredo Sandoval"},
+  {name = "Alexander Jung"},
+  {name = "Joseph Sandoval"},
+]
+keywords = ["augmentation", "image", "deep learning", "neural network", "CNN", "machine learning", "computer vision", "overfitting"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+urls = {Repository = "https://github.com/Alfredo-Sandoval/imgaug2"}
+dependencies = [
+  "numpy>=1.24",
+  "scipy",
+  "Pillow",
+  "matplotlib",
+  "scikit-image>=0.14.2",
+  "opencv-python-headless",
+  "imageio",
+  "Shapely",
+]
+
+[project.optional-dependencies]
+numba = ["numba"]
+
+[dependency-groups]
+dev = [
+  "coverage",
+  "imagecorruptions",
+  "pytest",
+  "pytest-cov",
+  "pytest-subtests",
+  "ruff",
+  "setuptools",
+  "ty",
+  "xdoctest>=0.7.2",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["imgaug2*"]
+exclude = ["checks*", "changelogs*", "test*"]
+
+[tool.setuptools.package-data]
+"*" = ["LICENSE", "README.md", "requirements.txt"]
+"imgaug2" = [
+    "DejaVuSans.ttf",
+    "quokka.jpg",
+    "quokka_annotations.json",
+    "quokka_depth_map_halfres.png",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+extend-exclude = [
+  ".git",
+  ".venv",
+  "dist",
+  "imgaug2.egg-info",
+  "imgaug2/external",
+]
+
+[tool.ruff.lint]
+# Start with basic rules and expand with modernization rules
+select = [
+    "E9", "F821", "F822", "F823", # Syntax + undefined
+    "UP",  # pyupgrade
+    "I",   # isort
+    "B",   # bugbear
+    "ANN", # annotations
+    "PTH", # pathlib
+    "FA",  # future-annotations
+]
+ignore = [
+    "ANN101", "ANN102", # ignore self and cls
+    "ANN002", "ANN003", # ignore *args and **kwargs
+]
+
+# Mirror the repo's historical pylint config where possible.
+task-tags = ["FIXME", "XXX", "TODO"]
+dummy-variable-rgx = "_+$|(_[a-zA-Z0-9_]*[a-zA-Z0-9]+?$)|dummy|^ignored_|^unused_"
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-branches = 12
+max-returns = 6
+max-locals = 15
+max-statements = 50
+max-public-methods = 20
+max-bool-expr = 5
+max-nested-blocks = 5
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.ruff.format]
+# Keep formatting stable while we migrate; defaults are fine, but we pin the basics explicitly.
+line-ending = "auto"
+indent-style = "space"
+quote-style = "preserve"
