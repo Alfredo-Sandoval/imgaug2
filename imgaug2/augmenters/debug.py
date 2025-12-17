@@ -7,6 +7,8 @@ List of augmenters:
 Added in 0.4.0.
 
 """
+from __future__ import annotations
+
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 
@@ -291,7 +293,7 @@ class _DebugGridCBAsOICell(_IDebugGridCell):
         return cbasoi.draw_on_image(image_rsp)
 
 
-class _DebugGridColumn(object):
+class _DebugGridColumn:
     """A single column within the debug image grid.
 
     Added in 0.4.0.
@@ -340,7 +342,7 @@ class _DebugGridColumn(object):
                           in zip(self.cells, heights)])
 
 
-class _DebugGrid(object):
+class _DebugGrid:
     """A debug image grid.
 
     Columns correspond to the input datatypes (e.g. images, bounding boxes).
@@ -847,7 +849,7 @@ def _join_description_strs(strs):
     return "\n".join(strs)
 
 
-class _ListOfArraysStats(object):
+class _ListOfArraysStats:
     """Class to derive aggregated values from a list of arrays.
 
     E.g. shape of the largest array, number of unique dtypes etc.
@@ -1064,7 +1066,7 @@ class _FolderImageDestination(_IImageDestination):
     # Added in 0.4.0.
     def __init__(self, folder_path,
                  filename_pattern="batch_{batch_id:06d}.png"):
-        super(_FolderImageDestination, self).__init__()
+        super().__init__()
         self.folder_path = folder_path
         self.filename_pattern = filename_pattern
         self._batch_id = -1
@@ -1162,7 +1164,7 @@ class _SaveDebugImage(meta.Augmenter):
     def __init__(self, destination, schedule,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(_SaveDebugImage, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.destination = destination
@@ -1258,7 +1260,7 @@ class SaveDebugImageEveryNBatches(_SaveDebugImage):
                 _FolderImageDestination(destination,
                                         filename_pattern="batch_latest.png")
             ])
-        super(SaveDebugImageEveryNBatches, self).__init__(
+        super().__init__(
             destination=destination, schedule=schedule,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)

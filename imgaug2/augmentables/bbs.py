@@ -1,4 +1,6 @@
 """Classes representing bounding boxes."""
+from __future__ import annotations
+
 
 
 import copy
@@ -19,7 +21,7 @@ from imgaug2.augmentables.utils import (
 
 
 # TODO functions: square(), to_aspect_ratio(), contains_point()
-class BoundingBox(object):
+class BoundingBox:
     """Class representing bounding boxes.
 
     Each bounding box is parameterized by its top left and bottom right
@@ -2201,7 +2203,7 @@ class BoundingBoxesOnImage(IAugmentable):
         )
 
 
-class _LabelOnImageDrawer(object):
+class _LabelOnImageDrawer:
     # size refers to the thickness of the BB
     # height is the height of the label rectangle, not the whole BB
     def __init__(

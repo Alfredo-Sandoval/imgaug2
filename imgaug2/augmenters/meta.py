@@ -20,6 +20,8 @@ List of augmenters:
 Note: :class:`~imgaug2.augmenters.color.WithColorspace` is in ``color.py``.
 
 """
+from __future__ import annotations
+
 
 from abc import ABCMeta, abstractmethod
 import copy as copy_module
@@ -175,7 +177,7 @@ def _remove_added_channel_axis(arrs_added, arrs_orig):
     ]
 
 
-class _maybe_deterministic_ctx(object):  # pylint: disable=invalid-name
+class _maybe_deterministic_ctx:  # pylint: disable=invalid-name
     """Context that resets an RNG to its initial state upon exit.
 
     This allows to execute some sampling functions and leave the code block
@@ -280,7 +282,7 @@ class Augmenter(metaclass=ABCMeta):
                  random_state="deprecated",
                  deterministic="deprecated"):
         """Create a new Augmenter instance."""
-        super(Augmenter, self).__init__()
+        super().__init__()
 
         assert name is None or ia.is_string(name), (
             "Expected name to be None or string-like, got %s." % (
@@ -3496,7 +3498,7 @@ class OneOf(SomeOf):
     def __init__(self, children,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(OneOf, self).__init__(
+        super().__init__(
             n=1,
             children=children,
             random_order=False,
@@ -3583,7 +3585,7 @@ class Sometimes(Augmenter):
     def __init__(self, p=0.5, then_list=None, else_list=None,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Sometimes, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -3730,7 +3732,7 @@ class WithChannels(Augmenter):
     def __init__(self, channels=None, children=None,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(WithChannels, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -3965,7 +3967,7 @@ class Identity(Augmenter):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Identity, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -4020,7 +4022,7 @@ class Noop(Identity):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Noop, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -4207,7 +4209,7 @@ class Lambda(Augmenter):
                  func_line_strings="keypoints",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Lambda, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.func_images = func_images
@@ -4489,7 +4491,7 @@ class AssertLambda(Lambda):
                 else None
             )
 
-        super(AssertLambda, self).__init__(
+        super().__init__(
             func_images=_default(func_images, "images"),
             func_heatmaps=_default(func_heatmaps, "heatmaps"),
             func_segmentation_maps=_default(func_segmentation_maps,
@@ -4503,7 +4505,7 @@ class AssertLambda(Lambda):
 
 
 # Added in 0.4.0.
-class _AssertLambdaCallback(object):
+class _AssertLambdaCallback:
     # Added in 0.4.0.
     def __init__(self, func, augmentable_name):
         self.func = func
@@ -4662,7 +4664,7 @@ class AssertShape(Lambda):
         def _default(func, do_use):
             return func if do_use else None
 
-        super(AssertShape, self).__init__(
+        super().__init__(
             func_images=_default(_AssertShapeImagesCheck(shape),
                                  check_images),
             func_heatmaps=_default(_AssertShapeHeatmapsCheck(shape),
@@ -4724,7 +4726,7 @@ class AssertShape(Lambda):
 # Keep these checks as top-level callables to avoid pickling issues when they
 # are sent to multiprocessing workers.
 # Added in 0.4.0.
-class _AssertShapeImagesCheck(object):
+class _AssertShapeImagesCheck:
     def __init__(self, shape):
         self.shape = shape
 
@@ -4737,7 +4739,7 @@ class _AssertShapeImagesCheck(object):
 
 
 # Added in 0.4.0.
-class _AssertShapeHeatmapsCheck(object):
+class _AssertShapeHeatmapsCheck:
     def __init__(self, shape):
         self.shape = shape
 
@@ -4748,7 +4750,7 @@ class _AssertShapeHeatmapsCheck(object):
 
 
 # Added in 0.4.0.
-class _AssertShapeSegmapCheck(object):
+class _AssertShapeSegmapCheck:
     def __init__(self, shape):
         self.shape = shape
 
@@ -4759,7 +4761,7 @@ class _AssertShapeSegmapCheck(object):
 
 
 # Added in 0.4.0.
-class _AssertShapeKeypointsCheck(object):
+class _AssertShapeKeypointsCheck:
     def __init__(self, shape):
         self.shape = shape
 
@@ -4770,7 +4772,7 @@ class _AssertShapeKeypointsCheck(object):
 
 
 # Added in 0.4.0.
-class _AssertShapeBoundingBoxesCheck(object):
+class _AssertShapeBoundingBoxesCheck:
     def __init__(self, shape):
         self.shape = shape
 
@@ -4783,7 +4785,7 @@ class _AssertShapeBoundingBoxesCheck(object):
 
 
 # Added in 0.4.0.
-class _AssertShapePolygonsCheck(object):
+class _AssertShapePolygonsCheck:
     def __init__(self, shape):
         self.shape = shape
 
@@ -4794,7 +4796,7 @@ class _AssertShapePolygonsCheck(object):
 
 
 # Added in 0.4.0.
-class _AssertShapeLineStringsCheck(object):
+class _AssertShapeLineStringsCheck:
     def __init__(self, shape):
         self.shape = shape
 
@@ -4877,7 +4879,7 @@ class ChannelShuffle(Augmenter):
     def __init__(self, p=1.0, channels=None,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ChannelShuffle, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.p = iap.handle_probability_param(p, "p")
@@ -5073,7 +5075,7 @@ class RemoveCBAsByOutOfImageFraction(Augmenter):
     def __init__(self, fraction,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(RemoveCBAsByOutOfImageFraction, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -5161,7 +5163,7 @@ class ClipCBAsToImagePlanes(Augmenter):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ClipCBAsToImagePlanes, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 

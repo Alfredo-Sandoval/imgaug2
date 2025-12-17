@@ -19,6 +19,8 @@ List of augmenters:
     * :class:`Jigsaw`
 
 """
+from __future__ import annotations
+
 
 import math
 import functools
@@ -612,7 +614,7 @@ def generate_jigsaw_destinations(nb_rows, nb_cols, max_steps, seed,
 
 
 # Added in 0.5.0.
-class _AffineMatrixGenerator(object):
+class _AffineMatrixGenerator:
     # Added in 0.5.0.
     def __init__(self, matrix=None):
         if matrix is None:
@@ -682,7 +684,7 @@ class _AffineMatrixGenerator(object):
         self.matrix = np.matmul(matrix, self.matrix)
 
 
-class _AffineSamplingResult(object):
+class _AffineSamplingResult:
     def __init__(self, scale=None, translate=None, translate_mode="px",
                  rotate=None, shear=None, cval=None, mode=None, order=None):
         self.scale = scale
@@ -1265,7 +1267,7 @@ class Affine(meta.Augmenter):
                  fit_output=False, backend="auto",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Affine, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -1702,7 +1704,7 @@ class ScaleX(Affine):
                  fit_output=False, backend="auto",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ScaleX, self).__init__(
+        super().__init__(
             scale={"x": scale},
             order=order,
             cval=cval,
@@ -1779,7 +1781,7 @@ class ScaleY(Affine):
                  fit_output=False, backend="auto",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ScaleY, self).__init__(
+        super().__init__(
             scale={"y": scale},
             order=order,
             cval=cval,
@@ -1869,7 +1871,7 @@ class TranslateX(Affine):
         if percent is None and px is None:
             percent = (-0.25, 0.25)
 
-        super(TranslateX, self).__init__(
+        super().__init__(
             translate_percent=({"x": percent} if percent is not None else None),
             translate_px=({"x": px} if px is not None else None),
             order=order,
@@ -1960,7 +1962,7 @@ class TranslateY(Affine):
         if percent is None and px is None:
             percent = (-0.25, 0.25)
 
-        super(TranslateY, self).__init__(
+        super().__init__(
             translate_percent=({"y": percent} if percent is not None else None),
             translate_px=({"y": px} if px is not None else None),
             order=order,
@@ -2036,7 +2038,7 @@ class Rotate(Affine):
                  fit_output=False, backend="auto",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Rotate, self).__init__(
+        super().__init__(
             rotate=rotate,
             order=order,
             cval=cval,
@@ -2111,7 +2113,7 @@ class ShearX(Affine):
                  fit_output=False, backend="auto",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ShearX, self).__init__(
+        super().__init__(
             shear={"x": shear},
             order=order,
             cval=cval,
@@ -2186,7 +2188,7 @@ class ShearY(Affine):
                  fit_output=False, backend="auto",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ShearY, self).__init__(
+        super().__init__(
             shear={"y": shear},
             order=order,
             cval=cval,
@@ -2500,7 +2502,7 @@ class AffineCv2(meta.Augmenter):
                  mode=cv2.BORDER_CONSTANT,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(AffineCv2, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -2944,7 +2946,7 @@ class AffineCv2(meta.Augmenter):
         )
 
 
-class _PiecewiseAffineSamplingResult(object):
+class _PiecewiseAffineSamplingResult:
     def __init__(self, nb_rows, nb_cols, jitter, order, cval, mode):
         self.nb_rows = nb_rows
         self.nb_cols = nb_cols
@@ -3106,7 +3108,7 @@ class PiecewiseAffine(meta.Augmenter):
                  polygon_recoverer=None,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(PiecewiseAffine, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -3457,7 +3459,7 @@ class PiecewiseAffine(meta.Augmenter):
             self.mode, self.absolute_scale]
 
 
-class _PerspectiveTransformSamplingResult(object):
+class _PerspectiveTransformSamplingResult:
     def __init__(self, matrices, max_heights, max_widths, cvals, modes):
         self.matrices = matrices
         self.max_heights = max_heights
@@ -3645,7 +3647,7 @@ class PerspectiveTransform(meta.Augmenter):
                  keep_size=True, fit_output=False, polygon_recoverer="auto",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(PerspectiveTransform, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -4325,7 +4327,7 @@ class ElasticTransformation(meta.Augmenter):
                  polygon_recoverer="auto",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ElasticTransformation, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -4843,7 +4845,7 @@ class ElasticTransformation(meta.Augmenter):
         return result
 
 
-class _ElasticTransformationSamplingResult(object):
+class _ElasticTransformationSamplingResult:
     def __init__(self, random_state, alphas, sigmas, orders, cvals, modes):
         self.random_state = random_state
         self.alphas = alphas
@@ -4853,7 +4855,7 @@ class _ElasticTransformationSamplingResult(object):
         self.modes = modes
 
 
-class _ElasticTfShiftMapGenerator(object):
+class _ElasticTfShiftMapGenerator:
     """Class to generate shift/displacement maps for ElasticTransformation.
 
     This class re-uses samples for multiple examples. This minimizes the amount
@@ -5075,7 +5077,7 @@ class Rot90(meta.Augmenter):
     def __init__(self, k=1, keep_size=True,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Rot90, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -5339,7 +5341,7 @@ class WithPolarWarping(meta.Augmenter):
     def __init__(self, children,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(WithPolarWarping, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.children = meta.handle_children_list(children, self.name, "then")
@@ -6020,7 +6022,7 @@ class Jigsaw(meta.Augmenter):
                  allow_pad=True,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Jigsaw, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -6186,7 +6188,7 @@ class Jigsaw(meta.Augmenter):
 
 
 # Added in 0.4.0.
-class _JigsawSamples(object):
+class _JigsawSamples:
     # Added in 0.4.0.
     def __init__(self, nb_rows, nb_cols, max_steps, destinations):
         self.nb_rows = nb_rows

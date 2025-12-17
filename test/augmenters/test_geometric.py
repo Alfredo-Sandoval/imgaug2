@@ -6171,7 +6171,7 @@ class TestPerspectiveTransform(unittest.TestCase):
         # That's why e.g. TopWiderThanBottom has coordinates that seem like
         # the top is thinner than the bottom (after projecting back to the
         # image rectangle, the top becomes wider).
-        class _JitterTopWiderThanBottom(object):
+        class _JitterTopWiderThanBottom:
             def draw_samples(self, size, random_state):
                 return np.float32([
                     [
@@ -6182,7 +6182,7 @@ class TestPerspectiveTransform(unittest.TestCase):
                     ]
                 ])
 
-        class _JitterTopThinnerThanBottom(object):
+        class _JitterTopThinnerThanBottom:
             def draw_samples(self, size, random_state):
                 return np.float32([
                     [
@@ -6193,7 +6193,7 @@ class TestPerspectiveTransform(unittest.TestCase):
                     ]
                 ])
 
-        class _JitterLeftWiderThanRight(object):
+        class _JitterLeftWiderThanRight:
             def draw_samples(self, size, random_state):
                 return np.float32([
                     [
@@ -6204,7 +6204,7 @@ class TestPerspectiveTransform(unittest.TestCase):
                     ]
                 ])
 
-        class _JitterLeftThinnerThanRight(object):
+        class _JitterLeftThinnerThanRight:
             def draw_samples(self, size, random_state):
                 return np.float32([
                     [
@@ -6655,7 +6655,7 @@ class TestPerspectiveTransform(unittest.TestCase):
         runtest_pickleable_uint8_img(aug, iterations=4, shape=(25, 25, 1))
 
 
-class _elastic_trans_temp_thresholds(object):
+class _elastic_trans_temp_thresholds:
     def __init__(self, alpha, sigma):
         self.alpha = alpha
         self.sigma = sigma

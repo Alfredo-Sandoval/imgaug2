@@ -17,6 +17,8 @@ List of augmenters:
     * :class:`BlendAlphaCheckerboard`
 
 """
+from __future__ import annotations
+
 
 from abc import ABCMeta, abstractmethod
 
@@ -592,7 +594,7 @@ class BlendAlpha(meta.Augmenter):
                  per_channel=False,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(BlendAlpha, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -805,7 +807,7 @@ class BlendAlphaMask(meta.Augmenter):
                  foreground=None, background=None,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(BlendAlphaMask, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -1151,7 +1153,7 @@ class BlendAlphaElementwise(BlendAlphaMask):
             factor, "factor", value_range=(0, 1.0), tuple_to_uniform=True,
             list_to_choice=True)
         mask_gen = StochasticParameterMaskGen(factor, per_channel)
-        super(BlendAlphaElementwise, self).__init__(
+        super().__init__(
             mask_gen, foreground, background,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1379,7 +1381,7 @@ class BlendAlphaSimplexNoise(BlendAlphaElementwise):
                 activated=sigmoid
             )
 
-        super(BlendAlphaSimplexNoise, self).__init__(
+        super().__init__(
             factor=noise, foreground=foreground, background=background,
             per_channel=per_channel,
             seed=seed, name=name,
@@ -1631,7 +1633,7 @@ class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
                 activated=sigmoid
             )
 
-        super(BlendAlphaFrequencyNoise, self).__init__(
+        super().__init__(
             factor=noise, foreground=foreground, background=background,
             per_channel=per_channel,
             seed=seed, name=name,
@@ -1770,7 +1772,7 @@ class BlendAlphaSomeColors(BlendAlphaMask):
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
         # pylint: disable=dangerous-default-value
-        super(BlendAlphaSomeColors, self).__init__(
+        super().__init__(
             SomeColorsMaskGen(
                 nb_bins=nb_bins,
                 smoothness=smoothness,
@@ -1893,7 +1895,7 @@ class BlendAlphaHorizontalLinearGradient(BlendAlphaMask):
                  start_at=(0.0, 0.2), end_at=(0.8, 1.0),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(BlendAlphaHorizontalLinearGradient, self).__init__(
+        super().__init__(
             HorizontalLinearGradientMaskGen(
                 min_value=min_value,
                 max_value=max_value,
@@ -2022,7 +2024,7 @@ class BlendAlphaVerticalLinearGradient(BlendAlphaMask):
                  start_at=(0.0, 0.2), end_at=(0.8, 1.0),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(BlendAlphaVerticalLinearGradient, self).__init__(
+        super().__init__(
             VerticalLinearGradientMaskGen(
                 min_value=min_value,
                 max_value=max_value,
@@ -2151,7 +2153,7 @@ class BlendAlphaRegularGrid(BlendAlphaMask):
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
         # pylint: disable=dangerous-default-value
-        super(BlendAlphaRegularGrid, self).__init__(
+        super().__init__(
             RegularGridMaskGen(
                 nb_rows=nb_rows,
                 nb_cols=nb_cols,
@@ -2253,7 +2255,7 @@ class BlendAlphaCheckerboard(BlendAlphaMask):
                  foreground=None, background=None,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(BlendAlphaCheckerboard, self).__init__(
+        super().__init__(
             CheckerboardMaskGen(
                 nb_rows=nb_rows,
                 nb_cols=nb_cols
@@ -2385,7 +2387,7 @@ class BlendAlphaSegMapClassIds(BlendAlphaMask):
                  nb_sample_classes=None,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(BlendAlphaSegMapClassIds, self).__init__(
+        super().__init__(
             SegMapClassIdsMaskGen(
                 class_ids=class_ids,
                 nb_sample_classes=nb_sample_classes
@@ -2514,7 +2516,7 @@ class BlendAlphaBoundingBoxes(BlendAlphaMask):
                  nb_sample_labels=None,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(BlendAlphaBoundingBoxes, self).__init__(
+        super().__init__(
             BoundingBoxesMaskGen(
                 labels=labels,
                 nb_sample_labels=nb_sample_labels
@@ -2595,7 +2597,7 @@ class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
 
     # Added in 0.4.0.
     def __init__(self, parameter, per_channel):
-        super(StochasticParameterMaskGen, self).__init__()
+        super().__init__()
         self.parameter = parameter
         self.per_channel = iap.handle_probability_param(per_channel,
                                                         "per_channel")
@@ -2750,7 +2752,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
                  alpha=[0.0, 1.0], rotation_deg=(0, 360),
                  from_colorspace="RGB"):
         # pylint: disable=dangerous-default-value
-        super(SomeColorsMaskGen, self).__init__()
+        super().__init__()
 
         self.nb_bins = iap.handle_discrete_param(
             nb_bins, "nb_bins", value_range=(1, 256),
@@ -3130,7 +3132,7 @@ class HorizontalLinearGradientMaskGen(_LinearGradientMaskGen):
     # Added in 0.4.0.
     def __init__(self, min_value=(0.0, 0.2), max_value=(0.8, 1.0),
                  start_at=(0.0, 0.2), end_at=(0.8, 1.0)):
-        super(HorizontalLinearGradientMaskGen, self).__init__(
+        super().__init__(
             axis=1,
             min_value=min_value,
             max_value=max_value,
@@ -3229,7 +3231,7 @@ class VerticalLinearGradientMaskGen(_LinearGradientMaskGen):
     # Added in 0.4.0.
     def __init__(self, min_value=(0.0, 0.2), max_value=(0.8, 1.0),
                  start_at=(0.0, 0.2), end_at=(0.8, 1.0)):
-        super(VerticalLinearGradientMaskGen, self).__init__(
+        super().__init__(
             axis=0,
             min_value=min_value,
             max_value=max_value,

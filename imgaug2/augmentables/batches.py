@@ -1,4 +1,6 @@
 """Classes representing batches of normalized or unnormalized data."""
+from __future__ import annotations
+
 
 
 import collections
@@ -46,7 +48,7 @@ def _get_columns(batch, postfix):
 
 # TODO also support (H,W,C) for heatmaps of len(images) == 1
 # TODO also support (H,W) for segmaps of len(images) == 1
-class UnnormalizedBatch(object):
+class UnnormalizedBatch:
     """
     Class for batches of unnormalized data before and after augmentation.
 
@@ -338,7 +340,7 @@ class UnnormalizedBatch(object):
         return batch
 
 
-class Batch(object):
+class Batch:
     """
     Class encapsulating a batch before and after augmentation.
 
@@ -652,7 +654,7 @@ class Batch(object):
 
 
 # Added in 0.4.0.
-class _BatchInAugmentationPropagationContext(object):
+class _BatchInAugmentationPropagationContext:
     def __init__(self, batch, augmenter, hooks, parents):
         self.batch = batch
         self.augmenter = augmenter
@@ -672,7 +674,7 @@ class _BatchInAugmentationPropagationContext(object):
             self.batch = self.batch.invert_apply_propagation_hooks_(self.noned_info)
 
 
-class _BatchInAugmentation(object):
+class _BatchInAugmentation:
     """
     Class encapsulating a batch during the augmentation process.
 

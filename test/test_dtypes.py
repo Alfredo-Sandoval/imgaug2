@@ -1249,7 +1249,7 @@ class Test__gate_dtypes(unittest.TestCase):
         assert "Got dtype 'int8', which" in str(context.exception)
 
     def test_single_dtype_disallowed_augmenter_set(self):
-        class _DummyAugmenter(object):
+        class _DummyAugmenter:
             def __init__(self):
                 self.name = "foo"
 
@@ -1308,7 +1308,7 @@ class Test__gate_dtypes(unittest.TestCase):
             "Got dtype 'float32', which" in str(caught_warnings[-1].message))
 
     def test_dtype_not_in_allowed_or_disallowed_augmenter_set(self):
-        class _DummyAugmenter(object):
+        class _DummyAugmenter:
             def __init__(self):
                 self.name = "foo"
 

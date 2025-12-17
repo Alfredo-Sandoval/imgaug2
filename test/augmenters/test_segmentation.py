@@ -150,7 +150,6 @@ class TestSuperpixels(unittest.TestCase):
                     assert np.all(seen.values())
 
     def test_failure_on_invalid_datatype_for_p_replace(self):
-        # note that assertRaisesRegex does not exist in 2.7
         got_exception = False
         try:
             _ = iaa.Superpixels(p_replace="test", n_segments=100)
@@ -160,7 +159,6 @@ class TestSuperpixels(unittest.TestCase):
         assert got_exception
 
     def test_failure_on_invalid_datatype_for_n_segments(self):
-        # note that assertRaisesRegex does not exist in 2.7
         got_exception = False
         try:
             _ = iaa.Superpixels(p_replace=1, n_segments="test")

@@ -1,4 +1,6 @@
 """Classes representing lines."""
+from __future__ import annotations
+
 
 
 import copy as copylib
@@ -24,7 +26,7 @@ from imgaug2.augmentables.utils import (
 # TODO add to_distance_maps(), compute_hausdorff_distance(), intersects(),
 #      find_self_intersections(), is_self_intersecting(),
 #      remove_self_intersections()
-class LineString(object):
+class LineString:
     """Class representing line strings.
 
     A line string is a collection of connected line segments, each

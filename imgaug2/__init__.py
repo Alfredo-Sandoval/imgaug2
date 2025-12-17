@@ -1,4 +1,6 @@
 """Imports for package imgaug2."""
+from __future__ import annotations
+
 
 # this contains some deprecated classes/functions pointing to the new
 # classes/functions, hence always place the other imports below this so that

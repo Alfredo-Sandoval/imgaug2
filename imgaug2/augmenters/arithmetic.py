@@ -29,6 +29,8 @@ List of augmenters:
     * :class:`JpegCompression`
 
 """
+from __future__ import annotations
+
 
 import tempfile
 
@@ -1567,7 +1569,7 @@ def _generate_table_for_invert_uint8(min_value, max_value, threshold,
 
 
 # Added in 0.5.0.
-class _InvertTables(object):
+class _InvertTables:
     # Added in 0.5.0.
     def __init__(self):
         self.tables = {}
@@ -1590,7 +1592,7 @@ class _InvertTables(object):
 
 
 # Added in 0.5.0.
-class _InvertTablesSingleton(object):
+class _InvertTablesSingleton:
     _INSTANCE = None
 
     # Added in 0.5.0.
@@ -1839,7 +1841,7 @@ class Add(meta.Augmenter):
     def __init__(self, value=(-20, 20), per_channel=False,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Add, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -1985,7 +1987,7 @@ class AddElementwise(meta.Augmenter):
     def __init__(self, value=(-20, 20), per_channel=False,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(AddElementwise, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -2132,7 +2134,7 @@ class AdditiveGaussianNoise(AddElementwise):
 
         value = iap.Normal(loc=loc2, scale=scale2)
 
-        super(AdditiveGaussianNoise, self).__init__(
+        super().__init__(
             value, per_channel=per_channel,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -2255,7 +2257,7 @@ class AdditiveLaplaceNoise(AddElementwise):
 
         value = iap.Laplace(loc=loc2, scale=scale2)
 
-        super(AdditiveLaplaceNoise, self).__init__(
+        super().__init__(
             value,
             per_channel=per_channel,
             seed=seed, name=name,
@@ -2368,7 +2370,7 @@ class AdditivePoissonNoise(AddElementwise):
 
         value = iap.RandomSign(iap.Poisson(lam=lam2))
 
-        super(AdditivePoissonNoise, self).__init__(
+        super().__init__(
             value,
             per_channel=per_channel,
             seed=seed, name=name,
@@ -2454,7 +2456,7 @@ class Multiply(meta.Augmenter):
     def __init__(self, mul=(0.8, 1.2), per_channel=False,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Multiply, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -2598,7 +2600,7 @@ class MultiplyElementwise(meta.Augmenter):
     def __init__(self, mul=(0.8, 1.2), per_channel=False,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(MultiplyElementwise, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -2648,7 +2650,7 @@ class MultiplyElementwise(meta.Augmenter):
 
 
 # Added in 0.4.0.
-class _CutoutSamples(object):
+class _CutoutSamples:
     # Added in 0.4.0.
     def __init__(self, nb_iterations, pos_x, pos_y, size_h, size_w, squared,
                  fill_mode, cval, fill_per_channel):
@@ -2844,7 +2846,7 @@ class Cutout(meta.Augmenter):
         from imgaug2.augmenters.size import _handle_position_parameter  # TODO move to iap
         from imgaug2.augmenters.geometric import _handle_cval_arg  # TODO move to iap
 
-        super(Cutout, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.nb_iterations = iap.handle_discrete_param(
@@ -3081,7 +3083,7 @@ class Dropout(MultiplyElementwise):
                  random_state="deprecated", deterministic="deprecated"):
         p_param = _handle_dropout_probability_param(p, "p")
 
-        super(Dropout, self).__init__(
+        super().__init__(
             p_param,
             per_channel=per_channel,
             seed=seed, name=name,
@@ -3297,7 +3299,7 @@ class CoarseDropout(MultiplyElementwise):
                                               size_px=(3, 8),
                                               min_size=min_size)
 
-        super(CoarseDropout, self).__init__(
+        super().__init__(
             p_param,
             per_channel=per_channel,
             seed=seed, name=name,
@@ -3400,7 +3402,7 @@ class Dropout2d(meta.Augmenter):
     def __init__(self, p=0.1, nb_keep_channels=1,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Dropout2d, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.p = _handle_dropout_probability_param(p, "p")
@@ -3588,7 +3590,7 @@ class TotalDropout(meta.Augmenter):
     def __init__(self, p=1,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(TotalDropout, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.p = _handle_dropout_probability_param(p, "p")
@@ -3770,7 +3772,7 @@ class ReplaceElementwise(meta.Augmenter):
     def __init__(self, mask, replacement, per_channel=False,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ReplaceElementwise, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -3899,7 +3901,7 @@ class SaltAndPepper(ReplaceElementwise):
     def __init__(self, p=(0.0, 0.03), per_channel=False,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(SaltAndPepper, self).__init__(
+        super().__init__(
             mask=p,
             replacement=iap.Beta(0.5, 0.5) * 255,
             per_channel=per_channel,
@@ -3962,7 +3964,7 @@ class ImpulseNoise(SaltAndPepper):
     def __init__(self, p=(0.0, 0.03),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ImpulseNoise, self).__init__(
+        super().__init__(
             p=p,
             per_channel=True,
             seed=seed, name=name,
@@ -4118,7 +4120,7 @@ class CoarseSaltAndPepper(ReplaceElementwise):
 
         replacement = iap.Beta(0.5, 0.5) * 255
 
-        super(CoarseSaltAndPepper, self).__init__(
+        super().__init__(
             mask=mask_low,
             replacement=replacement,
             per_channel=per_channel,
@@ -4200,7 +4202,7 @@ class Salt(ReplaceElementwise):
         # FIXME max replacement seems to essentially never exceed 254
         replacement = replacement01 * 255
 
-        super(Salt, self).__init__(
+        super().__init__(
             mask=p,
             replacement=replacement,
             per_channel=per_channel,
@@ -4342,7 +4344,7 @@ class CoarseSalt(ReplaceElementwise):
         ) + 0.5
         replacement = replacement01 * 255
 
-        super(CoarseSalt, self).__init__(
+        super().__init__(
             mask=mask_low,
             replacement=replacement,
             per_channel=per_channel,
@@ -4426,7 +4428,7 @@ class Pepper(ReplaceElementwise):
         ) + 0.5
         replacement = replacement01 * 255
 
-        super(Pepper, self).__init__(
+        super().__init__(
             mask=p,
             replacement=replacement,
             per_channel=per_channel,
@@ -4566,7 +4568,7 @@ class CoarsePepper(ReplaceElementwise):
         ) + 0.5
         replacement = replacement01 * 255
 
-        super(CoarsePepper, self).__init__(
+        super().__init__(
             mask=mask_low,
             replacement=replacement,
             per_channel=per_channel,
@@ -4701,7 +4703,7 @@ class Invert(meta.Augmenter):
                  threshold=None, invert_above_threshold=0.5,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Invert, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -4788,7 +4790,7 @@ class Invert(meta.Augmenter):
 
 
 # Added in 0.4.0.
-class _InvertSamples(object):
+class _InvertSamples:
     # Added in 0.4.0.
     def __init__(self, p, per_channel, min_value, max_value,
                  threshold, invert_above_threshold):
@@ -4866,7 +4868,7 @@ class Solarize(Invert):
                  threshold=(128-64, 128+64), invert_above_threshold=True,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Solarize, self).__init__(
+        super().__init__(
             p=p, per_channel=per_channel,
             min_value=min_value, max_value=max_value,
             threshold=threshold, invert_above_threshold=invert_above_threshold,
@@ -5029,7 +5031,7 @@ class JpegCompression(meta.Augmenter):
     def __init__(self, compression=(0, 100),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(JpegCompression, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 

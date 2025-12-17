@@ -3,6 +3,8 @@
 Added in 0.5.0.
 
 """
+from __future__ import annotations
+
 
 import os
 import json
@@ -296,7 +298,7 @@ def quokka_segmentation_map(size=None, extract=None):
     # TODO get rid of this deferred import
     from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
 
-    with open(_QUOKKA_ANNOTATIONS_FP, "r") as f:
+    with open(_QUOKKA_ANNOTATIONS_FP) as f:
         json_dict = json.load(f)
 
     xx = []
@@ -358,7 +360,7 @@ def quokka_keypoints(size=None, extract=None):
         bb_extract = _quokka_normalize_extract(extract)
         left = bb_extract.x1
         top = bb_extract.y1
-    with open(_QUOKKA_ANNOTATIONS_FP, "r") as f:
+    with open(_QUOKKA_ANNOTATIONS_FP) as f:
         json_dict = json.load(f)
     keypoints = []
     for kp_dict in json_dict["keypoints"]:
@@ -406,7 +408,7 @@ def quokka_bounding_boxes(size=None, extract=None):
         bb_extract = _quokka_normalize_extract(extract)
         left = bb_extract.x1
         top = bb_extract.y1
-    with open(_QUOKKA_ANNOTATIONS_FP, "r") as f:
+    with open(_QUOKKA_ANNOTATIONS_FP) as f:
         json_dict = json.load(f)
     bbs = []
     for bb_dict in json_dict["bounding_boxes"]:
@@ -462,7 +464,7 @@ def quokka_polygons(size=None, extract=None):
         bb_extract = _quokka_normalize_extract(extract)
         left = bb_extract.x1
         top = bb_extract.y1
-    with open(_QUOKKA_ANNOTATIONS_FP, "r") as f:
+    with open(_QUOKKA_ANNOTATIONS_FP) as f:
         json_dict = json.load(f)
     polygons = []
     for poly_json in json_dict["polygons"]:

@@ -1,17 +1,21 @@
 """Collection of basic functions used throughout imgaug2."""
 
+from __future__ import annotations
+
+import functools
 import math
 import numbers
-import sys
 import os
+import sys
 import types
-import functools
+import typing
 from collections.abc import Iterable
 
-import numpy as np
 import cv2
+import numpy as np
 import skimage.draw
 import skimage.measure
+
 try:
     import numba
 except ImportError:
@@ -20,10 +24,7 @@ except ImportError:
 
 ALL = "ALL"
 
-DEFAULT_FONT_FP = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    "DejaVuSans.ttf"
-)
+DEFAULT_FONT_FP = os.path.join(os.path.dirname(os.path.abspath(__file__)), "DejaVuSans.ttf")
 
 
 # To check if a dtype instance is among these dtypes, use e.g.
@@ -50,8 +51,15 @@ NP_UINT_TYPES = _get_np_scalar_types("UnsignedInteger")
 IMSHOW_BACKEND_DEFAULT = "matplotlib"
 
 IMRESIZE_VALID_INTERPOLATIONS = [
-    "nearest", "linear", "area", "cubic",
-    cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_AREA, cv2.INTER_CUBIC]
+    "nearest",
+    "linear",
+    "area",
+    "cubic",
+    cv2.INTER_NEAREST,
+    cv2.INTER_LINEAR,
+    cv2.INTER_AREA,
+    cv2.INTER_CUBIC,
+]
 
 # Cache dict to save kernels used for pooling.
 # Added in 0.5.0.
@@ -67,6 +75,7 @@ _UINT8_DTYPE = np.dtype("uint8")
 ###############################################################################
 # Helpers for deprecation
 ###############################################################################
+
 
 class DeprecationWarning(Warning):  # pylint: disable=redefined-builtin
     """Warning for deprecated calls.
@@ -95,6 +104,7 @@ def warn(msg, category=UserWarning, stacklevel=2):
 
     """
     import warnings
+
     warnings.warn(msg, category=category, stacklevel=stacklevel)
 
 
@@ -117,7 +127,7 @@ def warn_deprecated(msg, stacklevel=2):
     warn(msg, category=DeprecationWarning, stacklevel=stacklevel)
 
 
-class deprecated(object):  # pylint: disable=invalid-name
+class deprecated:  # pylint: disable=invalid-name
     """Decorator to mark deprecated functions with warning.
 
     Adapted from
@@ -141,8 +151,7 @@ class deprecated(object):  # pylint: disable=invalid-name
 
     """
 
-    def __init__(self, alt_func=None, behavior="warn", removed_version=None,
-                 comment=None):
+    def __init__(self, alt_func=None, behavior="warn", removed_version=None, comment=None):
         self.alt_func = alt_func
         self.behavior = behavior
         self.removed_version = removed_version
@@ -151,21 +160,19 @@ class deprecated(object):  # pylint: disable=invalid-name
     def __call__(self, func):
         alt_msg = None
         if self.alt_func is not None:
-            alt_msg = "Use ``%s`` instead." % (self.alt_func,)
+            alt_msg = f"Use ``{self.alt_func}`` instead."
 
         rmv_msg = None
         if self.removed_version is not None:
-            rmv_msg = "It will be removed in version %s." % (
-                self.removed_version,)
+            rmv_msg = f"It will be removed in version {self.removed_version}."
 
         comment_msg = None
         if self.comment is not None and len(self.comment) > 0:
-            comment_msg = "%s." % (self.comment.rstrip(". "),)
+            comment_msg = "{}.".format(self.comment.rstrip(". "))
 
-        addendum = " ".join([submsg
-                             for submsg
-                             in [alt_msg, rmv_msg, comment_msg]
-                             if submsg is not None])
+        addendum = " ".join(
+            [submsg for submsg in [alt_msg, rmv_msg, comment_msg] if submsg is not None]
+        )
 
         @functools.wraps(func)
         def wrapped(*args, **kwargs):
@@ -179,11 +186,9 @@ class deprecated(object):  # pylint: disable=invalid-name
             arg_names = inspect.getfullargspec(func)[0]
 
             if "self" in arg_names or "cls" in arg_names:
-                main_msg = "Method ``%s.%s()`` is deprecated." % (
-                    args[0].__class__.__name__, func.__name__)
+                main_msg = f"Method ``{args[0].__class__.__name__}.{func.__name__}()`` is deprecated."
             else:
-                main_msg = "Function ``%s()`` is deprecated." % (
-                    func.__name__,)
+                main_msg = f"Function ``{func.__name__}()`` is deprecated."
 
             msg = (main_msg + " " + addendum).rstrip(" ").replace("``", "`")
 
@@ -202,10 +207,11 @@ class deprecated(object):  # pylint: disable=invalid-name
 
         return wrapped
 
+
 ###############################################################################
 
 
-def is_np_array(val):
+def is_np_array(val: object) -> bool:
     """Check whether a variable is a numpy array.
 
     Parameters
@@ -225,7 +231,7 @@ def is_np_array(val):
     return isinstance(val, np.ndarray)
 
 
-def is_np_scalar(val):
+def is_np_scalar(val: object) -> bool:
     """Check whether a variable is a numpy scalar.
 
     Parameters
@@ -246,7 +252,7 @@ def is_np_scalar(val):
     return isinstance(val, np.generic) and np.isscalar(val)
 
 
-def is_single_integer(val):
+def is_single_integer(val: object) -> bool:
     """Check whether a variable is an ``int``.
 
     Parameters
@@ -263,7 +269,7 @@ def is_single_integer(val):
     return isinstance(val, numbers.Integral) and not isinstance(val, bool)
 
 
-def is_single_float(val):
+def is_single_float(val: object) -> bool:
     """Check whether a variable is a ``float``.
 
     Parameters
@@ -278,13 +284,11 @@ def is_single_float(val):
 
     """
     return (
-        isinstance(val, numbers.Real)
-        and not is_single_integer(val)
-        and not isinstance(val, bool)
+        isinstance(val, numbers.Real) and not is_single_integer(val) and not isinstance(val, bool)
     )
 
 
-def is_single_number(val):
+def is_single_number(val: object) -> bool:
     """Check whether a variable is a ``number``, i.e. an ``int`` or ``float``.
 
     Parameters
@@ -301,7 +305,7 @@ def is_single_number(val):
     return is_single_integer(val) or is_single_float(val)
 
 
-def is_iterable(val):
+def is_iterable(val: object) -> bool:
     """
     Checks whether a variable is iterable.
 
@@ -320,7 +324,7 @@ def is_iterable(val):
 
 
 # TODO convert to is_single_string() or rename is_single_integer/float/number()
-def is_string(val):
+def is_string(val: object) -> bool:
     """Check whether a variable is a string.
 
     Parameters
@@ -337,7 +341,7 @@ def is_string(val):
     return isinstance(val, str)
 
 
-def is_single_bool(val):
+def is_single_bool(val: object) -> bool:
     """Check whether a variable is a ``bool``.
 
     Parameters
@@ -351,11 +355,10 @@ def is_single_bool(val):
         ``True`` if the variable is a ``bool``. Otherwise ``False``.
 
     """
-    # pylint: disable=unidiomatic-typecheck
-    return type(val) == type(True)
+    return isinstance(val, bool)
 
 
-def is_integer_array(val):
+def is_integer_array(val: object) -> bool:
     """Check whether a variable is a numpy integer array.
 
     Parameters
@@ -372,7 +375,7 @@ def is_integer_array(val):
     return is_np_array(val) and issubclass(val.dtype.type, np.integer)
 
 
-def is_float_array(val):
+def is_float_array(val: object) -> bool:
     """Check whether a variable is a numpy float array.
 
     Parameters
@@ -389,7 +392,7 @@ def is_float_array(val):
     return is_np_array(val) and issubclass(val.dtype.type, np.floating)
 
 
-def is_callable(val):
+def is_callable(val: object) -> bool:
     """Check whether a variable is a callable, e.g. a function.
 
     Parameters
@@ -406,7 +409,7 @@ def is_callable(val):
     return callable(val)
 
 
-def is_generator(val):
+def is_generator(val: object) -> bool:
     """Check whether a variable is a generator.
 
     Parameters
@@ -446,8 +449,7 @@ def flatten(nested_iterable):
     else:
         for i in nested_iterable:
             if isinstance(i, (list, tuple)):
-                for j in flatten(i):
-                    yield j
+                yield from flatten(i)
             else:
                 yield i
 
@@ -493,20 +495,21 @@ def seed(entropy=None, seedval=None):
 
     """
     assert entropy is not None or seedval is not None, (
-        "Expected argument 'entropy' or 'seedval' to be not-None, but both"
-        "were None.")
+        "Expected argument 'entropy' or 'seedval' to be not-None, but bothwere None."
+    )
 
     if seedval is not None:
         assert entropy is None, (
             "Argument 'seedval' is the outdated name for 'entropy'. Hence, "
             "if it is provided, 'entropy' must be None. Got 'entropy' value "
-            "of type %s." % (type(entropy),))
+            f"of type {type(entropy)}."
+        )
 
-        warn_deprecated("Parameter 'seedval' is deprecated. Use "
-                        "'entropy' instead.")
+        warn_deprecated("Parameter 'seedval' is deprecated. Use 'entropy' instead.")
         entropy = seedval
 
     import imgaug2.random
+
     imgaug2.random.seed(entropy)
 
 
@@ -527,6 +530,7 @@ def normalize_random_state(random_state):
 
     """
     import imgaug2.random
+
     return imgaug2.random.normalize_generator_(random_state)
 
 
@@ -543,6 +547,7 @@ def current_random_state():
 
     """
     import imgaug2.random
+
     return imgaug2.random.get_global_rng()
 
 
@@ -569,6 +574,7 @@ def new_random_state(seed=None, fully_random=False):
     """
     # pylint: disable=redefined-outer-name
     import imgaug2.random
+
     if seed is None:
         if fully_random:
             return imgaug2.random.RNG.create_fully_random()
@@ -588,6 +594,7 @@ def dummy_random_state():
 
     """
     import imgaug2.random
+
     return imgaug2.random.RNG(1)
 
 
@@ -612,6 +619,7 @@ def copy_random_state(random_state, force_copy=False):
 
     """
     import imgaug2.random
+
     if force_copy:
         return imgaug2.random.copy_generator(random_state)
     return imgaug2.random.copy_generator_unless_global_generator(random_state)
@@ -634,6 +642,7 @@ def derive_random_state(random_state):
 
     """
     import imgaug2.random
+
     return imgaug2.random.derive_generator_(random_state)
 
 
@@ -658,6 +667,7 @@ def derive_random_states(random_state, n=1):
 
     """
     import imgaug2.random
+
     return imgaug2.random.derive_generators_(random_state, n=n)
 
 
@@ -672,6 +682,7 @@ def forward_random_state(random_state):
 
     """
     import imgaug2.random
+
     imgaug2.random.advance_generator_(random_state)
 
 
@@ -765,11 +776,12 @@ def compute_line_intersection_point(x1, y1, x2, y2, x3, y3, x4, y4):
         of them), the result is ``False``.
 
     """
+
     # pylint: disable=invalid-name
     def _make_line(point1, point2):
-        line_y = (point1[1] - point2[1])
-        line_x = (point2[0] - point1[0])
-        slope = (point1[0] * point2[1] - point2[0] * point1[1])
+        line_y = point1[1] - point2[1]
+        line_x = point2[0] - point1[0]
+        slope = point1[0] * point2[1] - point2[0] * point1[1]
         return line_y, line_x, -slope
 
     line1 = _make_line((x1, y1), (x2, y2))
@@ -839,15 +851,14 @@ def draw_text(img, y, x, text, color=(0, 255, 0), size=25):
         Input image with text drawn on it.
 
     """
-    from PIL import (
-        Image as PIL_Image,
-        ImageDraw as PIL_ImageDraw,
-        ImageFont as PIL_ImageFont
-    )
+    from PIL import Image as PIL_Image
+    from PIL import ImageDraw as PIL_ImageDraw
+    from PIL import ImageFont as PIL_ImageFont
 
     assert img.dtype.name in ["uint8", "float32"], (
         "Can currently draw text only on images of dtype 'uint8' or "
-        "'float32'. Got dtype %s." % (img.dtype.name,))
+        f"'float32'. Got dtype {img.dtype.name}."
+    )
 
     input_dtype = img.dtype
     if img.dtype == np.float32:
@@ -976,7 +987,8 @@ def imresize_many_images(images, sizes=None, interpolation=None):
     if is_single_number(sizes) and sizes <= 0:
         raise ValueError(
             "If 'sizes' is given as a single number, it is expected to "
-            "be >= 0, got %.8f." % (sizes,))
+            f"be >= 0, got {sizes:.8f}."
+        )
 
     # change after the validation to make the above error messages match the
     # original input
@@ -985,11 +997,12 @@ def imresize_many_images(images, sizes=None, interpolation=None):
     else:
         assert len(sizes) == 2, (
             "If 'sizes' is given as a tuple, it is expected be a tuple of two "
-            "entries, got %d entries." % (len(sizes),))
+            "entries, got %d entries." % (len(sizes),)
+        )
         assert all([is_single_number(val) and val >= 0 for val in sizes]), (
             "If 'sizes' is given as a tuple, it is expected be a tuple of two "
-            "ints or two floats, each >= 0, got types %s with values %s." % (
-                str([type(val) for val in sizes]), str(sizes)))
+            f"ints or two floats, each >= 0, got types {str([type(val) for val in sizes])} with values {str(sizes)}."
+        )
 
     # if input is a list, call this function N times for N images
     # but check beforehand if all images have the same shape, then just
@@ -997,30 +1010,32 @@ def imresize_many_images(images, sizes=None, interpolation=None):
     if isinstance(images, list):
         nb_shapes = len({image.shape for image in images})
         if nb_shapes == 1:
-            return list(imresize_many_images(
-                np.array(images), sizes=sizes, interpolation=interpolation))
+            return list(
+                imresize_many_images(np.array(images), sizes=sizes, interpolation=interpolation)
+            )
 
         return [
-            imresize_many_images(
-                image[np.newaxis, ...],
-                sizes=sizes,
-                interpolation=interpolation)[0, ...]
-            for image in images]
+            imresize_many_images(image[np.newaxis, ...], sizes=sizes, interpolation=interpolation)[
+                0, ...
+            ]
+            for image in images
+        ]
 
     shape = images.shape
-    assert images.ndim in [3, 4], "Expected array of shape (N, H, W, [C]), " \
-                                  "got shape %s" % (str(shape),)
+    assert images.ndim in [3, 4], f"Expected array of shape (N, H, W, [C]), got shape {str(shape)}"
     nb_images = shape[0]
     height_image, width_image = shape[1], shape[2]
     nb_channels = shape[3] if images.ndim > 3 else None
 
     height_target, width_target = sizes[0], sizes[1]
-    height_target = (int(np.round(height_image * height_target))
-                     if is_single_float(height_target)
-                     else height_target)
-    width_target = (int(np.round(width_image * width_target))
-                    if is_single_float(width_target)
-                    else width_target)
+    height_target = (
+        int(np.round(height_image * height_target))
+        if is_single_float(height_target)
+        else height_target
+    )
+    width_target = (
+        int(np.round(width_image * width_target)) if is_single_float(width_target) else width_target
+    )
 
     if height_target == height_image and width_target == width_image:
         return np.copy(images)
@@ -1028,8 +1043,7 @@ def imresize_many_images(images, sizes=None, interpolation=None):
     # return empty array if input array contains zero-sized axes
     # note that None==0 is not True (for case nb_channels=None)
     if 0 in [height_target, width_target, nb_channels]:
-        shape_out = tuple([shape[0], height_target, width_target]
-                          + list(shape[3:]))
+        shape_out = tuple([shape[0], height_target, width_target] + list(shape[3:]))
         return np.zeros(shape_out, dtype=images.dtype)
 
     # place this after the (h==h' and w==w') check so that images with
@@ -1039,17 +1053,12 @@ def imresize_many_images(images, sizes=None, interpolation=None):
     assert not has_zero_size_axes, (
         "Cannot resize images, because at least one image has a height and/or "
         "width and/or number of channels of zero. "
-        "Observed shapes were: %s." % (
-            str([image.shape for image in images]),))
+        f"Observed shapes were: {str([image.shape for image in images])}."
+    )
 
     inter = interpolation
     assert inter is None or inter in IMRESIZE_VALID_INTERPOLATIONS, (
-        "Expected 'interpolation' to be None or one of %s. Got %s." % (
-            ", ".join(
-                [str(valid_ip) for valid_ip in IMRESIZE_VALID_INTERPOLATIONS]
-            ),
-            str(inter)
-        )
+        "Expected 'interpolation' to be None or one of {}. Got {}.".format(", ".join([str(valid_ip) for valid_ip in IMRESIZE_VALID_INTERPOLATIONS]), str(inter))
     )
     if inter is None:
         if height_target > height_image or width_target > width_image:
@@ -1067,20 +1076,20 @@ def imresize_many_images(images, sizes=None, interpolation=None):
 
     # TODO find more beautiful way to avoid circular imports
     import imgaug2.dtypes as iadt
+
     if inter == cv2.INTER_NEAREST:
         iadt.gate_dtypes_strs(
             images,
-            allowed="bool uint8 uint16 int8 int16 int32 "
-                    "float16 float32 float64",
+            allowed="bool uint8 uint16 int8 int16 int32 float16 float32 float64",
             disallowed="uint32 uint64 int64 float128",
-            augmenter=None
+            augmenter=None,
         )
     else:
         iadt.gate_dtypes_strs(
             images,
             allowed="bool uint8 uint16 int8 int16 float16 float32 float64",
             disallowed="uint32 uint64 int32 int64 float128",
-            augmenter=None
+            augmenter=None,
         )
 
     result_shape = (nb_images, height_target, width_target)
@@ -1100,24 +1109,21 @@ def imresize_many_images(images, sizes=None, interpolation=None):
 
         if nb_channels is not None and nb_channels > 512:
             channels = [
-                cv2.resize(image[..., c], (width_target, height_target),
-                           interpolation=inter) for c in range(nb_channels)]
+                cv2.resize(image[..., c], (width_target, height_target), interpolation=inter)
+                for c in range(nb_channels)
+            ]
             result_img = np.stack(channels, axis=-1)
         else:
-            result_img = cv2.resize(
-                image, (width_target, height_target), interpolation=inter)
+            result_img = cv2.resize(image, (width_target, height_target), interpolation=inter)
 
         assert result_img.dtype.name == image.dtype.name, (
-            "Expected cv2.resize() to keep the input dtype '%s', but got "
-            "'%s'. This is an internal error. Please report." % (
-                image.dtype.name, result_img.dtype.name
-            )
+            f"Expected cv2.resize() to keep the input dtype '{image.dtype.name}', but got "
+            f"'{result_img.dtype.name}'. This is an internal error. Please report."
         )
 
         # cv2 removes the channel axis if input was (H, W, 1)
         # we re-add it (but only if input was not (H, W))
-        if (len(result_img.shape) == 2 and nb_channels is not None
-                and nb_channels == 1):
+        if len(result_img.shape) == 2 and nb_channels is not None and nb_channels == 1:
             result_img = result_img[:, :, np.newaxis]
 
         if input_dtype_name == "bool":
@@ -1125,10 +1131,12 @@ def imresize_many_images(images, sizes=None, interpolation=None):
         elif input_dtype_name == "int8" and inter != cv2.INTER_NEAREST:
             # TODO somehow better avoid circular imports here
             import imgaug2.dtypes as iadt
+
             result_img = iadt.restore_dtypes_(result_img, np.int8)
         elif input_dtype_name == "float16":
             # TODO see above
             import imgaug2.dtypes as iadt
+
             result_img = iadt.restore_dtypes_(result_img, np.float16)
         result[i] = result_img
     return result
@@ -1139,7 +1147,8 @@ def _assert_two_or_three_dims(shape):
         shape = shape.shape
     assert len(shape) in [2, 3], (
         "Expected image with two or three dimensions, but got %d dimensions "
-        "and shape %s." % (len(shape), shape))
+        "and shape %s." % (len(shape), shape)
+    )
 
 
 def imresize_single_image(image, sizes, interpolation=None):
@@ -1174,15 +1183,13 @@ def imresize_single_image(image, sizes, interpolation=None):
         grayscale = True
         image = image[:, :, np.newaxis]
 
-    rs = imresize_many_images(
-        image[np.newaxis, :, :, :], sizes, interpolation=interpolation)
+    rs = imresize_many_images(image[np.newaxis, :, :, :], sizes, interpolation=interpolation)
     if grayscale:
         return rs[0, :, :, 0]
     return rs[0, ...]
 
 
-def pool(arr, block_size, func, pad_mode="constant", pad_cval=0,
-         preserve_dtype=True, cval=None):
+def pool(arr, block_size, func, pad_mode="constant", pad_cval=0, preserve_dtype=True, cval=None):
     """Resize an array by pooling values within blocks.
 
     **Supported dtypes**:
@@ -1258,25 +1265,26 @@ def pool(arr, block_size, func, pad_mode="constant", pad_cval=0,
 
     iadt.gate_dtypes_strs(
         {arr.dtype},
-        allowed="bool uint8 uint16 uint32 int8 int16 int32 "
-                "float16 float32 float64 float128",
-        disallowed="uint64 int64"
+        allowed="bool uint8 uint16 uint32 int8 int16 int32 float16 float32 float64 float128",
+        disallowed="uint64 int64",
     )
 
     if cval is not None:
-        warn_deprecated("`cval` is a deprecated argument in pool(). "
-                        "Use `pad_cval` instead.")
+        warn_deprecated("`cval` is a deprecated argument in pool(). Use `pad_cval` instead.")
         pad_cval = cval
 
     _assert_two_or_three_dims(arr)
 
     is_valid_int = is_single_integer(block_size) and block_size >= 1
-    is_valid_tuple = is_iterable(block_size) and len(block_size) in [2, 3] \
+    is_valid_tuple = (
+        is_iterable(block_size)
+        and len(block_size) in [2, 3]
         and [is_single_integer(val) and val >= 1 for val in block_size]
+    )
     assert is_valid_int or is_valid_tuple, (
         "Expected argument 'block_size' to be a single integer >0 or "
-        "a tuple of 2 or 3 values with each one being >0. Got %s." % (
-            str(block_size)))
+        f"a tuple of 2 or 3 values with each one being >0. Got {str(block_size)}."
+    )
 
     if is_single_integer(block_size):
         block_size = [block_size, block_size]
@@ -1291,13 +1299,12 @@ def pool(arr, block_size, func, pad_mode="constant", pad_cval=0,
         height_multiple=block_size[0],
         width_multiple=block_size[1],
         mode=pad_mode,
-        cval=pad_cval
+        cval=pad_cval,
     )
 
     input_dtype = arr.dtype
 
-    arr_reduced = skimage.measure.block_reduce(arr, tuple(block_size), func,
-                                               cval=cval)
+    arr_reduced = skimage.measure.block_reduce(arr, tuple(block_size), func, cval=cval)
     if preserve_dtype and arr_reduced.dtype.name != input_dtype.name:
         arr_reduced = arr_reduced.astype(input_dtype)
     return arr_reduced
@@ -1306,9 +1313,17 @@ def pool(arr, block_size, func, pad_mode="constant", pad_cval=0,
 # This automatically calls a special uint8 method if it fulfills standard
 # cv2 criteria. Otherwise it falls back to pool().
 # Added in 0.5.0.
-def _pool_dispatcher_(arr, block_size, func_uint8, blockfunc, pad_mode="edge",
-                      pad_cval=255, preserve_dtype=True, cval=None,
-                      copy=False):
+def _pool_dispatcher_(
+    arr,
+    block_size,
+    func_uint8,
+    blockfunc,
+    pad_mode="edge",
+    pad_cval=255,
+    preserve_dtype=True,
+    cval=None,
+    copy=False,
+):
     if not isinstance(block_size, (tuple, list)):
         block_size = (block_size, block_size)
 
@@ -1319,20 +1334,24 @@ def _pool_dispatcher_(arr, block_size, func_uint8, blockfunc, pad_mode="edge",
     nb_channels = 0 if len(shape) <= 2 else shape[-1]
 
     valid_for_cv2 = (
-        arr.dtype.name == "uint8"
-        and len(block_size) == 2
-        and nb_channels <= 512
-        and 0 not in shape
+        arr.dtype.name == "uint8" and len(block_size) == 2 and nb_channels <= 512 and 0 not in shape
     )
     if valid_for_cv2:
-        return func_uint8(arr, block_size, pad_mode=pad_mode,
-                          pad_cval=pad_cval if cval is None else cval)
-    return pool(arr, block_size, blockfunc, pad_mode=pad_mode,
-                pad_cval=pad_cval, preserve_dtype=preserve_dtype, cval=cval)
+        return func_uint8(
+            arr, block_size, pad_mode=pad_mode, pad_cval=pad_cval if cval is None else cval
+        )
+    return pool(
+        arr,
+        block_size,
+        blockfunc,
+        pad_mode=pad_mode,
+        pad_cval=pad_cval,
+        preserve_dtype=preserve_dtype,
+        cval=cval,
+    )
 
 
-def avg_pool(arr, block_size, pad_mode="reflect", pad_cval=128,
-             preserve_dtype=True, cval=None):
+def avg_pool(arr, block_size, pad_mode="reflect", pad_cval=128, preserve_dtype=True, cval=None):
     """Resize an array using average pooling.
 
     Defaults to ``pad_mode="reflect"`` to ensure that padded values do not
@@ -1388,7 +1407,7 @@ def avg_pool(arr, block_size, pad_mode="reflect", pad_cval=128,
         pad_cval=pad_cval,
         preserve_dtype=preserve_dtype,
         cval=cval,
-        copy=True
+        copy=True,
     )
 
 
@@ -1405,7 +1424,7 @@ def _avg_pool_uint8(arr, block_size, pad_mode="reflect", pad_cval=128):
             height_multiple=block_size[0],
             width_multiple=block_size[1],
             mode=pad_mode,
-            cval=pad_cval
+            cval=pad_cval,
         )
 
     height = arr.shape[0] // block_size[0]
@@ -1419,8 +1438,7 @@ def _avg_pool_uint8(arr, block_size, pad_mode="reflect", pad_cval=128):
     return arr
 
 
-def max_pool(arr, block_size, pad_mode="edge", pad_cval=0,
-             preserve_dtype=True, cval=None):
+def max_pool(arr, block_size, pad_mode="edge", pad_cval=0, preserve_dtype=True, cval=None):
     """Resize an array using max-pooling.
 
     Defaults to ``pad_mode="edge"`` to ensure that padded values do not affect
@@ -1462,13 +1480,17 @@ def max_pool(arr, block_size, pad_mode="edge", pad_cval=0,
         Array after max-pooling.
 
     """
-    return max_pool_(np.copy(arr), block_size, pad_mode=pad_mode,
-                     pad_cval=pad_cval, preserve_dtype=preserve_dtype,
-                     cval=cval)
+    return max_pool_(
+        np.copy(arr),
+        block_size,
+        pad_mode=pad_mode,
+        pad_cval=pad_cval,
+        preserve_dtype=preserve_dtype,
+        cval=cval,
+    )
 
 
-def max_pool_(arr, block_size, pad_mode="edge", pad_cval=0,
-              preserve_dtype=True, cval=None):
+def max_pool_(arr, block_size, pad_mode="edge", pad_cval=0, preserve_dtype=True, cval=None):
     """Resize an array in-place using max-pooling.
 
     Defaults to ``pad_mode="edge"`` to ensure that padded values do not affect
@@ -1522,12 +1544,11 @@ def max_pool_(arr, block_size, pad_mode="edge", pad_cval=0,
         pad_mode=pad_mode,
         pad_cval=pad_cval,
         preserve_dtype=preserve_dtype,
-        cval=cval
+        cval=cval,
     )
 
 
-def min_pool(arr, block_size, pad_mode="edge", pad_cval=255,
-             preserve_dtype=True):
+def min_pool(arr, block_size, pad_mode="edge", pad_cval=255, preserve_dtype=True):
     """Resize an array using min-pooling.
 
     Defaults to ``pad_mode="edge"`` to ensure that padded values do not affect
@@ -1566,12 +1587,16 @@ def min_pool(arr, block_size, pad_mode="edge", pad_cval=255,
         Array after min-pooling.
 
     """
-    return min_pool_(np.copy(arr), block_size, pad_mode=pad_mode,
-                     pad_cval=pad_cval, preserve_dtype=preserve_dtype)
+    return min_pool_(
+        np.copy(arr),
+        block_size,
+        pad_mode=pad_mode,
+        pad_cval=pad_cval,
+        preserve_dtype=preserve_dtype,
+    )
 
 
-def min_pool_(arr, block_size, pad_mode="edge", pad_cval=255,
-              preserve_dtype=True):
+def min_pool_(arr, block_size, pad_mode="edge", pad_cval=255, preserve_dtype=True):
     """Resize an array in-place using min-pooling.
 
     Defaults to ``pad_mode="edge"`` to ensure that padded values do not affect
@@ -1621,20 +1646,18 @@ def min_pool_(arr, block_size, pad_mode="edge", pad_cval=255,
         np.min,
         pad_mode=pad_mode,
         pad_cval=pad_cval,
-        preserve_dtype=preserve_dtype
+        preserve_dtype=preserve_dtype,
     )
 
 
 # Added in 0.5.0.
 def _min_pool_uint8_(arr, block_size, pad_mode="edge", pad_cval=255):
-    return _minmax_pool_uint8_(arr, block_size, cv2.erode,
-                               pad_mode=pad_mode, pad_cval=pad_cval)
+    return _minmax_pool_uint8_(arr, block_size, cv2.erode, pad_mode=pad_mode, pad_cval=pad_cval)
 
 
 # Added in 0.5.0.
 def _max_pool_uint8_(arr, block_size, pad_mode="edge", pad_cval=0):
-    return _minmax_pool_uint8_(arr, block_size, cv2.dilate,
-                               pad_mode=pad_mode, pad_cval=pad_cval)
+    return _minmax_pool_uint8_(arr, block_size, cv2.dilate, pad_mode=pad_mode, pad_cval=pad_cval)
 
 
 # Added in 0.5.0.
@@ -1650,7 +1673,7 @@ def _minmax_pool_uint8_(arr, block_size, func, pad_mode, pad_cval):
             height_multiple=block_size[0],
             width_multiple=block_size[1],
             mode=pad_mode,
-            cval=pad_cval
+            cval=pad_cval,
         )
 
     kernel = globals()["_POOLING_KERNELS_CACHE"].get(block_size, None)
@@ -1669,11 +1692,10 @@ def _minmax_pool_uint8_(arr, block_size, func, pad_mode, pad_cval):
 
     start_height = (block_size[0] - 1) // 2
     start_width = (block_size[1] - 1) // 2
-    return arr[start_height::block_size[0], start_width::block_size[1]]
+    return arr[start_height :: block_size[0], start_width :: block_size[1]]
 
 
-def median_pool(arr, block_size, pad_mode="reflect", pad_cval=128,
-                preserve_dtype=True):
+def median_pool(arr, block_size, pad_mode="reflect", pad_cval=128, preserve_dtype=True):
     """Resize an array using median-pooling.
 
     Defaults to ``pad_mode="reflect"`` to ensure that padded values do not
@@ -1733,19 +1755,21 @@ def median_pool(arr, block_size, pad_mode="reflect", pad_cval=128,
         and block_size[0] == block_size[1]
         and (
             block_size[0] in [3, 5]
-            or (
-                block_size[0] in [7, 9, 11, 13]
-                and (shape[0] * shape[1]) <= (32 * 32)
-            )
+            or (block_size[0] in [7, 9, 11, 13] and (shape[0] * shape[1]) <= (32 * 32))
         )
         and nb_channels <= 512
         and 0 not in shape
     )
     if valid_for_cv2:
-        return _median_pool_cv2(arr, block_size[0], pad_mode=pad_mode,
-                                pad_cval=pad_cval)
-    return pool(arr, block_size, np.median, pad_mode=pad_mode,
-                pad_cval=pad_cval, preserve_dtype=preserve_dtype)
+        return _median_pool_cv2(arr, block_size[0], pad_mode=pad_mode, pad_cval=pad_cval)
+    return pool(
+        arr,
+        block_size,
+        np.median,
+        pad_mode=pad_mode,
+        pad_cval=pad_cval,
+        preserve_dtype=preserve_dtype,
+    )
 
 
 # block_size must be a single integer here, in contrast to the other cv2
@@ -1759,11 +1783,7 @@ def _median_pool_cv2(arr, block_size, pad_mode, pad_cval):
     shape = arr.shape
     if shape[0] % block_size != 0 or shape[1] % block_size != 0:
         arr = pad_to_multiples_of(
-            arr,
-            height_multiple=block_size,
-            width_multiple=block_size,
-            mode=pad_mode,
-            cval=pad_cval
+            arr, height_multiple=block_size, width_multiple=block_size, mode=pad_mode, cval=pad_cval
         )
 
     arr = cv2.medianBlur(arr, block_size)
@@ -1828,26 +1848,26 @@ def draw_grid(images, rows=None, cols=None):
     if is_np_array(images):
         assert images.ndim == 4, (
             "Expected to get an array of four dimensions denoting "
-            "(N, H, W, C), got %d dimensions and shape %s." % (
-                images.ndim, images.shape))
+            "(N, H, W, C), got %d dimensions and shape %s." % (images.ndim, images.shape)
+        )
     else:
-        assert is_iterable(images), (
-            "Expected to get an iterable of ndarrays, "
-            "got %s." % (type(images),))
+        assert is_iterable(images), f"Expected to get an iterable of ndarrays, got {type(images)}."
         assert all([is_np_array(image) for image in images]), (
             "Expected to get an iterable of ndarrays, "
-            "got types %s." % (
-                ", ".join([str(type(image)) for image in images],)))
+            "got types {}.".format(", ".join(
+                    [str(type(image)) for image in images],
+                ))
+        )
         assert all([image.ndim == 3 for image in images]), (
-            "Expected to get images with three dimensions. Got shapes %s." % (
-                ", ".join([str(image.shape) for image in images])))
+            "Expected to get images with three dimensions. Got shapes {}.".format(", ".join([str(image.shape) for image in images]))
+        )
         assert len({image.dtype.name for image in images}) == 1, (
-            "Expected to get images with the same dtypes, got dtypes %s." % (
-                ", ".join([image.dtype.name for image in images])))
+            "Expected to get images with the same dtypes, got dtypes {}.".format(", ".join([image.dtype.name for image in images]))
+        )
         assert len({image.shape[-1] for image in images}) == 1, (
             "Expected to get images with the same number of channels, "
-            "got shapes %s." % (
-                ", ".join([str(image.shape) for image in images])))
+            "got shapes {}.".format(", ".join([str(image.shape) for image in images]))
+        )
 
     cell_height = max([image.shape[0] for image in images])
     cell_width = max([image.shape[1] for image in images])
@@ -1862,7 +1882,8 @@ def draw_grid(images, rows=None, cols=None):
     assert rows * cols >= nb_images, (
         "Expected rows*cols to lead to at least as many cells as there were "
         "images provided, but got %d rows, %d cols (=%d cells) for %d "
-        "images. " % (rows, cols, rows*cols, nb_images))
+        "images. " % (rows, cols, rows * cols, nb_images)
+    )
 
     width = cell_width * cols
     height = cell_height * rows
@@ -1941,8 +1962,7 @@ def imshow(image, backend=IMSHOW_BACKEND_DEFAULT):
         technical issues.
 
     """
-    assert backend in ["matplotlib", "cv2"], (
-        "Expected backend 'matplotlib' or 'cv2', got %s." % (backend,))
+    assert backend in ["matplotlib", "cv2"], f"Expected backend 'matplotlib' or 'cv2', got {backend}."
 
     if backend == "cv2":
         image_bgr = image
@@ -1966,7 +1986,7 @@ def imshow(image, backend=IMSHOW_BACKEND_DEFAULT):
         w = max(w, 6)
 
         fig, ax = plt.subplots(figsize=(w, h), dpi=dpi)
-        fig.canvas.set_window_title("imgaug2.imshow(%s)" % (image.shape,))
+        fig.canvas.set_window_title(f"imgaug2.imshow({image.shape})")
         # cmap=gray is automatically only activate for grayscale images
         ax.imshow(image, cmap="gray")
         plt.show()
@@ -2084,8 +2104,9 @@ def apply_lut_(image, table):
     # [(256,), (256,), ...] => (256, C)
     if isinstance(table, list):
         assert len(table) == nb_channels, (
-            "Expected to get %d tables (one per channel), got %d instead." % (
-                nb_channels, len(table)))
+            "Expected to get %d tables (one per channel), got %d instead."
+            % (nb_channels, len(table))
+        )
         table = np.stack(table, axis=-1)
 
     # (256, C) => (1, 256, C)
@@ -2096,25 +2117,23 @@ def apply_lut_(image, table):
         "Expected 'table' to be any of the following: "
         "A list of C (256,) arrays, an array of shape (256,), an array of "
         "shape (256, C), an array of shape (1, 256, C). Transformed 'table' "
-        "up to shape %s for image with shape %s (C=%d)." % (
-            table.shape, image_shape_orig, nb_channels))
+        "up to shape %s for image with shape %s (C=%d)."
+        % (table.shape, image_shape_orig, nb_channels)
+    )
 
     if nb_channels > 512:
         if table.shape == (256,):
-            table = np.tile(table[np.newaxis, :, np.newaxis],
-                            (1, 1, nb_channels))
+            table = np.tile(table[np.newaxis, :, np.newaxis], (1, 1, nb_channels))
 
         subluts = []
         for group_idx in np.arange(int(np.ceil(nb_channels / 512))):
             c_start = group_idx * 512
             c_end = c_start + 512
-            subluts.append(apply_lut_(image[:, :, c_start:c_end],
-                                      table[:, :, c_start:c_end]))
+            subluts.append(apply_lut_(image[:, :, c_start:c_end], table[:, :, c_start:c_end]))
 
         return np.concatenate(subluts, axis=2)
 
-    assert image.dtype == _UINT8_DTYPE, (
-        "Expected uint8 image, got dtype %s." % (image.dtype.name,))
+    assert image.dtype == _UINT8_DTYPE, f"Expected uint8 image, got dtype {image.dtype.name}."
 
     image = cv2.LUT(image, table, dst=image)
     return image
@@ -2126,7 +2145,9 @@ def _identity_decorator(*_dec_args, **_dec_kwargs):
         @functools.wraps(func)
         def _wrapper(*args, **kwargs):
             return func(*args, **kwargs)
+
         return _wrapper
+
     return _decorator
 
 
@@ -2137,7 +2158,7 @@ else:
     _numbajit = _identity_decorator
 
 
-class HooksImages(object):
+class HooksImages:
     """Class to intervene with image augmentation runs.
 
     This is e.g. useful to dynamically deactivate some augmenters.
@@ -2211,8 +2232,7 @@ class HooksImages(object):
 
     """
 
-    def __init__(self, activator=None, propagator=None, preprocessor=None,
-                 postprocessor=None):
+    def __init__(self, activator=None, propagator=None, preprocessor=None, postprocessor=None):
         self.activator = activator
         self.propagator = propagator
         self.preprocessor = preprocessor
@@ -2308,19 +2328,17 @@ class HooksKeypoints(HooksImages):
 # DeprecatedWarnings when they are called.
 #####################################################################
 
-def _mark_moved_class_or_function(class_name_old, module_name_new,
-                                  class_name_new):
+
+def _mark_moved_class_or_function(class_name_old, module_name_new, class_name_new):
     # pylint: disable=redefined-outer-name
-    class_name_new = (class_name_new
-                      if class_name_new is not None
-                      else class_name_old)
+    class_name_new = class_name_new if class_name_new is not None else class_name_old
 
     def _func(*args, **kwargs):
         import importlib
+
         warn_deprecated(
-            "Using imgaug2.imgaug2.%s is deprecated. Use %s.%s instead." % (
-                class_name_old, module_name_new, class_name_new
-            ))
+            f"Using imgaug2.imgaug2.{class_name_old} is deprecated. Use {module_name_new}.{class_name_new} instead."
+        )
         module = importlib.import_module(module_name_new)
         return getattr(module, class_name_new)(*args, **kwargs)
 
@@ -2342,16 +2360,18 @@ MOVED = [
     ("BatchLoader", "imgaug2.multicore", None),
     ("BackgroundAugmenter", "imgaug2.multicore", None),
     ("compute_geometric_median", "imgaug2.augmentables.kps", None),
-    ("_convert_points_to_shapely_line_string", "imgaug2.augmentables.polys",
-     None),
+    ("_convert_points_to_shapely_line_string", "imgaug2.augmentables.polys", None),
     ("_interpolate_point_pair", "imgaug2.augmentables.polys", None),
     ("_interpolate_points", "imgaug2.augmentables.polys", None),
     ("_interpolate_points_by_max_distance", "imgaug2.augmentables.polys", None),
     ("pad", "imgaug2.augmenters.size", None),
     ("pad_to_aspect_ratio", "imgaug2.augmenters.size", None),
     ("pad_to_multiples_of", "imgaug2.augmenters.size", None),
-    ("compute_paddings_for_aspect_ratio", "imgaug2.augmenters.size",
-     "compute_paddings_to_reach_aspect_ratio"),
+    (
+        "compute_paddings_for_aspect_ratio",
+        "imgaug2.augmenters.size",
+        "compute_paddings_to_reach_aspect_ratio",
+    ),
     ("compute_paddings_to_reach_multiples_of", "imgaug2.augmenters.size", None),
     ("compute_paddings_to_reach_exponents_of", "imgaug2.augmenters.size", None),
     ("quokka", "imgaug2.data", None),
@@ -2365,4 +2385,5 @@ MOVED = [
 
 for class_name_old, module_name_new, class_name_new in MOVED:
     locals()[class_name_old] = _mark_moved_class_or_function(
-        class_name_old, module_name_new, class_name_new)
+        class_name_old, module_name_new, class_name_new
+    )

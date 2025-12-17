@@ -7,6 +7,8 @@ List of augmenters:
     * :class:`Flipud`
 
 """
+from __future__ import annotations
+
 
 import numpy as np
 import cv2
@@ -870,7 +872,7 @@ class Fliplr(meta.Augmenter):
     def __init__(self, p=1,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Fliplr, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.p = iap.handle_probability_param(p, "p")
@@ -982,7 +984,7 @@ class Flipud(meta.Augmenter):
     def __init__(self, p=1,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Flipud, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.p = iap.handle_probability_param(p, "p")

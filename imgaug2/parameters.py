@@ -5,6 +5,8 @@ distributions (guassian, poisson etc.), classes representing noise sources
 and methods to normalize parameter-related user inputs.
 
 """
+from __future__ import annotations
+
 import copy as copy_module
 from collections import defaultdict
 from abc import ABCMeta, abstractmethod
@@ -132,7 +134,7 @@ def toggle_prefetching(enabled):
     _PREFETCHING_ENABLED = enabled
 
 
-class toggled_prefetching(object):  # pylint: disable=invalid-name
+class toggled_prefetching:  # pylint: disable=invalid-name
     """Context that toggles prefetching on or off depending on a flag.
 
     Added in 0.5.0.
@@ -172,7 +174,7 @@ class no_prefetching(toggled_prefetching):  # pylint: disable=invalid-name
 
     # Added in 0.5.0.
     def __init__(self):
-        super(no_prefetching, self).__init__(False)
+        super().__init__(False)
 
 
 def _check_value_range(value, name, value_range):
@@ -864,7 +866,7 @@ class AutoPrefetcher(StochasticParameter):
 
     # Added in 0.5.0.
     def __init__(self, other_param, nb_prefetch):
-        super(AutoPrefetcher, self).__init__()
+        super().__init__()
         self.other_param = other_param
         self.nb_prefetch = nb_prefetch
 
@@ -971,7 +973,7 @@ class Deterministic(StochasticParameter):
 
     """
     def __init__(self, value):
-        super(Deterministic, self).__init__()
+        super().__init__()
 
         if isinstance(value, StochasticParameter):
             self.value = value.draw_sample()
@@ -1021,7 +1023,7 @@ class DeterministicList(StochasticParameter):
 
     # Added in 0.4.0.
     def __init__(self, values):
-        super(DeterministicList, self).__init__()
+        super().__init__()
 
         assert ia.is_iterable(values), (
             "Expected to get an iterable as input, got type %s." % (
@@ -1102,7 +1104,7 @@ class Choice(StochasticParameter):
     """
     def __init__(self, a, replace=True, p=None):
         # pylint: disable=invalid-name
-        super(Choice, self).__init__()
+        super().__init__()
 
         assert ia.is_iterable(a), (
             "Expected a to be an iterable (e.g. list), got %s." % (type(a),))
@@ -1220,7 +1222,7 @@ class Binomial(StochasticParameter):
     """
 
     def __init__(self, p):
-        super(Binomial, self).__init__()
+        super().__init__()
         self.p = handle_continuous_param(p, "p")
 
     # Added in 0.5.0.
@@ -1282,7 +1284,7 @@ class DiscreteUniform(StochasticParameter):
 
     def __init__(self, a, b):
         # pylint: disable=invalid-name
-        super(DiscreteUniform, self).__init__()
+        super().__init__()
 
         self.a = handle_discrete_param(a, "a")
         self.b = handle_discrete_param(b, "b")
@@ -1347,7 +1349,7 @@ class Poisson(StochasticParameter):
     """
 
     def __init__(self, lam):
-        super(Poisson, self).__init__()
+        super().__init__()
 
         self.lam = handle_continuous_param(lam, "lam")
 
@@ -1407,7 +1409,7 @@ class Normal(StochasticParameter):
 
     """
     def __init__(self, loc, scale):
-        super(Normal, self).__init__()
+        super().__init__()
 
         self.loc = handle_continuous_param(loc, "loc")
         self.scale = handle_continuous_param(scale, "scale",
@@ -1488,7 +1490,7 @@ class TruncatedNormal(StochasticParameter):
     """
 
     def __init__(self, loc, scale, low=-np.inf, high=np.inf):
-        super(TruncatedNormal, self).__init__()
+        super().__init__()
 
         self.loc = handle_continuous_param(loc, "loc")
         self.scale = handle_continuous_param(scale, "scale",
@@ -1571,7 +1573,7 @@ class Laplace(StochasticParameter):
 
     """
     def __init__(self, loc, scale):
-        super(Laplace, self).__init__()
+        super().__init__()
 
         self.loc = handle_continuous_param(loc, "loc")
         self.scale = handle_continuous_param(scale, "scale",
@@ -1630,7 +1632,7 @@ class ChiSquare(StochasticParameter):
     """
     def __init__(self, df):
         # pylint: disable=invalid-name
-        super(ChiSquare, self).__init__()
+        super().__init__()
 
         self.df = handle_discrete_param(df, "df", value_range=(1, None))
 
@@ -1686,7 +1688,7 @@ class Weibull(StochasticParameter):
     """
     def __init__(self, a):
         # pylint: disable=invalid-name
-        super(Weibull, self).__init__()
+        super().__init__()
 
         self.a = handle_continuous_param(a, "a", value_range=(0.0001, None))
 
@@ -1748,7 +1750,7 @@ class Uniform(StochasticParameter):
     """
     def __init__(self, a, b):
         # pylint: disable=invalid-name
-        super(Uniform, self).__init__()
+        super().__init__()
 
         self.a = handle_continuous_param(a, "a")
         self.b = handle_continuous_param(b, "b")
@@ -1813,7 +1815,7 @@ class Beta(StochasticParameter):
 
     """
     def __init__(self, alpha, beta, epsilon=0.0001):
-        super(Beta, self).__init__()
+        super().__init__()
 
         self.alpha = handle_continuous_param(alpha, "alpha")
         self.beta = handle_continuous_param(beta, "beta")
@@ -1919,7 +1921,7 @@ class FromLowerResolution(StochasticParameter):
     """
     def __init__(self, other_param, size_percent=None, size_px=None,
                  method="nearest", min_size=1):
-        super(FromLowerResolution, self).__init__()
+        super().__init__()
 
         assert size_percent is not None or size_px is not None, (
             "Expected either 'size_percent' or 'size_px' to be provided, "
@@ -2084,7 +2086,7 @@ class Clip(StochasticParameter):
     """
 
     def __init__(self, other_param, minval=None, maxval=None):
-        super(Clip, self).__init__()
+        super().__init__()
 
         _assert_arg_is_stoch_param("other_param", other_param)
         assert minval is None or ia.is_single_number(minval), (
@@ -2147,7 +2149,7 @@ class Discretize(StochasticParameter):
     """
     def __init__(self, other_param, round=True):
         # pylint: disable=redefined-builtin
-        super(Discretize, self).__init__()
+        super().__init__()
         _assert_arg_is_stoch_param("other_param", other_param)
         self.other_param = other_param
         self.round = round
@@ -2227,7 +2229,7 @@ class Multiply(StochasticParameter):
 
     """
     def __init__(self, other_param, val, elementwise=False):
-        super(Multiply, self).__init__()
+        super().__init__()
 
         self.other_param = handle_continuous_param(other_param, "other_param",
                                                    prefetch=False)
@@ -2308,7 +2310,7 @@ class Divide(StochasticParameter):
     """
 
     def __init__(self, other_param, val, elementwise=False):
-        super(Divide, self).__init__()
+        super().__init__()
 
         self.other_param = handle_continuous_param(other_param, "other_param",
                                                    prefetch=False)
@@ -2401,7 +2403,7 @@ class Add(StochasticParameter):
     """
 
     def __init__(self, other_param, val, elementwise=False):
-        super(Add, self).__init__()
+        super().__init__()
 
         self.other_param = handle_continuous_param(other_param, "other_param",
                                                    prefetch=False)
@@ -2477,7 +2479,7 @@ class Subtract(StochasticParameter):
 
     """
     def __init__(self, other_param, val, elementwise=False):
-        super(Subtract, self).__init__()
+        super().__init__()
 
         self.other_param = handle_continuous_param(other_param, "other_param",
                                                    prefetch=False)
@@ -2554,7 +2556,7 @@ class Power(StochasticParameter):
 
     """
     def __init__(self, other_param, val, elementwise=False):
-        super(Power, self).__init__()
+        super().__init__()
 
         self.other_param = handle_continuous_param(other_param, "other_param",
                                                    prefetch=False)
@@ -2615,7 +2617,7 @@ class Absolute(StochasticParameter):
 
     """
     def __init__(self, other_param):
-        super(Absolute, self).__init__()
+        super().__init__()
 
         _assert_arg_is_stoch_param("other_param", other_param)
 
@@ -2655,7 +2657,7 @@ class RandomSign(StochasticParameter):
     """
 
     def __init__(self, other_param, p_positive=0.5):
-        super(RandomSign, self).__init__()
+        super().__init__()
 
         _assert_arg_is_stoch_param("other_param", other_param)
         assert ia.is_single_number(p_positive), (
@@ -2733,7 +2735,7 @@ class ForceSign(StochasticParameter):
 
     def __init__(self, other_param, positive, mode="invert",
                  reroll_count_max=2):
-        super(ForceSign, self).__init__()
+        super().__init__()
 
         _assert_arg_is_stoch_param("other_param", other_param)
         self.other_param = other_param
@@ -2956,7 +2958,7 @@ class IterativeNoiseAggregator(StochasticParameter):
     def __init__(self, other_param, iterations=(1, 3),
                  aggregation_method=["max", "avg"]):
         # pylint: disable=dangerous-default-value
-        super(IterativeNoiseAggregator, self).__init__()
+        super().__init__()
         _assert_arg_is_stoch_param("other_param", other_param)
         self.other_param = other_param
 
@@ -3117,7 +3119,7 @@ class Sigmoid(StochasticParameter):
 
     def __init__(self, other_param, threshold=(-10, 10), activated=True,
                  mul=1, add=0):
-        super(Sigmoid, self).__init__()
+        super().__init__()
         _assert_arg_is_stoch_param("other_param", other_param)
         self.other_param = other_param
 
@@ -3258,7 +3260,7 @@ class SimplexNoise(StochasticParameter):
     def __init__(self, size_px_max=(2, 16),
                  upscale_method=["linear", "nearest"]):
         # pylint: disable=dangerous-default-value
-        super(SimplexNoise, self).__init__()
+        super().__init__()
         self.size_px_max = handle_discrete_param(
             size_px_max, "size_px_max", value_range=(1, 10000))
 
@@ -3460,7 +3462,7 @@ class FrequencyNoise(StochasticParameter):
     def __init__(self, exponent=(-4, 4), size_px_max=(4, 32),
                  upscale_method=["linear", "nearest"]):
         # pylint: disable=dangerous-default-value
-        super(FrequencyNoise, self).__init__()
+        super().__init__()
         self.exponent = handle_continuous_param(exponent, "exponent")
         self.size_px_max = handle_discrete_param(
             size_px_max, "size_px_max", value_range=(1, 10000))

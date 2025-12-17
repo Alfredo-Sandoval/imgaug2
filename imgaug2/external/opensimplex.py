@@ -2,6 +2,8 @@
 This is a copy of the OpenSimplex library,
 based on commit d861cb290531ad15825f21dc4cc35c5d4f407259 from 20.07.2017.
 """
+from __future__ import annotations
+
 
 # Based on: https://gist.github.com/KdotJPG/b1270127455a94ac5d19
 
@@ -79,7 +81,7 @@ def overflow(x):
     return c_long(x).value
 
 
-class OpenSimplex(object):
+class OpenSimplex:
     """
     OpenSimplex n-dimensional gradient noise functions.
     """

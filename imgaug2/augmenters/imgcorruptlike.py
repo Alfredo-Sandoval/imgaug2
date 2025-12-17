@@ -67,6 +67,8 @@ Example usage::
 Added in 0.4.0.
 
 """
+from __future__ import annotations
+
 
 import warnings
 
@@ -1010,7 +1012,7 @@ class _ImgcorruptAugmenterBase(meta.Augmenter):
     def __init__(self, func, severity=1,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(_ImgcorruptAugmenterBase, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -1099,7 +1101,7 @@ class GaussianNoise(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(GaussianNoise, self).__init__(
+        super().__init__(
             apply_gaussian_noise, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1158,7 +1160,7 @@ class ShotNoise(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ShotNoise, self).__init__(
+        super().__init__(
             apply_shot_noise, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1217,7 +1219,7 @@ class ImpulseNoise(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ImpulseNoise, self).__init__(
+        super().__init__(
             apply_impulse_noise, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1276,7 +1278,7 @@ class SpeckleNoise(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(SpeckleNoise, self).__init__(
+        super().__init__(
             apply_speckle_noise, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1335,7 +1337,7 @@ class GaussianBlur(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(GaussianBlur, self).__init__(
+        super().__init__(
             apply_gaussian_blur, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1394,7 +1396,7 @@ class GlassBlur(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(GlassBlur, self).__init__(
+        super().__init__(
             apply_glass_blur, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1453,7 +1455,7 @@ class DefocusBlur(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(DefocusBlur, self).__init__(
+        super().__init__(
             apply_defocus_blur, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1512,7 +1514,7 @@ class MotionBlur(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(MotionBlur, self).__init__(
+        super().__init__(
             apply_motion_blur, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1571,7 +1573,7 @@ class ZoomBlur(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ZoomBlur, self).__init__(
+        super().__init__(
             apply_zoom_blur, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1630,7 +1632,7 @@ class Fog(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Fog, self).__init__(
+        super().__init__(
             apply_fog, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1689,7 +1691,7 @@ class Frost(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Frost, self).__init__(
+        super().__init__(
             apply_frost, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1748,7 +1750,7 @@ class Snow(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Snow, self).__init__(
+        super().__init__(
             apply_snow, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1807,7 +1809,7 @@ class Spatter(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Spatter, self).__init__(
+        super().__init__(
             apply_spatter, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1866,7 +1868,7 @@ class Contrast(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Contrast, self).__init__(
+        super().__init__(
             apply_contrast, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1925,7 +1927,7 @@ class Brightness(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Brightness, self).__init__(
+        super().__init__(
             apply_brightness, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1984,7 +1986,7 @@ class Saturate(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Saturate, self).__init__(
+        super().__init__(
             apply_saturate, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -2043,7 +2045,7 @@ class JpegCompression(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(JpegCompression, self).__init__(
+        super().__init__(
             apply_jpeg_compression, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -2102,7 +2104,7 @@ class Pixelate(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Pixelate, self).__init__(
+        super().__init__(
             apply_pixelate, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -2165,7 +2167,7 @@ class ElasticTransform(_ImgcorruptAugmenterBase):
     def __init__(self, severity=(1, 5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ElasticTransform, self).__init__(
+        super().__init__(
             apply_elastic_transform, severity,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -2178,5 +2180,5 @@ class ElasticTransform(_ImgcorruptAugmenterBase):
             "data. Got a batch containing: %s. Use "
             "imgaug2.augmenters.geometric.ElasticTransformation for "
             "batches containing non-image data." % (", ".join(cols),))
-        return super(ElasticTransform, self)._augment_batch_(
+        return super()._augment_batch_(
             batch, random_state, parents, hooks)

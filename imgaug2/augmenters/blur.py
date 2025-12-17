@@ -11,6 +11,8 @@ List of augmenters:
     * :class:`MeanShiftBlur`
 
 """
+from __future__ import annotations
+
 
 import numpy as np
 from scipy import ndimage
@@ -578,7 +580,7 @@ class GaussianBlur(meta.Augmenter):
     def __init__(self, sigma=(0.0, 3.0),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(GaussianBlur, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -702,7 +704,7 @@ class AverageBlur(meta.Augmenter):
     def __init__(self, k=(1, 7),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(AverageBlur, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -860,7 +862,7 @@ class MedianBlur(meta.Augmenter):
     def __init__(self, k=(1, 7),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(MedianBlur, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -1027,7 +1029,7 @@ class BilateralBlur(meta.Augmenter):
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
         # pylint: disable=invalid-name
-        super(BilateralBlur, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -1183,14 +1185,14 @@ class MotionBlur(iaa_convolutional.Convolve):
         matrix_gen = _MotionBlurMatrixGenerator(k_param, angle_param,
                                                 direction_param, order)
 
-        super(MotionBlur, self).__init__(
+        super().__init__(
             matrix_gen,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
 
 # Added in 0.4.0.
-class _MotionBlurMatrixGenerator(object):
+class _MotionBlurMatrixGenerator:
     # Added in 0.4.0.
     def __init__(self, k, angle, direction, order):
         self.k = k
@@ -1308,7 +1310,7 @@ class MeanShiftBlur(meta.Augmenter):
     def __init__(self, spatial_radius=(5.0, 40.0), color_radius=(5.0, 40.0),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(MeanShiftBlur, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.spatial_window_radius = iap.handle_continuous_param(

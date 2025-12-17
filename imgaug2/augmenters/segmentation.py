@@ -10,6 +10,8 @@ List of augmenters:
     * :class:`RelativeRegularGridVoronoi`
 
 """
+from __future__ import annotations
+
 
 from abc import ABCMeta, abstractmethod
 
@@ -213,7 +215,7 @@ class Superpixels(meta.Augmenter):
                  max_size=128, interpolation="linear",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Superpixels, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -701,7 +703,7 @@ class Voronoi(meta.Augmenter):
                  interpolation="linear",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Voronoi, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -870,7 +872,7 @@ class UniformVoronoi(Voronoi):
                  interpolation="linear",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(UniformVoronoi, self).__init__(
+        super().__init__(
             points_sampler=UniformPointsSampler(n_points),
             p_replace=p_replace,
             max_size=max_size,
@@ -1034,7 +1036,7 @@ class RegularGridVoronoi(Voronoi):
                  max_size=128, interpolation="linear",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(RegularGridVoronoi, self).__init__(
+        super().__init__(
             points_sampler=DropoutPointsSampler(
                 RegularGridPointsSampler(n_rows, n_cols),
                 p_drop_points
@@ -1216,7 +1218,7 @@ class RelativeRegularGridVoronoi(Voronoi):
                  max_size=None, interpolation="linear",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(RelativeRegularGridVoronoi, self).__init__(
+        super().__init__(
             points_sampler=DropoutPointsSampler(
                 RelativeRegularGridPointsSampler(n_rows_frac, n_cols_frac),
                 p_drop_points

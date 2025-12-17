@@ -25,6 +25,8 @@ List of augmenters:
     * :class:`Posterize`
 
 """
+from __future__ import annotations
+
 
 from abc import ABCMeta, abstractmethod
 
@@ -382,7 +384,7 @@ def change_colorspaces_(images, to_colorspaces, from_colorspaces=CSPACE_RGB):
 
 
 # Added in 0.4.0.
-class _KelvinToRGBTableSingleton(object):
+class _KelvinToRGBTableSingleton:
     _INSTANCE = None
 
     # Added in 0.4.0.
@@ -394,7 +396,7 @@ class _KelvinToRGBTableSingleton(object):
 
 
 # Added in 0.4.0.
-class _KelvinToRGBTable(object):
+class _KelvinToRGBTable:
     # Added in 0.4.0.
     def __init__(self):
         self.table = self.create_table()
@@ -1044,7 +1046,7 @@ class WithColorspace(meta.Augmenter):
     def __init__(self, to_colorspace, from_colorspace=CSPACE_RGB, children=None,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(WithColorspace, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -1207,7 +1209,7 @@ class WithBrightnessChannels(meta.Augmenter):
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
         # pylint: disable=dangerous-default-value
-        super(WithBrightnessChannels, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -1383,7 +1385,7 @@ class MultiplyAndAddToBrightness(WithBrightnessChannels):
             else arithmetic.Multiply(mul))
         add = meta.Identity() if add == 0 else arithmetic.Add(add)
 
-        super(MultiplyAndAddToBrightness, self).__init__(
+        super().__init__(
             children=meta.Sequential(
                 [mul, add],
                 random_order=random_order
@@ -1478,7 +1480,7 @@ class MultiplyBrightness(MultiplyAndAddToBrightness):
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
         # pylint: disable=dangerous-default-value
-        super(MultiplyBrightness, self).__init__(
+        super().__init__(
             mul=mul,
             add=0,
             to_colorspace=to_colorspace,
@@ -1552,7 +1554,7 @@ class AddToBrightness(MultiplyAndAddToBrightness):
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
         # pylint: disable=dangerous-default-value
-        super(AddToBrightness, self).__init__(
+        super().__init__(
             mul=1.0,
             add=add,
             to_colorspace=to_colorspace,
@@ -1647,7 +1649,7 @@ class WithHueAndSaturation(meta.Augmenter):
     def __init__(self, children=None, from_colorspace="RGB",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(WithHueAndSaturation, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -1955,7 +1957,7 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
                     )
                 )
 
-        super(MultiplyHueAndSaturation, self).__init__(
+        super().__init__(
             children,
             from_colorspace=from_colorspace,
             seed=rss[4],
@@ -2029,7 +2031,7 @@ class MultiplyHue(MultiplyHueAndSaturation):
     def __init__(self, mul=(-3.0, 3.0), from_colorspace="RGB",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(MultiplyHue, self).__init__(
+        super().__init__(
             mul_hue=mul,
             from_colorspace=from_colorspace,
             seed=seed, name=name,
@@ -2098,7 +2100,7 @@ class MultiplySaturation(MultiplyHueAndSaturation):
     def __init__(self, mul=(0.0, 3.0), from_colorspace="RGB",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(MultiplySaturation, self).__init__(
+        super().__init__(
             mul_saturation=mul,
             from_colorspace=from_colorspace,
             seed=seed, name=name,
@@ -2185,7 +2187,7 @@ class RemoveSaturation(MultiplySaturation):
                                         list_to_choice=True),
             elementwise=True
         )
-        super(RemoveSaturation, self).__init__(
+        super().__init__(
             mul, from_colorspace=from_colorspace,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -2361,7 +2363,7 @@ class AddToHueAndSaturation(meta.Augmenter):
                  per_channel=False, from_colorspace="RGB",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(AddToHueAndSaturation, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         if value is None and value_hue is None and value_saturation is None:
@@ -2634,7 +2636,7 @@ class AddToHue(AddToHueAndSaturation):
     def __init__(self, value=(-255, 255), from_colorspace=CSPACE_RGB,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(AddToHue, self).__init__(
+        super().__init__(
             value_hue=value,
             from_colorspace=from_colorspace,
             seed=seed, name=name,
@@ -2707,7 +2709,7 @@ class AddToSaturation(AddToHueAndSaturation):
     def __init__(self, value=(-75, 75), from_colorspace="RGB",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(AddToSaturation, self).__init__(
+        super().__init__(
             value_saturation=value,
             from_colorspace=from_colorspace,
             seed=seed, name=name,
@@ -2839,7 +2841,7 @@ class ChangeColorspace(meta.Augmenter):
     def __init__(self, to_colorspace, from_colorspace=CSPACE_RGB, alpha=1.0,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ChangeColorspace, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -3005,7 +3007,7 @@ class Grayscale(ChangeColorspace):
     def __init__(self, alpha=1, from_colorspace=CSPACE_RGB,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Grayscale, self).__init__(
+        super().__init__(
             to_colorspace=CSPACE_GRAY,
             alpha=alpha,
             from_colorspace=from_colorspace,
@@ -3060,7 +3062,7 @@ class ChangeColorTemperature(meta.Augmenter):
     def __init__(self, kelvin=(1000, 11000), from_colorspace=CSPACE_RGB,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(ChangeColorTemperature, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -3098,7 +3100,7 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
         # pylint: disable=dangerous-default-value
-        super(_AbstractColorQuantization, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -3363,7 +3365,7 @@ class KMeansColorQuantization(_AbstractColorQuantization):
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
         # pylint: disable=dangerous-default-value
-        super(KMeansColorQuantization, self).__init__(
+        super().__init__(
             counts=n_colors,
             from_colorspace=from_colorspace,
             to_colorspace=to_colorspace,
@@ -3645,7 +3647,7 @@ class UniformColorQuantization(_AbstractColorQuantization):
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
         # pylint: disable=dangerous-default-value
-        super(UniformColorQuantization, self).__init__(
+        super().__init__(
             counts=n_colors,
             from_colorspace=from_colorspace,
             to_colorspace=to_colorspace,
@@ -3806,7 +3808,7 @@ class UniformColorQuantizationToNBits(_AbstractColorQuantization):
 
         # wrt value range: for discrete params, (1, 8) results in
         # DiscreteUniform with interval [1, 8]
-        super(UniformColorQuantizationToNBits, self).__init__(
+        super().__init__(
             counts=nb_bits,
             counts_value_range=(1, 8),
             from_colorspace=from_colorspace,
@@ -3959,7 +3961,7 @@ def quantize_uniform_(arr, nb_bins, to_bin_centers=True):
 
 
 # Added in 0.4.0.
-class _QuantizeUniformCenterizedLUTTableSingleton(object):
+class _QuantizeUniformCenterizedLUTTableSingleton:
     _INSTANCE = None
 
     @classmethod
@@ -3980,7 +3982,7 @@ class _QuantizeUniformCenterizedLUTTableSingleton(object):
 
 
 # Added in 0.4.0.
-class _QuantizeUniformNotCenterizedLUTTableSingleton(object):
+class _QuantizeUniformNotCenterizedLUTTableSingleton:
     """Table for :func:`quantize_uniform` with ``to_bin_centers=False``."""
     _INSTANCE = None
 
@@ -4002,7 +4004,7 @@ class _QuantizeUniformNotCenterizedLUTTableSingleton(object):
 
 
 # Added in 0.4.0.
-class _QuantizeUniformLUTTable(object):
+class _QuantizeUniformLUTTable:
     def __init__(self, centerize):
         self.table = self._generate_quantize_uniform_table(centerize)
 

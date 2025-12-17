@@ -2619,7 +2619,7 @@ class TestCutout(unittest.TestCase):
 # https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
 # we use this to compare our implementation against
 # we changed some pytorch to numpy stuff
-class _CutoutOfficial(object):
+class _CutoutOfficial:
     """Randomly mask out one or more patches from an image.
     Args:
         n_holes (int): Number of patches to cut out of each image.

@@ -1,3 +1,7 @@
+"""Bentley-Ottmann sweep-line implementation (segment/polygon intersections)."""
+from __future__ import annotations
+
+
 # BentleyOttmann sweep-line implementation
 # (for finding all intersections in a set of line segments)
 
@@ -788,7 +792,7 @@ from operator import attrgetter
 _sentinel = object()
 
 
-class _ABCTree(object):
+class _ABCTree:
     def __init__(self, items=None, cmp=None, cmp_data=None):
         """T.__init__(...) initializes T; see T.__class__.__doc__ for signature"""
         self._root = None
@@ -1113,7 +1117,7 @@ class _ABCTree(object):
 # ------
 # RBTree
 
-class Node(object):
+class Node:
     """Internal object, represents a tree node."""
     __slots__ = ['key', 'value', 'red', 'left', 'right']
 

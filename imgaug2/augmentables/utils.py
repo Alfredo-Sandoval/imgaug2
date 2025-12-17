@@ -1,4 +1,6 @@
 """Utility functions used in augmentable modules."""
+from __future__ import annotations
+
 import copy as copylib
 import numpy as np
 import imgaug2.imgaug as ia

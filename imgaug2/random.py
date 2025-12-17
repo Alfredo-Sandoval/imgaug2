@@ -38,6 +38,8 @@ This will use a :class:`numpy.random.Generator` in numpy 1.17+ and
 automatically fall back to :class:`numpy.random.RandomState` in numpy <=1.16.
 
 """
+from __future__ import annotations
+
 
 import copy as copylib
 
@@ -84,7 +86,7 @@ _RNG_IDX = 1
 # TODO change random_state to rng or seed
 
 
-class RNG(object):
+class RNG:
     """
     Random number generator for imgaug2.
 
@@ -1599,7 +1601,7 @@ def polyfill_random(generator, size, dtype="float32", out=None):
 
 
 # TODO add tests
-class temporary_numpy_seed(object):
+class temporary_numpy_seed:
     """Context to temporarily alter the random state of ``numpy.random``.
 
     The random state's internal state will be set back to the original one

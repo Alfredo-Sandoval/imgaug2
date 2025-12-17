@@ -1,4 +1,6 @@
 """Functions dealing with normalization of user input data to imgaug classes."""
+from __future__ import annotations
+
 import functools
 
 import numpy as np

@@ -30,6 +30,8 @@ List of augmenters:
     * :class:`KeepSizeByResize`
 
 """
+from __future__ import annotations
+
 
 import re
 import functools
@@ -1278,7 +1280,7 @@ class Resize(meta.Augmenter):
     def __init__(self, size, interpolation="cubic",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Resize, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -1548,7 +1550,7 @@ class Resize(meta.Augmenter):
         return [self.size, self.interpolation, self.size_order]
 
 
-class _CropAndPadSamplingResult(object):
+class _CropAndPadSamplingResult:
     def __init__(self, crop_top, crop_right, crop_bottom, crop_left,
                  pad_top, pad_right, pad_bottom, pad_left, pad_mode, pad_cval):
         self.crop_top = crop_top
@@ -1824,7 +1826,7 @@ class CropAndPad(meta.Augmenter):
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
         # pylint: disable=invalid-name
-        super(CropAndPad, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -2386,7 +2388,7 @@ class Pad(CropAndPad):
         px = recursive_validate(px)
         percent = recursive_validate(percent)
 
-        super(Pad, self).__init__(
+        super().__init__(
             px=px,
             percent=percent,
             pad_mode=pad_mode,
@@ -2572,7 +2574,7 @@ class Crop(CropAndPad):
         px = recursive_negate(px)
         percent = recursive_negate(percent)
 
-        super(Crop, self).__init__(
+        super().__init__(
             px=px,
             percent=percent,
             keep_size=keep_size,
@@ -2718,7 +2720,7 @@ class PadToFixedSize(meta.Augmenter):
                  position="uniform",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(PadToFixedSize, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.size = (width, height)
@@ -2959,7 +2961,7 @@ class CenterPadToFixedSize(PadToFixedSize):
     def __init__(self, width, height, pad_mode="constant", pad_cval=0,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CenterPadToFixedSize, self).__init__(
+        super().__init__(
             width=width, height=height, pad_mode=pad_mode, pad_cval=pad_cval,
             position="center",
             seed=seed, name=name,
@@ -3096,7 +3098,7 @@ class CropToFixedSize(meta.Augmenter):
     def __init__(self, width, height, position="uniform",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CropToFixedSize, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.size = (width, height)
@@ -3297,7 +3299,7 @@ class CenterCropToFixedSize(CropToFixedSize):
     def __init__(self, width, height,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CenterCropToFixedSize, self).__init__(
+        super().__init__(
             width=width, height=height, position="center",
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -3368,7 +3370,7 @@ class CropToMultiplesOf(CropToFixedSize):
     def __init__(self, width_multiple, height_multiple, position="uniform",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CropToMultiplesOf, self).__init__(
+        super().__init__(
             width=None, height=None, position=position,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -3464,7 +3466,7 @@ class CenterCropToMultiplesOf(CropToMultiplesOf):
     def __init__(self, width_multiple, height_multiple,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CenterCropToMultiplesOf, self).__init__(
+        super().__init__(
             width_multiple=width_multiple,
             height_multiple=height_multiple,
             position="center",
@@ -3538,7 +3540,7 @@ class PadToMultiplesOf(PadToFixedSize):
                  position="uniform",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(PadToMultiplesOf, self).__init__(
+        super().__init__(
             width=None, height=None, pad_mode=pad_mode, pad_cval=pad_cval,
             position=position,
             seed=seed, name=name,
@@ -3644,7 +3646,7 @@ class CenterPadToMultiplesOf(PadToMultiplesOf):
                  pad_mode="constant", pad_cval=0,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CenterPadToMultiplesOf, self).__init__(
+        super().__init__(
             width_multiple=width_multiple,
             height_multiple=height_multiple,
             pad_mode=pad_mode,
@@ -3726,7 +3728,7 @@ class CropToPowersOf(CropToFixedSize):
     def __init__(self, width_base, height_base, position="uniform",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CropToPowersOf, self).__init__(
+        super().__init__(
             width=None, height=None, position=position,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -3822,7 +3824,7 @@ class CenterCropToPowersOf(CropToPowersOf):
     def __init__(self, width_base, height_base,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CenterCropToPowersOf, self).__init__(
+        super().__init__(
             width_base=width_base, height_base=height_base, position="center",
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -3901,7 +3903,7 @@ class PadToPowersOf(PadToFixedSize):
                  position="uniform",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(PadToPowersOf, self).__init__(
+        super().__init__(
             width=None, height=None, pad_mode=pad_mode, pad_cval=pad_cval,
             position=position,
             seed=seed, name=name,
@@ -4006,7 +4008,7 @@ class CenterPadToPowersOf(PadToPowersOf):
                  pad_mode="constant", pad_cval=0,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CenterPadToPowersOf, self).__init__(
+        super().__init__(
             width_base=width_base, height_base=height_base,
             pad_mode=pad_mode, pad_cval=pad_cval,
             position="center",
@@ -4072,7 +4074,7 @@ class CropToAspectRatio(CropToFixedSize):
     def __init__(self, aspect_ratio, position="uniform",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CropToAspectRatio, self).__init__(
+        super().__init__(
             width=None, height=None, position=position,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -4167,7 +4169,7 @@ class CenterCropToAspectRatio(CropToAspectRatio):
     def __init__(self, aspect_ratio,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CenterCropToAspectRatio, self).__init__(
+        super().__init__(
             aspect_ratio=aspect_ratio, position="center",
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -4235,7 +4237,7 @@ class PadToAspectRatio(PadToFixedSize):
                  position="uniform",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(PadToAspectRatio, self).__init__(
+        super().__init__(
             width=None, height=None, pad_mode=pad_mode, pad_cval=pad_cval,
             position=position,
             seed=seed, name=name,
@@ -4327,7 +4329,7 @@ class CenterPadToAspectRatio(PadToAspectRatio):
     def __init__(self, aspect_ratio, pad_mode="constant", pad_cval=0,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CenterPadToAspectRatio, self).__init__(
+        super().__init__(
             aspect_ratio=aspect_ratio, position="center",
             pad_mode=pad_mode, pad_cval=pad_cval,
             seed=seed, name=name,
@@ -4386,7 +4388,7 @@ class CropToSquare(CropToAspectRatio):
     def __init__(self, position="uniform",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CropToSquare, self).__init__(
+        super().__init__(
             aspect_ratio=1.0, position=position,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -4448,7 +4450,7 @@ class CenterCropToSquare(CropToSquare):
     # Added in 0.4.0.
     def __init__(self, seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CenterCropToSquare, self).__init__(
+        super().__init__(
             position="center",
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -4510,7 +4512,7 @@ class PadToSquare(PadToAspectRatio):
     def __init__(self, pad_mode="constant", pad_cval=0, position="uniform",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(PadToSquare, self).__init__(
+        super().__init__(
             aspect_ratio=1.0, pad_mode=pad_mode, pad_cval=pad_cval,
             position=position,
             seed=seed, name=name,
@@ -4566,7 +4568,7 @@ class CenterPadToSquare(PadToSquare):
     def __init__(self, pad_mode="constant", pad_cval=0,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CenterPadToSquare, self).__init__(
+        super().__init__(
             pad_mode=pad_mode, pad_cval=pad_cval, position="center",
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -4688,7 +4690,7 @@ class KeepSizeByResize(meta.Augmenter):
                  interpolation_segmaps="nearest",
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(KeepSizeByResize, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.children = children

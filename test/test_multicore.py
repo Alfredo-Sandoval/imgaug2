@@ -616,19 +616,10 @@ class Test_Pool_initialize_worker(unittest.TestCase):
         assert mock_ia_pool._WORKER_AUGSEQ is augseq
         assert augseq.localize_random_state_.call_count == 1
 
-    @mock.patch.object(sys, 'version_info')
-    @mock.patch("time.time_ns", create=True)  # doesnt exist in <=3.6
+    @mock.patch("time.time_ns")
     @mock.patch("imgaug2.random.seed")
     @mock.patch("multiprocessing.current_process")
-    def test_without_seed_start_simulate_py37_or_higher(self,
-                                                        mock_cp,
-                                                        mock_ia_seed,
-                                                        mock_time_ns,
-                                                        mock_vi):
-        def version_info(index):
-            return 3 if index == 0 else 7
-
-        mock_vi.__getitem__.side_effect = version_info
+    def test_without_seed_start_uses_time_ns(self, mock_cp, mock_ia_seed, mock_time_ns):
         mock_time_ns.return_value = 1
         mock_cp.return_value = mock.MagicMock()
         mock_cp.return_value.name = "foo"
@@ -637,34 +628,6 @@ class Test_Pool_initialize_worker(unittest.TestCase):
         multicore._Pool_initialize_worker(augseq, None)
 
         assert mock_time_ns.call_count == 1
-        assert mock_ia_seed.call_count == 1
-        assert augseq.seed_.call_count == 1
-
-        seed_global = mock_ia_seed.call_args_list[0][0][0]
-        seed_local = augseq.seed_.call_args_list[0][0][0]
-        assert seed_global != seed_local
-
-    @mock.patch.object(sys, 'version_info')
-    @mock.patch("time.time")
-    @mock.patch("imgaug2.random.seed")
-    @mock.patch("multiprocessing.current_process")
-    def test_without_seed_start_simulate_py36_or_lower(self,
-                                                       mock_cp,
-                                                       mock_ia_seed,
-                                                       mock_time,
-                                                       mock_vi):
-        def version_info(index):
-            return 3 if index == 0 else 6
-
-        mock_vi.__getitem__.side_effect = version_info
-        mock_time.return_value = 1
-        mock_cp.return_value = mock.MagicMock()
-        mock_cp.return_value.name = "foo"
-        augseq = mock.MagicMock()
-
-        multicore._Pool_initialize_worker(augseq, None)
-
-        assert mock_time.call_count == 1
         assert mock_ia_seed.call_count == 1
         assert augseq.seed_.call_count == 1
 

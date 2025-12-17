@@ -13,6 +13,8 @@ List of augmenters:
     * :class:`Rain`
 
 """
+from __future__ import annotations
+
 
 import numpy as np
 
@@ -136,7 +138,7 @@ class FastSnowyLandscape(meta.Augmenter):
                  from_colorspace=colorlib.CSPACE_RGB,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(FastSnowyLandscape, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -349,7 +351,7 @@ class CloudLayer(meta.Augmenter):
                  density_multiplier,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CloudLayer, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.intensity_mean = iap.handle_continuous_param(
@@ -587,7 +589,7 @@ class Clouds(meta.SomeOf):
             )
         ]
 
-        super(Clouds, self).__init__(
+        super().__init__(
             (1, 2),
             children=layers,
             random_order=False,
@@ -659,7 +661,7 @@ class Fog(CloudLayer):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Fog, self).__init__(
+        super().__init__(
             intensity_mean=(220, 255),
             intensity_freq_exponent=(-2.0, -1.5),
             intensity_coarse_scale=2,
@@ -848,7 +850,7 @@ class SnowflakesLayer(meta.Augmenter):
                  blur_sigma_limits=(0.5, 3.75),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(SnowflakesLayer, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.density = density
@@ -1210,7 +1212,7 @@ class Snowflakes(meta.SomeOf):
             deterministic=deterministic
         )
 
-        super(Snowflakes, self).__init__(
+        super().__init__(
             (1, 3),
             children=[layer.deepcopy() for _ in range(3)],
             random_order=False,
@@ -1294,7 +1296,7 @@ class RainLayer(SnowflakesLayer):
                  blur_sigma_limits=(0.5, 3.75),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(RainLayer, self).__init__(
+        super().__init__(
             density, density_uniformity, drop_size,
             drop_size_uniformity, angle, speed, blur_sigma_fraction,
             blur_sigma_limits=blur_sigma_limits,
@@ -1434,7 +1436,7 @@ class Rain(meta.SomeOf):
             deterministic=deterministic
         )
 
-        super(Rain, self).__init__(
+        super().__init__(
             nb_iterations,
             children=[layer.deepcopy() for _ in range(3)],
             random_order=False,

@@ -1,4 +1,6 @@
 """Classes to represent keypoints, i.e. points given as xy-coordinates."""
+from __future__ import annotations
+
 
 
 import numpy as np
@@ -70,7 +72,7 @@ def compute_geometric_median(points=None, eps=1e-5, X=None):
         y = y1
 
 
-class Keypoint(object):
+class Keypoint:
     """A single keypoint (aka landmark) on an image.
 
     Parameters

@@ -10,6 +10,8 @@ List of augmenters:
 still in ``convolutional.py``.
 
 """
+from __future__ import annotations
+
 
 from abc import ABCMeta, abstractmethod
 
@@ -321,7 +323,7 @@ class Canny(meta.Augmenter):
                  colorizer=None,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Canny, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 

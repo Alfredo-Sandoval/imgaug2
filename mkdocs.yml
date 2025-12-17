@@ -1,0 +1,105 @@
+site_name: imgaug2
+site_description: A powerful image augmentation library for machine learning
+site_url: https://imgaug2.readthedocs.io/
+repo_url: https://github.com/Alfredo-Sandoval/imgaug2
+repo_name: imgaug2
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - tables
+  - def_list
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Alfredo-Sandoval/imgaug2
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Examples:
+      - Basics: examples/basics.md
+      - Keypoints: examples/keypoints.md
+      - Bounding Boxes: examples/bounding_boxes.md
+      - Heatmaps: examples/heatmaps.md
+      - Segmentation Maps: examples/segmentation_maps.md
+  - Stochastic Parameters: stochastic_parameters.md
+  - dtype Support: dtype_support.md
+  - Augmenters:
+      - Overview: augmenters/index.md
+      - meta: augmenters/meta.md
+      - arithmetic: augmenters/arithmetic.md
+      - artistic: augmenters/artistic.md
+      - blend: augmenters/blend.md
+      - blur: augmenters/blur.md
+      - collections: augmenters/collections.md
+      - color: augmenters/color.md
+      - contrast: augmenters/contrast.md
+      - convolutional: augmenters/convolutional.md
+      - debug: augmenters/debug.md
+      - edges: augmenters/edges.md
+      - flip: augmenters/flip.md
+      - geometric: augmenters/geometric.md
+      - imgcorruptlike: augmenters/imgcorruptlike.md
+      - pillike: augmenters/pillike.md
+      - pooling: augmenters/pooling.md
+      - segmentation: augmenters/segmentation.md
+      - size: augmenters/size.md
+      - weather: augmenters/weather.md
+  - API Reference:
+      - Overview: api/index.md
+      - imgaug2: api/imgaug.md
+      - imgaug2.augmenters: api/augmenters.md
+      - imgaug2.augmentables: api/augmentables.md
+      - imgaug2.parameters: api/parameters.md
+  - Migration Guide: migration.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md

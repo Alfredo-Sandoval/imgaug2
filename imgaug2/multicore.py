@@ -1,4 +1,6 @@
 """Classes and functions dealing with augmentation on multiple CPU cores."""
+from __future__ import annotations
+
 import multiprocessing
 import threading
 import traceback
@@ -57,7 +59,7 @@ def _get_context():
     return _CONTEXT
 
 
-class Pool(object):
+class Pool:
     """
     Wrapper around ``multiprocessing.Pool`` for multicore augmentation.
 
@@ -503,7 +505,7 @@ def _derive_seed(base_seed, offset=0):
     )
 
 
-class BatchLoader(object):
+class BatchLoader:
     """**Deprecated**. Load batches in the background.
 
     Deprecated. Use ``imgaug2.multicore.Pool`` instead.
@@ -706,7 +708,7 @@ class BatchLoader(object):
             self.join_signal.set()
 
 
-class BackgroundAugmenter(object):
+class BackgroundAugmenter:
     """
     **Deprecated**. Augment batches in the background processes.
 

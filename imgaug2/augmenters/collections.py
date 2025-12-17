@@ -7,6 +7,8 @@ List of augmenters:
 Added in 0.4.0.
 
 """
+from __future__ import annotations
+
 
 import numpy as np
 
@@ -214,7 +216,7 @@ class RandAugment(meta.Sequential):
             for augmenter in lst:
                 augmenter.random_state = rng
 
-        super(RandAugment, self).__init__(
+        super().__init__(
             [
                 meta.Sequential(initial_augs,
                                 seed=rng.derive_rng_()),

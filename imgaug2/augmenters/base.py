@@ -6,6 +6,8 @@ in the future.
 Added in 0.4.0.
 
 """
+from __future__ import annotations
+
 import imgaug2.imgaug as ia
 
 

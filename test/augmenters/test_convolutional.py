@@ -504,7 +504,6 @@ class TestConvolve(unittest.TestCase):
         assert np.all(seen)
 
     def test_matrix_has_bad_datatype(self):
-        # don't use assertRaisesRegex, because it doesnt exist in 2.7
         got_exception = False
         try:
             _aug = iaa.Convolve(matrix=False)
@@ -696,7 +695,6 @@ class TestConvolve(unittest.TestCase):
             assert np.max(diff) < 1.0
 
     def test_failure_on_invalid_dtypes(self):
-        # don't use assertRaisesRegex, because it doesnt exist in 2.7
         identity_matrix = np.int64([[1]])
         aug = iaa.Convolve(matrix=identity_matrix)
         for dt in [np.uint32, np.uint64, np.int32, np.int64]:
@@ -820,7 +818,6 @@ class TestSharpen(unittest.TestCase):
         )
 
     def test_failure_if_alpha_has_bad_datatype(self):
-        # don't use assertRaisesRegex, because it doesnt exist in 2.7
         got_exception = False
         try:
             _ = iaa.Sharpen(alpha="test", lightness=1)
@@ -852,7 +849,6 @@ class TestSharpen(unittest.TestCase):
         )
 
     def test_failure_if_lightness_has_bad_datatype(self):
-        # don't use assertRaisesRegex, because it doesnt exist in 2.7
         got_exception = False
         try:
             _ = iaa.Sharpen(alpha=1.0, lightness="test")
@@ -1052,7 +1048,6 @@ class TestEmboss(unittest.TestCase):
         )
 
     def test_failure_on_invalid_datatype_for_alpha(self):
-        # don't use assertRaisesRegex, because it doesnt exist in 2.7
         got_exception = False
         try:
             _ = iaa.Emboss(alpha="test", strength=1)
@@ -1095,7 +1090,6 @@ class TestEmboss(unittest.TestCase):
         )
 
     def test_failure_on_invalid_datatype_for_strength(self):
-        # don't use assertRaisesRegex, because it doesnt exist in 2.7
         got_exception = False
         try:
             _ = iaa.Emboss(alpha=1.0, strength="test")

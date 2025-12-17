@@ -54,7 +54,7 @@ class Test_compute_shape_after_pooling(unittest.TestCase):
                     assert shape_observed == shape_expected
 
 
-class _TestPoolingAugmentersBase(object):
+class _TestPoolingAugmentersBase:
     def setUp(self):
         reseed()
 

@@ -1,4 +1,6 @@
 """Functions to interact/analyze with numpy dtypes."""
+from __future__ import annotations
+
 
 import numpy as np
 

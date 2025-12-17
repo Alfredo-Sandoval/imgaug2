@@ -1,4 +1,6 @@
 """Classes to represent heatmaps, i.e. float arrays of ``[0.0, 1.0]``."""
+from __future__ import annotations
+
 
 
 import numpy as np

@@ -1,4 +1,6 @@
 """Helper functions to validate input data and produce error messages."""
+from __future__ import annotations
+
 
 import imgaug2.imgaug as ia
 

@@ -1,4 +1,6 @@
 """Classes dealing with polygons."""
+from __future__ import annotations
+
 
 
 import traceback
@@ -76,7 +78,7 @@ def recover_psois_(psois, psois_orig, recoverer, random_state):
 # TODO add functions: simplify() (eg via shapely.ops.simplify()),
 # extend(all_sides=0, top=0, right=0, bottom=0, left=0),
 # intersection(other, default=None), union(other), iou(other), to_heatmap, to_mask
-class Polygon(object):
+class Polygon:
     """Class representing polygons.
 
     Each polygon is parameterized by its corner points, given as absolute
@@ -2236,7 +2238,7 @@ def _convert_points_to_shapely_line_string(points, closed=False, interpolate=0):
     return shapely.geometry.LineString(points_tuples)
 
 
-class _ConcavePolygonRecoverer(object):
+class _ConcavePolygonRecoverer:
     def __init__(
         self,
         threshold_duplicate_points=1e-4,
@@ -2527,7 +2529,7 @@ class _ConcavePolygonRecoverer(object):
         ]
 
         # returns [(point, [(segment_p0, segment_p1), ..]), ...]
-        from imgaug2.external.poly_point_isect_py2py3 import (
+        from imgaug2.external.poly_point_isect import (
             isect_segments_include_segments,
         )
 
@@ -2843,7 +2845,7 @@ class _ConcavePolygonRecoverer(object):
 
 # TODO remove this? was previously only used by Polygon.clip_*(), but that
 #      doesn't use it anymore
-class MultiPolygon(object):
+class MultiPolygon:
     """
     Class that represents several polygons.
 

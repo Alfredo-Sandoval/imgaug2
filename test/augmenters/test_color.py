@@ -2119,7 +2119,7 @@ class TestKMeansColorQuantization(unittest.TestCase):
         image = np.zeros((200, 100, 3), dtype=np.uint8)
         aug = self.augmenter(max_size=100)
 
-        class _ImresizeSideEffect(object):
+        class _ImresizeSideEffect:
             def __init__(self):
                 self.nth_call = 0
 
@@ -2159,7 +2159,7 @@ class TestKMeansColorQuantization(unittest.TestCase):
         image = np.zeros((200, 100, 3), dtype=np.uint8)
         aug = self.augmenter(max_size=100, interpolation="cubic")
 
-        class _ImresizeSideEffect(object):
+        class _ImresizeSideEffect:
             def __init__(self):
                 self.nth_call = 0
 

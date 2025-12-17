@@ -47,6 +47,8 @@ Standard usage of these augmenters follows roughly the schema::
 Added in 0.4.0.
 
 """
+from __future__ import annotations
+
 
 import numpy as np
 import cv2
@@ -1324,7 +1326,7 @@ class Solarize(arithmetic.Invert):
     def __init__(self, p=1.0, threshold=128,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Solarize, self).__init__(
+        super().__init__(
             p=p, per_channel=False,
             min_value=None, max_value=None,
             threshold=threshold, invert_above_threshold=True,
@@ -1395,7 +1397,7 @@ class Equalize(meta.Augmenter):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Equalize, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -1491,7 +1493,7 @@ class Autocontrast(contrastlib._ContrastFuncWrapper):
         ]
         func = autocontrast
 
-        super(Autocontrast, self).__init__(
+        super().__init__(
             func, params1d, per_channel,
             dtypes_allowed="uint8",
             dtypes_disallowed="uint16 uint32 uint64 int8 int16 int32 int64 "
@@ -1508,7 +1510,7 @@ class _EnhanceBase(meta.Augmenter):
     def __init__(self, func, factor, factor_value_range,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(_EnhanceBase, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.func = func
@@ -1593,7 +1595,7 @@ class EnhanceColor(_EnhanceBase):
     def __init__(self, factor=(0.0, 3.0),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(EnhanceColor, self).__init__(
+        super().__init__(
             func=enhance_color,
             factor=factor,
             factor_value_range=(0.0, None),
@@ -1659,7 +1661,7 @@ class EnhanceContrast(_EnhanceBase):
     def __init__(self, factor=(0.5, 1.5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(EnhanceContrast, self).__init__(
+        super().__init__(
             func=enhance_contrast,
             factor=factor,
             factor_value_range=(0.0, None),
@@ -1725,7 +1727,7 @@ class EnhanceBrightness(_EnhanceBase):
     def __init__(self, factor=(0.5, 1.5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(EnhanceBrightness, self).__init__(
+        super().__init__(
             func=enhance_brightness,
             factor=factor,
             factor_value_range=(0.0, None),
@@ -1791,7 +1793,7 @@ class EnhanceSharpness(_EnhanceBase):
     def __init__(self, factor=(0.0, 2.0),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(EnhanceSharpness, self).__init__(
+        super().__init__(
             func=enhance_sharpness,
             factor=factor,
             factor_value_range=(0.0, None),
@@ -1805,7 +1807,7 @@ class _FilterBase(meta.Augmenter):
     def __init__(self, func,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(_FilterBase, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.func = func
@@ -1867,7 +1869,7 @@ class FilterBlur(_FilterBase):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(FilterBlur, self).__init__(
+        super().__init__(
             func=filter_blur,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1917,7 +1919,7 @@ class FilterSmooth(_FilterBase):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(FilterSmooth, self).__init__(
+        super().__init__(
             func=filter_smooth,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -1968,7 +1970,7 @@ class FilterSmoothMore(_FilterBase):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(FilterSmoothMore, self).__init__(
+        super().__init__(
             func=filter_smooth_more,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -2020,7 +2022,7 @@ class FilterEdgeEnhance(_FilterBase):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(FilterEdgeEnhance, self).__init__(
+        super().__init__(
             func=filter_edge_enhance,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -2072,7 +2074,7 @@ class FilterEdgeEnhanceMore(_FilterBase):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(FilterEdgeEnhanceMore, self).__init__(
+        super().__init__(
             func=filter_edge_enhance_more,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -2123,7 +2125,7 @@ class FilterFindEdges(_FilterBase):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(FilterFindEdges, self).__init__(
+        super().__init__(
             func=filter_find_edges,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -2174,7 +2176,7 @@ class FilterContour(_FilterBase):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(FilterContour, self).__init__(
+        super().__init__(
             func=filter_contour,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -2224,7 +2226,7 @@ class FilterEmboss(_FilterBase):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(FilterEmboss, self).__init__(
+        super().__init__(
             func=filter_emboss,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -2274,7 +2276,7 @@ class FilterSharpen(_FilterBase):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(FilterSharpen, self).__init__(
+        super().__init__(
             func=filter_sharpen,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -2325,7 +2327,7 @@ class FilterDetail(_FilterBase):
     def __init__(self,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(FilterDetail, self).__init__(
+        super().__init__(
             func=filter_detail,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -2439,7 +2441,7 @@ class Affine(geometric.Affine):
                  rotate=0.0, shear=0.0, fillcolor=0, center=(0.5, 0.5),
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Affine, self).__init__(
+        super().__init__(
             scale=scale,
             translate_percent=translate_percent,
             translate_px=translate_px,
@@ -2463,7 +2465,7 @@ class Affine(geometric.Affine):
             "batch containing: %s. Use imgaug2.augmenters.geometric.Affine for "
             "batches containing non-image data." % (", ".join(cols),))
 
-        return super(Affine, self)._augment_batch_(
+        return super()._augment_batch_(
             batch, random_state, parents, hooks)
 
     # Added in 0.4.0.
@@ -2499,7 +2501,7 @@ class Affine(geometric.Affine):
     # Added in 0.4.0.
     def _draw_samples(self, nb_samples, random_state):
         # standard affine samples
-        samples = super(Affine, self)._draw_samples(nb_samples,
+        samples = super()._draw_samples(nb_samples,
                                                     random_state)
 
         # add samples for 'center' parameter, which is not yet a part of

@@ -3,6 +3,8 @@ Some utility functions that are only used for unittests.
 Placing them in test/ directory seems to be against convention, so they are part of the library.
 
 """
+from __future__ import annotations
+
 
 import random
 import copy
@@ -37,7 +39,7 @@ class ArgCopyingMagicMock(mock.MagicMock):
     def _mock_call(self, *args, **kwargs):
         args_copy = copy.deepcopy(args)
         kwargs_copy = copy.deepcopy(kwargs)
-        return super(ArgCopyingMagicMock, self)._mock_call(
+        return super()._mock_call(
             *args_copy, **kwargs_copy)
 
 
@@ -171,7 +173,7 @@ def wrap_shift_deprecation(func, *args, **kwargs):
         return result
 
 
-class TemporaryDirectory(object):
+class TemporaryDirectory:
     """Create a context for a temporary directory.
 
     The directory is automatically removed at the end of the context.
@@ -326,13 +328,11 @@ class _AssertWarnsContext(_AssertRaisesBaseContext):
             return
         # Now we simply try to choose a helpful failure message
         if first_matching is not None:
-            self._raiseFailure('"{}" does not match "{}"'.format(
-                self.expected_regex.pattern, str(first_matching)))
+            self._raiseFailure(f'"{self.expected_regex.pattern}" does not match "{str(first_matching)}"')
         if self.obj_name:
-            self._raiseFailure("{} not triggered by {}".format(exc_name,
-                                                               self.obj_name))
+            self._raiseFailure(f"{exc_name} not triggered by {self.obj_name}")
         else:
-            self._raiseFailure("{} not triggered".format(exc_name))
+            self._raiseFailure(f"{exc_name} not triggered")
 
 
 # Partially copied from
@@ -358,7 +358,7 @@ def assertWarns(testcase, expected_warning, *args, **kwargs):
     return context.handle("assertWarns", args, kwargs)
 
 
-class temporary_constants(object):
+class temporary_constants:
     """Context to temporarily change the value of one or more constants.
 
     Added in 0.5.0.

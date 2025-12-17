@@ -3,6 +3,8 @@
 E.g. masks, semantic or instance segmentation maps.
 
 """
+from __future__ import annotations
+
 
 
 import numpy as np

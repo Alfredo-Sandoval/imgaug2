@@ -9,6 +9,8 @@ List of augmenters:
     * :class:`MedianPooling`
 
 """
+from __future__ import annotations
+
 
 from abc import ABCMeta, abstractmethod
 import functools
@@ -43,7 +45,7 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
     def __init__(self, kernel_size, keep_size=True,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(_AbstractPoolingBase, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.kernel_size = iap.handle_discrete_kernel_size_param(
@@ -306,7 +308,7 @@ class AveragePooling(_AbstractPoolingBase):
     def __init__(self, kernel_size=(1, 5), keep_size=True,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(AveragePooling, self).__init__(
+        super().__init__(
             kernel_size=kernel_size, keep_size=keep_size,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -427,7 +429,7 @@ class MaxPooling(_AbstractPoolingBase):
     def __init__(self, kernel_size=(1, 5), keep_size=True,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(MaxPooling, self).__init__(
+        super().__init__(
             kernel_size=kernel_size, keep_size=keep_size,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -548,7 +550,7 @@ class MinPooling(_AbstractPoolingBase):
     def __init__(self, kernel_size=(1, 5), keep_size=True,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(MinPooling, self).__init__(
+        super().__init__(
             kernel_size=kernel_size, keep_size=keep_size,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
@@ -669,7 +671,7 @@ class MedianPooling(_AbstractPoolingBase):
     def __init__(self, kernel_size=(1, 5), keep_size=True,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(MedianPooling, self).__init__(
+        super().__init__(
             kernel_size=kernel_size, keep_size=keep_size,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)

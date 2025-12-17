@@ -63,7 +63,7 @@ def main():
 
 
 def test_is_np_array():
-    class _Dummy(object):
+    class _Dummy:
         pass
     values_true = [
         np.zeros((1, 2), dtype=np.uint8),
@@ -142,7 +142,7 @@ class TestDeprecatedDataFunctions(unittest.TestCase):
 
 
 def test_is_single_number():
-    class _Dummy(object):
+    class _Dummy:
         pass
     values_true = [-100, 1, 0, 1, 100, -1.2, -0.001, 0.0, 0.001, 1.2, 1e-4]
     values_false = ["A", "BC", "1", True, False, (1.0, 2.0), [1.0, 2.0], _Dummy(), np.zeros((1, 2), dtype=np.uint8)]
@@ -153,7 +153,7 @@ def test_is_single_number():
 
 
 def test_is_iterable():
-    class _Dummy(object):
+    class _Dummy:
         pass
     values_true = [
         [0, 1, 2],
@@ -176,7 +176,7 @@ def test_is_iterable():
 
 
 def test_is_string():
-    class _Dummy(object):
+    class _Dummy:
         pass
     values_true = ["A", "BC", "1", ""]
     values_false = [-100, 1, 0, 1, 100, -1.2, -0.001, 0.0, 0.001, 1.2, 1e-4, True, False, (1.0, 2.0), [1.0, 2.0],
@@ -188,7 +188,7 @@ def test_is_string():
 
 
 def test_is_single_bool():
-    class _Dummy(object):
+    class _Dummy:
         pass
     values_true = [False, True]
     values_false = [-100, 1, 0, 1, 100, -1.2, -0.001, 0.0, 0.001, 1.2, 1e-4, (1.0, 2.0), [1.0, 2.0], _Dummy(),
@@ -200,7 +200,7 @@ def test_is_single_bool():
 
 
 def test_is_integer_array():
-    class _Dummy(object):
+    class _Dummy:
         pass
     values_true = [
         np.zeros((1, 2), dtype=np.uint8),
@@ -224,7 +224,7 @@ def test_is_integer_array():
 
 
 def test_is_float_array():
-    class _Dummy(object):
+    class _Dummy:
         pass
 
     values_true = [
@@ -254,23 +254,23 @@ def test_is_callable():
 
     _dummy_func2 = lambda x: x
 
-    class _Dummy1(object):
+    class _Dummy1:
         pass
 
-    class _Dummy2(object):
+    class _Dummy2:
         def __call__(self):
             pass
 
-    class _Dummy3(object):
+    class _Dummy3:
         def foo(self):
             pass
 
-    class _Dummy4(object):
+    class _Dummy4:
         @classmethod
         def foo(cls):
             pass
 
-    class _Dummy5(object):
+    class _Dummy5:
         @classmethod
         def foo(cls):
             pass

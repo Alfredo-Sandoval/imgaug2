@@ -13,6 +13,8 @@ List of augmenters:
     * :class:`CLAHE`
 
 """
+from __future__ import annotations
+
 
 import numpy as np
 import skimage.exposure as ski_exposure
@@ -32,7 +34,7 @@ class _ContrastFuncWrapper(meta.Augmenter):
                  dtypes_disallowed=None,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(_ContrastFuncWrapper, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
         self.func = func
@@ -490,7 +492,7 @@ class GammaContrast(_ContrastFuncWrapper):
             gamma, "gamma", value_range=None, tuple_to_uniform=True,
             list_to_choice=True)]
         func = adjust_contrast_gamma
-        super(GammaContrast, self).__init__(
+        super().__init__(
             func, params1d, per_channel,
             dtypes_allowed="uint8 uint16 uint32 uint64 int8 int16 int32 int64 "
                            "float16 float32 float64",
@@ -595,7 +597,7 @@ class SigmoidContrast(_ContrastFuncWrapper):
         ]
         func = adjust_contrast_sigmoid
 
-        super(SigmoidContrast, self).__init__(
+        super().__init__(
             func, params1d, per_channel,
             dtypes_allowed="uint8 uint16 uint32 uint64 int8 int16 int32 int64 "
                            "float16 float32 float64",
@@ -676,7 +678,7 @@ class LogContrast(_ContrastFuncWrapper):
             list_to_choice=True)]
         func = adjust_contrast_log
 
-        super(LogContrast, self).__init__(
+        super().__init__(
             func, params1d, per_channel,
             dtypes_allowed="uint8 uint16 uint32 uint64 int8 int16 int32 int64 "
                            "float16 float32 float64",
@@ -755,7 +757,7 @@ class LinearContrast(_ContrastFuncWrapper):
         ]
         func = adjust_contrast_linear
 
-        super(LinearContrast, self).__init__(
+        super().__init__(
             func, params1d, per_channel,
             dtypes_allowed="uint8 uint16 uint32 int8 int16 int32 float16 "
                            "float32 float64",
@@ -767,7 +769,7 @@ class LinearContrast(_ContrastFuncWrapper):
 # TODO maybe offer the other contrast augmenters also wrapped in this, similar
 #      to CLAHE and HistogramEqualization?
 #      this is essentially tested by tests for CLAHE
-class _IntensityChannelBasedApplier(object):
+class _IntensityChannelBasedApplier:
     RGB = color_lib.CSPACE_RGB
     BGR = color_lib.CSPACE_BGR
     HSV = color_lib.CSPACE_HSV
@@ -780,7 +782,7 @@ class _IntensityChannelBasedApplier(object):
     }
 
     def __init__(self, from_colorspace, to_colorspace):
-        super(_IntensityChannelBasedApplier, self).__init__()
+        super().__init__()
 
         # TODO maybe add CIE, Luv?
         valid_from_colorspaces = [self.RGB, self.BGR, self.Lab, self.HLS,
@@ -993,7 +995,7 @@ class AllChannelsCLAHE(meta.Augmenter):
                  tile_grid_size_px_min=3, per_channel=False,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(AllChannelsCLAHE, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -1255,7 +1257,7 @@ class CLAHE(meta.Augmenter):
                  to_colorspace=color_lib.CSPACE_Lab,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(CLAHE, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -1370,7 +1372,7 @@ class AllChannelsHistogramEqualization(meta.Augmenter):
     """
     def __init__(self, seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(AllChannelsHistogramEqualization, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -1515,7 +1517,7 @@ class HistogramEqualization(meta.Augmenter):
                  to_colorspace=color_lib.CSPACE_Lab,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(HistogramEqualization, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 

@@ -12,6 +12,8 @@ List of augmenters:
 For MotionBlur, see ``blur.py``.
 
 """
+from __future__ import annotations
+
 
 import itertools
 
@@ -252,7 +254,7 @@ class Convolve(meta.Augmenter):
     def __init__(self, matrix=None,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Convolve, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
@@ -386,13 +388,13 @@ class Sharpen(Convolve):
 
         matrix_gen = _SharpeningMatrixGenerator(alpha_param, lightness_param)
 
-        super(Sharpen, self).__init__(
+        super().__init__(
             matrix=matrix_gen,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
 
-class _SharpeningMatrixGenerator(object):
+class _SharpeningMatrixGenerator:
     def __init__(self, alpha, lightness):
         self.alpha = alpha
         self.lightness = lightness
@@ -497,13 +499,13 @@ class Emboss(Convolve):
 
         matrix_gen = _EmbossMatrixGenerator(alpha_param, strength_param)
 
-        super(Emboss, self).__init__(
+        super().__init__(
             matrix=matrix_gen,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
 
-class _EmbossMatrixGenerator(object):
+class _EmbossMatrixGenerator:
     def __init__(self, alpha, strength):
         self.alpha = alpha
         self.strength = strength
@@ -591,13 +593,13 @@ class EdgeDetect(Convolve):
 
         matrix_gen = _EdgeDetectMatrixGenerator(alpha_param)
 
-        super(EdgeDetect, self).__init__(
+        super().__init__(
             matrix=matrix_gen,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
 
-class _EdgeDetectMatrixGenerator(object):
+class _EdgeDetectMatrixGenerator:
     def __init__(self, alpha):
         self.alpha = alpha
 
@@ -728,13 +730,13 @@ class DirectedEdgeDetect(Convolve):
         matrix_gen = _DirectedEdgeDetectMatrixGenerator(alpha_param,
                                                         direction_param)
 
-        super(DirectedEdgeDetect, self).__init__(
+        super().__init__(
             matrix=matrix_gen,
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
 
-class _DirectedEdgeDetectMatrixGenerator(object):
+class _DirectedEdgeDetectMatrixGenerator:
     def __init__(self, alpha, direction):
         self.alpha = alpha
         self.direction = direction

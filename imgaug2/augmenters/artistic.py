@@ -8,6 +8,8 @@ List of augmenters:
 Added in 0.4.0.
 
 """
+from __future__ import annotations
+
 
 
 import numpy as np
@@ -353,7 +355,7 @@ class Cartoon(meta.Augmenter):
                  from_colorspace=colorlib.CSPACE_RGB,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        super(Cartoon, self).__init__(
+        super().__init__(
             seed=seed, name=name,
             random_state=random_state, deterministic=deterministic)
 
