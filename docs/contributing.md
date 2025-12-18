@@ -1,49 +1,37 @@
 # Contributing
 
-We welcome contributions to imgaug2!
+Contributions are welcome — bug reports, documentation improvements, new tests, and new features.
 
-## Getting Started
-
-1. Fork the repository
-2. Clone your fork
-3. Create a virtual environment
-4. Install development dependencies
+## Quick Start
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/imgaug2.git
+git clone https://github.com/Alfredo-Sandoval/imgaug2.git
 cd imgaug2
-python -m venv .venv
-source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-## Running Tests
+Run tests:
 
 ```bash
 pytest
 ```
 
-## Code Style
-
-We use `ruff` for linting:
+Run style/type/security checks:
 
 ```bash
 ruff check .
-ruff format .
+ty check .
+bandit -c pyproject.toml -r .
 ```
 
-## Pull Requests
+Build docs locally:
 
-1. Create a feature branch
-2. Make your changes
-3. Add tests if applicable
-4. Run the test suite
-5. Submit a pull request
+```bash
+mkdocs serve
+```
 
-## Reporting Issues
+## More Details
 
-Use the [GitHub issue tracker](https://github.com/Alfredo-Sandoval/imgaug2/issues) for:
+The canonical contributing guide lives at the repository root:
 
-- Bug reports
-- Feature requests
-- Questions
+- `CONTRIBUTING.md`

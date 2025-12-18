@@ -1,67 +1,73 @@
 # Blur Augmenters
 
-Augmenters that apply blurring effects to images.
+Blurring effects (Gaussian, box/average, median, motion, bilateral).
 
-## GaussianBlur
+Blur augmenters are usually **photometric** (image-only). For annotations:
 
-Apply Gaussian blur.
+- bounding boxes / keypoints / polygons: unchanged (by design)
+- heatmaps / segmentation maps: blurring often does not make semantic sense (use hooks or separate pipelines)
+
+See: [Hooks](../hooks.md).
+
+## Common Augmenters
 
 ```python
 import imgaug2.augmenters as iaa
 
-aug = iaa.GaussianBlur(sigma=(0, 1.0))  # Random sigma in [0, 1]
-aug = iaa.GaussianBlur(sigma=1.5)       # Fixed sigma
+iaa.GaussianBlur(sigma=(0, 1.0))      # Gaussian blur
+iaa.AverageBlur(k=(2, 7))             # Box blur
+iaa.MedianBlur(k=(3, 7))              # Median filter
+iaa.MotionBlur(k=15)                  # Motion blur
+iaa.BilateralBlur(d=(3, 10))          # Edge-preserving
 ```
 
-## AverageBlur
+![Gaussian blur examples](../assets/gallery/blur_gaussian.png)
 
-Apply average (box) blur.
+## Practical Recipes
+
+### Apply blur rarely (typical training setup)
 
 ```python
-aug = iaa.AverageBlur(k=(2, 7))  # Random kernel size 2-7
-aug = iaa.AverageBlur(k=5)       # Fixed 5x5 kernel
+import imgaug2.augmenters as iaa
+
+aug = iaa.Sometimes(0.2, iaa.GaussianBlur(sigma=(0.0, 1.5)))
 ```
 
-## MedianBlur
-
-Apply median blur (good for salt-and-pepper noise).
+### Small vs large blur
 
 ```python
-aug = iaa.MedianBlur(k=(3, 7))  # Random kernel size (must be odd)
+aug = iaa.OneOf(
+    [
+        iaa.GaussianBlur(sigma=(0.0, 0.5)),  # subtle
+        iaa.GaussianBlur(sigma=(1.0, 2.5)),  # strong
+    ]
+)
 ```
 
-## MotionBlur
+## Key Parameters
 
-Apply directional motion blur.
+### `GaussianBlur(sigma=...)`
 
-```python
-aug = iaa.MotionBlur(k=15)                    # Random direction
-aug = iaa.MotionBlur(k=15, angle=(-45, 45))   # Limited angle range
-```
+- `sigma` controls blur strength; `sigma=0` is effectively a no-op.
+- Use a range `(0.0, 1.5)` for stochastic blur.
 
-## BilateralBlur
+### `AverageBlur(k=...)`, `MedianBlur(k=...)`
 
-Apply bilateral filter (edge-preserving blur).
+- `k` is the kernel size (larger = stronger blur, slower).
+- Median blur can be significantly more expensive than average blur.
 
-```python
-aug = iaa.BilateralBlur(d=(3, 10), sigma_color=(10, 250), sigma_space=(10, 250))
-```
+### `BilateralBlur(d=...)`
 
-## MeanShiftBlur
+Edge-preserving blur. Often expensive; use sparingly.
 
-Apply mean shift filtering.
+## Performance Notes
 
-```python
-aug = iaa.MeanShiftBlur()
-```
+- `GaussianBlur` is usually a good default.
+- `MotionBlur` and `BilateralBlur` are typically the slowest blur augmenters.
+- Blur cost scales quickly with image size and kernel size.
 
-## All Blur Augmenters
+See: `docs/performance.md`.
 
-| Augmenter | Description |
-|-----------|-------------|
-| `GaussianBlur` | Gaussian blur |
-| `AverageBlur` | Box blur |
-| `MedianBlur` | Median filter |
-| `BilateralBlur` | Edge-preserving blur |
-| `MotionBlur` | Directional motion blur |
-| `MeanShiftBlur` | Mean shift filtering |
+## All Augmenters
+
+`GaussianBlur`, `AverageBlur`, `MedianBlur`, `BilateralBlur`, `MotionBlur`, `MeanShiftBlur`

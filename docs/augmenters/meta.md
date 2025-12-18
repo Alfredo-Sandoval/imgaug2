@@ -1,155 +1,128 @@
 # Meta Augmenters
 
-Meta augmenters control how other augmenters are applied. They don't modify images directly but orchestrate the application of child augmenters.
+Meta augmenters don’t directly “change pixels” — they control **how other augmenters run**:
 
-## Sequential
+- order (`Sequential`)
+- stochastic selection (`SomeOf`, `OneOf`)
+- probability gates (`Sometimes`)
+- routing to channels (`WithChannels`)
+- assertions/debug helpers (`AssertShape`, `AssertLambda`)
 
-Apply augmenters in sequence.
+They’re the backbone of most real-world imgaug2 pipelines.
 
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.Sequential([
-    iaa.Fliplr(0.5),
-    iaa.GaussianBlur(sigma=(0, 1.0)),
-    iaa.Affine(rotate=(-20, 20))
-])
-
-# Apply in random order
-aug = iaa.Sequential([
-    iaa.Fliplr(0.5),
-    iaa.GaussianBlur(sigma=(0, 1.0)),
-], random_order=True)
-```
-
-## SomeOf
-
-Apply a random subset of augmenters.
+## Quick Start
 
 ```python
 import imgaug2.augmenters as iaa
 
-# Apply 1-3 of the augmenters
-aug = iaa.SomeOf((1, 3), [
-    iaa.Fliplr(0.5),
-    iaa.GaussianBlur(sigma=(0, 1.0)),
-    iaa.Affine(rotate=(-20, 20)),
-    iaa.AdditiveGaussianNoise(scale=(0, 0.1*255))
-])
-
-# Apply exactly 2
-aug = iaa.SomeOf(2, [...])
-
-# Apply 0-N (any number)
-aug = iaa.SomeOf((0, None), [...])
-```
-
-## OneOf
-
-Apply exactly one randomly chosen augmenter.
-
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.OneOf([
-    iaa.GaussianBlur(sigma=(0, 1.0)),
-    iaa.AverageBlur(k=(2, 5)),
-    iaa.MotionBlur(k=5)
-])
-```
-
-## Sometimes
-
-Apply an augmenter with probability p.
-
-```python
-import imgaug2.augmenters as iaa
-
-# 50% chance to apply blur
-aug = iaa.Sometimes(0.5, iaa.GaussianBlur(sigma=(0, 1.0)))
-
-# With else branch
-aug = iaa.Sometimes(
-    0.5,
-    then_list=iaa.GaussianBlur(sigma=(0, 1.0)),
-    else_list=iaa.Sharpen(alpha=1.0)
+aug = iaa.Sequential(
+    [
+        iaa.Fliplr(0.5),
+        iaa.SomeOf(
+            (0, 3),
+            [
+                iaa.GaussianBlur(sigma=(0.0, 1.0)),
+                iaa.AdditiveGaussianNoise(scale=(0, 0.05 * 255)),
+                iaa.LinearContrast((0.75, 1.25)),
+            ],
+            random_order=True,
+        ),
+        iaa.Affine(rotate=(-15, 15)),
+    ]
 )
 ```
 
-## WithChannels
+## Core Meta Augmenters
 
-Apply augmenters to specific channels only.
+### `Sequential`
+
+Runs child augmenters in order.
 
 ```python
-import imgaug2.augmenters as iaa
-
-# Apply only to red channel
-aug = iaa.WithChannels(0, iaa.Add((-50, 50)))
-
-# Apply to red and green
-aug = iaa.WithChannels([0, 1], iaa.Multiply((0.5, 1.5)))
+aug = iaa.Sequential([a, b, c])
+aug = iaa.Sequential([a, b, c], random_order=True)  # permutes order per batch
 ```
 
-## Identity / Noop
+### `SomeOf` / `OneOf`
 
-Do nothing (useful as placeholder).
+Selects a subset of child augmenters.
 
 ```python
-import imgaug2.augmenters as iaa
+aug = iaa.SomeOf((1, 3), [a, b, c, d])     # choose 1–3 each batch
+aug = iaa.OneOf([a, b, c])                # choose exactly one
+aug = iaa.SomeOf((2, 2), [a, b, c], random_order=True)  # choose 2, apply in random order
+```
 
+### `Sometimes`
+
+Wraps a child augmenter and executes it with probability `p`.
+
+```python
+aug = iaa.Sometimes(0.2, iaa.ElasticTransformation(alpha=20, sigma=3))
+```
+
+### `WithChannels`
+
+Applies an augmenter only to selected channels.
+
+```python
+aug = iaa.WithChannels([0, 1], iaa.Add(10))  # apply only to channels 0 and 1
+```
+
+### `Identity` / `Noop`
+
+“Do nothing” augmenters (useful as placeholders).
+
+```python
 aug = iaa.Identity()
-# or
 aug = iaa.Noop()
 ```
 
-## Lambda
+### `Lambda`, `AssertLambda`, `AssertShape`
 
-Apply custom function.
+Advanced hooks for custom logic and assertions.
 
-```python
-import imgaug2.augmenters as iaa
-import numpy as np
-
-def my_func(images, random_state, parents, hooks):
-    return [image + 10 for image in images]
-
-aug = iaa.Lambda(func_images=my_func)
-```
-
-## AssertShape
-
-Assert image shape (for debugging).
+These are powerful but easy to misuse (they run Python callables and can add overhead).
 
 ```python
 import imgaug2.augmenters as iaa
 
-# Assert images are 64x64 with 3 channels
-aug = iaa.AssertShape((None, 64, 64, 3))
+aug = iaa.AssertShape((None, 256, 256, 3))  # (N,H,W,C), allow any N
+
+aug = iaa.AssertLambda(
+    func_images=lambda images, *_: all(img.shape[0] > 0 for img in images),
+    error_message="Found an empty image.",
+)
 ```
 
-## ChannelShuffle
+### `ChannelShuffle`
 
-Randomly shuffle color channels.
+Randomly permutes channels (useful for RGB-like data).
 
 ```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.ChannelShuffle(0.5)  # 50% chance to shuffle
+aug = iaa.ChannelShuffle(1.0)
 ```
 
-## All Meta Augmenters
+## Determinism, Sync, and “Perfect” Pipelines
 
-| Augmenter | Description |
-|-----------|-------------|
-| `Sequential` | Apply in sequence |
-| `SomeOf` | Apply N random augmenters |
-| `OneOf` | Apply one random augmenter |
-| `Sometimes` | Apply with probability |
-| `WithChannels` | Apply to specific channels |
-| `Identity` / `Noop` | Do nothing |
-| `Lambda` | Custom function |
-| `AssertLambda` | Assert with function |
-| `AssertShape` | Assert shape |
-| `ChannelShuffle` | Shuffle channels |
-| `RemoveCBAsByOutOfImageFraction` | Remove out-of-image annotations |
-| `ClipCBAsToImagePlanes` | Clip annotations to image |
+Two key rules:
+
+1. If you need images + annotations to stay aligned, **pass them together in one call**.
+2. If you need identical transforms across *separate calls* (e.g. stereo pairs), use `to_deterministic()`.
+
+See: [Reproducibility & Determinism](../reproducibility.md) and [Hooks](../hooks.md).
+
+## Performance Notes
+
+Meta augmenters are generally cheap, but they can amplify overhead if you:
+
+- build pipelines with many tiny augmenters (Python call overhead),
+- use `Lambda`/assertions in hot loops,
+- apply expensive augmenters too frequently.
+
+Practical guidance: `docs/performance.md`.
+
+## Full List (meta)
+
+`Sequential`, `SomeOf`, `OneOf`, `Sometimes`, `WithChannels`, `Identity`, `Noop`,
+`Lambda`, `AssertLambda`, `AssertShape`, `ChannelShuffle`.

@@ -1,90 +1,74 @@
 # Color Augmenters
 
-Augmenters that modify color properties of images.
+Color augmenters modify **chromatic properties**: hue/saturation shifts,
+colorspace conversions, temperature changes, and quantization/posterization.
 
-## Grayscale
+They are photometric: they **do not move pixels**.
 
-Convert to grayscale with blending.
+![Color augmenter gallery](../assets/gallery/color_ops.png)
+
+## Quick Start (Color Jitter)
 
 ```python
 import imgaug2.augmenters as iaa
 
-aug = iaa.Grayscale(alpha=1.0)           # Full grayscale
-aug = iaa.Grayscale(alpha=(0.0, 1.0))    # Random grayscale intensity
-```
-
-## ChangeColorspace
-
-Convert between color spaces.
-
-```python
-aug = iaa.ChangeColorspace(from_colorspace="RGB", to_colorspace="HSV")
-```
-
-## AddToHueAndSaturation
-
-Modify hue and saturation.
-
-```python
-aug = iaa.AddToHueAndSaturation((-20, 20))  # Shift hue
-aug = iaa.AddToHue((-20, 20))               # Hue only
-aug = iaa.AddToSaturation((-20, 20))        # Saturation only
-```
-
-## MultiplyHueAndSaturation
-
-Scale hue and saturation.
-
-```python
-aug = iaa.MultiplyHueAndSaturation((0.5, 1.5))
-aug = iaa.MultiplyHue((0.8, 1.2))
-aug = iaa.MultiplySaturation((0.5, 1.5))
-```
-
-## ChangeColorTemperature
-
-Adjust color temperature (warm/cool).
-
-```python
-aug = iaa.ChangeColorTemperature((3000, 8000))  # Kelvin range
-```
-
-## WithColorspace
-
-Apply augmenters in a different color space.
-
-```python
-aug = iaa.WithColorspace(
-    to_colorspace="HSV",
-    children=iaa.Add((-20, 20), per_channel=True)
+color_jitter = iaa.SomeOf(
+    (0, 3),
+    [
+        iaa.Grayscale(alpha=(0.0, 1.0)),
+        iaa.AddToHueAndSaturation((-20, 20), per_channel=0.2),
+        iaa.ChangeColorTemperature((3000, 9000)),
+        iaa.Posterize(nb_bits=(4, 8)),
+    ],
+    random_order=True,
 )
 ```
 
-## WithBrightnessChannels
-
-Apply augmenters to brightness channels only.
+## Common Augmenters
 
 ```python
-aug = iaa.WithBrightnessChannels(iaa.Add((-20, 20)))
+import imgaug2.augmenters as iaa
+
+iaa.Grayscale(alpha=(0.0, 1.0))              # mix RGB -> grayscale
+iaa.AddToHueAndSaturation((-20, 20))         # hue/saturation jitter (HSV)
+iaa.ChangeColorTemperature((3000, 8000))     # warm/cool shift
+iaa.Posterize(nb_bits=(4, 8))                # reduce number of intensity bits
 ```
 
-## All Color Augmenters
+## Key Parameters & Pitfalls
 
-| Augmenter | Description |
-|-----------|-------------|
-| `Grayscale` | Convert to grayscale |
-| `ChangeColorspace` | Change color space |
-| `RemoveSaturation` | Remove color saturation |
-| `AddToHueAndSaturation` | Shift hue/saturation |
-| `AddToHue` | Shift hue only |
-| `AddToSaturation` | Shift saturation only |
-| `MultiplyHueAndSaturation` | Scale hue/saturation |
-| `MultiplyHue` | Scale hue only |
-| `MultiplySaturation` | Scale saturation only |
-| `ChangeColorTemperature` | Warm/cool adjustment |
-| `WithColorspace` | Apply in different colorspace |
-| `WithBrightnessChannels` | Apply to brightness |
-| `WithHueAndSaturation` | Apply to H/S channels |
-| `Posterize` | Reduce color depth |
-| `UniformColorQuantization` | Quantize colors |
-| `KMeansColorQuantization` | K-means color reduction |
+### Hue/saturation value ranges
+
+`AddToHueAndSaturation` uses imgaug’s historic convention: values are in roughly
+`[-255, +255]`.
+
+- Use small ranges first: `(-10, 10)` or `(-20, 20)`.
+- `per_channel=True` can be strong; `per_channel=0.1..0.3` is often enough.
+
+### dtype support varies by augmenter
+
+Some colorspace-based augmenters are primarily tested on `uint8` (OpenCV-style
+pipelines). If you train in `float32`, start with mild settings and validate
+quickly on a few samples.
+
+See: [dtype Support](../dtype_support.md).
+
+### Colorspace assumptions (RGB vs BGR)
+
+Most users provide images in RGB order. If your data is BGR (common in some OpenCV
+pipelines), be explicit with `ChangeColorspace(...)` or convert first.
+
+## Annotation Behavior
+
+Color augmenters are **image-only**. Bounding boxes/keypoints/polygons/line
+strings are unaffected. Heatmaps/segmaps are also kept unchanged by photometric
+ops.
+
+See: [All Augmentables Together](../examples/all_augmentables.md).
+
+## All Augmenters
+
+`Grayscale`, `RemoveSaturation`, `ChangeColorspace`, `AddToHueAndSaturation`,
+`AddToHue`, `AddToSaturation`, `MultiplyHueAndSaturation`,
+`ChangeColorTemperature`, `Posterize`, `UniformColorQuantization`,
+`KMeansColorQuantization`

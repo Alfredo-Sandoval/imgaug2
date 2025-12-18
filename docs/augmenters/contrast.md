@@ -1,102 +1,61 @@
 # Contrast Augmenters
 
-Augmenters that modify image contrast.
+Contrast augmenters change **the distribution of intensities** in an image:
+linear/gamma/sigmoid/log contrast and histogram equalization (global or adaptive).
 
-## LinearContrast
+![Contrast augmenter gallery](../assets/gallery/contrast_ops.png)
 
-Linear contrast adjustment.
-
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.LinearContrast((0.75, 1.25))
-aug = iaa.LinearContrast((0.5, 2.0), per_channel=True)
-```
-
-## GammaContrast
-
-Gamma correction.
+## Quick Start (Typical Contrast Jitter)
 
 ```python
 import imgaug2.augmenters as iaa
 
-aug = iaa.GammaContrast((0.5, 2.0))
-aug = iaa.GammaContrast((0.7, 1.5), per_channel=True)
+aug = iaa.SomeOf(
+    (0, 2),
+    [
+        iaa.LinearContrast((0.75, 1.25), per_channel=0.2),
+        iaa.GammaContrast((0.7, 1.6), per_channel=0.2),
+        iaa.SigmoidContrast(gain=(3, 10), cutoff=(0.4, 0.6)),
+    ],
+    random_order=True,
+)
 ```
 
-## SigmoidContrast
-
-Sigmoid-based contrast adjustment.
+## Common Augmenters
 
 ```python
 import imgaug2.augmenters as iaa
 
-aug = iaa.SigmoidContrast(gain=(3, 10), cutoff=(0.4, 0.6))
+iaa.LinearContrast((0.75, 1.25), per_channel=0.2)
+iaa.GammaContrast((0.7, 1.6), per_channel=0.2)
+iaa.SigmoidContrast(gain=(3, 10), cutoff=(0.4, 0.6))
+iaa.CLAHE()  # adaptive histogram equalization
 ```
 
-## LogContrast
+## Key Parameters & Pitfalls
 
-Logarithmic contrast adjustment.
+### `per_channel`
 
-```python
-import imgaug2.augmenters as iaa
+For contrast, `per_channel=True` can induce color shifts (channels are adjusted
+independently). This can be useful as light “color jitter”, but can also be too
+strong for some domains.
 
-aug = iaa.LogContrast(gain=(0.6, 1.4))
-```
+Try `per_channel=0.1..0.3` first.
 
-## CLAHE
+### Histogram equalization is domain-sensitive
 
-Contrast Limited Adaptive Histogram Equalization.
+- `HistogramEqualization` and `CLAHE` can drastically change appearance.
+- They are sometimes helpful for medical/industrial images, less so for natural images.
 
-```python
-import imgaug2.augmenters as iaa
+If you use them, prefer `Sometimes(...)` or `SomeOf(...)` so they don’t apply to
+every sample.
 
-aug = iaa.CLAHE()
-aug = iaa.CLAHE(clip_limit=(1, 10), tile_grid_size_px=(3, 21))
-```
+## Annotation Behavior
 
-## AllChannelsCLAHE
+Contrast augmenters are **image-only**. They don’t change geometry, and are
+ignored for bounding boxes/keypoints/polygons/line strings/heatmaps/segmaps.
 
-Apply CLAHE to all channels independently.
+## All Augmenters
 
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.AllChannelsCLAHE(clip_limit=(1, 10))
-```
-
-## HistogramEqualization
-
-Standard histogram equalization.
-
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.HistogramEqualization()
-aug = iaa.HistogramEqualization(to_colorspace="HSV")
-```
-
-## AllChannelsHistogramEqualization
-
-Apply histogram equalization to all channels.
-
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.AllChannelsHistogramEqualization()
-```
-
-## All Contrast Augmenters
-
-| Augmenter | Description |
-|-----------|-------------|
-| `GammaContrast` | Gamma correction |
-| `SigmoidContrast` | Sigmoid contrast |
-| `LogContrast` | Logarithmic contrast |
-| `LinearContrast` | Linear contrast |
-| `CLAHE` | Adaptive histogram eq |
-| `AllChannelsCLAHE` | CLAHE on all channels |
-| `HistogramEqualization` | Histogram equalization |
-| `AllChannelsHistogramEqualization` | Hist eq on all channels |
-| `Equalize` | PIL-style equalization |
-| `Autocontrast` | PIL-style autocontrast |
+`GammaContrast`, `SigmoidContrast`, `LogContrast`, `LinearContrast`, `CLAHE`,
+`AllChannelsCLAHE`, `HistogramEqualization`, `AllChannelsHistogramEqualization`

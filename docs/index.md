@@ -1,25 +1,29 @@
 # imgaug2
 
-**A powerful image augmentation library for machine learning.**
+**Modern image augmentation (Python 3.10+). MIT licensed forever.**
 
-imgaug2 is a community-maintained fork of [aleju/imgaug](https://github.com/aleju/imgaug), focused on keeping the library usable on modern Python, NumPy, and OpenCV stacks while preserving the original API and deterministic behavior.
+imgaug2 is a maintained continuation of [aleju/imgaug](https://github.com/aleju/imgaug) with modern Python 3.10+ support and active development while preserving API compatibility and deterministic behavior.
 
-## What can imgaug2 do?
+> **Note:** imgaug2 currently runs augmentations on the CPU.
 
-- **Augment Images**: Apply dozens of augmentation techniques including geometric transforms, blur, noise, color shifts, weather effects, and more.
-- **Augment Annotations**: Keep keypoints, bounding boxes, polygons, line strings, heatmaps, and segmentation maps aligned with augmented images.
-- **Compose Pipelines**: Build complex augmentation pipelines with `Sequential`, `SomeOf`, `Sometimes`, and random ordering.
-- **Deterministic Mode**: Reproduce exact augmentations using deterministic augmenters or fixed seeds.
+## Features
+
+- **130+ Augmentations** — Geometric transforms, blur, noise, color shifts, weather effects, and more
+- **Multi-Augmentable** — Automatically augments keypoints, bounding boxes, polygons, heatmaps, and segmentation maps
+- **Pipeline Composition** — Build complex pipelines with `Sequential`, `SomeOf`, `Sometimes`, and random ordering
+- **Deterministic Mode** — Reproduce exact augmentations with deterministic augmenters or fixed seeds
+- **Framework Agnostic** — Works with PyTorch, JAX, NumPy
+- **Optional Dict-based API** — `Compose` interface with uniform `p=` via `imgaug2.compat`
 
 ## Quick Example
 
 ```python
-import numpy as np
 import imgaug2 as ia
 import imgaug2.augmenters as iaa
+import imgaug2.data as data
 
 # Load an image
-image = ia.quokka(size=(256, 256))
+image = data.quokka(size=(256, 256))
 
 # Define augmentation pipeline
 aug = iaa.Sequential([
@@ -37,8 +41,9 @@ image_aug = aug(image=image)
 ```python
 import imgaug2 as ia
 import imgaug2.augmenters as iaa
+import imgaug2.data as data
 
-image = ia.quokka(size=(256, 256))
+image = data.quokka(size=(256, 256))
 bbs = ia.BoundingBoxesOnImage([
     ia.BoundingBox(x1=50, y1=50, x2=200, y2=200)
 ], shape=image.shape)
@@ -64,12 +69,13 @@ pip install git+https://github.com/Alfredo-Sandoval/imgaug2.git
 
 ## Why imgaug2?
 
-The original `imgaug` library by Alexander Jung is no longer actively maintained. imgaug2 continues development with:
+imgaug2 extends the original `imgaug` with:
 
-- **Python 3.10+** support
-- **Modern NumPy** compatibility
-- **Bug fixes** and community contributions
-- **Same API** for easy migration
+- **Python 3.10+** — Modern language features and NumPy/OpenCV compatibility
+- **Active Development** — Regular updates and bug fixes
+- **API Compatibility** — Drop-in replacement for existing imgaug code
+- **MIT Licensed** — Free forever, no restrictions
+- **Better DX (optional)** — `imgaug2.compat` for dict-based pipelines and bbox formats
 
 ## Links
 

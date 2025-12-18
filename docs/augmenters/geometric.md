@@ -1,144 +1,100 @@
 # Geometric Augmenters
 
-Augmenters that perform spatial/geometric transformations on images.
+Spatial transformations (affine warps, perspective transforms, elastic deformation, etc.).
 
-## Affine
+These augmenters are the ones that most often need:
 
-Apply affine transformations (rotation, scale, translation, shear).
+- **interpolation choices** (`order`)
+- **border handling** (`mode`, `cval`)
+- careful handling of **annotations** (bbs/kps/polys/segmaps/heatmaps)
+
+## Quick Start
 
 ```python
 import imgaug2.augmenters as iaa
 
-# Combined transformations
-aug = iaa.Affine(
-    scale=(0.8, 1.2),
-    rotate=(-25, 25),
-    translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
-    shear=(-8, 8)
+aug = iaa.Sequential(
+    [
+        iaa.Fliplr(0.5),
+        iaa.Affine(
+            rotate=(-20, 20),
+            scale=(0.9, 1.1),
+            translate_percent={"x": (-0.05, 0.05), "y": (-0.05, 0.05)},
+            mode="edge",
+        ),
+    ]
 )
-
-# Individual transforms
-aug = iaa.Affine(rotate=(-45, 45))
-aug = iaa.Affine(scale={"x": (0.5, 1.5), "y": (0.5, 1.5)})
 ```
 
-## Rotate
+![Affine augmentation examples](../assets/gallery/geometric_affine.png)
 
-Rotate images.
+## Common Augmenters
 
 ```python
 import imgaug2.augmenters as iaa
 
-aug = iaa.Rotate((-45, 45))
+iaa.Affine(rotate=(-25, 25), scale=(0.8, 1.2))  # Affine transform
+iaa.Rotate((-45, 45))                            # Rotation
+iaa.Rot90(k=(0, 3))                              # 90° rotations
+iaa.PiecewiseAffine(scale=(0.01, 0.05))          # Local warping
+iaa.PerspectiveTransform(scale=(0.01, 0.15))     # Perspective
+iaa.ElasticTransformation(alpha=50, sigma=5)     # Elastic deform
 ```
 
-## Rot90
+## Key Parameters (the important ones)
 
-Rotate by 90 degree increments.
+### Interpolation: `order`
+
+Many geometric operations create output pixels by sampling from the input.
+`order` controls interpolation quality and speed (higher is slower).
+
+Common values:
+
+- `order=0`: nearest neighbor (fast; best for segmentation maps)
+- `order=1`: bilinear (good default for images)
+- `order=3`: cubic (slower; sometimes sharper)
+
+### Border handling: `mode` and `cval`
+
+When you rotate/translate/warp you create “new” pixels that must be filled.
+
+Common modes:
+
+- `mode="constant"`: fill with a constant `cval` (often black)
+- `mode="edge"`: replicate border pixels
+- `mode="reflect"` / `mode="symmetric"`: reflect at borders
+- `mode="wrap"`: wrap around
+
+Example:
 
 ```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.Rot90(k=(0, 3))  # 0, 90, 180, or 270 degrees
-aug = iaa.Rot90(k=1)       # Always 90 degrees
+aug = iaa.Affine(rotate=(-25, 25), mode="constant", cval=128)
 ```
 
-## ShearX / ShearY
+## Keeping Annotations Aligned
 
-Shear along specific axis.
+Best practice: pass images and annotations in one call so they share the same
+sampled transform.
 
 ```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.ShearX((-20, 20))  # Horizontal shear
-aug = iaa.ShearY((-20, 20))  # Vertical shear
+image_aug, segmap_aug = aug(image=image, segmentation_maps=segmap)
 ```
 
-## ScaleX / ScaleY
+See: [Reproducibility & Determinism](../reproducibility.md).
 
-Scale along specific axis.
+## Performance Notes
 
-```python
-import imgaug2.augmenters as iaa
+Rough guidance:
 
-aug = iaa.ScaleX((0.5, 1.5))  # Horizontal scale
-aug = iaa.ScaleY((0.5, 1.5))  # Vertical scale
-```
+- **Fast**: `Fliplr`, `Flipud`, `Rot90`
+- **Moderate**: `Affine`, `Rotate` (depends heavily on `order`, image size)
+- **Slow**: `ElasticTransformation`, `PiecewiseAffine`, `PerspectiveTransform`
 
-## TranslateX / TranslateY
+Tips:
 
-Translate along specific axis.
+- Use smaller images or apply heavy geometry less often (`Sometimes`).
+- Prefer `order=0` where you can (labels) and `order=1` for images.
 
-```python
-import imgaug2.augmenters as iaa
+## All Augmenters
 
-aug = iaa.TranslateX(percent=(-0.1, 0.1))
-aug = iaa.TranslateY(px=(-20, 20))  # Or in pixels
-```
-
-## PiecewiseAffine
-
-Apply local affine transformations on a grid.
-
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.PiecewiseAffine(scale=(0.01, 0.05))
-```
-
-## PerspectiveTransform
-
-Apply perspective transformation.
-
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.PerspectiveTransform(scale=(0.01, 0.15))
-```
-
-## ElasticTransformation
-
-Apply elastic deformation.
-
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.ElasticTransformation(alpha=(0, 50), sigma=(4, 6))
-```
-
-## WithPolarWarping
-
-Apply augmenters in polar coordinates.
-
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.WithPolarWarping(iaa.Affine(translate_percent={"x": (-0.1, 0.1)}))
-```
-
-## Jigsaw
-
-Shuffle image patches.
-
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.Jigsaw(nb_rows=4, nb_cols=4)
-```
-
-## All Geometric Augmenters
-
-| Augmenter | Description |
-|-----------|-------------|
-| `Affine` | Affine transformations |
-| `AffineCv2` | Affine using OpenCV |
-| `Rotate` | Rotation |
-| `Rot90` | 90-degree rotations |
-| `ShearX` / `ShearY` | Shear transforms |
-| `ScaleX` / `ScaleY` | Scale transforms |
-| `TranslateX` / `TranslateY` | Translation |
-| `PiecewiseAffine` | Local affine grid |
-| `PerspectiveTransform` | Perspective |
-| `ElasticTransformation` | Elastic deformation |
-| `WithPolarWarping` | Polar coordinate transforms |
-| `Jigsaw` | Patch shuffling |
+`Affine`, `AffineCv2`, `Rotate`, `Rot90`, `ShearX`, `ShearY`, `ScaleX`, `ScaleY`, `TranslateX`, `TranslateY`, `PiecewiseAffine`, `PerspectiveTransform`, `ElasticTransformation`, `WithPolarWarping`, `Jigsaw`

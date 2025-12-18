@@ -1,72 +1,55 @@
 # Flip Augmenters
 
-Augmenters that flip/mirror images.
+Flip augmenters mirror images and all geometric annotations.
 
-## Fliplr (Horizontal Flip)
+They are usually the **cheapest** geometric augmentation you can add.
 
-Flip images horizontally (left-right).
+![Flip augmenter gallery](../assets/gallery/flip_ops.png)
 
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.Fliplr(0.5)  # 50% chance to flip
-aug = iaa.Fliplr(1.0)  # Always flip
-```
-
-## Flipud (Vertical Flip)
-
-Flip images vertically (up-down).
+## Usage
 
 ```python
 import imgaug2.augmenters as iaa
 
-aug = iaa.Flipud(0.5)  # 50% chance to flip
-aug = iaa.Flipud(1.0)  # Always flip
+iaa.Fliplr(0.5)   # Horizontal flip, 50% chance
+iaa.Flipud(0.5)   # Vertical flip, 50% chance
 ```
 
-## HorizontalFlip
+## Augmenting with Annotations
 
-Alias for Fliplr.
+Flips automatically apply to:
+
+- bounding boxes
+- keypoints
+- polygons and line strings
+- heatmaps and segmentation maps
+
+Recommended pattern:
 
 ```python
+import imgaug2 as ia
 import imgaug2.augmenters as iaa
+import imgaug2.data as data
 
-aug = iaa.HorizontalFlip(0.5)
+image = data.quokka(size=(256, 256))
+bbs = data.quokka_bounding_boxes(size=(256, 256))
+
+aug = iaa.Fliplr(1.0)  # always flip for demo
+image_aug, bbs_aug = aug(image=image, bounding_boxes=bbs)
+
+# visualize
+vis = bbs_aug.draw_on_image(image_aug, size=2)
+ia.imshow(vis)
 ```
 
-## VerticalFlip
+## Pitfalls (Label Semantics)
 
-Alias for Flipud.
+For tasks with **left/right semantics** (e.g. pose estimation keypoints: “left eye”),
+a flip changes the meaning of labels.
 
-```python
-import imgaug2.augmenters as iaa
+- imgaug2 flips the coordinates correctly.
+- Your training pipeline may also need to swap labels (e.g. left↔right keypoints).
 
-aug = iaa.VerticalFlip(0.5)
-```
+## All Augmenters
 
-## Common Usage
-
-```python
-import imgaug2.augmenters as iaa
-
-# Combine horizontal and vertical flips
-aug = iaa.Sequential([
-    iaa.Fliplr(0.5),
-    iaa.Flipud(0.5)
-])
-
-# This creates 4 possible orientations:
-# 1. Original
-# 2. Horizontal flip
-# 3. Vertical flip
-# 4. Both flips (180° rotation)
-```
-
-## All Flip Augmenters
-
-| Augmenter | Description |
-|-----------|-------------|
-| `Fliplr` | Horizontal flip |
-| `Flipud` | Vertical flip |
-| `HorizontalFlip` | Alias for Fliplr |
-| `VerticalFlip` | Alias for Flipud |
+`Fliplr`, `Flipud`, `HorizontalFlip`, `VerticalFlip`

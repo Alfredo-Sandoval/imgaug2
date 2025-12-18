@@ -1,149 +1,76 @@
 # Size Augmenters
 
-Augmenters that resize, crop, or pad images.
+Resize, crop, and pad operations.
 
-## Resize
+![Size augmenter gallery](../assets/gallery/size_ops.png)
 
-Resize images to specific size.
-
-```python
-import imgaug2.augmenters as iaa
-
-# Fixed size
-aug = iaa.Resize({"height": 128, "width": 128})
-
-# Scale factor
-aug = iaa.Resize(0.5)  # Half size
-aug = iaa.Resize((0.5, 1.5))  # Random scale
-
-# Keep aspect ratio
-aug = iaa.Resize({"height": 128, "width": "keep-aspect-ratio"})
-```
-
-## CropAndPad
-
-Crop and/or pad images.
+## Common Augmenters
 
 ```python
 import imgaug2.augmenters as iaa
 
-# Crop by pixels
-aug = iaa.CropAndPad(px=(-10, 10))
-
-# Crop/pad by percentage
-aug = iaa.CropAndPad(percent=(-0.1, 0.1))
-
-# Different per side
-aug = iaa.CropAndPad(
-    px={"top": (-10, 10), "right": (-5, 5), "bottom": (-10, 10), "left": (-5, 5)}
-)
+iaa.Resize({"height": 128, "width": 128})  # Resize
+iaa.CropAndPad(px=(-10, 10))               # Crop/pad
+iaa.Crop(px=(0, 16))                       # Crop only
+iaa.Pad(px=(0, 16))                        # Pad only
+iaa.PadToFixedSize(width=256, height=256)  # Pad to size
+iaa.CropToFixedSize(width=256, height=256) # Crop to size
 ```
 
-## Crop
+## Recommended Patterns
 
-Crop images only (no padding).
+### 1) Random scale (preserve aspect ratio)
 
 ```python
 import imgaug2.augmenters as iaa
 
-aug = iaa.Crop(px=(0, 16))  # Crop 0-16px from each side
-aug = iaa.Crop(percent=(0, 0.1))  # Crop 0-10%
+aug = iaa.Resize((0.5, 1.2))
 ```
 
-## Pad
-
-Pad images only (no cropping).
+### 2) Resize one side, keep aspect ratio
 
 ```python
 import imgaug2.augmenters as iaa
 
-aug = iaa.Pad(px=(0, 16))  # Pad 0-16px on each side
-aug = iaa.Pad(percent=(0, 0.1), pad_mode="edge")  # Edge padding
+aug = iaa.Resize({"height": 256, "width": "keep-aspect-ratio"})
 ```
 
-## PadToFixedSize
+### 3) Crop/pad but keep original size
 
-Pad to reach a minimum size.
+`CropAndPad` defaults to `keep_size=True`, meaning it crops/pads and then resizes
+back to the original image size (so your model still sees a fixed input size):
 
 ```python
 import imgaug2.augmenters as iaa
 
-aug = iaa.PadToFixedSize(width=256, height=256)
-aug = iaa.PadToFixedSize(width=256, height=256, position="center")
+aug = iaa.CropAndPad(px=(-32, 32), pad_mode="edge")  # keep_size=True by default
 ```
 
-## CropToFixedSize
+If you want the output size to actually change, set `keep_size=False`.
 
-Crop to reach a maximum size.
+`KeepSizeByResize(...)` is useful when you intentionally use a size-changing
+augmenter (e.g. random crops) but still must return to the original shape.
+
+## Key Parameters & Pitfalls
+
+### `interpolation` matters
+
+- For images: `linear`/`cubic` are common.
+- For segmentation maps: nearest-neighbor is required to preserve labels
+  (imgaug2 handles this for common geometric ops).
+
+If you want explicit control, prefer `Resize(interpolation=...)` and keep it
+consistent across experiments.
+
+### Crops can invalidate boxes/keypoints
+
+After strong crops, some boxes/keypoints may end up out-of-image. Typical cleanup:
 
 ```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.CropToFixedSize(width=256, height=256)
-aug = iaa.CropToFixedSize(width=256, height=256, position="uniform")
+# bbs_aug = bbs_aug.clip_out_of_image_()
+# bbs_aug = bbs_aug.remove_out_of_image_()
 ```
 
-## CenterCropToFixedSize
+## All Augmenters
 
-Center crop to specific size.
-
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.CenterCropToFixedSize(width=256, height=256)
-```
-
-## CropToMultiplesOf
-
-Crop so dimensions are multiples of a value.
-
-```python
-import imgaug2.augmenters as iaa
-
-# Crop to multiples of 32 (common for neural networks)
-aug = iaa.CropToMultiplesOf(32, 32)
-```
-
-## PadToMultiplesOf
-
-Pad so dimensions are multiples of a value.
-
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.PadToMultiplesOf(32, 32)
-```
-
-## KeepSizeByResize
-
-Resize back to original size after child augmentation.
-
-```python
-import imgaug2.augmenters as iaa
-
-aug = iaa.KeepSizeByResize(
-    iaa.CropToFixedSize(128, 128)
-)
-```
-
-## All Size Augmenters
-
-| Augmenter | Description |
-|-----------|-------------|
-| `Resize` | Resize images |
-| `CropAndPad` | Crop and/or pad |
-| `Crop` | Crop only |
-| `Pad` | Pad only |
-| `PadToFixedSize` | Pad to minimum size |
-| `CropToFixedSize` | Crop to maximum size |
-| `CenterCropToFixedSize` | Center crop |
-| `CenterPadToFixedSize` | Center pad |
-| `CropToMultiplesOf` | Crop to multiples |
-| `PadToMultiplesOf` | Pad to multiples |
-| `CropToPowersOf` | Crop to powers of N |
-| `PadToPowersOf` | Pad to powers of N |
-| `CropToAspectRatio` | Crop to aspect ratio |
-| `PadToAspectRatio` | Pad to aspect ratio |
-| `CropToSquare` | Crop to square |
-| `PadToSquare` | Pad to square |
-| `KeepSizeByResize` | Maintain size after aug |
+`Resize`, `CropAndPad`, `Crop`, `Pad`, `PadToFixedSize`, `CropToFixedSize`, `CenterCropToFixedSize`, `CropToMultiplesOf`, `PadToMultiplesOf`, `KeepSizeByResize`
