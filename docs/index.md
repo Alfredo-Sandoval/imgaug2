@@ -6,33 +6,10 @@ imgaug2 is a community-maintained fork of [aleju/imgaug](https://github.com/alej
 
 ## What can imgaug2 do?
 
-<div class="grid cards" markdown>
-
--   :material-image-multiple:{ .lg .middle } **Augment Images**
-
-    ---
-
-    Apply dozens of augmentation techniques: geometric transforms, blur, noise, color shifts, weather effects, and more.
-
--   :material-vector-polygon:{ .lg .middle } **Augment Annotations**
-
-    ---
-
-    Keep keypoints, bounding boxes, polygons, line strings, heatmaps, and segmentation maps aligned with augmented images.
-
--   :material-shuffle-variant:{ .lg .middle } **Compose Pipelines**
-
-    ---
-
-    Build complex augmentation pipelines with `Sequential`, `SomeOf`, `Sometimes`, and random ordering.
-
--   :material-dice-multiple:{ .lg .middle } **Deterministic Mode**
-
-    ---
-
-    Reproduce exact augmentations using deterministic augmenters or fixed seeds.
-
-</div>
+- **Augment Images**: Apply dozens of augmentation techniques including geometric transforms, blur, noise, color shifts, weather effects, and more.
+- **Augment Annotations**: Keep keypoints, bounding boxes, polygons, line strings, heatmaps, and segmentation maps aligned with augmented images.
+- **Compose Pipelines**: Build complex augmentation pipelines with `Sequential`, `SomeOf`, `Sometimes`, and random ordering.
+- **Deterministic Mode**: Reproduce exact augmentations using deterministic augmenters or fixed seeds.
 
 ## Quick Example
 
@@ -85,43 +62,11 @@ Or install from source:
 pip install git+https://github.com/Alfredo-Sandoval/imgaug2.git
 ```
 
-See [Installation](installation.md) for more options.
-
-## Documentation
-
-<div class="grid cards" markdown>
-
--   [**Getting Started**](getting-started.md)
-
-    ---
-
-    Copy-paste examples for common workflows.
-
--   [**Augmenter Overview**](augmenters/index.md)
-
-    ---
-
-    Visual guide to all available augmenters.
-
--   [**API Reference**](api/index.md)
-
-    ---
-
-    Detailed documentation for all classes and functions.
-
--   [**Migration Guide**](migration.md)
-
-    ---
-
-    Upgrading from the original `imgaug` library.
-
-</div>
-
 ## Why imgaug2?
 
 The original `imgaug` library by Alexander Jung is no longer actively maintained. imgaug2 continues development with:
 
-- **Python 3.9+** support
+- **Python 3.10+** support
 - **Modern NumPy** compatibility
 - **Bug fixes** and community contributions
 - **Same API** for easy migration

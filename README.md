@@ -1,7 +1,7 @@
 # imgaug2
 
 > **Community-maintained fork of [aleju/imgaug](https://github.com/aleju/imgaug)**
-> The original project is no longer actively maintained. This fork continues development with bug fixes, Python 3.12+ support, and modernization.
+> The original project is no longer actively maintained. This fork continues development with bug fixes, Python 3.10+ support, and modernization.
 
 This python library helps you with augmenting images for your machine learning projects.
 It converts a set of input images into a new, much larger set of slightly altered images.
@@ -120,33 +120,21 @@ It converts a set of input images into a new, much larger set of slightly altere
 
 ## Installation
 
-The library supports python 2.7 and 3.4+.
-
-### Installation: Anaconda
-
-To install the library in anaconda, perform the following commands:
-```bash
-conda config --add channels conda-forge
-conda install imgaug
-```
-
-You can deinstall the library again via `conda remove imgaug`.
+The library requires Python 3.10+.
 
 ### Installation: pip
 
-Then install imgaug either via pypi (can lag behind the github version):
+Install via pip:
 ```bash
-pip install imgaug
+pip install imgaug2
 ```
 
-or install the latest version directly from github:
+Or install the latest version directly from GitHub:
 ```bash
-pip install git+https://github.com/aleju/imgaug.git
+pip install git+https://github.com/aleju/imgaug2.git
 ```
 
-For more details, see the [install guide](https://imgaug.readthedocs.io/en/latest/source/installation.html)
-
-To deinstall the library, just execute `pip uninstall imgaug`.
+To uninstall: `pip uninstall imgaug2`
 
 
 <a name="documentation"/>
@@ -179,6 +167,9 @@ repository [imgaug-doc](https://github.com/aleju/imgaug-doc).
 <a name="recent_changes"/>
 
 ## Recent Changes
+
+This section is preserved from upstream imgaug for historical context. For imgaug2-specific changes,
+see [changelogs/](changelogs/).
 
 * **0.4.0**: Added new augmenters, changed backend to batchwise augmentation,
   support for numpy 1.18 and python 3.8.
@@ -708,7 +699,7 @@ Train on batches of images and augment each batch via crop, horizontal
 flip ("Fliplr") and gaussian blur:
 ```python
 import numpy as np
-import imgaug.augmenters as iaa
+import imgaug2.augmenters as iaa
 
 def load_batch(batch_idx):
     # dummy function, implement this
@@ -748,8 +739,8 @@ Apply a very heavy augmentation pipeline to images (used to create the image
 at the very top of this readme):
 ```python
 import numpy as np
-import imgaug as ia
-import imgaug.augmenters as iaa
+import imgaug2 as ia
+import imgaug2.augmenters as iaa
 
 # random example images
 images = np.random.randint(0, 255, (16, 128, 128, 3), dtype=np.uint8)
@@ -839,7 +830,7 @@ images_aug = seq(images=images)
 Augment images and keypoints/landmarks on the same images:
 ```python
 import numpy as np
-import imgaug.augmenters as iaa
+import imgaug2.augmenters as iaa
 
 images = np.zeros((2, 128, 128, 3), dtype=np.uint8)  # two example images
 images[:, 64, 64, :] = 255
@@ -869,8 +860,8 @@ why `x=0.5, y=0.5` denotes the center of the top left pixel.
 
 ```python
 import numpy as np
-import imgaug as ia
-import imgaug.augmenters as iaa
+import imgaug2 as ia
+import imgaug2.augmenters as iaa
 
 images = np.zeros((2, 128, 128, 3), dtype=np.uint8)  # two example images
 images[:, 64, 64, :] = 255
@@ -893,8 +884,8 @@ images_aug, bbs_aug = seq(images=images, bounding_boxes=bbs)
 
 ```python
 import numpy as np
-import imgaug as ia
-import imgaug.augmenters as iaa
+import imgaug2 as ia
+import imgaug2.augmenters as iaa
 
 images = np.zeros((2, 128, 128, 3), dtype=np.uint8)  # two example images
 images[:, 64, 64, :] = 255
@@ -918,8 +909,8 @@ LineStrings are similar to polygons, but are not closed, may intersect with
 themselves and don't have an inner area.
 ```python
 import numpy as np
-import imgaug as ia
-import imgaug.augmenters as iaa
+import imgaug2 as ia
+import imgaug2.augmenters as iaa
 
 images = np.zeros((2, 128, 128, 3), dtype=np.uint8)  # two example images
 images[:, 64, 64, :] = 255
@@ -948,7 +939,7 @@ be halved for the heatmaps.
 
 ```python
 import numpy as np
-import imgaug.augmenters as iaa
+import imgaug2.augmenters as iaa
 
 # Standard scenario: You have N RGB-images and additionally 21 heatmaps per
 # image. You want to augment each image and its heatmaps identically.
@@ -973,7 +964,7 @@ interpolation.
 
 ```python
 import numpy as np
-import imgaug.augmenters as iaa
+import imgaug2.augmenters as iaa
 
 # Standard scenario: You have N=16 RGB-images and additionally one segmentation
 # map per image. You want to augment each image and its heatmaps identically.
@@ -995,7 +986,7 @@ images_aug, segmaps_aug = seq(images=images, segmentation_maps=segmaps)
 Quickly show example results of your augmentation sequence:
 ```python
 import numpy as np
-import imgaug.augmenters as iaa
+import imgaug2.augmenters as iaa
 
 images = np.random.randint(0, 255, (16, 128, 128, 3), dtype=np.uint8)
 seq = iaa.Sequential([iaa.Fliplr(0.5), iaa.GaussianBlur((0, 3.0))])
@@ -1014,7 +1005,7 @@ visualize augmented non-image results, such as bounding boxes or heatmaps.
 
 ```python
 import numpy as np
-import imgaug as ia
+import imgaug2 as ia
 
 image = np.zeros((64, 64, 3), dtype=np.uint8)
 
@@ -1059,7 +1050,7 @@ many times, you are also free to use them only once. The overhead to
 instantiate the augmenters each time is usually negligible.
 
 ```python
-from imgaug import augmenters as iaa
+from imgaug2 import augmenters as iaa
 import numpy as np
 
 images = np.random.randint(0, 255, (16, 128, 128, 3), dtype=np.uint8)
@@ -1086,9 +1077,9 @@ or
 The following example augments a list of image batches in the background:
 ```python
 import skimage.data
-import imgaug as ia
-import imgaug.augmenters as iaa
-from imgaug.augmentables.batches import UnnormalizedBatch
+import imgaug2 as ia
+import imgaug2.augmenters as iaa
+from imgaug2.augmentables.batches import UnnormalizedBatch
 
 # Number of batches and batch size for this example
 nb_batches = 10
@@ -1136,8 +1127,8 @@ you can use stochastic parameters from `imgaug.parameters`:
 
 ```python
 import numpy as np
-from imgaug import augmenters as iaa
-from imgaug import parameters as iap
+from imgaug2 import augmenters as iaa
+from imgaug2 import parameters as iap
 
 images = np.random.randint(0, 255, (16, 128, 128, 3), dtype=np.uint8)
 
@@ -1163,7 +1154,7 @@ gaussian distribution, poisson distribution or beta distribution.
 Apply an augmenter only to specific image channels:
 ```python
 import numpy as np
-import imgaug.augmenters as iaa
+import imgaug2.augmenters as iaa
 
 # fake RGB images
 images = np.random.randint(0, 255, (16, 128, 128, 3), dtype=np.uint8)

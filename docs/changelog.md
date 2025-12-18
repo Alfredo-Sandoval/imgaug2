@@ -1,14 +1,18 @@
 # Changelog
 
-## 0.5.0 (Current)
+## 0.5.0 (Unreleased)
 
-- Fork from aleju/imgaug
-- Rename package to `imgaug2`
-- Require Python 3.9+
-- Remove `six` and `__future__` imports
-- Modernize packaging (pyproject.toml)
-- Update CI for modern Python versions
+### Changed
+- Renamed package from `imgaug` to `imgaug2`
+- Minimum Python version is now 3.10
+- Removed legacy compatibility code
+- Updated for NumPy 2.x compatibility
+
+### Fixed
+- Fixed deprecated `np.complex` usage (now `np.complex128`)
+- Removed `six` library dependency
+- Removed `__future__` imports
 
 ## Previous Versions
 
-For changes in imgaug 0.4.0 and earlier, see the [original changelog](https://github.com/aleju/imgaug/blob/master/CHANGELOG.md).
+For changes prior to the fork, see the [original imgaug changelog](https://github.com/aleju/imgaug/blob/master/CHANGELOG.md).

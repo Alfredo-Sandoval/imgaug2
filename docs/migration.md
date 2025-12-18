@@ -1,41 +1,59 @@
-# Migration from imgaug
+# Migration Guide
 
-imgaug2 is a drop-in replacement for the original `imgaug` library.
+Migrating from the original `imgaug` to `imgaug2`.
 
-## Import Changes
+## Package Name Change
 
-Simply change your imports:
+The main change is the package name:
 
 ```python
-# Before
+# Before (imgaug)
 import imgaug as ia
-from imgaug import augmenters as iaa
+import imgaug.augmenters as iaa
 
-# After
+# After (imgaug2)
 import imgaug2 as ia
-from imgaug2 import augmenters as iaa
+import imgaug2.augmenters as iaa
 ```
 
-## Package Name
+## Installation
 
 ```bash
-# Before
-pip install imgaug
+# Remove old package
+pip uninstall imgaug
 
-# After
+# Install new package
 pip install imgaug2
 ```
 
-## What's Different
+## API Compatibility
 
-- **Python 3.9+** required
-- **NumPy 1.24+** required
-- Internal modernization (no `six`, no `__future__` imports)
-- Bug fixes from community contributions
+imgaug2 maintains full API compatibility with imgaug 0.4.0. Your existing code should work with minimal changes:
 
-## What's the Same
+1. Update imports from `imgaug` to `imgaug2`
+2. That's it!
 
-- All augmenters work the same way
-- Same API for augmentables (keypoints, bounding boxes, etc.)
-- Same deterministic behavior
-- Same parameter interfaces
+## Python Version
+
+imgaug2 requires Python 3.10+.
+
+## NumPy Compatibility
+
+imgaug2 is compatible with NumPy 1.x and 2.x. Some deprecated NumPy type aliases have been updated.
+
+## Search and Replace
+
+For most projects, a simple search and replace is sufficient:
+
+```bash
+# Using sed (Linux/macOS)
+find . -name "*.py" -exec sed -i 's/import imgaug/import imgaug2/g' {} +
+find . -name "*.py" -exec sed -i 's/from imgaug/from imgaug2/g' {} +
+```
+
+## Getting Help
+
+If you encounter issues migrating:
+
+1. Check the [GitHub Issues](https://github.com/Alfredo-Sandoval/imgaug2/issues)
+2. Open a new issue describing your problem
