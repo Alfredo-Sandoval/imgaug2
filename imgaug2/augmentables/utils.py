@@ -151,7 +151,7 @@ def normalize_imglike_shape(shape: ImgLikeShape | np.ndarray) -> ImgLikeShape:
         "Expected image array to be 2-dimensional or 3-dimensional, got "
         f"{len(shape)}-dimensional input of shape {shape}."
     )
-    return shape
+    return cast(ImgLikeShape, shape)
 
 
 def project_coords_(

@@ -51,7 +51,7 @@ Added in 0.4.0.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal, Protocol, TypeAlias
+from typing import Any, cast, Literal, Protocol, TypeAlias
 
 import cv2
 import numpy as np
@@ -69,7 +69,15 @@ from imgaug2.augmenters import arithmetic, geometric, meta
 from imgaug2.augmenters import color as colorlib
 from imgaug2.augmenters import contrast as contrastlib
 from imgaug2.augmenters import size as sizelib
-from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
+from imgaug2.augmenters._typing import (
+    Array,
+    Images,
+    Matrix,
+    ParamInput,
+    RNGInput,
+    Shape,
+    _AffineSamplingResultType,
+)
 from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 # TODO some of the augmenters in this module broke on numpy arrays as
@@ -2660,11 +2668,11 @@ class Affine(geometric.Affine):
     # Added in 0.4.0.
     def _augment_images_by_samples(
         self,
-        images: list[Array],
-        samples: object,
-        image_shapes: list[tuple[int, ...]] | None = None,
+        images: Images,
+        samples: Any,
+        image_shapes: Sequence[Shape] | None = None,
         return_matrices: bool = False,
-    ) -> list[Array]:
+    ) -> Images | tuple[Images, list[Matrix]]:
         assert return_matrices is False, (
             "Got unexpectedly return_matrices=True. pillike.Affine does not "
             "yet produce that output."
@@ -2693,7 +2701,7 @@ class Affine(geometric.Affine):
         return images
 
     # Added in 0.4.0.
-    def _draw_samples(self, nb_samples: int, random_state: iarandom.RNG) -> object:
+    def _draw_samples(self, nb_samples: int, random_state: iarandom.RNG) -> _AffineSamplingResultType:
         # standard affine samples
         samples = super()._draw_samples(nb_samples, random_state)
 

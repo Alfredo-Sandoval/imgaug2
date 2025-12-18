@@ -43,6 +43,24 @@ Numberish: TypeAlias = Number | iap.StochasticParameter
 ParamInput: TypeAlias = Number | tuple[Number, Number] | list[Number] | iap.StochasticParameter
 
 
+# ---- Geometrical Types ----------------------------------------------------
+
+# (H, W) or (H, W, C)
+Shape2D: TypeAlias = tuple[int, int]
+Shape: TypeAlias = tuple[int, int] | tuple[int, int, int]
+
+# 3x3 transformation matrix
+Matrix: TypeAlias = NDArray[np.floating]
+
+if TYPE_CHECKING:
+    from imgaug2.augmenters.geometric import _AffineSamplingResult
+    _AffineSamplingResultVar = _AffineSamplingResult
+else:
+    _AffineSamplingResultVar = object
+
+_AffineSamplingResultType: TypeAlias = _AffineSamplingResultVar
+
+
 # ---- RNG inputs -----------------------------------------------------------
 
 if TYPE_CHECKING:

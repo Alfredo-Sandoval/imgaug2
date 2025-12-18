@@ -325,13 +325,13 @@ def normalize_keypoints(
     if ntype == "tuple[number,size=2]":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
-        shapes_ = cast(list[_Shape], shapes)
+        shapes_ = shapes
         inputs_xy = cast(Sequence[float], inputs)
         return [KeypointsOnImage([Keypoint(x=inputs_xy[0], y=inputs_xy[1])], shape=shapes_[0])]
     if ntype == "Keypoint":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
-        shapes_ = cast(list[_Shape], shapes)
+        shapes_ = shapes
         return [KeypointsOnImage([inputs], shape=shapes_[0])]
     if ntype == "KeypointsOnImage":
         return [cast(KeypointsOnImage, inputs)]
@@ -350,13 +350,13 @@ def normalize_keypoints(
     if ntype == "iterable-tuple[number,size=2]":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
-        shapes_ = cast(list[_Shape], shapes)
+        shapes_ = shapes
         inputs_xy = cast(Iterable[Sequence[float]], inputs)
         return [KeypointsOnImage([Keypoint(x=x, y=y) for x, y in inputs_xy], shape=shapes_[0])]
     if ntype == "iterable-Keypoint":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
-        shapes_ = cast(list[_Shape], shapes)
+        shapes_ = shapes
         return [KeypointsOnImage(inputs, shape=shapes_[0])]
     if ntype == "iterable-KeypointsOnImage":
         return cast(list[KeypointsOnImage], inputs)
@@ -412,7 +412,7 @@ def normalize_bounding_boxes(
     if ntype == "tuple[number,size=4]":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
-        shapes_ = cast(list[_Shape], shapes)
+        shapes_ = shapes
         inputs_xyxy = cast(Sequence[float], inputs)
         return [
             BoundingBoxesOnImage(
@@ -430,7 +430,7 @@ def normalize_bounding_boxes(
     if ntype == "BoundingBox":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
-        shapes_ = cast(list[_Shape], shapes)
+        shapes_ = shapes
         return [BoundingBoxesOnImage([inputs], shape=shapes_[0])]
     if ntype == "BoundingBoxesOnImage":
         return [cast(BoundingBoxesOnImage, inputs)]
@@ -449,7 +449,7 @@ def normalize_bounding_boxes(
     if ntype == "iterable-tuple[number,size=4]":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
-        shapes_ = cast(list[_Shape], shapes)
+        shapes_ = shapes
         inputs_xyxy = cast(Iterable[Sequence[float]], inputs)
         return [
             BoundingBoxesOnImage(
@@ -460,7 +460,7 @@ def normalize_bounding_boxes(
     if ntype == "iterable-BoundingBox":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
-        shapes_ = cast(list[_Shape], shapes)
+        shapes_ = shapes
         return [BoundingBoxesOnImage(inputs, shape=shapes_[0])]
     if ntype == "iterable-BoundingBoxesOnImage":
         return cast(list[BoundingBoxesOnImage], inputs)
@@ -560,7 +560,7 @@ def _normalize_polygons_and_line_strings(
     if ntype == cls_single_name:
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
-        shapes_ = cast(list[_Shape], shapes)
+        shapes_ = shapes
         return [cls_oi([inputs], shape=shapes_[0])]
     if ntype == cls_oi_name:
         return [inputs]
@@ -579,17 +579,17 @@ def _normalize_polygons_and_line_strings(
     if ntype == "iterable-tuple[number,size=2]":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
-        shapes_ = cast(list[_Shape], shapes)
+        shapes_ = shapes
         return [cls_oi([cls_single(inputs)], shape=shapes_[0])]
     if ntype == "iterable-Keypoint":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
-        shapes_ = cast(list[_Shape], shapes)
+        shapes_ = shapes
         return [cls_oi([cls_single(inputs)], shape=shapes_[0])]
     if ntype == (f"iterable-{cls_single_name}"):
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
-        shapes_ = cast(list[_Shape], shapes)
+        shapes_ = shapes
         return [cls_oi(inputs, shape=shapes_[0])]
     if ntype == (f"iterable-{cls_oi_name}"):
         return cast(list[object], inputs)
@@ -612,12 +612,12 @@ def _normalize_polygons_and_line_strings(
     if ntype == "iterable-iterable-tuple[number,size=2]":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
-        shapes_ = cast(list[_Shape], shapes)
+        shapes_ = shapes
         return [cls_oi([cls_single(attr_i) for attr_i in cast(Iterable[object], inputs)], shape=shapes_[0])]
     if ntype == "iterable-iterable-Keypoint":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
-        shapes_ = cast(list[_Shape], shapes)
+        shapes_ = shapes
         return [cls_oi([cls_single(attr_i) for attr_i in cast(Iterable[object], inputs)], shape=shapes_[0])]
     if ntype == (f"iterable-iterable-{cls_single_name}"):
         inputs_seq = cast(Sequence[object], inputs)

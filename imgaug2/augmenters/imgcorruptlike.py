@@ -74,7 +74,7 @@ import inspect
 import warnings
 from collections.abc import Callable, Sequence
 from types import ModuleType
-from typing import Literal, Protocol, TypeAlias
+from typing import Any, cast, Literal, Protocol, TypeAlias
 
 import numpy as np
 import skimage.filters
@@ -309,7 +309,7 @@ def _call_imgcorrupt_func(
     # this cast is done at the end of imagecorruptions.__init__.corrupt()
     image_aug = np.uint8(image_aug)
 
-    return image_aug
+    return cast(Array, image_aug)
 
 
 def get_corruption_names(

@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import tempfile
 from collections.abc import Sequence
-from typing import Literal, TypeAlias
+from typing import cast, Literal, TypeAlias
 
 import cv2
 import imageio
@@ -169,7 +169,7 @@ def add_scalar_(image: Array, value: ScalarInput) -> Array:
     if is_mlx_array(image):
         import imgaug2.mlx as mlx
 
-        return mlx.add(image, value)
+        return cast(Array, mlx.add(image, value))
 
     if image.size == 0:
         return np.copy(image)
@@ -541,7 +541,7 @@ def multiply_scalar_(image: Array, multiplier: ScalarInput) -> Array:
     if is_mlx_array(image):
         import imgaug2.mlx as mlx
 
-        return mlx.multiply(image, multiplier)
+        return cast(Array, mlx.multiply(image, multiplier))
 
     size = image.size
     if size == 0:

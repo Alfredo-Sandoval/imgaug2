@@ -26,12 +26,12 @@ import functools
 import itertools
 import math
 from collections.abc import Callable, Iterator, Sequence
-from typing import Literal, TypeAlias
+from typing import Any, cast, Literal, TypeAlias
 
 import cv2
 import numpy as np
 from numpy.typing import NDArray
-from scipy import ndimage
+import scipy.ndimage as ndimage
 from skimage import transform as tf
 
 import imgaug2.dtypes as iadt
@@ -40,7 +40,16 @@ import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmentables.polys import _ConcavePolygonRecoverer
-from imgaug2.augmenters._typing import Array, Images, ParamInput, RNGInput
+from imgaug2.augmenters._typing import (
+    Array,
+    Images,
+    Matrix,
+    ParamInput,
+    RNGInput,
+    Shape,
+    Shape2D,
+    _AffineSamplingResultType,
+)
 from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 from . import blur as blur_lib
@@ -3336,7 +3345,7 @@ class _PiecewiseAffineSamplingResult:
         min_value, _, max_value = iadt.get_value_range_of_dtype(dtype)
         cval = self.cval[idx]
         cval = max(min(cval, max_value), min_value)
-        return cval
+        return cast(float | int, cval)
 
 
 class PiecewiseAffine(meta.Augmenter):
@@ -4662,7 +4671,7 @@ class PerspectiveTransform(meta.Augmenter):
 
         matrix_expanded = cv2.getPerspectiveTransform(rect, dst)
         max_width, max_height = dst.max(axis=0)
-        return matrix_expanded, int(max_width), int(max_height)
+        return cast(Matrix, matrix_expanded), int(max_width), int(max_height)
 
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
@@ -7243,8 +7252,8 @@ class WithPolarWarping(meta.Augmenter):
         if cbaois is None:
             return None, None
 
-        coords = [cbaoi.to_xy_array() for cbaoi in cbaois]
-        image_shapes = [cbaoi.shape for cbaoi in cbaois]
+        coords = [cast(Any, cbaoi).to_xy_array() for cbaoi in cbaois]
+        image_shapes = [cast(Any, cbaoi).shape for cbaoi in cbaois]
         image_shapes_warped = cls._warp_shape_tuples(image_shapes)
 
         coords_warped, inv_data = cls._warp_coords(coords, image_shapes)
@@ -7263,8 +7272,8 @@ class WithPolarWarping(meta.Augmenter):
         if cbaois_warped is None:
             return None
 
-        coords = [cbaoi.to_xy_array() for cbaoi in cbaois_warped]
-        image_shapes_after_aug = [cbaoi.shape for cbaoi in cbaois_warped]
+        coords = [cast(ia.KeypointsOnImage, cbaoi).to_xy_array() for cbaoi in cbaois_warped]
+        image_shapes_after_aug = [cast(ia.KeypointsOnImage, cbaoi).shape for cbaoi in cbaois_warped]
 
         coords_warped = cls._invert_warp_coords(coords, image_shapes_after_aug, image_shapes_orig)
 
@@ -7365,9 +7374,9 @@ class WithPolarWarping(meta.Augmenter):
         return []
 
     # Added in 0.4.0.
-    def get_children_lists(self) -> list[meta.Augmenter]:
+    def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
-        return [self.children]
+        return cast(list[list[meta.Augmenter]], [self.children])
 
     # Added in 0.4.0.
     def _to_deterministic(self) -> WithPolarWarping:

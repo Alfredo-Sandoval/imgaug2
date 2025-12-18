@@ -1018,7 +1018,7 @@ class Augmenter(metaclass=ABCMeta):
         self,
         segmaps: ia.SegmentationMapsOnImage | list[ia.SegmentationMapsOnImage],
         parents: list[Augmenter] | None = None,
-        hooks: ia.HooksHeatmaps | None = None,
+        hooks: ia.HooksSegmentationMaps | None = None,
     ) -> ia.SegmentationMapsOnImage | list[ia.SegmentationMapsOnImage]:
         """Augment a batch of segmentation maps.
 
@@ -1052,7 +1052,7 @@ class Augmenter(metaclass=ABCMeta):
         segmaps: ia.SegmentationMapsOnImage | list[ia.SegmentationMapsOnImage],
         random_state: iarandom.RNG,
         parents: list[Augmenter],
-        hooks: ia.HooksHeatmaps | None,
+        hooks: ia.HooksSegmentationMaps | None,
     ) -> ia.SegmentationMapsOnImage | list[ia.SegmentationMapsOnImage]:
         """Augment a batch of segmentation in-place.
 
@@ -1211,7 +1211,7 @@ class Augmenter(metaclass=ABCMeta):
         self,
         bounding_boxes_on_images: ia.BoundingBoxesOnImage | list[ia.BoundingBoxesOnImage],
         parents: list[Augmenter] | None = None,
-        hooks: ia.HooksKeypoints | None = None,
+        hooks: ia.HooksBoundingBoxes | None = None,
     ) -> ia.BoundingBoxesOnImage | list[ia.BoundingBoxesOnImage]:
         """Augment a batch of bounding boxes.
 
@@ -1281,7 +1281,7 @@ class Augmenter(metaclass=ABCMeta):
         self,
         polygons_on_images: ia.PolygonsOnImage | list[ia.PolygonsOnImage],
         parents: list[Augmenter] | None = None,
-        hooks: ia.HooksKeypoints | None = None,
+        hooks: ia.HooksPolygons | None = None,
     ) -> ia.PolygonsOnImage | list[ia.PolygonsOnImage]:
         """Augment a batch of polygons.
 
@@ -1350,7 +1350,7 @@ class Augmenter(metaclass=ABCMeta):
         self,
         line_strings_on_images: ia.LineStringsOnImage | list[ia.LineStringsOnImage],
         parents: list[Augmenter] | None = None,
-        hooks: ia.HooksKeypoints | None = None,
+        hooks: ia.HooksLineStrings | None = None,
     ) -> ia.LineStringsOnImage | list[ia.LineStringsOnImage]:
         """Augment a batch of line strings.
 
@@ -1422,7 +1422,7 @@ class Augmenter(metaclass=ABCMeta):
         bounding_boxes_on_images: ia.BoundingBoxesOnImage | list[ia.BoundingBoxesOnImage],
         random_state: iarandom.RNG,
         parents: list[Augmenter],
-        hooks: ia.HooksKeypoints | None,
+        hooks: ia.HooksBoundingBoxes | None,
     ) -> ia.BoundingBoxesOnImage | list[ia.BoundingBoxesOnImage]:
         """Augment a batch of bounding boxes on images in-place.
 
@@ -1474,7 +1474,7 @@ class Augmenter(metaclass=ABCMeta):
         polygons_on_images: ia.PolygonsOnImage | list[ia.PolygonsOnImage],
         random_state: iarandom.RNG,
         parents: list[Augmenter],
-        hooks: ia.HooksKeypoints | None,
+        hooks: ia.HooksPolygons | None,
     ) -> ia.PolygonsOnImage | list[ia.PolygonsOnImage]:
         """Augment a batch of polygons on images in-place.
 
@@ -1523,7 +1523,7 @@ class Augmenter(metaclass=ABCMeta):
         line_strings_on_images: ia.LineStringsOnImage | list[ia.LineStringsOnImage],
         random_state: iarandom.RNG,
         parents: list[Augmenter],
-        hooks: ia.HooksKeypoints | None,
+        hooks: ia.HooksLineStrings | None,
     ) -> ia.LineStringsOnImage | list[ia.LineStringsOnImage]:
         """Augment a batch of line strings in-place.
 
@@ -1573,7 +1573,7 @@ class Augmenter(metaclass=ABCMeta):
         bounding_boxes_on_images: ia.BoundingBoxesOnImage | list[ia.BoundingBoxesOnImage],
         random_state: iarandom.RNG,
         parents: list[Augmenter],
-        hooks: ia.HooksKeypoints | None,
+        hooks: ia.HooksBoundingBoxes | None,
     ) -> ia.BoundingBoxesOnImage | list[ia.BoundingBoxesOnImage]:
         """
         Augment BBs by applying keypoint augmentation to their corners.
@@ -1610,7 +1610,7 @@ class Augmenter(metaclass=ABCMeta):
         polygons_on_images: ia.PolygonsOnImage | list[ia.PolygonsOnImage],
         random_state: iarandom.RNG,
         parents: list[Augmenter],
-        hooks: ia.HooksKeypoints | None,
+        hooks: ia.HooksPolygons | None,
         recoverer: object | None = None,
     ) -> ia.PolygonsOnImage | list[ia.PolygonsOnImage]:
         """
@@ -1664,7 +1664,7 @@ class Augmenter(metaclass=ABCMeta):
         line_strings_on_images: ia.LineStringsOnImage | list[ia.LineStringsOnImage],
         random_state: iarandom.RNG,
         parents: list[Augmenter],
-        hooks: ia.HooksKeypoints | None,
+        hooks: ia.HooksLineStrings | None,
     ) -> ia.LineStringsOnImage | list[ia.LineStringsOnImage]:
         """
         Augment BBs by applying keypoint augmentation to their corners.
@@ -4617,7 +4617,7 @@ class Lambda(Augmenter):
         segmaps: list[ia.SegmentationMapsOnImage],
         random_state: iarandom.RNG,
         parents: list[Augmenter],
-        hooks: ia.HooksHeatmaps | None,
+        hooks: ia.HooksSegmentationMaps | None,
     ) -> list[ia.SegmentationMapsOnImage]:
         if self.func_segmentation_maps is not None:
             result = self.func_segmentation_maps(segmaps, random_state, parents, hooks)
@@ -4663,7 +4663,7 @@ class Lambda(Augmenter):
         polygons_on_images: list[ia.PolygonsOnImage],
         random_state: iarandom.RNG,
         parents: list[Augmenter],
-        hooks: ia.HooksKeypoints | None,
+        hooks: ia.HooksPolygons | None,
     ) -> list[ia.PolygonsOnImage]:
         from imgaug2.augmentables.polys import _ConcavePolygonRecoverer
 
@@ -4697,7 +4697,7 @@ class Lambda(Augmenter):
         line_strings_on_images: list[ia.LineStringsOnImage],
         random_state: iarandom.RNG,
         parents: list[Augmenter],
-        hooks: ia.HooksKeypoints | None,
+        hooks: ia.HooksLineStrings | None,
     ) -> list[ia.LineStringsOnImage]:
         if self.func_line_strings == "keypoints":
             return self._augment_line_strings_as_keypoints(
@@ -4725,7 +4725,7 @@ class Lambda(Augmenter):
         bounding_boxes_on_images: list[ia.BoundingBoxesOnImage],
         random_state: iarandom.RNG,
         parents: list[Augmenter],
-        hooks: ia.HooksKeypoints | None,
+        hooks: ia.HooksBoundingBoxes | None,
     ) -> list[ia.BoundingBoxesOnImage]:
         if self.func_bounding_boxes == "keypoints":
             return self._augment_bounding_boxes_as_keypoints(

@@ -11,7 +11,7 @@ Added in 0.4.0.
 
 from __future__ import annotations
 
-from typing import Literal, TypeAlias
+from typing import Literal, TypeAlias, cast
 
 import cv2
 import numpy as np
@@ -239,7 +239,7 @@ def _saturate(image: Image, factor: float, from_colorspace: str) -> Image:
     image_sat = colorlib.change_colorspace_(
         hsv, to_colorspace=from_colorspace, from_colorspace=colorlib.CSPACE_HSV
     )
-    return image_sat
+    return cast(Image, image_sat)
 
 
 # Added in 0.4.0.

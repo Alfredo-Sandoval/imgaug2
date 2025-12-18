@@ -14,12 +14,12 @@ List of augmenters:
 
 from __future__ import annotations
 
-from typing import Literal, TypeAlias
+from typing import Any, cast, Literal, Protocol, TypeAlias, TYPE_CHECKING
 
 import cv2
 import numpy as np
 from numpy.typing import NDArray
-from scipy import ndimage
+import scipy.ndimage as ndimage
 
 import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia

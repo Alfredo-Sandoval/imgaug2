@@ -36,7 +36,7 @@ from __future__ import annotations
 import functools
 import re
 from collections.abc import Sequence
-from typing import Literal, TypeAlias, overload
+from typing import Any, cast, Literal, TypeAlias, overload
 
 import cv2
 import numpy as np
@@ -1749,7 +1749,7 @@ class Resize(meta.Augmenter):
             w_per_h_orig = imw / imh
             w = int(np.round(h * w_per_h_orig))
 
-        return h, w
+        return int(h), int(w)
 
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
@@ -5408,7 +5408,7 @@ class KeepSizeByResize(meta.Augmenter):
     def _get_shapes(cls, batch: _BatchInAugmentation) -> dict[str, list[Shape]]:
         result = dict()
         for column in batch.columns:
-            result[column.name] = [cell.shape for cell in column.value]
+            result[column.name] = [cast(Any, cell).shape for cell in column.value]
 
         if batch.heatmaps is not None:
             result["heatmaps_arr"] = [cell.arr_0to1.shape for cell in batch.heatmaps]
@@ -5474,7 +5474,7 @@ class KeepSizeByResize(meta.Augmenter):
 
     def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
-        return [self.children]
+        return cast(list[list[meta.Augmenter]], [self.children])
 
     def __str__(self) -> str:
         return (

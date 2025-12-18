@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from collections.abc import Sequence
-from typing import Literal, TypeAlias
+from typing import Any, cast, Literal, TypeAlias, Union
 
 import cv2
 import numpy as np
@@ -404,7 +404,7 @@ def change_colorspaces_(
                 "as `images`. Got length %d, expected %d." % (arg_name, len(arg), len(images))
             )
 
-        return arg
+        return cast(Sequence[ColorSpace], arg)
 
     to_colorspaces = _validate(to_colorspaces, "to_colorspaces")
     from_colorspaces = _validate(from_colorspaces, "from_colorspaces")
@@ -875,7 +875,7 @@ class _KelvinToRGBTable:
             / 255.0
         )
         _KelvinToRGBTable._TABLE = table
-        return table
+        return cast(Array, table)
 
 
 def change_color_temperatures_(
@@ -942,7 +942,10 @@ def change_color_temperatures_(
                 f"number. Got type {type(arg).__name__}."
             )
             arg = np.tile(np.float32([arg]), (len(images),))
-        return arg
+        return cast(
+            Union[Array, Sequence[ColorSpace], Sequence[Union[float, int]]],
+            arg,
+        )
 
     kelvins = _validate(kelvins, "kelvins", "number")
     from_colorspaces = _validate(from_colorspaces, "from_colorspaces", "str")
@@ -1164,7 +1167,7 @@ class WithColorspace(meta.Augmenter):
 
     def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
-        return [self.children]
+        return cast(list[list[meta.Augmenter]], [self.children])
 
     def __str__(self) -> str:
         return (
@@ -1265,20 +1268,22 @@ class WithBrightnessChannels(meta.Augmenter):
         CSPACE_YUV: 0,
     }
 
+    _DEFAULT_COLORSPACES = [
+        CSPACE_YCrCb,
+        CSPACE_HSV,
+        CSPACE_HLS,
+        CSPACE_Lab,
+        CSPACE_Luv,
+        CSPACE_YUV,
+    ]
+
     _VALID_COLORSPACES = set(_CSPACE_TO_CHANNEL_ID.keys())
 
     # Added in 0.4.0.
     def __init__(
         self,
-        children: ChildrenInput = None,
-        to_colorspace: ToColorspaceParamInput = [
-            CSPACE_YCrCb,
-            CSPACE_HSV,
-            CSPACE_HLS,
-            CSPACE_Lab,
-            CSPACE_Luv,
-            CSPACE_YUV,
-        ],
+        children: ChildrenInput = None, # type: ignore
+        to_colorspace: ToColorspaceParamInput = None, # type: ignore
         from_colorspace: ColorSpace = "RGB",
         seed: RNGInput = None,
         name: str | None = None,
@@ -1291,6 +1296,8 @@ class WithBrightnessChannels(meta.Augmenter):
         )
 
         self.children = meta.handle_children_list(children, self.name, "then")
+        if to_colorspace is None:
+            to_colorspace = list(self._DEFAULT_COLORSPACES)
         self.to_colorspace = iap.handle_categorical_string_param(
             to_colorspace, "to_colorspace", valid_values=self._VALID_COLORSPACES
         )
@@ -1372,7 +1379,7 @@ class WithBrightnessChannels(meta.Augmenter):
     # Added in 0.4.0.
     def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
-        return [self.children]
+        return cast(list[list[meta.Augmenter]], [self.children])
 
     # Added in 0.4.0.
     def __str__(self) -> str:
@@ -1451,14 +1458,7 @@ class MultiplyAndAddToBrightness(WithBrightnessChannels):
         self,
         mul: ParamInput = (0.7, 1.3),
         add: ParamInput = (-30, 30),
-        to_colorspace: ToColorspaceParamInput = [
-            CSPACE_YCrCb,
-            CSPACE_HSV,
-            CSPACE_HLS,
-            CSPACE_Lab,
-            CSPACE_Luv,
-            CSPACE_YUV,
-        ],
+        to_colorspace: ToColorspaceParamInput = None,  # type: ignore
         from_colorspace: ColorSpace = "RGB",
         random_order: bool = True,
         seed: RNGInput = None,
@@ -1467,6 +1467,15 @@ class MultiplyAndAddToBrightness(WithBrightnessChannels):
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
         # pylint: disable=dangerous-default-value
+        if to_colorspace is None:
+            to_colorspace = [
+                CSPACE_YCrCb,
+                CSPACE_HSV,
+                CSPACE_HLS,
+                CSPACE_Lab,
+                CSPACE_Luv,
+                CSPACE_YUV,
+            ]
         mul = (
             meta.Identity()
             if ia.is_single_number(mul) and np.isclose(mul, 1.0)
@@ -1553,14 +1562,7 @@ class MultiplyBrightness(MultiplyAndAddToBrightness):
     def __init__(
         self,
         mul: ParamInput = (0.7, 1.3),
-        to_colorspace: ToColorspaceParamInput = [
-            CSPACE_YCrCb,
-            CSPACE_HSV,
-            CSPACE_HLS,
-            CSPACE_Lab,
-            CSPACE_Luv,
-            CSPACE_YUV,
-        ],
+        to_colorspace: ToColorspaceParamInput = None,  # type: ignore
         from_colorspace: ColorSpace = "RGB",
         seed: RNGInput = None,
         name: str | None = None,
@@ -1568,6 +1570,15 @@ class MultiplyBrightness(MultiplyAndAddToBrightness):
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
         # pylint: disable=dangerous-default-value
+        if to_colorspace is None:
+            to_colorspace = [
+                CSPACE_YCrCb,
+                CSPACE_HSV,
+                CSPACE_HLS,
+                CSPACE_Lab,
+                CSPACE_Luv,
+                CSPACE_YUV,
+            ]
         super().__init__(
             mul=mul,
             add=0,
@@ -1636,14 +1647,7 @@ class AddToBrightness(MultiplyAndAddToBrightness):
     def __init__(
         self,
         add: ParamInput = (-30, 30),
-        to_colorspace: ToColorspaceParamInput = [
-            CSPACE_YCrCb,
-            CSPACE_HSV,
-            CSPACE_HLS,
-            CSPACE_Lab,
-            CSPACE_Luv,
-            CSPACE_YUV,
-        ],
+        to_colorspace: ToColorspaceParamInput = None, # type: ignore
         from_colorspace: ColorSpace = "RGB",
         seed: RNGInput = None,
         name: str | None = None,
@@ -1651,6 +1655,15 @@ class AddToBrightness(MultiplyAndAddToBrightness):
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
         # pylint: disable=dangerous-default-value
+        if to_colorspace is None:
+            to_colorspace = [
+                CSPACE_YCrCb,
+                CSPACE_HSV,
+                CSPACE_HLS,
+                CSPACE_Lab,
+                CSPACE_Luv,
+                CSPACE_YUV,
+            ]
         super().__init__(
             mul=1.0,
             add=add,
@@ -1662,6 +1675,7 @@ class AddToBrightness(MultiplyAndAddToBrightness):
             random_state=random_state,
             deterministic=deterministic,
         )
+
 
 
 # TODO Merge this into WithColorspace? A bit problematic due to int16
@@ -1847,7 +1861,7 @@ class WithHueAndSaturation(meta.Augmenter):
 
     def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
-        return [self.children]
+        return cast(list[list[meta.Augmenter]], [self.children])
 
     def __str__(self) -> str:
         return (
@@ -3313,7 +3327,7 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
         counts: ParamInput = (2, 16),  # number of bits or colors
         counts_value_range: tuple[int, int | None] = (2, None),
         from_colorspace: ColorSpace = CSPACE_RGB,
-        to_colorspace: ToColorspaceChoiceInput | None = [CSPACE_RGB, CSPACE_Lab],
+        to_colorspace: ToColorspaceChoiceInput | None = None,
         max_size: int | None = 128,
         interpolation: str = "linear",
         seed: RNGInput = None,
@@ -3322,6 +3336,8 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
         # pylint: disable=dangerous-default-value
+        if to_colorspace is None:
+            to_colorspace = [CSPACE_RGB, CSPACE_Lab]
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -3594,7 +3610,7 @@ class KMeansColorQuantization(_AbstractColorQuantization):
         self,
         n_colors: ParamInput = (2, 16),
         from_colorspace: ColorSpace = CSPACE_RGB,
-        to_colorspace: ToColorspaceChoiceInput | None = [CSPACE_RGB, CSPACE_Lab],
+        to_colorspace: ToColorspaceChoiceInput | None = None,
         max_size: int | None = 128,
         interpolation: str = "linear",
         seed: RNGInput = None,

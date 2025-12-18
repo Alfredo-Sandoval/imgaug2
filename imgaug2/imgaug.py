@@ -2442,6 +2442,26 @@ class HooksKeypoints(HooksImages):
     """
 
 
+@legacy
+class HooksSegmentationMaps(HooksImages):
+    """Class to intervene with segmentation map augmentation runs."""
+
+
+@legacy
+class HooksPolygons(HooksImages):
+    """Class to intervene with polygon augmentation runs."""
+
+
+@legacy
+class HooksLineStrings(HooksImages):
+    """Class to intervene with line string augmentation runs."""
+
+
+@legacy
+class HooksBoundingBoxes(HooksImages):
+    """Class to intervene with bounding box augmentation runs."""
+
+
 #####################################################################
 # Create classes/functions that were moved to other files.
 #####################################################################

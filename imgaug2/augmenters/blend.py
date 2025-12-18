@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias
+from typing import cast, TYPE_CHECKING, Literal, Protocol, TypeAlias
 
 import cv2
 import numpy as np
@@ -456,7 +456,7 @@ def _generate_branch_outputs(
                 outputs_bg, parents=parents_extended, hooks=hooks
             )
 
-    return outputs_fg, outputs_bg
+    return cast(_BatchInAugmentation, outputs_fg), cast(_BatchInAugmentation, outputs_bg)
 
 
 # Added in 0.4.0.
@@ -694,7 +694,7 @@ class BlendAlpha(meta.Augmenter):
 
     # Added in 0.4.0.
     def _to_deterministic(self) -> meta.Augmenter:
-        return _to_deterministic(self)
+        return cast(meta.Augmenter, _to_deterministic(self))
 
     # Added in 0.4.0.
     def get_parameters(self) -> list[object]:
@@ -704,7 +704,7 @@ class BlendAlpha(meta.Augmenter):
     # Added in 0.4.0.
     def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
-        return [lst for lst in [self.foreground, self.background] if lst is not None]
+        return cast(list[list[meta.Augmenter]], [lst for lst in [self.foreground, self.background] if lst is not None])
 
     # Added in 0.4.0.
     def __str__(self) -> str:
@@ -1023,7 +1023,7 @@ class BlendAlphaMask(meta.Augmenter):
 
     # Added in 0.4.0.
     def _to_deterministic(self) -> meta.Augmenter:
-        return _to_deterministic(self)
+        return cast(meta.Augmenter, _to_deterministic(self))
 
     # Added in 0.4.0.
     def get_parameters(self) -> list[object]:
@@ -1033,7 +1033,7 @@ class BlendAlphaMask(meta.Augmenter):
     # Added in 0.4.0.
     def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
-        return [lst for lst in [self.foreground, self.background] if lst is not None]
+        return cast(list[list[meta.Augmenter]], [lst for lst in [self.foreground, self.background] if lst is not None])
 
     # Added in 0.4.0.
     def __str__(self) -> str:
@@ -3856,7 +3856,7 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
             assert isinstance(self.class_ids, list), (
                 f"Expected list got {type(self.class_ids).__name__}."
             )
-            return [self.class_ids] * nb_rows
+            return cast(list[Sequence[int]], [self.class_ids] * nb_rows)
 
         nb_sample_classes = nb_sample_classes.draw_samples((nb_rows,), random_state=random_state)
         nb_sample_classes = np.clip(nb_sample_classes, 0, None)
@@ -3866,7 +3866,7 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
 
         class_ids = _split_1d_array_to_list(class_ids_raw, nb_sample_classes)
 
-        return class_ids
+        return cast(list[Sequence[int]], class_ids)
 
     # TODO this could be simplified to something like:
     #      segmap.keep_only_classes(class_ids).draw_mask()
@@ -4027,7 +4027,7 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
         nb_sample_labels = self.nb_sample_labels
         if nb_sample_labels is None:
             assert isinstance(self.labels, list), f"Expected list got {type(self.labels).__name__}."
-            return [self.labels] * nb_rows
+            return cast(list[Sequence[str]], [self.labels] * nb_rows)
 
         nb_sample_labels = nb_sample_labels.draw_samples((nb_rows,), random_state=random_state)
         nb_sample_labels = np.clip(nb_sample_labels, 0, None)
@@ -4037,7 +4037,7 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
 
         labels = _split_1d_array_to_list(labels_raw, nb_sample_labels)
 
-        return labels
+        return cast(list[Sequence[str]], labels)
 
     # TODO this could be simplified to something like
     #      bbsoi.only_labels(labels).draw_mask()
