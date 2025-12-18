@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import numpy as np
 
 import imgaug2.imgaug as ia
@@ -40,7 +42,13 @@ class HeatmapsOnImage(IAugmentable):
 
     """
 
-    def __init__(self, arr, shape, min_value=0.0, max_value=1.0):
+    def __init__(
+        self,
+        arr: np.ndarray,
+        shape: tuple[int, ...],
+        min_value: float = 0.0,
+        max_value: float = 1.0,
+    ) -> None:
         """Construct a new HeatmapsOnImage object."""
         assert ia.is_np_array(arr), (
             f"Expected numpy array as heatmap input array, got type {type(arr)}"
@@ -93,7 +101,7 @@ class HeatmapsOnImage(IAugmentable):
         self.min_value = min_value
         self.max_value = max_value
 
-    def get_arr(self):
+    def get_arr(self) -> np.ndarray:
         """Get the heatmap's array in value range provided to ``__init__()``.
 
         The :class:`HeatmapsOnImage` object saves heatmaps internally in the
@@ -126,7 +134,11 @@ class HeatmapsOnImage(IAugmentable):
     # def find_global_maxima(self):
     #    raise NotImplementedError()
 
-    def draw(self, size=None, cmap="jet"):
+    def draw(
+        self,
+        size: int | float | Sequence[int] | Sequence[float] | None = None,
+        cmap: str | None = "jet",
+    ) -> list[np.ndarray]:
         """Render the heatmaps as RGB images.
 
         Parameters
@@ -181,7 +193,13 @@ class HeatmapsOnImage(IAugmentable):
             heatmaps_drawn.append(heatmap_cmapped)
         return heatmaps_drawn
 
-    def draw_on_image(self, image, alpha=0.75, cmap="jet", resize="heatmaps"):
+    def draw_on_image(
+        self,
+        image: np.ndarray,
+        alpha: float = 0.75,
+        cmap: str | None = "jet",
+        resize: str = "heatmaps",
+    ) -> list[np.ndarray]:
         """Draw the heatmaps as overlays over an image.
 
         Parameters
@@ -214,12 +232,10 @@ class HeatmapsOnImage(IAugmentable):
         """
         # assert RGB image
         assert image.ndim == 3, (
-            "Expected to draw on three-dimensional image, "
-            "got %d dimensions with shape %s instead." % (image.ndim, image.shape)
+            f"Expected to draw on three-dimensional image, got {image.ndim} dimensions "
+            f"with shape {image.shape} instead."
         )
-        assert image.shape[2] == 3, "Expected RGB image, got %d channels instead." % (
-            image.shape[2],
-        )
+        assert image.shape[2] == 3, f"Expected RGB image, got {image.shape[2]} channels instead."
         assert image.dtype.name == "uint8", f"Expected uint8 image, got dtype {image.dtype.name}."
 
         assert 0 - 1e-8 <= alpha <= 1.0 + 1e-8, (
@@ -244,7 +260,7 @@ class HeatmapsOnImage(IAugmentable):
 
         return mix
 
-    def invert(self):
+    def invert(self) -> HeatmapsOnImage:
         """Invert each component in the heatmap.
 
         This shifts low values towards high values and vice versa.
@@ -277,7 +293,15 @@ class HeatmapsOnImage(IAugmentable):
         arr_inv.arr_was_2d = self.arr_was_2d
         return arr_inv
 
-    def pad(self, top=0, right=0, bottom=0, left=0, mode="constant", cval=0.0):
+    def pad(
+        self,
+        top: int = 0,
+        right: int = 0,
+        bottom: int = 0,
+        left: int = 0,
+        mode: str = "constant",
+        cval: float = 0.0,
+    ) -> HeatmapsOnImage:
         """Pad the heatmaps at their top/right/bottom/left side.
 
         Parameters
@@ -332,8 +356,12 @@ class HeatmapsOnImage(IAugmentable):
         )
 
     def pad_to_aspect_ratio(
-        self, aspect_ratio, mode="constant", cval=0.0, return_pad_amounts=False
-    ):
+        self,
+        aspect_ratio: float,
+        mode: str = "constant",
+        cval: float = 0.0,
+        return_pad_amounts: bool = False,
+    ) -> HeatmapsOnImage | tuple[HeatmapsOnImage, tuple[int, int, int, int]]:
         """Pad the heatmaps until they match a target aspect ratio.
 
         Depending on which dimension is smaller (height or width), only the
@@ -394,7 +422,7 @@ class HeatmapsOnImage(IAugmentable):
             return heatmaps, pad_amounts
         return heatmaps
 
-    def avg_pool(self, block_size):
+    def avg_pool(self, block_size: int | tuple[int, int]) -> HeatmapsOnImage:
         """Average-pool the heatmap(s) array using a given block/kernel size.
 
         Parameters
@@ -417,7 +445,7 @@ class HeatmapsOnImage(IAugmentable):
             max_value=self.max_value,
         )
 
-    def max_pool(self, block_size):
+    def max_pool(self, block_size: int | tuple[int, int]) -> HeatmapsOnImage:
         """Max-pool the heatmap(s) array using a given block/kernel size.
 
         Parameters
@@ -444,11 +472,15 @@ class HeatmapsOnImage(IAugmentable):
         alt_func="HeatmapsOnImage.resize()",
         comment="resize() has the exactly same interface.",
     )
-    def scale(self, *args, **kwargs):
+    def scale(self, *args: object, **kwargs: object) -> HeatmapsOnImage:
         """Resize the heatmap(s) array given a target size and interpolation."""
         return self.resize(*args, **kwargs)
 
-    def resize(self, sizes, interpolation="cubic"):
+    def resize(
+        self,
+        sizes: int | float | Sequence[int] | Sequence[float],
+        interpolation: str | int | None = "cubic",
+    ) -> HeatmapsOnImage:
         """Resize the heatmap(s) array given a target size and interpolation.
 
         Parameters
@@ -483,7 +515,7 @@ class HeatmapsOnImage(IAugmentable):
             max_value=self.max_value,
         )
 
-    def to_uint8(self):
+    def to_uint8(self) -> np.ndarray:
         """Convert this heatmaps object to an ``uint8`` array.
 
         Returns
@@ -501,7 +533,12 @@ class HeatmapsOnImage(IAugmentable):
         return arr_uint8
 
     @staticmethod
-    def from_uint8(arr_uint8, shape, min_value=0.0, max_value=1.0):
+    def from_uint8(
+        arr_uint8: np.ndarray,
+        shape: tuple[int, ...],
+        min_value: float = 0.0,
+        max_value: float = 1.0,
+    ) -> HeatmapsOnImage:
         """Create a ``float``-based heatmaps object from an ``uint8`` array.
 
         Parameters
@@ -542,7 +579,12 @@ class HeatmapsOnImage(IAugmentable):
         return HeatmapsOnImage.from_0to1(arr_0to1, shape, min_value=min_value, max_value=max_value)
 
     @staticmethod
-    def from_0to1(arr_0to1, shape, min_value=0.0, max_value=1.0):
+    def from_0to1(
+        arr_0to1: np.ndarray,
+        shape: tuple[int, ...],
+        min_value: float = 0.0,
+        max_value: float = 1.0,
+    ) -> HeatmapsOnImage:
         """Create a heatmaps object from a ``[0.0, 1.0]`` float array.
 
         Parameters
@@ -586,7 +628,12 @@ class HeatmapsOnImage(IAugmentable):
 
     # TODO change name to change_value_range()?
     @classmethod
-    def change_normalization(cls, arr, source, target):
+    def change_normalization(
+        cls,
+        arr: np.ndarray,
+        source: HeatmapsOnImage | tuple[float, float],
+        target: HeatmapsOnImage | tuple[float, float],
+    ) -> np.ndarray:
         """Change the value range of a heatmap array.
 
         E.g. the value range may be changed from the interval ``[0.0, 1.0]``
@@ -614,18 +661,13 @@ class HeatmapsOnImage(IAugmentable):
         """
         assert ia.is_np_array(arr), f"Expected 'arr' to be an ndarray, got type {type(arr)}."
 
-        def _validate_tuple(arg_name, arg_value):
+        def _validate_tuple(arg_name: str, arg_value: object) -> None:
             assert isinstance(arg_value, tuple), (
                 f"'{arg_name}' was not a HeatmapsOnImage instance, "
                 f"expected type tuple then. Got type {type(arg_value)}."
             )
             assert len(arg_value) == 2, (
-                "Expected tuple '%s' to contain exactly two entries, "
-                "got %d."
-                % (
-                    arg_name,
-                    len(arg_value),
-                )
+                f"Expected tuple '{arg_name}' to contain exactly two entries, got {len(arg_value)}."
             )
             assert arg_value[0] < arg_value[1], (
                 f"Expected tuple '{arg_name}' to have two entries with "
@@ -664,7 +706,7 @@ class HeatmapsOnImage(IAugmentable):
         return arr_target
 
     # TODO make this a proper shallow-copy
-    def copy(self):
+    def copy(self) -> HeatmapsOnImage:
         """Create a shallow copy of the heatmaps object.
 
         Returns
@@ -675,7 +717,7 @@ class HeatmapsOnImage(IAugmentable):
         """
         return self.deepcopy()
 
-    def deepcopy(self):
+    def deepcopy(self) -> HeatmapsOnImage:
         """Create a deep copy of the heatmaps object.
 
         Returns

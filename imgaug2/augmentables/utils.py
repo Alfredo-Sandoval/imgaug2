@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import copy as copylib
 from collections.abc import Sequence
-from typing import Protocol, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Protocol, TypeVar, cast, overload
 
 import numpy as np
 
 import imgaug2.imgaug as ia
+
+if TYPE_CHECKING:
+    from imgaug2.augmentables.kps import KeypointsOnImage
 
 Shape = tuple[int, ...]
 ImgLikeShape = tuple[int, int] | tuple[int, int, int]
@@ -34,11 +37,11 @@ _TCbInvert = TypeVar("_TCbInvert", bound="_SupportsInvertToKeypointsOnImage")
 
 
 class _SupportsToKeypointsOnImage(Protocol):
-    def to_keypoints_on_image(self) -> object: ...
+    def to_keypoints_on_image(self) -> KeypointsOnImage: ...
 
 
 class _SupportsInvertToKeypointsOnImage(Protocol):
-    def invert_to_keypoints_on_image_(self: _TCbInvert, kpsoi: object) -> _TCbInvert: ...
+    def invert_to_keypoints_on_image_(self: _TCbInvert, kpsoi: KeypointsOnImage) -> _TCbInvert: ...
 
 
 # TODO add tests
@@ -361,14 +364,16 @@ def interpolate_points_by_max_distance(
 
 
 @overload
-def convert_cbaois_to_kpsois(cbaois: _TCbToKps) -> object: ...
+def convert_cbaois_to_kpsois(cbaois: _TCbToKps) -> KeypointsOnImage: ...
 
 
 @overload
-def convert_cbaois_to_kpsois(cbaois: list[_TCbToKps]) -> list[object]: ...
+def convert_cbaois_to_kpsois(cbaois: list[_TCbToKps]) -> list[KeypointsOnImage]: ...
 
 
-def convert_cbaois_to_kpsois(cbaois: _TCbToKps | list[_TCbToKps]) -> object | list[object]:
+def convert_cbaois_to_kpsois(
+    cbaois: _TCbToKps | list[_TCbToKps],
+) -> KeypointsOnImage | list[KeypointsOnImage]:
     """Convert coordinate-based augmentables to KeypointsOnImage instances.
 
     Added in 0.4.0.
@@ -395,17 +400,18 @@ def convert_cbaois_to_kpsois(cbaois: _TCbToKps | list[_TCbToKps]) -> object | li
 
 
 @overload
-def invert_convert_cbaois_to_kpsois_(cbaois: _TCbInvert, kpsois: object) -> _TCbInvert: ...
+def invert_convert_cbaois_to_kpsois_(cbaois: _TCbInvert, kpsois: KeypointsOnImage) -> _TCbInvert: ...
 
 
 @overload
 def invert_convert_cbaois_to_kpsois_(
-    cbaois: list[_TCbInvert], kpsois: list[object]
+    cbaois: list[_TCbInvert], kpsois: list[KeypointsOnImage]
 ) -> list[_TCbInvert]: ...
 
 
 def invert_convert_cbaois_to_kpsois_(
-    cbaois: _TCbInvert | list[_TCbInvert], kpsois: object | list[object]
+    cbaois: _TCbInvert | list[_TCbInvert],
+    kpsois: KeypointsOnImage | list[KeypointsOnImage],
 ) -> _TCbInvert | list[_TCbInvert]:
     """Invert the output of :func:`convert_to_cbaois_to_kpsois` in-place.
 

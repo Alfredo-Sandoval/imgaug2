@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-import collections
+import collections  # noqa: F401
+from collections.abc import Sequence
+from types import TracebackType
+from typing import NamedTuple, Protocol, cast
 
 import numpy as np
 
@@ -22,15 +25,28 @@ _AUGMENTABLE_NAMES = [
     "line_strings",
 ]
 
-_AugmentableColumn = collections.namedtuple("_AugmentableColumn", ["name", "value", "attr_name"])
+class _AugmentableColumn(NamedTuple):
+    name: str
+    value: np.ndarray | Sequence[object]
+    attr_name: str
 
 
-def _get_column_names(batch, postfix):
+class _PropagationHooks(Protocol):
+    def is_propagating(
+        self, value: object, *, augmenter: object, parents: object, default: bool
+    ) -> bool: ...
+
+
+class _HasShape(Protocol):
+    shape: tuple[int, ...]
+
+
+def _get_column_names(batch: object, postfix: str) -> list[str]:
     return [column.name for column in _get_columns(batch, postfix)]
 
 
-def _get_columns(batch, postfix):
-    result = []
+def _get_columns(batch: object, postfix: str) -> list[_AugmentableColumn]:
+    result: list[_AugmentableColumn] = []
     for name in _AUGMENTABLE_NAMES:
         attr_name = name + postfix
         value = getattr(batch, name + postfix)
@@ -38,8 +54,11 @@ def _get_columns(batch, postfix):
         # items in the array/list, there are also no shapes to change
         # as shape-changes are imagewise. Hence, we can afford to check
         # len() here.
-        if value is not None and len(value) > 0:
-            result.append(_AugmentableColumn(name, value, attr_name))
+        if value is not None:
+            value_sized = cast(Sequence[object], value)
+            if len(value_sized) > 0:
+                value_typed = cast(np.ndarray | Sequence[object], value)
+                result.append(_AugmentableColumn(name, value_typed, attr_name))
     return result
 
 
@@ -135,15 +154,15 @@ class UnnormalizedBatch:
 
     def __init__(
         self,
-        images=None,
-        heatmaps=None,
-        segmentation_maps=None,
-        keypoints=None,
-        bounding_boxes=None,
-        polygons=None,
-        line_strings=None,
-        data=None,
-    ):
+        images: object | None = None,
+        heatmaps: object | None = None,
+        segmentation_maps: object | None = None,
+        keypoints: object | None = None,
+        bounding_boxes: object | None = None,
+        polygons: object | None = None,
+        line_strings: object | None = None,
+        data: object | None = None,
+    ) -> None:
         """Construct a new :class:`UnnormalizedBatch` instance."""
         self.images_unaug = images
         self.images_aug = None
@@ -161,7 +180,7 @@ class UnnormalizedBatch:
         self.line_strings_aug = None
         self.data = data
 
-    def get_column_names(self):
+    def get_column_names(self) -> list[str]:
         """Get the names of types of augmentables that contain data.
 
         This method is intended for situations where one wants to know which
@@ -178,7 +197,7 @@ class UnnormalizedBatch:
         """
         return _get_column_names(self, "_unaug")
 
-    def to_normalized_batch(self):
+    def to_normalized_batch(self) -> Batch:
         """Convert this unnormalized batch to an instance of Batch.
 
         As this method is intended to be called before augmentation, it
@@ -225,7 +244,9 @@ class UnnormalizedBatch:
             data=self.data,
         )
 
-    def fill_from_augmented_normalized_batch_(self, batch_aug_norm):
+    def fill_from_augmented_normalized_batch_(
+        self, batch_aug_norm: Batch
+    ) -> UnnormalizedBatch:
         """
         Fill this batch with (normalized) augmentation results in-place.
 
@@ -271,7 +292,9 @@ class UnnormalizedBatch:
         )
         return self
 
-    def fill_from_augmented_normalized_batch(self, batch_aug_norm):
+    def fill_from_augmented_normalized_batch(
+        self, batch_aug_norm: Batch
+    ) -> UnnormalizedBatch:
         """
         Fill this batch with (normalized) augmentation results.
 
@@ -371,15 +394,15 @@ class Batch:
 
     def __init__(
         self,
-        images=None,
-        heatmaps=None,
-        segmentation_maps=None,
-        keypoints=None,
-        bounding_boxes=None,
-        polygons=None,
-        line_strings=None,
-        data=None,
-    ):
+        images: object | None = None,
+        heatmaps: object | None = None,
+        segmentation_maps: object | None = None,
+        keypoints: object | None = None,
+        bounding_boxes: object | None = None,
+        polygons: object | None = None,
+        line_strings: object | None = None,
+        data: object | None = None,
+    ) -> None:
         """Construct a new :class:`Batch` instance."""
         self.images_unaug = images
         self.images_aug = None
@@ -399,35 +422,35 @@ class Batch:
 
     @property
     @ia.deprecated("Batch.images_unaug")
-    def images(self):
+    def images(self) -> object | None:
         """Get unaugmented images."""
         return self.images_unaug
 
     @property
     @ia.deprecated("Batch.heatmaps_unaug")
-    def heatmaps(self):
+    def heatmaps(self) -> object | None:
         """Get unaugmented heatmaps."""
         return self.heatmaps_unaug
 
     @property
     @ia.deprecated("Batch.segmentation_maps_unaug")
-    def segmentation_maps(self):
+    def segmentation_maps(self) -> object | None:
         """Get unaugmented segmentation maps."""
         return self.segmentation_maps_unaug
 
     @property
     @ia.deprecated("Batch.keypoints_unaug")
-    def keypoints(self):
+    def keypoints(self) -> object | None:
         """Get unaugmented keypoints."""
         return self.keypoints_unaug
 
     @property
     @ia.deprecated("Batch.bounding_boxes_unaug")
-    def bounding_boxes(self):
+    def bounding_boxes(self) -> object | None:
         """Get unaugmented bounding boxes."""
         return self.bounding_boxes_unaug
 
-    def get_column_names(self):
+    def get_column_names(self) -> list[str]:
         """Get the names of types of augmentables that contain data.
 
         This method is intended for situations where one wants to know which
@@ -444,7 +467,7 @@ class Batch:
         """
         return _get_column_names(self, "_unaug")
 
-    def to_normalized_batch(self):
+    def to_normalized_batch(self) -> Batch:
         """Return this batch.
 
         This method does nothing and only exists to simplify interfaces
@@ -460,7 +483,7 @@ class Batch:
         """
         return self
 
-    def to_batch_in_augmentation(self):
+    def to_batch_in_augmentation(self) -> _BatchInAugmentation:
         """Convert this batch to a :class:`_BatchInAugmentation` instance.
 
         Added in 0.4.0.
@@ -472,7 +495,7 @@ class Batch:
 
         """
 
-        def _copy(var):
+        def _copy(var: object | None) -> object | None:
             # TODO first check here if _aug is set and if it is then use that?
             if var is not None:
                 return utils.copy_augmentables(var)
@@ -488,7 +511,9 @@ class Batch:
             line_strings=_copy(self.line_strings_unaug),
         )
 
-    def fill_from_batch_in_augmentation_(self, batch_in_augmentation):
+    def fill_from_batch_in_augmentation_(
+        self, batch_in_augmentation: _BatchInAugmentation
+    ) -> Batch:
         """Set the columns in this batch to the column values of another batch.
 
         This method works in-place.
@@ -518,21 +543,21 @@ class Batch:
 
     def deepcopy(
         self,
-        images_unaug=DEFAULT,
-        images_aug=DEFAULT,
-        heatmaps_unaug=DEFAULT,
-        heatmaps_aug=DEFAULT,
-        segmentation_maps_unaug=DEFAULT,
-        segmentation_maps_aug=DEFAULT,
-        keypoints_unaug=DEFAULT,
-        keypoints_aug=DEFAULT,
-        bounding_boxes_unaug=DEFAULT,
-        bounding_boxes_aug=DEFAULT,
-        polygons_unaug=DEFAULT,
-        polygons_aug=DEFAULT,
-        line_strings_unaug=DEFAULT,
-        line_strings_aug=DEFAULT,
-    ):
+        images_unaug: object = DEFAULT,
+        images_aug: object = DEFAULT,
+        heatmaps_unaug: object = DEFAULT,
+        heatmaps_aug: object = DEFAULT,
+        segmentation_maps_unaug: object = DEFAULT,
+        segmentation_maps_aug: object = DEFAULT,
+        keypoints_unaug: object = DEFAULT,
+        keypoints_aug: object = DEFAULT,
+        bounding_boxes_unaug: object = DEFAULT,
+        bounding_boxes_aug: object = DEFAULT,
+        polygons_unaug: object = DEFAULT,
+        polygons_aug: object = DEFAULT,
+        line_strings_unaug: object = DEFAULT,
+        line_strings_aug: object = DEFAULT,
+    ) -> Batch:
         """Copy this batch and all of its column values.
 
         Parameters
@@ -614,7 +639,7 @@ class Batch:
 
         """
 
-        def _copy_optional(self_attr, arg):
+        def _copy_optional(self_attr: object, arg: object) -> object:
             return utils.deepcopy_fast(arg if arg is not DEFAULT else self_attr)
 
         batch = Batch(
@@ -642,21 +667,32 @@ class Batch:
 
 # Added in 0.4.0.
 class _BatchInAugmentationPropagationContext:
-    def __init__(self, batch, augmenter, hooks, parents):
+    def __init__(
+        self,
+        batch: _BatchInAugmentation,
+        augmenter: object,
+        hooks: _PropagationHooks | None,
+        parents: object,
+    ) -> None:
         self.batch = batch
         self.augmenter = augmenter
         self.hooks = hooks
         self.parents = parents
         self.noned_info = None
 
-    def __enter__(self):
+    def __enter__(self) -> _BatchInAugmentation:
         if self.hooks is not None:
             self.noned_info = self.batch.apply_propagation_hooks_(
                 self.augmenter, self.hooks, self.parents
             )
         return self.batch
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         if self.noned_info is not None:
             self.batch = self.batch.invert_apply_propagation_hooks_(self.noned_info)
 
@@ -699,15 +735,15 @@ class _BatchInAugmentation:
     # Added in 0.4.0.
     def __init__(
         self,
-        images=None,
-        heatmaps=None,
-        segmentation_maps=None,
-        keypoints=None,
-        bounding_boxes=None,
-        polygons=None,
-        line_strings=None,
-        data=None,
-    ):
+        images: object | None = None,
+        heatmaps: object | None = None,
+        segmentation_maps: object | None = None,
+        keypoints: object | None = None,
+        bounding_boxes: object | None = None,
+        polygons: object | None = None,
+        line_strings: object | None = None,
+        data: object | None = None,
+    ) -> None:
         """Create a new :class:`_BatchInAugmentation` instance."""
         self.images = images
         self.heatmaps = heatmaps
@@ -719,7 +755,7 @@ class _BatchInAugmentation:
         self.data = data
 
     @property
-    def empty(self):
+    def empty(self) -> bool:
         """Estimate whether this batch is empty, i.e. contains no data.
 
         Added in 0.4.0.
@@ -734,7 +770,7 @@ class _BatchInAugmentation:
         return self.nb_rows == 0
 
     @property
-    def nb_rows(self):
+    def nb_rows(self) -> int:
         """Get the number of rows (i.e. examples) in this batch.
 
         Note that this method assumes that all columns have the same number
@@ -755,7 +791,7 @@ class _BatchInAugmentation:
         return 0
 
     @property
-    def columns(self):
+    def columns(self) -> list[_AugmentableColumn]:
         """Get the columns of data to augment.
 
         Each column represents one datatype and its corresponding data,
@@ -771,7 +807,7 @@ class _BatchInAugmentation:
         """
         return _get_columns(self, "")
 
-    def get_column_names(self):
+    def get_column_names(self) -> list[str]:
         """Get the names of types of augmentables that contain data.
 
         This method is intended for situations where one wants to know which
@@ -788,7 +824,7 @@ class _BatchInAugmentation:
         """
         return _get_column_names(self, "")
 
-    def get_rowwise_shapes(self):
+    def get_rowwise_shapes(self) -> list[tuple[int, ...] | None]:
         """Get the shape of each row within this batch.
 
         Each row denotes the data of different types (e.g. image array,
@@ -812,17 +848,20 @@ class _BatchInAugmentation:
         found = np.zeros((nb_rows,), dtype=bool)
         for column in columns:
             if column.name == "images" and ia.is_np_array(column.value):
-                shapes = [column.value.shape[1:]] * nb_rows
+                column_value_arr = cast(np.ndarray, column.value)
+                shapes = [column_value_arr.shape[1:]] * nb_rows
             else:
-                for i, item in enumerate(column.value):
+                column_value_seq = cast(Sequence[object], column.value)
+                for i, item in enumerate(column_value_seq):
                     if item is not None:
-                        shapes[i] = item.shape
+                        item_shapeable = cast(_HasShape, item)
+                        shapes[i] = item_shapeable.shape
                         found[i] = True
             if np.all(found):
                 return shapes
         return shapes
 
-    def subselect_rows_by_indices(self, indices):
+    def subselect_rows_by_indices(self, indices: Sequence[int] | np.ndarray) -> _BatchInAugmentation:
         """Reduce this batch to a subset of rows based on their row indices.
 
         Added in 0.4.0.
@@ -853,7 +892,9 @@ class _BatchInAugmentation:
 
         return _BatchInAugmentation(**kwargs)
 
-    def invert_subselect_rows_by_indices_(self, indices, batch_subselected):
+    def invert_subselect_rows_by_indices_(
+        self, indices: Sequence[int] | np.ndarray, batch_subselected: _BatchInAugmentation
+    ) -> _BatchInAugmentation:
         """Reverse the subselection of rows in-place.
 
         This is the inverse of
@@ -923,7 +964,9 @@ class _BatchInAugmentation:
 
         return self
 
-    def propagation_hooks_ctx(self, augmenter, hooks, parents):
+    def propagation_hooks_ctx(
+        self, augmenter: object, hooks: _PropagationHooks | None, parents: object
+    ) -> _BatchInAugmentationPropagationContext:
         """Start a context in which propagation hooks are applied.
 
         Added in 0.4.0.
@@ -949,7 +992,9 @@ class _BatchInAugmentation:
             self, augmenter=augmenter, hooks=hooks, parents=parents
         )
 
-    def apply_propagation_hooks_(self, augmenter, hooks, parents):
+    def apply_propagation_hooks_(
+        self, augmenter: object, hooks: _PropagationHooks | None, parents: object
+    ) -> list[tuple[str, object]] | None:
         """Set columns in this batch to ``None`` based on a propagation hook.
 
         This method works in-place.
@@ -980,7 +1025,7 @@ class _BatchInAugmentation:
         if hooks is None:
             return None
 
-        noned_info = []
+        noned_info: list[tuple[str, object]] = []
         for column in self.columns:
             is_prop = hooks.is_propagating(
                 column.value, augmenter=augmenter, parents=parents, default=True
@@ -990,7 +1035,9 @@ class _BatchInAugmentation:
                 noned_info.append((column.attr_name, column.value))
         return noned_info
 
-    def invert_apply_propagation_hooks_(self, noned_info):
+    def invert_apply_propagation_hooks_(
+        self, noned_info: Sequence[tuple[str, object]]
+    ) -> _BatchInAugmentation:
         """Set columns from ``None`` back to their original values.
 
         This is the inverse of
@@ -1017,7 +1064,7 @@ class _BatchInAugmentation:
             setattr(self, attr_name, value)
         return self
 
-    def to_batch_in_augmentation(self):
+    def to_batch_in_augmentation(self) -> _BatchInAugmentation:
         """Convert this batch to a :class:`_BatchInAugmentation` instance.
 
         This method simply returns the batch itself. It exists for consistency
@@ -1033,7 +1080,9 @@ class _BatchInAugmentation:
         """
         return self
 
-    def fill_from_batch_in_augmentation_(self, batch_in_augmentation):
+    def fill_from_batch_in_augmentation_(
+        self, batch_in_augmentation: _BatchInAugmentation
+    ) -> _BatchInAugmentation:
         """Set the columns in this batch to the column values of another batch.
 
         This method works in-place.
@@ -1065,7 +1114,7 @@ class _BatchInAugmentation:
 
         return self
 
-    def to_batch(self, batch_before_aug):
+    def to_batch(self, batch_before_aug: Batch) -> Batch:
         """Convert this batch into a :class:`Batch` instance.
 
         Added in 0.4.0.
@@ -1104,7 +1153,7 @@ class _BatchInAugmentation:
         batch.line_strings_aug = self.line_strings
         return batch
 
-    def deepcopy(self):
+    def deepcopy(self) -> _BatchInAugmentation:
         """Copy this batch and all of its column values.
 
         Added in 0.4.0.

@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator, Sequence
+from typing import cast
+
 import numpy as np
 import scipy.spatial.distance
+from numpy.typing import NDArray
 
 import imgaug2.imgaug as ia
 from imgaug2.augmentables.base import IAugmentable
@@ -15,7 +19,11 @@ from imgaug2.augmentables.utils import (
 )
 
 
-def compute_geometric_median(points=None, eps=1e-5, X=None):
+def compute_geometric_median(
+    points: NDArray[np.floating] | None = None,
+    eps: float = 1e-5,
+    X: NDArray[np.floating] | None = None,
+) -> NDArray[np.floating]:
     """Estimate the geometric median of points in 2D.
 
     Code from https://stackoverflow.com/a/30305181
@@ -42,6 +50,8 @@ def compute_geometric_median(points=None, eps=1e-5, X=None):
         assert points is None
         ia.warn_deprecated("Using 'X' is deprecated, use 'points' instead.")
         points = X
+
+    assert points is not None
 
     y = np.mean(points, 0)
 
@@ -84,12 +94,12 @@ class Keypoint:
 
     """
 
-    def __init__(self, x, y):
+    def __init__(self, x: float, y: float) -> None:
         self.x = x
         self.y = y
 
     @property
-    def coords(self):
+    def coords(self) -> NDArray[np.float32]:
         """Get the xy-coordinates as an ``(N,2)`` ndarray.
 
         Added in 0.4.0.
@@ -106,7 +116,7 @@ class Keypoint:
         return arr
 
     @property
-    def x_int(self):
+    def x_int(self) -> int:
         """Get the keypoint's x-coordinate, rounded to the closest integer.
 
         Returns
@@ -118,7 +128,7 @@ class Keypoint:
         return int(np.round(self.x))
 
     @property
-    def y_int(self):
+    def y_int(self) -> int:
         """Get the keypoint's y-coordinate, rounded to the closest integer.
 
         Returns
@@ -130,7 +140,7 @@ class Keypoint:
         return int(np.round(self.y))
 
     @property
-    def xy(self):
+    def xy(self) -> NDArray[np.float32]:
         """Get the keypoint's x- and y-coordinate as a single array.
 
         Added in 0.4.0.
@@ -144,7 +154,7 @@ class Keypoint:
         return self.coords[0, :]
 
     @property
-    def xy_int(self):
+    def xy_int(self) -> NDArray[np.int32]:
         """Get the keypoint's xy-coord, rounded to closest integer.
 
         Added in 0.4.0.
@@ -157,7 +167,7 @@ class Keypoint:
         """
         return np.round(self.xy).astype(np.int32)
 
-    def project_(self, from_shape, to_shape):
+    def project_(self, from_shape: tuple[int, ...], to_shape: tuple[int, ...]) -> Keypoint:
         """Project in-place the keypoint onto a new position on a new image.
 
         E.g. if the keypoint is on its original image
@@ -189,7 +199,7 @@ class Keypoint:
         self.x, self.y = xy_proj[0]
         return self
 
-    def project(self, from_shape, to_shape):
+    def project(self, from_shape: tuple[int, ...], to_shape: tuple[int, ...]) -> Keypoint:
         """Project the keypoint onto a new position on a new image.
 
         E.g. if the keypoint is on its original image
@@ -216,7 +226,7 @@ class Keypoint:
         """
         return self.deepcopy().project_(from_shape, to_shape)
 
-    def is_out_of_image(self, image):
+    def is_out_of_image(self, image: object) -> bool:
         """Estimate whether this point is outside of the given image plane.
 
         Added in 0.4.0.
@@ -242,7 +252,7 @@ class Keypoint:
         x_inside = 0 <= self.x < width
         return not y_inside or not x_inside
 
-    def compute_out_of_image_fraction(self, image):
+    def compute_out_of_image_fraction(self, image: object) -> float:
         """Compute fraction of the keypoint that is out of the image plane.
 
         The fraction is always either ``1.0`` (point is outside of the image
@@ -268,7 +278,7 @@ class Keypoint:
         """
         return float(self.is_out_of_image(image))
 
-    def shift_(self, x=0, y=0):
+    def shift_(self, x: float = 0, y: float = 0) -> Keypoint:
         """Move the keypoint around on an image in-place.
 
         Added in 0.4.0.
@@ -292,7 +302,7 @@ class Keypoint:
         self.y += y
         return self
 
-    def shift(self, x=0, y=0):
+    def shift(self, x: float = 0, y: float = 0) -> Keypoint:
         """Move the keypoint around on an image.
 
         Parameters
@@ -313,13 +323,13 @@ class Keypoint:
 
     def draw_on_image(
         self,
-        image,
-        color=(0, 255, 0),
-        alpha=1.0,
-        size=3,
-        copy=True,
-        raise_if_out_of_image=False,
-    ):
+        image: NDArray[np.generic],
+        color: object = (0, 255, 0),
+        alpha: float = 1.0,
+        size: int = 3,
+        copy: bool = True,
+        raise_if_out_of_image: bool = False,
+    ) -> NDArray[np.generic]:
         """Draw the keypoint onto a given image.
 
         The keypoint is drawn as a square.
@@ -417,7 +427,9 @@ class Keypoint:
             image = image.astype(input_dtype, copy=False)
         return image
 
-    def generate_similar_points_manhattan(self, nb_steps, step_size, return_array=False):
+    def generate_similar_points_manhattan(
+        self, nb_steps: int, step_size: float, return_array: bool = False
+    ) -> list[Keypoint] | NDArray[np.float32]:
         """Generate nearby points based on manhattan distance.
 
         To generate the first neighbouring points, a distance of ``S`` (step
@@ -497,7 +509,7 @@ class Keypoint:
             return points
         return [self.deepcopy(x=point[0], y=point[1]) for point in points]
 
-    def coords_almost_equals(self, other, max_distance=1e-4):
+    def coords_almost_equals(self, other: object, max_distance: float = 1e-4) -> bool:
         """Estimate if this and another KP have almost identical coordinates.
 
         Added in 0.4.0.
@@ -522,7 +534,8 @@ class Keypoint:
         """
         if ia.is_np_array(other):
             # we use flat here in case other is (N,2) instead of (4,)
-            coords_b = other.flat
+            other_arr = cast(NDArray[np.generic], other)
+            coords_b = other_arr.flat
         elif ia.is_iterable(other):
             coords_b = list(ia.flatten(other))
         else:
@@ -537,7 +550,7 @@ class Keypoint:
 
         return np.allclose(coords_a.flat, coords_b, atol=max_distance, rtol=0)
 
-    def almost_equals(self, other, max_distance=1e-4):
+    def almost_equals(self, other: object, max_distance: float = 1e-4) -> bool:
         """Compare this and another KP's coordinates.
 
         .. note::
@@ -565,7 +578,7 @@ class Keypoint:
         """
         return self.coords_almost_equals(other, max_distance=max_distance)
 
-    def copy(self, x=None, y=None):
+    def copy(self, x: float | None = None, y: float | None = None) -> Keypoint:
         """Create a shallow copy of the keypoint instance.
 
         Parameters
@@ -586,7 +599,7 @@ class Keypoint:
         """
         return self.deepcopy(x=x, y=y)
 
-    def deepcopy(self, x=None, y=None):
+    def deepcopy(self, x: float | None = None, y: float | None = None) -> Keypoint:
         """Create a deep copy of the keypoint instance.
 
         Parameters
@@ -609,10 +622,10 @@ class Keypoint:
         y = self.y if y is None else y
         return Keypoint(x=x, y=y)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Keypoint(x={self.x:.8f}, y={self.y:.8f})"
 
 
@@ -640,12 +653,12 @@ class KeypointsOnImage(IAugmentable):
 
     """
 
-    def __init__(self, keypoints, shape):
+    def __init__(self, keypoints: list[Keypoint], shape: tuple[int, ...]) -> None:
         self.keypoints = keypoints
         self.shape = _handle_on_image_shape(shape, self)
 
     @property
-    def items(self):
+    def items(self) -> list[Keypoint]:
         """Get the keypoints in this container.
 
         Added in 0.4.0.
@@ -659,7 +672,7 @@ class KeypointsOnImage(IAugmentable):
         return self.keypoints
 
     @items.setter
-    def items(self, value):
+    def items(self, value: list[Keypoint]) -> None:
         """Set the keypoints in this container.
 
         Added in 0.4.0.
@@ -673,7 +686,7 @@ class KeypointsOnImage(IAugmentable):
         self.keypoints = value
 
     @property
-    def height(self):
+    def height(self) -> int:
         """Get the image height.
 
         Returns
@@ -685,7 +698,7 @@ class KeypointsOnImage(IAugmentable):
         return self.shape[0]
 
     @property
-    def width(self):
+    def width(self) -> int:
         """Get the image width.
 
         Returns
@@ -697,7 +710,7 @@ class KeypointsOnImage(IAugmentable):
         return self.shape[1]
 
     @property
-    def empty(self):
+    def empty(self) -> bool:
         """Determine whether this object contains zero keypoints.
 
         Returns
@@ -708,7 +721,7 @@ class KeypointsOnImage(IAugmentable):
         """
         return len(self.keypoints) == 0
 
-    def on_(self, image):
+    def on_(self, image: object) -> KeypointsOnImage:
         """Project all keypoints from one image shape to a new one in-place.
 
         Added in 0.4.0.
@@ -737,7 +750,7 @@ class KeypointsOnImage(IAugmentable):
         self.shape = on_shape
         return self
 
-    def on(self, image):
+    def on(self, image: object) -> KeypointsOnImage:
         """Project all keypoints from one image shape to a new one.
 
         Parameters
@@ -757,13 +770,13 @@ class KeypointsOnImage(IAugmentable):
 
     def draw_on_image(
         self,
-        image,
-        color=(0, 255, 0),
-        alpha=1.0,
-        size=3,
-        copy=True,
-        raise_if_out_of_image=False,
-    ):
+        image: NDArray[np.generic],
+        color: object = (0, 255, 0),
+        alpha: float = 1.0,
+        size: int = 3,
+        copy: bool = True,
+        raise_if_out_of_image: bool = False,
+    ) -> NDArray[np.generic]:
         """Draw all keypoints onto a given image.
 
         Each keypoint is drawn as a square of provided color and size.
@@ -813,7 +826,7 @@ class KeypointsOnImage(IAugmentable):
             )
         return image
 
-    def remove_out_of_image_fraction_(self, fraction):
+    def remove_out_of_image_fraction_(self, fraction: float) -> KeypointsOnImage:
         """Remove all KPs with an OOI fraction of at least `fraction` in-place.
 
         'OOI' is the abbreviation for 'out of image'.
@@ -842,7 +855,7 @@ class KeypointsOnImage(IAugmentable):
         """
         return _remove_out_of_image_fraction_(self, fraction)
 
-    def remove_out_of_image_fraction(self, fraction):
+    def remove_out_of_image_fraction(self, fraction: float) -> KeypointsOnImage:
         """Remove all KPs with an out of image fraction of at least `fraction`.
 
         This method exists for consistency with other augmentables, e.g.
@@ -868,7 +881,7 @@ class KeypointsOnImage(IAugmentable):
         """
         return self.deepcopy().remove_out_of_image_fraction_(fraction)
 
-    def clip_out_of_image_(self):
+    def clip_out_of_image_(self) -> KeypointsOnImage:
         """Remove all KPs that are outside of the image plane.
 
         This method exists for consistency with other augmentables, e.g.
@@ -886,7 +899,7 @@ class KeypointsOnImage(IAugmentable):
         # we could use anything >0 here as the fraction
         return self.remove_out_of_image_fraction_(0.5)
 
-    def clip_out_of_image(self):
+    def clip_out_of_image(self) -> KeypointsOnImage:
         """Remove all KPs that are outside of the image plane.
 
         This method exists for consistency with other augmentables, e.g.
@@ -902,7 +915,7 @@ class KeypointsOnImage(IAugmentable):
         """
         return self.deepcopy().clip_out_of_image_()
 
-    def shift_(self, x=0, y=0):
+    def shift_(self, x: float = 0, y: float = 0) -> KeypointsOnImage:
         """Move the keypoints on the x/y-axis in-place.
 
         Added in 0.4.0.
@@ -926,7 +939,7 @@ class KeypointsOnImage(IAugmentable):
             self.keypoints[i] = keypoint.shift_(x=x, y=y)
         return self
 
-    def shift(self, x=0, y=0):
+    def shift(self, x: float = 0, y: float = 0) -> KeypointsOnImage:
         """Move the keypoints on the x/y-axis.
 
         Parameters
@@ -946,7 +959,7 @@ class KeypointsOnImage(IAugmentable):
         return self.deepcopy().shift_(x=x, y=y)
 
     @ia.deprecated(alt_func="KeypointsOnImage.to_xy_array()")
-    def get_coords_array(self):
+    def get_coords_array(self) -> NDArray[np.float32]:
         """Convert all keypoint coordinates to an array of shape ``(N,2)``.
 
         Returns
@@ -959,7 +972,7 @@ class KeypointsOnImage(IAugmentable):
         """
         return self.to_xy_array()
 
-    def to_xy_array(self):
+    def to_xy_array(self) -> NDArray[np.float32]:
         """Convert all keypoint coordinates to an array of shape ``(N,2)``.
 
         Returns
@@ -978,7 +991,7 @@ class KeypointsOnImage(IAugmentable):
 
     @staticmethod
     @ia.deprecated(alt_func="KeypointsOnImage.from_xy_array()")
-    def from_coords_array(coords, shape):
+    def from_coords_array(coords: NDArray[np.floating], shape: tuple[int, ...]) -> KeypointsOnImage:
         """Convert an ``(N,2)`` array to a ``KeypointsOnImage`` object.
 
         Parameters
@@ -999,7 +1012,9 @@ class KeypointsOnImage(IAugmentable):
         return KeypointsOnImage.from_xy_array(coords, shape)
 
     @classmethod
-    def from_xy_array(cls, xy, shape):
+    def from_xy_array(
+        cls, xy: NDArray[np.floating] | Iterable[Iterable[float]], shape: tuple[int, ...]
+    ) -> KeypointsOnImage:
         """Convert an ``(N,2)`` array to a ``KeypointsOnImage`` object.
 
         Parameters
@@ -1029,7 +1044,7 @@ class KeypointsOnImage(IAugmentable):
         keypoints = [Keypoint(x=coord[0], y=coord[1]) for coord in xy]
         return KeypointsOnImage(keypoints, shape)
 
-    def fill_from_xy_array_(self, xy):
+    def fill_from_xy_array_(self, xy: NDArray[np.floating] | Iterable[Iterable[float]]) -> KeypointsOnImage:
         """Modify the keypoint coordinates of this instance in-place.
 
         .. note::
@@ -1063,18 +1078,18 @@ class KeypointsOnImage(IAugmentable):
 
         assert len(xy) == len(self.keypoints), (
             "Expected to receive as many keypoint coordinates as there are "
-            "currently keypoints in this instance. Got %d, expected %d."
-            % (len(xy), len(self.keypoints))
+            "currently keypoints in this instance. Got "
+            f"{len(xy)}, expected {len(self.keypoints)}."
         )
 
-        for kp, (x, y) in zip(self.keypoints, xy):
+        for kp, (x, y) in zip(self.keypoints, xy, strict=True):
             kp.x = x
             kp.y = y
 
         return self
 
     # TODO add to_gaussian_heatmaps(), from_gaussian_heatmaps()
-    def to_keypoint_image(self, size=1):
+    def to_keypoint_image(self, size: int = 1) -> NDArray[np.uint8]:
         """Create an ``(H,W,N)`` image with keypoint coordinates set to ``255``.
 
         This method generates a new ``uint8`` array of shape ``(H,W,N)``,
@@ -1101,7 +1116,7 @@ class KeypointsOnImage(IAugmentable):
         """
         height, width = self.shape[0:2]
         image = np.zeros((height, width, len(self.keypoints)), dtype=np.uint8)
-        assert size % 2 != 0, "Expected 'size' to have an odd value, got %d instead." % (size,)
+        assert size % 2 != 0, f"Expected 'size' to have an odd value, got {size} instead."
         sizeh = max(0, (size - 1) // 2)
         for i, keypoint in enumerate(self.keypoints):
             # TODO for float values spread activation over several cells
@@ -1122,8 +1137,11 @@ class KeypointsOnImage(IAugmentable):
 
     @staticmethod
     def from_keypoint_image(
-        image, if_not_found_coords={"x": -1, "y": -1}, threshold=1, nb_channels=None
-    ):
+        image: NDArray[np.uint8],
+        if_not_found_coords: tuple[int, int] | list[int] | dict[str, int] | None = (-1, -1),
+        threshold: int = 1,
+        nb_channels: int | None = None,
+    ) -> KeypointsOnImage:
         """Convert ``to_keypoint_image()`` outputs to ``KeypointsOnImage``.
 
         This is the inverse of :func:`KeypointsOnImage.to_keypoint_image`.
@@ -1160,10 +1178,9 @@ class KeypointsOnImage(IAugmentable):
             The extracted keypoints.
 
         """
-        # pylint: disable=dangerous-default-value
         assert image.ndim == 3, (
             "Expected 'image' to have three dimensions, "
-            "got %d with shape %s instead." % (image.ndim, image.shape)
+            f"got {image.ndim} with shape {image.shape} instead."
         )
         height, width, nb_keypoints = image.shape
 
@@ -1175,7 +1192,7 @@ class KeypointsOnImage(IAugmentable):
         elif isinstance(if_not_found_coords, (tuple, list)):
             assert len(if_not_found_coords) == 2, (
                 "Expected tuple 'if_not_found_coords' to contain exactly two "
-                "values, got %d values." % (len(if_not_found_coords),)
+                f"values, got {len(if_not_found_coords)} values."
             )
             if_not_found_x = if_not_found_coords[0]
             if_not_found_y = if_not_found_coords[1]
@@ -1210,7 +1227,7 @@ class KeypointsOnImage(IAugmentable):
             out_shape += (nb_channels,)
         return KeypointsOnImage(keypoints, shape=out_shape)
 
-    def to_distance_maps(self, inverted=False):
+    def to_distance_maps(self, inverted: bool = False) -> NDArray[np.float32]:
         """Generate a ``(H,W,N)`` array of distance maps for ``N`` keypoints.
 
         The ``n``-th distance map contains at every location ``(y, x)`` the
@@ -1256,12 +1273,12 @@ class KeypointsOnImage(IAugmentable):
     # TODO add option to if_not_found_coords to reuse old keypoint coords
     @staticmethod
     def from_distance_maps(
-        distance_maps,
-        inverted=False,
-        if_not_found_coords={"x": -1, "y": -1},
-        threshold=None,
-        nb_channels=None,
-    ):
+        distance_maps: NDArray[np.floating],
+        inverted: bool = False,
+        if_not_found_coords: tuple[int, int] | list[int] | dict[str, int] | None = (-1, -1),
+        threshold: float | None = None,
+        nb_channels: int | None = None,
+    ) -> KeypointsOnImage:
         """Convert outputs of ``to_distance_maps()`` to ``KeypointsOnImage``.
 
         This is the inverse of :func:`KeypointsOnImage.to_distance_maps`.
@@ -1306,10 +1323,9 @@ class KeypointsOnImage(IAugmentable):
             The extracted keypoints.
 
         """
-        # pylint: disable=dangerous-default-value
         assert distance_maps.ndim == 3, (
-            "Expected three-dimensional input, got %d dimensions and "
-            "shape %s." % (distance_maps.ndim, distance_maps.shape)
+            "Expected three-dimensional input, got "
+            f"{distance_maps.ndim} dimensions and shape {distance_maps.shape}."
         )
         height, width, nb_keypoints = distance_maps.shape
 
@@ -1321,7 +1337,7 @@ class KeypointsOnImage(IAugmentable):
         elif isinstance(if_not_found_coords, (tuple, list)):
             assert len(if_not_found_coords) == 2, (
                 "Expected tuple/list 'if_not_found_coords' to contain "
-                "exactly two entries, got %d." % (len(if_not_found_coords),)
+                f"exactly two entries, got {len(if_not_found_coords)}."
             )
             if_not_found_x = if_not_found_coords[0]
             if_not_found_y = if_not_found_coords[1]
@@ -1364,7 +1380,7 @@ class KeypointsOnImage(IAugmentable):
         return KeypointsOnImage(keypoints, shape=out_shape)
 
     # TODO add to_keypoints_on_image_() and call that wherever possible
-    def to_keypoints_on_image(self):
+    def to_keypoints_on_image(self) -> KeypointsOnImage:
         """Convert the keypoints to one ``KeypointsOnImage`` instance.
 
         This method exists for consistency with ``BoundingBoxesOnImage``,
@@ -1380,7 +1396,7 @@ class KeypointsOnImage(IAugmentable):
         """
         return self.deepcopy()
 
-    def invert_to_keypoints_on_image_(self, kpsoi):
+    def invert_to_keypoints_on_image_(self, kpsoi: KeypointsOnImage) -> KeypointsOnImage:
         """Invert the output of ``to_keypoints_on_image()`` in-place.
 
         This function writes in-place into this ``KeypointsOnImage``
@@ -1402,19 +1418,20 @@ class KeypointsOnImage(IAugmentable):
 
         """
         nb_points_exp = len(self.keypoints)
-        assert len(kpsoi.keypoints) == nb_points_exp, "Expected %d coordinates, got %d." % (
-            nb_points_exp,
-            len(kpsoi.keypoints),
+        assert len(kpsoi.keypoints) == nb_points_exp, (
+            f"Expected {nb_points_exp} coordinates, got {len(kpsoi.keypoints)}."
         )
 
-        for kp_target, kp_source in zip(self.keypoints, kpsoi.keypoints):
+        for kp_target, kp_source in zip(self.keypoints, kpsoi.keypoints, strict=True):
             kp_target.x = kp_source.x
             kp_target.y = kp_source.y
 
         self.shape = kpsoi.shape
         return self
 
-    def copy(self, keypoints=None, shape=None):
+    def copy(
+        self, keypoints: list[Keypoint] | None = None, shape: tuple[int, ...] | None = None
+    ) -> KeypointsOnImage:
         """Create a shallow copy of the ``KeypointsOnImage`` object.
 
         Parameters
@@ -1441,7 +1458,9 @@ class KeypointsOnImage(IAugmentable):
 
         return KeypointsOnImage(keypoints, shape)
 
-    def deepcopy(self, keypoints=None, shape=None):
+    def deepcopy(
+        self, keypoints: list[Keypoint] | None = None, shape: tuple[int, ...] | None = None
+    ) -> KeypointsOnImage:
         """Create a deep copy of the ``KeypointsOnImage`` object.
 
         Parameters
@@ -1469,7 +1488,7 @@ class KeypointsOnImage(IAugmentable):
 
         return KeypointsOnImage(keypoints, shape)
 
-    def __getitem__(self, indices):
+    def __getitem__(self, indices: int | slice | Sequence[int]) -> Keypoint | list[Keypoint]:
         """Get the keypoint(s) with given indices.
 
         Added in 0.4.0.
@@ -1482,7 +1501,7 @@ class KeypointsOnImage(IAugmentable):
         """
         return self.keypoints[indices]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Keypoint]:
         """Iterate over the keypoints in this container.
 
         Added in 0.4.0.
@@ -1497,7 +1516,7 @@ class KeypointsOnImage(IAugmentable):
         """
         return iter(self.items)
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Get the number of items in this instance.
 
         Added in 0.4.0.
@@ -1510,8 +1529,8 @@ class KeypointsOnImage(IAugmentable):
         """
         return len(self.items)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"KeypointsOnImage({str(self.keypoints)}, shape={self.shape})"

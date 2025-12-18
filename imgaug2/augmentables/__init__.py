@@ -14,30 +14,32 @@ from . import (
     segmaps,
     utils,
 )
-
-from .kps import (
-    Keypoint,
-    KeypointsOnImage,
-    compute_geometric_median,
+from .base import (
+    IAugmentable,
 )
-
+from .batches import (
+    DEFAULT,
+    Batch,
+    UnnormalizedBatch,
+    collections,
+    ia,
+    nlib,
+    np,
+)
 from .bbs import (
     BoundingBox,
     BoundingBoxesOnImage,
     copy,
     project_coords,
 )
-
-from .polys import (
-    MultiPolygon,
-    Polygon,
-    PolygonsOnImage,
-    iarandom,
-    recover_psois_,
-    scipy,
-    traceback,
+from .heatmaps import (
+    HeatmapsOnImage,
 )
-
+from .kps import (
+    Keypoint,
+    KeypointsOnImage,
+    compute_geometric_median,
+)
 from .lines import (
     LineString,
     LineStringsOnImage,
@@ -48,28 +50,18 @@ from .lines import (
     project_coords_,
     skimage,
 )
-
-from .heatmaps import (
-    HeatmapsOnImage,
+from .polys import (
+    MultiPolygon,
+    Polygon,
+    PolygonsOnImage,
+    iarandom,
+    recover_psois_,
+    scipy,
+    traceback,
 )
-
-from .base import (
-    IAugmentable,
-)
-
 from .segmaps import (
     SegmentationMapOnImage,
     SegmentationMapsOnImage,
-)
-
-from .batches import (
-    Batch,
-    DEFAULT,
-    UnnormalizedBatch,
-    collections,
-    ia,
-    nlib,
-    np,
 )
 
 __all__ = [

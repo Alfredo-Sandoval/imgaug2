@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
 import copy
+from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Protocol, TypeVar
 
 import numpy as np
@@ -1476,7 +1476,7 @@ class BoundingBoxesOnImage(IAugmentable):
         self.shape = _handle_on_image_shape(shape, self)
 
     @property
-    def items(self):
+    def items(self) -> list[BoundingBox]:
         """Get the bounding boxes in this container.
 
         Added in 0.4.0.
@@ -1490,7 +1490,7 @@ class BoundingBoxesOnImage(IAugmentable):
         return self.bounding_boxes
 
     @items.setter
-    def items(self, value):
+    def items(self, value: list[BoundingBox]) -> None:
         """Set the bounding boxes in this container.
 
         Added in 0.4.0.
@@ -1506,7 +1506,7 @@ class BoundingBoxesOnImage(IAugmentable):
     # TODO remove this? here it is image height, but in BoundingBox it is
     #      bounding box height
     @property
-    def height(self):
+    def height(self) -> int:
         """Get the height of the image on which the bounding boxes fall.
 
         Returns
@@ -1520,7 +1520,7 @@ class BoundingBoxesOnImage(IAugmentable):
     # TODO remove this? here it is image width, but in BoundingBox it is
     #      bounding box width
     @property
-    def width(self):
+    def width(self) -> int:
         """Get the width of the image on which the bounding boxes fall.
 
         Returns
@@ -1532,7 +1532,7 @@ class BoundingBoxesOnImage(IAugmentable):
         return self.shape[1]
 
     @property
-    def empty(self):
+    def empty(self) -> bool:
         """Determine whether this instance contains zero bounding boxes.
 
         Returns
@@ -1755,11 +1755,10 @@ class BoundingBoxesOnImage(IAugmentable):
 
         assert len(xyxy) == len(self.bounding_boxes), (
             "Expected to receive an array with as many rows there are "
-            "bounding boxes in this instance. Got %d rows, expected %d."
-            % (len(xyxy), len(self.bounding_boxes))
+            f"bounding boxes in this instance. Got {len(xyxy)} rows, expected {len(self.bounding_boxes)}."
         )
 
-        for bb, (x1, y1, x2, y2) in zip(self.bounding_boxes, xyxy):
+        for bb, (x1, y1, x2, y2) in zip(self.bounding_boxes, xyxy, strict=True):
             bb.x1 = min([x1, x2])
             bb.y1 = min([y1, y2])
             bb.x2 = max([x1, x2])
@@ -1794,14 +1793,14 @@ class BoundingBoxesOnImage(IAugmentable):
 
     def draw_on_image(
         self,
-        image,
-        color=(0, 255, 0),
-        alpha=1.0,
-        size=1,
-        copy=True,
-        raise_if_out_of_image=False,
-        thickness=None,
-    ):
+        image: np.ndarray,
+        color: int | Sequence[int] | np.ndarray = (0, 255, 0),
+        alpha: float = 1.0,
+        size: int = 1,
+        copy: bool = True,
+        raise_if_out_of_image: bool = False,
+        thickness: int | None = None,
+    ) -> np.ndarray:
         """Draw all bounding boxes onto a given image.
 
         Parameters
@@ -2120,8 +2119,7 @@ class BoundingBoxesOnImage(IAugmentable):
 
         """
         assert len(kpsoi.keypoints) == len(self.bounding_boxes) * 4, (
-            "Expected %d coordinates, got %d."
-            % (len(self.bounding_boxes) * 2, len(kpsoi.keypoints))
+            f"Expected {len(self.bounding_boxes) * 4} coordinates, got {len(kpsoi.keypoints)}."
         )
         for i, bb in enumerate(self.bounding_boxes):
             xx = [
@@ -2272,15 +2270,15 @@ class _LabelOnImageDrawer:
     # height is the height of the label rectangle, not the whole BB
     def __init__(
         self,
-        color=(0, 255, 0),
-        color_text=None,
-        color_bg=None,
-        size=1,
-        alpha=1.0,
-        raise_if_out_of_image=False,
-        height=30,
-        size_text=20,
-    ):
+        color: Sequence[int] | np.ndarray | None = (0, 255, 0),
+        color_text: Sequence[int] | np.ndarray | None = None,
+        color_bg: Sequence[int] | np.ndarray | None = None,
+        size: int = 1,
+        alpha: float = 1.0,
+        raise_if_out_of_image: bool = False,
+        height: int = 30,
+        size_text: int = 20,
+    ) -> None:
         self.color = color
         self.color_text = color_text
         self.color_bg = color_bg
@@ -2290,7 +2288,7 @@ class _LabelOnImageDrawer:
         self.height = height
         self.size_text = size_text
 
-    def draw_on_image_(self, image, bounding_box):
+    def draw_on_image_(self, image: np.ndarray, bounding_box: BoundingBox) -> np.ndarray:
         # pylint: disable=invalid-name, redefined-outer-name
         if self.raise_if_out_of_image:
             self._do_raise_if_out_of_image(image, bounding_box)
@@ -2316,23 +2314,30 @@ class _LabelOnImageDrawer:
         image = self._blend_label_arr_with_image_(image, label_arr, x1, y1, x2, y2)
         return image
 
-    def draw_on_image(self, image, bounding_box):
+    def draw_on_image(self, image: np.ndarray, bounding_box: BoundingBox) -> np.ndarray:
         return self.draw_on_image_(np.copy(image), bounding_box)
 
     @classmethod
-    def _do_raise_if_out_of_image(cls, image, bounding_box):
+    def _do_raise_if_out_of_image(cls, image: np.ndarray, bounding_box: BoundingBox) -> None:
         if bounding_box.is_out_of_image(image):
             raise Exception(
                 f"Cannot draw bounding box x1={bounding_box.x1:.8f}, y1={bounding_box.y1:.8f}, x2={bounding_box.x2:.8f}, y2={bounding_box.y2:.8f} "
                 f"on image with shape {image.shape}."
             )
 
-    def _preprocess_colors(self):
-        color = np.uint8(self.color) if self.color is not None else None
+    def _preprocess_colors(self) -> tuple[np.ndarray, np.ndarray]:
+        if self.color is not None:
+            color = np.asarray(self.color, dtype=np.uint8)
+            if color.ndim == 0:
+                color = np.full((3,), int(color), dtype=np.uint8)
+        else:
+            color = None
 
         color_bg = self.color_bg
         if self.color_bg is not None:
-            color_bg = np.uint8(color_bg)
+            color_bg = np.asarray(color_bg, dtype=np.uint8)
+            if color_bg.ndim == 0:
+                color_bg = np.full((3,), int(color_bg), dtype=np.uint8)
         else:
             assert color is not None, (
                 "Expected `color` to be set when `color_bg` is not set, but it was None."
@@ -2341,7 +2346,9 @@ class _LabelOnImageDrawer:
 
         color_text = self.color_text
         if self.color_text is not None:
-            color_text = np.uint8(color_text)
+            color_text = np.asarray(color_text, dtype=np.uint8)
+            if color_text.ndim == 0:
+                color_text = np.full((3,), int(color_text), dtype=np.uint8)
         else:
             # we follow the approach from https://stackoverflow.com/a/1855903
             # here
@@ -2350,7 +2357,9 @@ class _LabelOnImageDrawer:
 
         return color_text, color_bg
 
-    def _compute_bg_corner_coords(self, image, bounding_box):
+    def _compute_bg_corner_coords(
+        self, image: np.ndarray, bounding_box: BoundingBox
+    ) -> tuple[int, int, int, int]:
         bb = bounding_box
         offset = self.size
         height, width = image.shape[0:2]
@@ -2364,15 +2373,25 @@ class _LabelOnImageDrawer:
         x1 = x1 - offset + 1
         x2 = x2 + offset
 
-        y1, y2 = np.clip([y1, y2], 0, height - 1)
-        x1, x2 = np.clip([x1, x2], 0, width - 1)
+        y1y2 = np.clip([y1, y2], 0, height - 1)
+        x1x2 = np.clip([x1, x2], 0, width - 1)
+        y1, y2 = int(y1y2[0]), int(y1y2[1])
+        x1, x2 = int(x1x2[0]), int(x1x2[1])
 
         return x1, y1, x2, y2
 
     @classmethod
     def _draw_label_arr(
-        cls, label, height, width, nb_channels, dtype, color_text, color_bg, size_text
-    ):
+        cls,
+        label: object,
+        height: int,
+        width: int,
+        nb_channels: int,
+        dtype: np.dtype[np.generic] | type[np.generic],
+        color_text: np.ndarray,
+        color_bg: np.ndarray,
+        size_text: int,
+    ) -> np.ndarray:
         label_arr = np.zeros((height, width, nb_channels), dtype=dtype)
         label_arr[...] = color_bg.reshape((1, 1, -1))
         label_arr = ia.draw_text(
@@ -2380,7 +2399,15 @@ class _LabelOnImageDrawer:
         )
         return label_arr
 
-    def _blend_label_arr_with_image_(self, image, label_arr, x1, y1, x2, y2):
+    def _blend_label_arr_with_image_(
+        self,
+        image: np.ndarray,
+        label_arr: np.ndarray,
+        x1: int,
+        y1: int,
+        x2: int,
+        y2: int,
+    ) -> np.ndarray:
         alpha = self.alpha
         if alpha >= 0.99:
             image[y1:y2, x1:x2, :] = label_arr

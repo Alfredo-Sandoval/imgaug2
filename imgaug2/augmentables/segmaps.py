@@ -6,7 +6,11 @@ E.g. masks, semantic or instance segmentation maps.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Literal, cast
+
 import numpy as np
+from numpy.typing import NDArray
 
 import imgaug2.imgaug as ia
 from imgaug2.augmentables.base import IAugmentable
@@ -17,10 +21,17 @@ from imgaug2.augmenters import blend as blendlib
     alt_func="SegmentationMapsOnImage",
     comment="(Note the plural 'Maps' instead of old 'Map'.)",
 )
-def SegmentationMapOnImage(*args, **kwargs):
+def SegmentationMapOnImage(*args: object, **kwargs: object) -> SegmentationMapsOnImage:
     """Object representing a segmentation map associated with an image."""
     # pylint: disable=invalid-name
     return SegmentationMapsOnImage(*args, **kwargs)
+
+
+_ImageShape = tuple[int, ...]
+_Color = tuple[int, int, int]
+_SegmapArray = NDArray[np.generic]
+_SegmapArrayInt32 = NDArray[np.int32]
+_RGBImage = NDArray[np.uint8]
 
 
 class SegmentationMapsOnImage(IAugmentable):
@@ -101,11 +112,13 @@ class SegmentationMapsOnImage(IAugmentable):
         (64, 64, 64),  # dark grey
     ]
 
-    def __init__(self, arr, shape, nb_classes=None):
+    def __init__(
+        self, arr: _SegmapArray, shape: _ImageShape, nb_classes: int | None = None
+    ) -> None:
         assert ia.is_np_array(arr), f"Expected to get numpy array, got {type(arr)}."
         assert arr.ndim in [2, 3], (
             "Expected segmentation map array to be 2- or "
-            "3-dimensional, got %d dimensions and shape %s." % (arr.ndim, arr.shape)
+            f"3-dimensional, got {arr.ndim} dimensions and shape {arr.shape}."
         )
         assert isinstance(shape, tuple), (
             "Expected 'shape' to be a tuple denoting the shape of the image "
@@ -126,13 +139,13 @@ class SegmentationMapsOnImage(IAugmentable):
                 arr = np.argmax(arr, axis=2).astype(np.int32)
 
         if arr.dtype.name == "bool":
-            self._input_was = (arr.dtype, arr.ndim)
+            self._input_was: tuple[np.dtype, int] = (arr.dtype, arr.ndim)
             if arr.ndim == 2:
                 arr = arr[..., np.newaxis]
         elif arr.dtype.kind in ["i", "u"]:
             assert np.min(arr.flat[0:100]) >= 0, (
                 "Expected segmentation map array to only contain values >=0, "
-                "got a minimum of %d." % (np.min(arr),)
+                f"got a minimum of {np.min(arr)}."
             )
             if arr.dtype.kind == "u":
                 # allow only <=uint16 due to conversion to int32
@@ -159,7 +172,7 @@ class SegmentationMapsOnImage(IAugmentable):
         if arr.dtype.name != "int32":
             arr = arr.astype(np.int32)
 
-        self.arr = arr
+        self.arr: _SegmapArrayInt32 = cast(_SegmapArrayInt32, arr)
         self.shape = shape
 
         if nb_classes is not None:
@@ -169,7 +182,7 @@ class SegmentationMapsOnImage(IAugmentable):
                 "and can be safely removed."
             )
 
-    def get_arr(self):
+    def get_arr(self) -> _SegmapArray:
         """Return the seg.map array, with original dtype and shape ndim.
 
         Here, "original" denotes the dtype and number of shape dimensions that
@@ -206,12 +219,16 @@ class SegmentationMapsOnImage(IAugmentable):
         return arr_input
 
     @ia.deprecated(alt_func="SegmentationMapsOnImage.get_arr()")
-    def get_arr_int(self, *args, **kwargs):
+    def get_arr_int(self, *args: object, **kwargs: object) -> _SegmapArray:
         """Return the seg.map array, with original dtype and shape ndim."""
         # pylint: disable=unused-argument
         return self.get_arr()
 
-    def draw(self, size=None, colors=None):
+    def draw(
+        self,
+        size: float | int | Sequence[float | int] | None = None,
+        colors: Sequence[_Color] | None = None,
+    ) -> list[_RGBImage]:
         """
         Render the segmentation map as an RGB image.
 
@@ -235,22 +252,24 @@ class SegmentationMapsOnImage(IAugmentable):
 
         """
 
-        def _handle_sizeval(sizeval, arr_axis_size):
+        def _handle_sizeval(sizeval: float | int | None, arr_axis_size: int) -> int:
             if sizeval is None:
                 return arr_axis_size
             if ia.is_single_float(sizeval):
                 return max(int(arr_axis_size * sizeval), 1)
             if ia.is_single_integer(sizeval):
-                return sizeval
+                return int(sizeval)
             raise ValueError(f"Expected float or int, got {type(sizeval)}.")
 
         if size is None:
-            size = [size, size]
+            size_seq: Sequence[float | int | None] = [None, None]
         elif not ia.is_iterable(size):
-            size = [size, size]
+            size_seq = [cast(float | int, size), cast(float | int, size)]
+        else:
+            size_seq = cast(Sequence[float | int | None], size)
 
-        height = _handle_sizeval(size[0], self.arr.shape[0])
-        width = _handle_sizeval(size[1], self.arr.shape[1])
+        height = _handle_sizeval(size_seq[0], self.arr.shape[0])
+        width = _handle_sizeval(size_seq[1], self.arr.shape[1])
         image = np.zeros((height, width, 3), dtype=np.uint8)
 
         return self.draw_on_image(
@@ -263,14 +282,14 @@ class SegmentationMapsOnImage(IAugmentable):
 
     def draw_on_image(
         self,
-        image,
-        alpha=0.75,
-        resize="segmentation_map",
-        colors=None,
-        draw_background=False,
-        background_class_id=0,
-        background_threshold=None,
-    ):
+        image: _RGBImage,
+        alpha: float = 0.75,
+        resize: Literal["segmentation_map", "image"] = "segmentation_map",
+        colors: Sequence[_Color] | None = None,
+        draw_background: bool = False,
+        background_class_id: int = 0,
+        background_threshold: object | None = None,
+    ) -> list[_RGBImage]:
         """Draw the segmentation map as an overlay over an image.
 
         Parameters
@@ -324,10 +343,10 @@ class SegmentationMapsOnImage(IAugmentable):
             )
 
         assert image.ndim == 3, (
-            "Expected to draw on 3-dimensional image, got image with %d dimensions." % (image.ndim,)
+            f"Expected to draw on 3-dimensional image, got image with {image.ndim} dimensions."
         )
         assert image.shape[2] == 3, (
-            "Expected to draw on RGB image, got image with %d channels instead." % (image.shape[2],)
+            f"Expected to draw on RGB image, got image with {image.shape[2]} channels instead."
         )
         assert image.dtype.name == "uint8", (
             f"Expected to get image with dtype uint8, got dtype {image.dtype.name}."
@@ -352,16 +371,12 @@ class SegmentationMapsOnImage(IAugmentable):
             nb_classes = 1 + np.max(arr)
             segmap_drawn = np.zeros((arr.shape[0], arr.shape[1], 3), dtype=np.uint8)
             assert nb_classes <= len(colors), (
-                "Can't draw all %d classes as it would exceed the maximum "
-                "number of %d available colors."
-                % (
-                    nb_classes,
-                    len(colors),
-                )
+                f"Can't draw all {nb_classes} classes as it would exceed the maximum "
+                f"number of {len(colors)} available colors."
             )
 
             ids_in_map = np.unique(arr)
-            for c, color in zip(range(nb_classes), colors):
+            for c, color in zip(range(int(nb_classes)), colors, strict=False):
                 if c in ids_in_map:
                     class_mask = arr == c
                     segmap_drawn[class_mask] = color
@@ -388,7 +403,15 @@ class SegmentationMapsOnImage(IAugmentable):
             segmaps_drawn.append(mix)
         return segmaps_drawn
 
-    def pad(self, top=0, right=0, bottom=0, left=0, mode="constant", cval=0):
+    def pad(
+        self,
+        top: int = 0,
+        right: int = 0,
+        bottom: int = 0,
+        left: int = 0,
+        mode: str = "constant",
+        cval: int | float = 0,
+    ) -> SegmentationMapsOnImage:
         """Pad the segmentation maps at their top/right/bottom/left side.
 
         Parameters
@@ -436,7 +459,13 @@ class SegmentationMapsOnImage(IAugmentable):
         )
         return self.deepcopy(arr=arr_padded)
 
-    def pad_to_aspect_ratio(self, aspect_ratio, mode="constant", cval=0, return_pad_amounts=False):
+    def pad_to_aspect_ratio(
+        self,
+        aspect_ratio: float,
+        mode: str = "constant",
+        cval: int | float = 0,
+        return_pad_amounts: bool = False,
+    ) -> SegmentationMapsOnImage | tuple[SegmentationMapsOnImage, tuple[int, int, int, int]]:
         """Pad the segmentation maps until they match a target aspect ratio.
 
         Depending on which dimension is smaller (height or width), only the
@@ -496,11 +525,11 @@ class SegmentationMapsOnImage(IAugmentable):
         alt_func="SegmentationMapsOnImage.resize()",
         comment="resize() has the exactly same interface.",
     )
-    def scale(self, *args, **kwargs):
+    def scale(self, *args: object, **kwargs: object) -> SegmentationMapsOnImage:
         """Resize the seg.map(s) array given a target size and interpolation."""
         return self.resize(*args, **kwargs)
 
-    def resize(self, sizes, interpolation="nearest"):
+    def resize(self, sizes: object, interpolation: str | int | None = "nearest") -> SegmentationMapsOnImage:
         """Resize the seg.map(s) array given a target size and interpolation.
 
         Parameters
@@ -525,7 +554,7 @@ class SegmentationMapsOnImage(IAugmentable):
         return self.deepcopy(arr_resized)
 
     # TODO how best to handle changes to _input_was due to changed 'arr'?
-    def copy(self, arr=None, shape=None):
+    def copy(self, arr: _SegmapArrayInt32 | None = None, shape: _ImageShape | None = None) -> SegmentationMapsOnImage:
         """Create a shallow copy of the segmentation map object.
 
         Parameters
@@ -558,7 +587,9 @@ class SegmentationMapsOnImage(IAugmentable):
         segmap._input_was = self._input_was
         return segmap
 
-    def deepcopy(self, arr=None, shape=None):
+    def deepcopy(
+        self, arr: _SegmapArrayInt32 | None = None, shape: _ImageShape | None = None
+    ) -> SegmentationMapsOnImage:
         """Create a deep copy of the segmentation map object.
 
         Parameters
