@@ -3,15 +3,6 @@
 *.md~
 *.bak
 *.lprof
-reinstall.sh
-reinstall_conda.sh
-todo.txt
-pypi-install-guide.txt
-checks/bb_aug.jpg
-checks/elastic_transformations.jpg
-imgaug/parameters-testcode.py
-imgaug/bak/*
-imgaug/quokka_depth_map.xcf
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -49,6 +40,9 @@ var/
 
 # virtualenv
 venv/
+.venv/
+venv*/
+.venv*/
 
 # Installer logs
 pip-log.txt
@@ -76,3 +70,41 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# MkDocs build output
+site/
+
+# Local experiment outputs (generated)
+*_distortion_*.png
+*_result.png
+optical_bench*.txt
+debug*.txt
+checks/experimental_*.txt
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# VS Code
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Environment
+.env
+.env.*
+*.env
+
+# Local dev
+scratch/
+tmp/
+temp/
+
+# MkDocs
+site/
+
+# Test artifacts
+checks/experimental_result.txt
