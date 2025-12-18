@@ -42,7 +42,7 @@ automatically fall back to :class:`numpy.random.RandomState` in numpy <=1.16.
 from __future__ import annotations
 
 import copy as copylib
-from typing import Any
+from typing import Any, TypeAlias
 from collections.abc import Sequence
 
 import numpy as np
@@ -1591,6 +1591,17 @@ def polyfill_random(generator, size, dtype="float32", out=None):
             out[...] = result
         return result
     return generator.random(size=size, dtype=dtype, out=out)
+
+
+RNGInput: TypeAlias = (
+    int
+    | RNG
+    | np.random.Generator
+    | np.random.BitGenerator
+    | np.random.SeedSequence
+    | np.random.RandomState
+    | None
+)
 
 
 # TODO add tests

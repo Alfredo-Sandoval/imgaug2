@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
 from collections.abc import Iterable, Sequence
+from typing import Any, Protocol, cast, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -11,6 +11,19 @@ from numpy.typing import NDArray
 import imgaug2.imgaug as ia
 
 RangeValue = float | int | np.floating[Any] | np.integer[Any]
+
+
+class _AugmenterLike(Protocol):
+    name: str
+
+
+class _HasWrappedAttr(Protocol):
+    __wrapped__: object
+
+
+class _HasDtypeAttr(Protocol):
+    dtype: np.dtype[Any]
+
 
 KIND_TO_DTYPES: dict[str, list[str]] = {
     "i": ["int8", "int16", "int32", "int64"],
@@ -66,10 +79,13 @@ def normalize_dtypes(dtypes: np.dtype[Any] | Iterable[np.dtype[Any]]) -> list[np
     return [normalize_dtype(dtype) for dtype in dtypes]
 
 
-def normalize_dtype(dtype: Any) -> np.dtype[Any]:
+def normalize_dtype(dtype: object) -> np.dtype[Any]:
     """Convert dtype-like to numpy dtype."""
     assert not isinstance(dtype, list), "Expected a single dtype-like, got a list instead."
-    return dtype.dtype if ia.is_np_array(dtype) or ia.is_np_scalar(dtype) else np.dtype(dtype)
+    if ia.is_np_array(dtype) or ia.is_np_scalar(dtype):
+        dtype_with_dtype = cast(_HasDtypeAttr, dtype)
+        return dtype_with_dtype.dtype
+    return np.dtype(dtype)
 
 
 def change_dtype_(
@@ -96,12 +112,30 @@ def change_dtype_(
     return arr.astype(dtype, copy=False)
 
 
+@overload
 def change_dtypes_(
-    images: NDArray[Any] | Sequence[NDArray[Any]],
+    images: NDArray[Any],
     dtypes: np.dtype[Any] | Sequence[np.dtype[Any]],
     clip: bool = True,
     round: bool = True,
-) -> NDArray[Any] | Sequence[NDArray[Any]]:
+) -> NDArray[Any]: ...
+
+
+@overload
+def change_dtypes_(
+    images: list[NDArray[Any]],
+    dtypes: np.dtype[Any] | Sequence[np.dtype[Any]],
+    clip: bool = True,
+    round: bool = True,
+) -> list[NDArray[Any]]: ...
+
+
+def change_dtypes_(
+    images: NDArray[Any] | list[NDArray[Any]],
+    dtypes: np.dtype[Any] | Sequence[np.dtype[Any]],
+    clip: bool = True,
+    round: bool = True,
+) -> NDArray[Any] | list[NDArray[Any]]:
     # pylint: disable=redefined-builtin
     if ia.is_np_array(images):
         if ia.is_iterable(dtypes):
@@ -125,7 +159,7 @@ def change_dtypes_(
             dtype = normalize_dtype(dtypes)
 
         result = change_dtype_(images, dtype, clip=clip, round=round)
-    elif ia.is_iterable(images):
+    elif isinstance(images, list):
         dtypes = (
             [normalize_dtype(dtypes)] * len(images)
             if not isinstance(dtypes, list)
@@ -136,8 +170,8 @@ def change_dtypes_(
             f"iterables of size {len(images)} (images) {len(dtypes)} (dtypes)."
         )
 
-        result = images
-        for i, (image, dtype) in enumerate(zip(images, dtypes)):
+        result: list[NDArray[Any]] = images
+        for i, (image, dtype) in enumerate(zip(images, dtypes, strict=True)):
             assert ia.is_np_array(image), (
                 f"Expected each image to be an ndarray, got type {type(image)} instead."
             )
@@ -151,12 +185,30 @@ def change_dtypes_(
 
 # TODO replace this everywhere in the library with change_dtypes_
 # TODO mark as deprecated
+@overload
 def restore_dtypes_(
-    images: NDArray[Any] | Sequence[NDArray[Any]],
+    images: NDArray[Any],
     dtypes: np.dtype[Any] | Sequence[np.dtype[Any]],
     clip: bool = True,
     round: bool = True,
-) -> NDArray[Any] | Sequence[NDArray[Any]]:
+) -> NDArray[Any]: ...
+
+
+@overload
+def restore_dtypes_(
+    images: list[NDArray[Any]],
+    dtypes: np.dtype[Any] | Sequence[np.dtype[Any]],
+    clip: bool = True,
+    round: bool = True,
+) -> list[NDArray[Any]]: ...
+
+
+def restore_dtypes_(
+    images: NDArray[Any] | list[NDArray[Any]],
+    dtypes: np.dtype[Any] | Sequence[np.dtype[Any]],
+    clip: bool = True,
+    round: bool = True,
+) -> NDArray[Any] | list[NDArray[Any]]:
     """Deprecated alias for change_dtypes_."""
     # pylint: disable=redefined-builtin
     return change_dtypes_(images, dtypes, clip=clip, round=round)
@@ -194,7 +246,7 @@ def increase_itemsize_of_dtype(dtype: np.dtype[Any] | str, factor: int) -> np.dt
     try:
         dt_high = np.dtype(dt_high_name)
         return dt_high
-    except TypeError:
+    except TypeError as exc:
         raise TypeError(
             f"Unable to create a numpy dtype matching the name '{dt_high_name}'. "
             f"This error was caused when trying to find a dtype "
@@ -202,7 +254,7 @@ def increase_itemsize_of_dtype(dtype: np.dtype[Any] | str, factor: int) -> np.dt
             "This error can be avoided by choosing arrays with lower "
             "resolution dtypes as inputs, e.g. by reducing "
             "float32 to float16."
-        )
+        ) from exc
 
 
 def get_minimal_dtype(
@@ -245,13 +297,7 @@ def promote_array_dtypes_(
     elif not isinstance(dtypes, list):
         dtypes = [dtypes]
     dtype = get_minimal_dtype(list(dtypes), increase_itemsize_factor=increase_itemsize_factor)
-
-    result = change_dtypes_(arrays, dtype, clip=False, round=False)
-    assert isinstance(result, list), (
-        "Expected change_dtypes_() to return a list when given a list input. "
-        f"Got type {type(result)}."
-    )
-    return result
+    return change_dtypes_(arrays, dtype, clip=False, round=False)
 
 
 def increase_array_resolutions_(
@@ -260,13 +306,7 @@ def increase_array_resolutions_(
 ) -> list[NDArray[Any]]:
     dts = normalize_dtypes(arrays)
     dts = [increase_itemsize_of_dtype(dt, factor) for dt in dts]
-
-    result = change_dtypes_(arrays, dts, round=False, clip=False)
-    assert isinstance(result, list), (
-        "Expected change_dtypes_() to return a list when given a list input. "
-        f"Got type {type(result)}."
-    )
-    return result
+    return change_dtypes_(arrays, dts, round=False, clip=False)
 
 
 def get_value_range_of_dtype(dtype: np.dtype[Any] | str) -> tuple[RangeValue, RangeValue | None, RangeValue]:
@@ -381,7 +421,7 @@ def gate_dtypes_strs(
     dtypes: NDArray[Any] | Iterable[NDArray[Any]] | Iterable[np.dtype[Any]],
     allowed: str,
     disallowed: str,
-    augmenter: Any = None,
+    augmenter: _AugmenterLike | None = None,
 ) -> None:
     """Verify that input dtypes match allowed/disallowed dtype strings.
 
@@ -433,7 +473,7 @@ def _convert_dtype_strs_to_types_cached(dtypes: str) -> set[np.dtype[Any]]:
     """Convert dtype string to types with caching."""
     dtypes_parsed = _DTYPE_STR_TO_DTYPES_CACHE.get(dtypes, None)
     if dtypes_parsed is None:
-        dtypes_parsed = _convert_dtype_strs_to_types_cached(dtypes)
+        dtypes_parsed = _convert_dtype_strs_to_types(dtypes)
         _DTYPE_STR_TO_DTYPES_CACHE[dtypes] = dtypes_parsed
     return dtypes_parsed
 
@@ -458,9 +498,9 @@ def gate_dtypes(
     dtypes: NDArray[Any] | Iterable[NDArray[Any]] | Iterable[np.dtype[Any]],
     allowed: NDArray[Any] | Iterable[NDArray[Any]] | Iterable[np.dtype[Any]],
     disallowed: NDArray[Any] | Iterable[NDArray[Any]] | Iterable[np.dtype[Any]],
-    augmenter: Any = None,
+    augmenter: _AugmenterLike | None = None,
 ) -> None:
-    def _cvt(dts: Any) -> set[np.dtype[Any]]:
+    def _cvt(dts: object) -> set[np.dtype[Any]]:
         """Convert dtype-like to set of normalized dtypes."""
         normalized: set[np.dtype[Any]] = set()
         if not isinstance(dts, list):
@@ -490,7 +530,7 @@ def _gate_dtypes(
     ),
     allowed: set[np.dtype[Any]],
     disallowed: set[np.dtype[Any]] | None,
-    augmenter: Any = None,
+    augmenter: _AugmenterLike | None = None,
 ) -> None:
     """Verify that input dtypes are among allowed and not disallowed dtypes.
 
@@ -581,7 +621,7 @@ def _dtype_names_to_string(dtypes: set[np.dtype[Any]] | Iterable[np.dtype[Any]])
 
 def allow_only_uint8(
     dtypes: NDArray[Any] | Iterable[NDArray[Any]] | Iterable[np.dtype[Any]],
-    augmenter: Any = None,
+    augmenter: _AugmenterLike | None = None,
 ) -> None:
     """Verify that input dtypes are uint8.
 
@@ -615,9 +655,10 @@ def _apply_deprecated_decorator() -> None:
     import imgaug2.imgaug as ia
 
     func = globals()["gate_dtypes"]
-    func.__wrapped__ = func  # type: ignore[attr-defined]
-    func = ia.deprecated("imgaug2.dtypes.gate_dtypes_strs")(func)
-    globals()["gate_dtypes"] = func
+    assert callable(func), "Expected gate_dtypes to be callable."
+    func_wrapped = cast(_HasWrappedAttr, func)
+    func_wrapped.__wrapped__ = func
+    globals()["gate_dtypes"] = ia.deprecated("imgaug2.dtypes.gate_dtypes_strs")(func)
 
 
 _apply_deprecated_decorator()

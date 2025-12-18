@@ -2552,6 +2552,12 @@ MOVED = [
     ("quokka_polygons", "imgaug2.data", None),
 ]
 
+# These loop variables intentionally leak into the module scope in python.
+# Define them explicitly so that static type checkers can reliably detect them.
+class_name_old: str | None = None
+module_name_new: str | None = None
+class_name_new: str | None = None
+
 for class_name_old, module_name_new, class_name_new in MOVED:
     locals()[class_name_old] = _mark_moved_class_or_function(
         class_name_old, module_name_new, class_name_new

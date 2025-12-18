@@ -49,8 +49,10 @@ def is_iterable_of(iterable_var: Any, classes: type | Iterable[type]) -> bool:
     if not ia.is_iterable(iterable_var):
         return False
 
+    classes_tuple = (classes,) if isinstance(classes, type) else tuple(classes)
+
     for var_i in iterable_var:
-        if not isinstance(var_i, classes):  # type: ignore[arg-type]
+        if not isinstance(var_i, classes_tuple):
             return False
 
     return True
@@ -70,11 +72,10 @@ def assert_is_iterable_of(iterable_var: Any, classes: type | Iterable[type]) -> 
     """
     valid = is_iterable_of(iterable_var, classes)
     if not valid:
-        expected_types_str = (
-            ", ".join([class_.__name__ for class_ in classes])  # type: ignore[union-attr]
-            if not isinstance(classes, type)
-            else classes.__name__
-        )
+        if isinstance(classes, type):
+            expected_types_str = classes.__name__
+        else:
+            expected_types_str = ", ".join([class_.__name__ for class_ in classes])
         if not ia.is_iterable(iterable_var):
             raise AssertionError(
                 f"Expected an iterable of the following types: {expected_types_str}. "
