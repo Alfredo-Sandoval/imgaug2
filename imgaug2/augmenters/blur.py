@@ -14,20 +14,42 @@ List of augmenters:
 
 from __future__ import annotations
 
+from typing import Literal, TypeAlias
+
 import cv2
 import numpy as np
+from numpy.typing import NDArray
 from scipy import ndimage
 
 import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
+import imgaug2.random as iarandom
+from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import convolutional as iaa_convolutional
 from imgaug2.augmenters import meta
+from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
+
+Backend: TypeAlias = Literal["auto", "cv2", "scipy"]
+FloatArray: TypeAlias = NDArray[np.floating]
+
+DiscreteParamInput: TypeAlias = int | tuple[int, int] | list[int] | iap.StochasticParameter
+
+# `AverageBlur` historically supports an unusually flexible kernel-size parameter,
+# including optional per-axis sampling.
+KernelSizeComponent: TypeAlias = int | tuple[int, int] | iap.StochasticParameter
+KernelSizeInput: TypeAlias = KernelSizeComponent | tuple[KernelSizeComponent, KernelSizeComponent]
 
 
 # TODO add border mode, cval
-def blur_gaussian_(image, sigma, ksize=None, backend="auto", eps=1e-3):
+def blur_gaussian_(
+    image: Array,
+    sigma: float,
+    ksize: int | None = None,
+    backend: Backend = "auto",
+    eps: float = 1e-3,
+) -> Array:
     """Blur an image using gaussian blurring in-place.
 
     This operation *may* change the input image in-place.
@@ -161,8 +183,9 @@ def blur_gaussian_(image, sigma, ksize=None, backend="auto", eps=1e-3):
 
     if is_mlx_array(image):
         import imgaug2.mlx as mlx
+        from imgaug2.mlx._core import to_numpy
 
-        return mlx.gaussian_blur(image, sigma=float(sigma), kernel_size=ksize)
+        return to_numpy(mlx.gaussian_blur(image, sigma=float(sigma), kernel_size=ksize))
 
     iadt.gate_dtypes_strs(
         {image.dtype},
@@ -195,7 +218,7 @@ def blur_gaussian_(image, sigma, ksize=None, backend="auto", eps=1e-3):
 
 
 # Added in 0.5.0.
-def _blur_gaussian_scipy_(image, sigma, ksize):
+def _blur_gaussian_scipy_(image: Array, sigma: float, ksize: int | None) -> Array:
     dtype = image.dtype
 
     if dtype.kind == "b":
@@ -240,7 +263,7 @@ def _blur_gaussian_scipy_(image, sigma, ksize):
 
 
 # Added in 0.5.0.
-def _blur_gaussian_cv2(image, sigma, ksize):
+def _blur_gaussian_cv2(image: Array, sigma: float, ksize: int | None) -> Array:
     dtype = image.dtype
 
     if dtype.kind == "b":
@@ -292,7 +315,7 @@ def _blur_gaussian_cv2(image, sigma, ksize):
     return image_warped
 
 
-def _compute_gaussian_blur_ksize(sigma):
+def _compute_gaussian_blur_ksize(sigma: float) -> int:
     if sigma < 3.0:
         ksize = 3.3 * sigma  # 99% of weight
     elif sigma < 5.0:
@@ -309,7 +332,7 @@ def _compute_gaussian_blur_ksize(sigma):
     return ksize
 
 
-def blur_avg_(image, k):
+def blur_avg_(image: Array, k: int | tuple[int, int]) -> Array:
     """Blur an image in-place by computing averages over local neighbourhoods.
 
     This operation *may* change the input image in-place.
@@ -411,7 +434,7 @@ def blur_avg_(image, k):
     return image_aug
 
 
-def blur_mean_shift_(image, spatial_window_radius, color_window_radius):
+def blur_mean_shift_(image: Array, spatial_window_radius: int, color_window_radius: int) -> Array:
     """Apply a pyramidic mean shift filter to the input image in-place.
 
     This produces an output image that has similarity with one modified by
@@ -567,12 +590,12 @@ class GaussianBlur(meta.Augmenter):
 
     def __init__(
         self,
-        sigma=(0.0, 3.0),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        sigma: ParamInput = (0.0, 3.0),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -586,7 +609,13 @@ class GaussianBlur(meta.Augmenter):
         self.eps = 1e-3
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -595,7 +624,7 @@ class GaussianBlur(meta.Augmenter):
         samples = self.sigma.draw_samples((nb_images,), random_state=random_state)
         from imgaug2.mlx._core import is_mlx_array
 
-        for i, (image, sig) in enumerate(zip(images, samples)):
+        for i, (image, sig) in enumerate(zip(images, samples, strict=True)):
             if is_mlx_array(image):
                 # MLX arrays are immutable; assign the augmented image.
                 images[i] = blur_gaussian_(image, sigma=sig, eps=self.eps)
@@ -603,7 +632,7 @@ class GaussianBlur(meta.Augmenter):
                 image[...] = blur_gaussian_(image, sigma=sig, eps=self.eps)
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.sigma]
 
@@ -700,8 +729,13 @@ class AverageBlur(meta.Augmenter):
     """
 
     def __init__(
-        self, k=(1, 7), seed=None, name=None, random_state="deprecated", deterministic="deprecated"
-    ):
+        self,
+        k: KernelSizeInput = (1, 7),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -711,8 +745,8 @@ class AverageBlur(meta.Augmenter):
         if ia.is_single_number(k):
             self.k = iap.Deterministic(int(k))
         elif ia.is_iterable(k):
-            assert len(k) == 2, "Expected iterable 'k' to contain exactly 2 entries, got %d." % (
-                len(k),
+            assert len(k) == 2, (
+                f"Expected iterable 'k' to contain exactly 2 entries, got {len(k)}."
             )
             if all([ia.is_single_number(ki) for ki in k]):
                 self.k = iap.DiscreteUniform(int(k[0]), int(k[1]))
@@ -751,7 +785,13 @@ class AverageBlur(meta.Augmenter):
         self.k = iap._wrap_leafs_of_param_in_prefetchers(self.k, iap._NB_PREFETCH)
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -768,12 +808,12 @@ class AverageBlur(meta.Augmenter):
                 self.k[1].draw_samples((nb_images,), random_state=rss[1]),
             )
 
-        gen = enumerate(zip(images, samples[0], samples[1]))
+        gen = enumerate(zip(images, samples[0], samples[1], strict=True))
         for i, (image, ksize_h, ksize_w) in gen:
             batch.images[i] = blur_avg_(image, (ksize_h, ksize_w))
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.k]
 
@@ -851,8 +891,13 @@ class MedianBlur(meta.Augmenter):
     """
 
     def __init__(
-        self, k=(1, 7), seed=None, name=None, random_state="deprecated", deterministic="deprecated"
-    ):
+        self,
+        k: DiscreteParamInput = (1, 7),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -867,7 +912,7 @@ class MedianBlur(meta.Augmenter):
             allow_floats=False,
         )
         if ia.is_single_integer(k):
-            assert k % 2 != 0, "Expected k to be odd, got %d. Add or subtract 1." % (int(k),)
+            assert k % 2 != 0, f"Expected k to be odd, got {int(k)}. Add or subtract 1."
         elif ia.is_iterable(k):
             assert all([ki % 2 != 0 for ki in k]), (
                 "Expected all values in iterable k to be odd, but at least "
@@ -876,14 +921,20 @@ class MedianBlur(meta.Augmenter):
         self.k = iap._wrap_leafs_of_param_in_prefetchers(self.k, iap._NB_PREFETCH)
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
         images = batch.images
         nb_images = len(images)
         samples = self.k.draw_samples((nb_images,), random_state=random_state)
-        for i, (image, ksize) in enumerate(zip(images, samples)):
+        for i, (image, ksize) in enumerate(zip(images, samples, strict=True)):
             has_zero_sized_axes = image.size == 0
             if ksize > 1 and not has_zero_sized_axes:
                 ksize = ksize + 1 if ksize % 2 == 0 else ksize
@@ -905,7 +956,7 @@ class MedianBlur(meta.Augmenter):
                 batch.images[i] = image_aug
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.k]
 
@@ -1018,14 +1069,14 @@ class BilateralBlur(meta.Augmenter):
 
     def __init__(
         self,
-        d=(1, 9),
-        sigma_color=(10, 250),
-        sigma_space=(10, 250),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        d: DiscreteParamInput = (1, 9),
+        sigma_color: ParamInput = (10, 250),
+        sigma_space: ParamInput = (10, 250),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # pylint: disable=invalid-name
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
@@ -1055,7 +1106,13 @@ class BilateralBlur(meta.Augmenter):
         )
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         # pylint: disable=invalid-name
         if batch.images is None:
             return batch
@@ -1073,7 +1130,9 @@ class BilateralBlur(meta.Augmenter):
         samples_d = self.d.draw_samples((nb_images,), random_state=rss[0])
         samples_sigma_color = self.sigma_color.draw_samples((nb_images,), random_state=rss[1])
         samples_sigma_space = self.sigma_space.draw_samples((nb_images,), random_state=rss[2])
-        gen = enumerate(zip(images, samples_d, samples_sigma_color, samples_sigma_space))
+        gen = enumerate(
+            zip(images, samples_d, samples_sigma_color, samples_sigma_space, strict=True)
+        )
         for i, (image, di, sigma_color_i, sigma_space_i) in gen:
             has_zero_sized_axes = image.size == 0
             if di != 1 and not has_zero_sized_axes:
@@ -1082,7 +1141,7 @@ class BilateralBlur(meta.Augmenter):
                 )
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.d, self.sigma_color, self.sigma_space]
 
@@ -1178,15 +1237,15 @@ class MotionBlur(iaa_convolutional.Convolve):
 
     def __init__(
         self,
-        k=(3, 7),
-        angle=(0, 360),
-        direction=(-1.0, 1.0),
-        order=1,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        k: DiscreteParamInput = (3, 7),
+        angle: ParamInput = (0, 360),
+        direction: ParamInput = (-1.0, 1.0),
+        order: int | list[int] | str | iap.StochasticParameter = 1,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # TODO allow (1, None) and set to identity matrix if k == 1
         k_param = iap.handle_discrete_param(
             k,
@@ -1217,14 +1276,20 @@ class MotionBlur(iaa_convolutional.Convolve):
 # Added in 0.4.0.
 class _MotionBlurMatrixGenerator:
     # Added in 0.4.0.
-    def __init__(self, k, angle, direction, order):
+    def __init__(
+        self,
+        k: iap.StochasticParameter,
+        angle: iap.StochasticParameter,
+        direction: iap.StochasticParameter,
+        order: int | list[int] | str | iap.StochasticParameter,
+    ) -> None:
         self.k = k
         self.angle = angle
         self.direction = direction
         self.order = order
 
     # Added in 0.4.0.
-    def __call__(self, _image, nb_channels, random_state):
+    def __call__(self, _image: Array, nb_channels: int, random_state: iarandom.RNG) -> list[Array]:
         # avoid cyclic import between blur and geometric
         from imgaug2.augmenters import geometric as iaa_geometric
 
@@ -1324,13 +1389,13 @@ class MeanShiftBlur(meta.Augmenter):
     # Added in 0.4.0.
     def __init__(
         self,
-        spatial_radius=(5.0, 40.0),
-        color_radius=(5.0, 40.0),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        spatial_radius: ParamInput = (5.0, 40.0),
+        color_radius: ParamInput = (5.0, 40.0),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -1350,7 +1415,13 @@ class MeanShiftBlur(meta.Augmenter):
         )
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is not None:
             samples = self._draw_samples(batch, random_state)
             for i, image in enumerate(batch.images):
@@ -1361,7 +1432,9 @@ class MeanShiftBlur(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def _draw_samples(self, batch, random_state):
+    def _draw_samples(
+        self, batch: _BatchInAugmentation, random_state: iarandom.RNG
+    ) -> tuple[FloatArray, FloatArray]:
         nb_rows = batch.nb_rows
         return (
             self.spatial_window_radius.draw_samples((nb_rows,), random_state=random_state),
@@ -1369,6 +1442,6 @@ class MeanShiftBlur(meta.Augmenter):
         )
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.spatial_window_radius, self.color_window_radius]

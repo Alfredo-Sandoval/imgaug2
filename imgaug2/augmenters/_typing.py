@@ -8,7 +8,7 @@ augmenter modules while the type-hints migration is in progress.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TypeAlias
+from typing import TYPE_CHECKING, TypeAlias
 
 import numpy as np
 from numpy.typing import NDArray
@@ -42,3 +42,16 @@ Numberish: TypeAlias = Number | iap.StochasticParameter
 # Common pattern for "scalar or (min,max) or list or stochastic param".
 ParamInput: TypeAlias = Number | tuple[Number, Number] | list[Number] | iap.StochasticParameter
 
+
+# ---- RNG inputs -----------------------------------------------------------
+
+if TYPE_CHECKING:
+    from numpy.random import BitGenerator, Generator, RandomState, SeedSequence
+
+    from imgaug2.random import RNG
+
+    RNGInput: TypeAlias = None | int | RNG | Generator | BitGenerator | SeedSequence | RandomState
+else:
+    # Used only for runtime type-alias binding; due to `from __future__ import annotations`,
+    # function annotations are stored as strings and won't evaluate this at runtime.
+    RNGInput: TypeAlias = object

@@ -16,13 +16,19 @@ List of augmenters:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Literal
+
 import numpy as np
 
 import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
+import imgaug2.random as iarandom
+from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import arithmetic, blur, contrast, meta
 from imgaug2.augmenters import color as colorlib
+from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 
 
 class FastSnowyLandscape(meta.Augmenter):
@@ -136,14 +142,14 @@ class FastSnowyLandscape(meta.Augmenter):
 
     def __init__(
         self,
-        lightness_threshold=(100, 255),
-        lightness_multiplier=(1.0, 4.0),
-        from_colorspace=colorlib.CSPACE_RGB,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        lightness_threshold: ParamInput = (100, 255),
+        lightness_multiplier: ParamInput = (1.0, 4.0),
+        from_colorspace: str = colorlib.CSPACE_RGB,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -164,7 +170,9 @@ class FastSnowyLandscape(meta.Augmenter):
         )
         self.from_colorspace = from_colorspace
 
-    def _draw_samples(self, augmentables, random_state):
+    def _draw_samples(
+        self, augmentables: Sequence[Array] | Array, random_state: iarandom.RNG
+    ) -> tuple[Array, Array]:
         nb_augmentables = len(augmentables)
         rss = random_state.duplicate(2)
         thresh_samples = self.lightness_threshold.draw_samples((nb_augmentables,), rss[1])
@@ -172,7 +180,13 @@ class FastSnowyLandscape(meta.Augmenter):
         return thresh_samples, lmul_samples
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -180,7 +194,7 @@ class FastSnowyLandscape(meta.Augmenter):
 
         thresh_samples, lmul_samples = self._draw_samples(images, random_state)
 
-        gen = enumerate(zip(images, thresh_samples, lmul_samples))
+        gen = enumerate(zip(images, thresh_samples, lmul_samples, strict=True))
         for i, (image, thresh, lmul) in gen:
             image_hls = colorlib.change_colorspace_(
                 image, colorlib.CSPACE_HLS, self.from_colorspace
@@ -200,7 +214,7 @@ class FastSnowyLandscape(meta.Augmenter):
 
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.lightness_threshold, self.lightness_multiplier]
 
@@ -361,20 +375,20 @@ class CloudLayer(meta.Augmenter):
 
     def __init__(
         self,
-        intensity_mean,
-        intensity_freq_exponent,
-        intensity_coarse_scale,
-        alpha_min,
-        alpha_multiplier,
-        alpha_size_px_max,
-        alpha_freq_exponent,
-        sparsity,
-        density_multiplier,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        intensity_mean: ParamInput,
+        intensity_freq_exponent: ParamInput,
+        intensity_coarse_scale: ParamInput,
+        alpha_min: ParamInput,
+        alpha_multiplier: ParamInput,
+        alpha_size_px_max: ParamInput,
+        alpha_freq_exponent: ParamInput,
+        sparsity: ParamInput,
+        density_multiplier: ParamInput,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -391,18 +405,24 @@ class CloudLayer(meta.Augmenter):
         )
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
         images = batch.images
 
         rss = random_state.duplicate(len(images))
-        for i, (image, rs) in enumerate(zip(images, rss)):
+        for i, (image, rs) in enumerate(zip(images, rss, strict=True)):
             batch.images[i] = self.draw_on_image(image, rs)
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [
             self.intensity_mean,
@@ -416,7 +436,7 @@ class CloudLayer(meta.Augmenter):
             self.intensity_coarse_scale,
         ]
 
-    def draw_on_image(self, image, random_state):
+    def draw_on_image(self, image: Array, random_state: iarandom.RNG) -> Array:
         iadt.gate_dtypes_strs(
             image,
             allowed="uint8 float16 float32 float64 float128",
@@ -438,7 +458,7 @@ class CloudLayer(meta.Augmenter):
             (1 - alpha) * image.astype(alpha.dtype) + alpha * intensity.astype(alpha.dtype), 0, 255
         ).astype(np.uint8)
 
-    def generate_maps(self, image, random_state):
+    def generate_maps(self, image: Array, random_state: iarandom.RNG) -> tuple[Array, Array]:
         intensity_mean_sample = self.intensity_mean.draw_sample(random_state)
         alpha_min_sample = self.alpha_min.draw_sample(random_state)
         alpha_multiplier_sample = self.alpha_multiplier.draw_sample(random_state)
@@ -479,8 +499,13 @@ class CloudLayer(meta.Augmenter):
 
     @classmethod
     def _generate_intensity_map_coarse(
-        cls, height, width, intensity_mean, intensity_local_offset, random_state
-    ):
+        cls,
+        height: int,
+        width: int,
+        intensity_mean: float,
+        intensity_local_offset: iap.StochasticParameter,
+        random_state: iarandom.RNG,
+    ) -> Array:
         # TODO (8, 8) might be too simplistic for some image sizes
         height_intensity, width_intensity = (8, 8)
         intensity = intensity_mean + intensity_local_offset.draw_samples(
@@ -491,7 +516,9 @@ class CloudLayer(meta.Augmenter):
         return intensity
 
     @classmethod
-    def _generate_intensity_map_fine(cls, height, width, intensity_mean, exponent, random_state):
+    def _generate_intensity_map_fine(
+        cls, height: int, width: int, intensity_mean: float, exponent: ParamInput, random_state: iarandom.RNG
+    ) -> Array:
         intensity_details_generator = iap.FrequencyNoise(
             exponent=exponent,
             size_px_max=max(height, width, 1),  # 1 here for case H, W being 0
@@ -503,16 +530,16 @@ class CloudLayer(meta.Augmenter):
     @classmethod
     def _generate_alpha_mask(
         cls,
-        height,
-        width,
-        alpha_min,
-        alpha_multiplier,
-        exponent,
-        alpha_size_px_max,
-        sparsity,
-        density_multiplier,
-        random_state,
-    ):
+        height: int,
+        width: int,
+        alpha_min: float,
+        alpha_multiplier: float,
+        exponent: ParamInput,
+        alpha_size_px_max: ParamInput,
+        sparsity: float,
+        density_multiplier: float,
+        random_state: iarandom.RNG,
+    ) -> Array:
         alpha_generator = iap.FrequencyNoise(
             exponent=exponent, size_px_max=alpha_size_px_max, upscale_method="cubic"
         )
@@ -586,7 +613,13 @@ class Clouds(meta.SomeOf):
 
     """
 
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         layers = [
             CloudLayer(
                 intensity_mean=(196, 255),
@@ -690,7 +723,13 @@ class Fog(CloudLayer):
 
     """
 
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             intensity_mean=(220, 255),
             intensity_freq_exponent=(-2.0, -1.5),
@@ -880,19 +919,19 @@ class SnowflakesLayer(meta.Augmenter):
 
     def __init__(
         self,
-        density,
-        density_uniformity,
-        flake_size,
-        flake_size_uniformity,
-        angle,
-        speed,
-        blur_sigma_fraction,
-        blur_sigma_limits=(0.5, 3.75),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        density: ParamInput,
+        density_uniformity: ParamInput,
+        flake_size: ParamInput,
+        flake_size_uniformity: ParamInput,
+        angle: ParamInput,
+        speed: ParamInput,
+        blur_sigma_fraction: ParamInput,
+        blur_sigma_limits: tuple[float, float] = (0.5, 3.75),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -919,18 +958,24 @@ class SnowflakesLayer(meta.Augmenter):
         self.gate_noise_size = (8, 8)
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
         images = batch.images
 
         rss = random_state.duplicate(len(images))
-        for i, (image, rs) in enumerate(zip(images, rss)):
+        for i, (image, rs) in enumerate(zip(images, rss, strict=True)):
             batch.images[i] = self.draw_on_image(image, rs)
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [
             self.density,
@@ -944,7 +989,7 @@ class SnowflakesLayer(meta.Augmenter):
             self.gate_noise_size,
         ]
 
-    def draw_on_image(self, image, random_state):
+    def draw_on_image(self, image: Array, random_state: iarandom.RNG) -> Array:
         assert image.ndim == 3, (
             "Expected input image to be three-dimensional, got %d dimensions." % (image.ndim,)
         )
@@ -990,12 +1035,20 @@ class SnowflakesLayer(meta.Augmenter):
         return self._blend(image, speed_sample, noise_small_blur_rgb)
 
     @classmethod
-    def _generate_noise(cls, height, width, density, random_state):
+    def _generate_noise(
+        cls, height: int, width: int, density: ParamInput, random_state: iarandom.RNG
+    ) -> Array:
         noise = arithmetic.Salt(p=density, random_state=random_state)
         return noise.augment_image(np.zeros((height, width), dtype=np.uint8))
 
     @classmethod
-    def _gate(cls, noise, gate_noise, gate_size, random_state):
+    def _gate(
+        cls,
+        noise: Array,
+        gate_noise: iap.StochasticParameter,
+        gate_size: tuple[int, int],
+        random_state: iarandom.RNG,
+    ) -> Array:
         # the beta distribution here has most of its weight around 1.0 and
         # will only rarely sample values around 0.0 the average of the
         # sampled values seems to be at around 0.6-0.75
@@ -1007,11 +1060,13 @@ class SnowflakesLayer(meta.Augmenter):
         return np.clip(noise.astype(np.float32) * gate_noise_up, 0, 255).astype(np.uint8)
 
     @classmethod
-    def _blur(cls, noise, sigma):
+    def _blur(cls, noise: Array, sigma: float) -> Array:
         return blur.blur_gaussian_(noise, sigma=sigma)
 
     @classmethod
-    def _motion_blur(cls, noise, angle, speed, random_state):
+    def _motion_blur(
+        cls, noise: Array, angle: float, speed: float, random_state: iarandom.RNG
+    ) -> Array:
         size = max(noise.shape[0:2])
         k = int(speed * size)
         if k <= 1:
@@ -1024,7 +1079,9 @@ class SnowflakesLayer(meta.Augmenter):
 
     # Added in 0.4.0.
     @classmethod
-    def _postprocess_noise(cls, noise_small_blur, flake_size_uniformity_sample, nb_channels):
+    def _postprocess_noise(
+        cls, noise_small_blur: Array, flake_size_uniformity_sample: float, nb_channels: int
+    ) -> Array:
         # use contrast adjustment of noise to make the flake size a bit less
         # uniform then readjust the noise values to make them more visible
         # again
@@ -1037,7 +1094,7 @@ class SnowflakesLayer(meta.Augmenter):
 
     # Added in 0.4.0.
     @classmethod
-    def _blend(cls, image, speed_sample, noise_small_blur_rgb):
+    def _blend(cls, image: Array, speed_sample: float, noise_small_blur_rgb: Array) -> Array:
         # blend:
         # sum for a bit of glowy, hardly visible flakes
         # max for the main flakes
@@ -1048,13 +1105,13 @@ class SnowflakesLayer(meta.Augmenter):
 
     # TODO replace this by a function from module blend.py
     @classmethod
-    def _blend_by_sum(cls, image_f32, noise_small_blur_rgb):
+    def _blend_by_sum(cls, image_f32: Array, noise_small_blur_rgb: Array) -> Array:
         image_f32 = image_f32 + noise_small_blur_rgb
         return np.clip(image_f32, 0, 255).astype(np.uint8)
 
     # TODO replace this by a function from module blend.py
     @classmethod
-    def _blend_by_max(cls, image_f32, noise_small_blur_rgb):
+    def _blend_by_max(cls, image_f32: Array, noise_small_blur_rgb: Array) -> Array:
         image_f32 = np.maximum(image_f32, noise_small_blur_rgb)
         return np.clip(image_f32, 0, 255).astype(np.uint8)
 
@@ -1228,17 +1285,17 @@ class Snowflakes(meta.SomeOf):
 
     def __init__(
         self,
-        density=(0.005, 0.075),
-        density_uniformity=(0.3, 0.9),
-        flake_size=(0.2, 0.7),
-        flake_size_uniformity=(0.4, 0.8),
-        angle=(-30, 30),
-        speed=(0.007, 0.03),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        density: ParamInput = (0.005, 0.075),
+        density_uniformity: ParamInput = (0.3, 0.9),
+        flake_size: ParamInput = (0.2, 0.7),
+        flake_size_uniformity: ParamInput = (0.4, 0.8),
+        angle: ParamInput = (-30, 30),
+        speed: ParamInput = (0.007, 0.03),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         layer = SnowflakesLayer(
             density=density,
             density_uniformity=density_uniformity,
@@ -1336,19 +1393,19 @@ class RainLayer(SnowflakesLayer):
     # Added in 0.4.0.
     def __init__(
         self,
-        density,
-        density_uniformity,
-        drop_size,
-        drop_size_uniformity,
-        angle,
-        speed,
-        blur_sigma_fraction,
-        blur_sigma_limits=(0.5, 3.75),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        density: ParamInput,
+        density_uniformity: ParamInput,
+        drop_size: ParamInput,
+        drop_size_uniformity: ParamInput,
+        angle: ParamInput,
+        speed: ParamInput,
+        blur_sigma_fraction: ParamInput,
+        blur_sigma_limits: tuple[float, float] = (0.5, 3.75),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             density,
             density_uniformity,
@@ -1366,18 +1423,20 @@ class RainLayer(SnowflakesLayer):
 
     # Added in 0.4.0.
     @classmethod
-    def _blur(cls, noise, sigma):
+    def _blur(cls, noise: Array, sigma: float) -> Array:
         return noise
 
     # Added in 0.4.0.
     @classmethod
-    def _postprocess_noise(cls, noise_small_blur, flake_size_uniformity_sample, nb_channels):
+    def _postprocess_noise(
+        cls, noise_small_blur: Array, flake_size_uniformity_sample: float, nb_channels: int
+    ) -> Array:
         noise_small_blur_rgb = np.tile(noise_small_blur[..., np.newaxis], (1, 1, nb_channels))
         return noise_small_blur_rgb
 
     # Added in 0.4.0.
     @classmethod
-    def _blend(cls, image, speed_sample, noise_small_blur_rgb):
+    def _blend(cls, image: Array, speed_sample: float, noise_small_blur_rgb: Array) -> Array:
         # We set the mean color based on the noise here. That's a pseudo-random
         # approach that saves us from adding the random state as a parameter.
         # Note that the sum of noise_small_blur_rgb can be 0 when at least one
@@ -1476,14 +1535,14 @@ class Rain(meta.SomeOf):
     # Added in 0.4.0.
     def __init__(
         self,
-        nb_iterations=(1, 3),
-        drop_size=(0.01, 0.02),
-        speed=(0.04, 0.20),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        nb_iterations: ParamInput = (1, 3),
+        drop_size: ParamInput = (0.01, 0.02),
+        speed: ParamInput = (0.04, 0.20),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         layer = RainLayer(
             density=(0.03, 0.14),
             density_uniformity=(0.8, 1.0),

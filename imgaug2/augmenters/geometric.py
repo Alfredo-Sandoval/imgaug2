@@ -6195,7 +6195,7 @@ class Rot90(meta.Augmenter):
 
     @classmethod
     def _augment_arrays_by_samples(cls, arrs, ks, keep_size, resize_func):
-        from imgaug2.mlx._core import is_mlx_array
+        from imgaug2.mlx._core import is_mlx_array, mx
 
         input_was_array = ia.is_np_array(arrs)
         input_dtype = arrs.dtype if input_was_array else None
@@ -6204,7 +6204,12 @@ class Rot90(meta.Augmenter):
             if is_mlx_array(arr):
                 import imgaug2.mlx as mlx
 
+                # Ty does not currently narrow via TypeGuard when the guarded type is
+                # defined on an optional dependency module. Use an explicit isinstance
+                # assertion to narrow.
+                assert isinstance(arr, mx.array)
                 arr_aug = mlx.rot90(arr, k=int(k_i))
+                assert isinstance(arr_aug, mx.array)
                 if keep_size and arr.shape != arr_aug.shape:
                     arr_aug = mlx.geometry.resize(
                         arr_aug, (int(arr.shape[0]), int(arr.shape[1])), order=1

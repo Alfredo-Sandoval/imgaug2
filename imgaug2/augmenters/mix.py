@@ -13,12 +13,14 @@ Labels may be:
 
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import TypeAlias
 
 import numpy as np
 
+RNGInput: TypeAlias = None | int | np.random.Generator | np.random.RandomState
 
-def _default_rng(rng=None) -> np.random.Generator:
+
+def _default_rng(rng: RNGInput = None) -> np.random.Generator:
     if rng is None:
         return np.random.default_rng()
     if isinstance(rng, np.random.Generator):
@@ -30,8 +32,8 @@ def _default_rng(rng=None) -> np.random.Generator:
 
 
 def mixup(
-    images: np.ndarray, labels: np.ndarray, alpha: float = 0.2, rng=None
-) -> Tuple[np.ndarray, np.ndarray, float, np.ndarray]:
+    images: np.ndarray, labels: np.ndarray, alpha: float = 0.2, rng: RNGInput = None
+) -> tuple[np.ndarray, np.ndarray, float, np.ndarray]:
     """
     MixUp.
 
@@ -53,8 +55,8 @@ def mixup(
 
 
 def cutmix(
-    images: np.ndarray, labels: np.ndarray, alpha: float = 1.0, rng=None
-) -> Tuple[np.ndarray, np.ndarray, float, np.ndarray]:
+    images: np.ndarray, labels: np.ndarray, alpha: float = 1.0, rng: RNGInput = None
+) -> tuple[np.ndarray, np.ndarray, float, np.ndarray]:
     """
     CutMix.
 
@@ -90,8 +92,8 @@ def cutmix(
 
 
 def mosaic4(
-    images: np.ndarray, rng=None, output_size: Optional[Tuple[int, int]] = None
-) -> Tuple[np.ndarray, np.ndarray]:
+    images: np.ndarray, rng: RNGInput = None, output_size: tuple[int, int] | None = None
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Mosaic with 4 images (image-only).
 

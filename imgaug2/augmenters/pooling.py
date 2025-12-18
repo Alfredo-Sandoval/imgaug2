@@ -14,15 +14,32 @@ from __future__ import annotations
 
 import functools
 from abc import ABCMeta, abstractmethod
+from collections.abc import Sequence
+from typing import Literal, Protocol, TypeAlias
 
 import numpy as np
+from numpy.typing import NDArray
 
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
+import imgaug2.random as iarandom
+from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import meta
+from imgaug2.augmenters._typing import RNGInput
+
+ImageArray: TypeAlias = NDArray[np.generic]
+IntArray: TypeAlias = NDArray[np.integer]
 
 
-def _compute_shape_after_pooling(image_shape, ksize_h, ksize_w):
+class KeypointsOnImageLike(Protocol):
+    shape: tuple[int, ...]
+
+    def on_(self, shape: tuple[int, ...]) -> KeypointsOnImageLike: ...
+
+
+def _compute_shape_after_pooling(
+    image_shape: tuple[int, ...], ksize_h: int, ksize_w: int
+) -> tuple[int, ...]:
     if any([axis == 0 for axis in image_shape]):
         return image_shape
 
@@ -47,13 +64,13 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
     #      (note possible overlap with fractional kernel sizes here)
     def __init__(
         self,
-        kernel_size,
-        keep_size=True,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        kernel_size: object,
+        keep_size: bool = True,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -65,10 +82,10 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
         self._resize_hm_and_sm_arrays = True
 
     @abstractmethod
-    def _pool_image(self, image, kernel_size_h, kernel_size_w):
+    def _pool_image(self, image: ImageArray, kernel_size_h: int, kernel_size_w: int) -> ImageArray:
         """Apply pooling method with given kernel height/width to an image."""
 
-    def _draw_samples(self, nb_rows, random_state):
+    def _draw_samples(self, nb_rows: int, random_state: iarandom.RNG) -> tuple[IntArray, IntArray]:
         rss = random_state.duplicate(2)
         mode = "single" if self.kernel_size[1] is None else "two"
         kernel_sizes_h = self.kernel_size[0].draw_samples((nb_rows,), random_state=rss[0])
@@ -79,7 +96,13 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
         return (np.clip(kernel_sizes_h, 1, None), np.clip(kernel_sizes_w, 1, None))
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None and self.keep_size:
             return batch
 
@@ -90,13 +113,15 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
         return batch
 
     # Added in 0.4.0.
-    def _augment_images_by_samples(self, images, samples):
+    def _augment_images_by_samples(
+        self, images: Sequence[ImageArray] | ImageArray, samples: tuple[IntArray, IntArray]
+    ) -> Sequence[ImageArray] | ImageArray:
         if not self.keep_size:
             images = list(images)
 
         kernel_sizes_h, kernel_sizes_w = samples
 
-        gen = enumerate(zip(images, kernel_sizes_h, kernel_sizes_w))
+        gen = enumerate(zip(images, kernel_sizes_h, kernel_sizes_w, strict=True))
         for i, (image, ksize_h, ksize_w) in gen:
             if ksize_h >= 2 or ksize_w >= 2:
                 image_pooled = self._pool_image(image, ksize_h, ksize_w)
@@ -107,21 +132,27 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
         return images
 
     # Added in 0.4.0.
-    def _augment_heatmaps_by_samples(self, heatmaps, samples):
+    def _augment_heatmaps_by_samples(
+        self, heatmaps: list[object], samples: tuple[IntArray, IntArray]
+    ) -> list[object]:
         return self._augment_hms_and_segmaps_by_samples(heatmaps, samples, "arr_0to1")
 
     # Added in 0.4.0.
-    def _augment_segmentation_maps_by_samples(self, segmaps, samples):
+    def _augment_segmentation_maps_by_samples(
+        self, segmaps: list[object], samples: tuple[IntArray, IntArray]
+    ) -> list[object]:
         return self._augment_hms_and_segmaps_by_samples(segmaps, samples, "arr")
 
     # Added in 0.4.0.
-    def _augment_hms_and_segmaps_by_samples(self, augmentables, samples, arr_attr_name):
+    def _augment_hms_and_segmaps_by_samples(
+        self, augmentables: list[object], samples: tuple[IntArray, IntArray], arr_attr_name: str
+    ) -> list[object]:
         if self.keep_size:
             return augmentables
 
         kernel_sizes_h, kernel_sizes_w = samples
 
-        gen = enumerate(zip(augmentables, kernel_sizes_h, kernel_sizes_w))
+        gen = enumerate(zip(augmentables, kernel_sizes_h, kernel_sizes_w, strict=True))
         for i, (augmentable, ksize_h, ksize_w) in gen:
             if ksize_h >= 2 or ksize_w >= 2:
                 # We could also keep the size of the HM/SM array unchanged
@@ -142,13 +173,15 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
         return augmentables
 
     # Added in 0.4.0.
-    def _augment_keypoints_by_samples(self, keypoints_on_images, samples):
+    def _augment_keypoints_by_samples(
+        self, keypoints_on_images: list[KeypointsOnImageLike], samples: tuple[IntArray, IntArray]
+    ) -> list[KeypointsOnImageLike]:
         if self.keep_size:
             return keypoints_on_images
 
         kernel_sizes_h, kernel_sizes_w = samples
 
-        gen = enumerate(zip(keypoints_on_images, kernel_sizes_h, kernel_sizes_w))
+        gen = enumerate(zip(keypoints_on_images, kernel_sizes_h, kernel_sizes_w, strict=True))
         for i, (kpsoi, ksize_h, ksize_w) in gen:
             if ksize_h >= 2 or ksize_w >= 2:
                 new_shape = _compute_shape_after_pooling(kpsoi.shape, ksize_h, ksize_w)
@@ -158,21 +191,27 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
         return keypoints_on_images
 
     # Added in 0.4.0.
-    def _augment_polygons_by_samples(self, polygons_on_images, samples):
+    def _augment_polygons_by_samples(
+        self, polygons_on_images: list[object], samples: tuple[IntArray, IntArray]
+    ) -> list[object]:
         func = functools.partial(self._augment_keypoints_by_samples, samples=samples)
         return self._apply_to_polygons_as_keypoints(polygons_on_images, func, recoverer=None)
 
     # Added in 0.4.0.
-    def _augment_line_strings_by_samples(self, line_strings_on_images, samples):
+    def _augment_line_strings_by_samples(
+        self, line_strings_on_images: list[object], samples: tuple[IntArray, IntArray]
+    ) -> list[object]:
         func = functools.partial(self._augment_keypoints_by_samples, samples=samples)
         return self._apply_to_cbaois_as_keypoints(line_strings_on_images, func)
 
     # Added in 0.4.0.
-    def _augment_bounding_boxes_by_samples(self, bounding_boxes_on_images, samples):
+    def _augment_bounding_boxes_by_samples(
+        self, bounding_boxes_on_images: list[object], samples: tuple[IntArray, IntArray]
+    ) -> list[object]:
         func = functools.partial(self._augment_keypoints_by_samples, samples=samples)
         return self._apply_to_cbaois_as_keypoints(bounding_boxes_on_images, func)
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.kernel_size, self.keep_size]
 
@@ -292,13 +331,13 @@ class AveragePooling(_AbstractPoolingBase):
     #      (note possible overlap with fractional kernel sizes here)
     def __init__(
         self,
-        kernel_size=(1, 5),
-        keep_size=True,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        kernel_size: object = (1, 5),
+        keep_size: bool = True,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             kernel_size=kernel_size,
             keep_size=keep_size,
@@ -308,7 +347,7 @@ class AveragePooling(_AbstractPoolingBase):
             deterministic=deterministic,
         )
 
-    def _pool_image(self, image, kernel_size_h, kernel_size_w):
+    def _pool_image(self, image: ImageArray, kernel_size_h: int, kernel_size_w: int) -> ImageArray:
         return ia.avg_pool(image, (kernel_size_h, kernel_size_w))
 
 
@@ -420,13 +459,13 @@ class MaxPooling(_AbstractPoolingBase):
     #      (note possible overlap with fractional kernel sizes here)
     def __init__(
         self,
-        kernel_size=(1, 5),
-        keep_size=True,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        kernel_size: object = (1, 5),
+        keep_size: bool = True,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             kernel_size=kernel_size,
             keep_size=keep_size,
@@ -436,7 +475,7 @@ class MaxPooling(_AbstractPoolingBase):
             deterministic=deterministic,
         )
 
-    def _pool_image(self, image, kernel_size_h, kernel_size_w):
+    def _pool_image(self, image: ImageArray, kernel_size_h: int, kernel_size_w: int) -> ImageArray:
         return ia.max_pool_(image, (kernel_size_h, kernel_size_w))
 
 
@@ -548,13 +587,13 @@ class MinPooling(_AbstractPoolingBase):
     #      (note possible overlap with fractional kernel sizes here)
     def __init__(
         self,
-        kernel_size=(1, 5),
-        keep_size=True,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        kernel_size: object = (1, 5),
+        keep_size: bool = True,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             kernel_size=kernel_size,
             keep_size=keep_size,
@@ -564,7 +603,7 @@ class MinPooling(_AbstractPoolingBase):
             deterministic=deterministic,
         )
 
-    def _pool_image(self, image, kernel_size_h, kernel_size_w):
+    def _pool_image(self, image: ImageArray, kernel_size_h: int, kernel_size_w: int) -> ImageArray:
         return ia.min_pool_(image, (kernel_size_h, kernel_size_w))
 
 
@@ -676,13 +715,13 @@ class MedianPooling(_AbstractPoolingBase):
     #      (note possible overlap with fractional kernel sizes here)
     def __init__(
         self,
-        kernel_size=(1, 5),
-        keep_size=True,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        kernel_size: object = (1, 5),
+        keep_size: bool = True,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             kernel_size=kernel_size,
             keep_size=keep_size,
@@ -692,7 +731,7 @@ class MedianPooling(_AbstractPoolingBase):
             deterministic=deterministic,
         )
 
-    def _pool_image(self, image, kernel_size_h, kernel_size_w):
+    def _pool_image(self, image: ImageArray, kernel_size_h: int, kernel_size_w: int) -> ImageArray:
         # TODO extend pool to support pad_mode and set it here
         #      to reflection padding
         return ia.median_pool(image, (kernel_size_h, kernel_size_w))

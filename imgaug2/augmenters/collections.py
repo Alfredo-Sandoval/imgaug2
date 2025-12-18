@@ -10,12 +10,19 @@ Added in 0.4.0.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Literal, TypeAlias
+
 import numpy as np
 
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmenters import arithmetic, flip, meta, pillike
 from imgaug2.augmenters import size as sizelib
+from imgaug2.augmenters._typing import Numberish, RNGInput
+
+DiscreteParamInput: TypeAlias = int | tuple[int, int] | list[int] | iap.StochasticParameter | None
+FillColor: TypeAlias = int | Sequence[int] | iap.StochasticParameter
 
 
 class RandAugment(meta.Sequential):
@@ -185,14 +192,14 @@ class RandAugment(meta.Sequential):
     # Added in 0.4.0.
     def __init__(
         self,
-        n=2,
-        m=(6, 12),
-        cval=128,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        n: DiscreteParamInput = 2,
+        m: DiscreteParamInput = (6, 12),
+        cval: FillColor = 128,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # pylint: disable=invalid-name
         seed = seed if random_state == "deprecated" else random_state
         rng = iarandom.RNG.create_if_not_rng_(seed)
@@ -237,7 +244,7 @@ class RandAugment(meta.Sequential):
 
     # Added in 0.4.0.
     @classmethod
-    def _create_initial_augmenters_list(cls, m):
+    def _create_initial_augmenters_list(cls, m: iap.StochasticParameter) -> list[meta.Augmenter]:
         # pylint: disable=invalid-name
         return [
             flip.Fliplr(0.5),
@@ -256,15 +263,17 @@ class RandAugment(meta.Sequential):
 
     # Added in 0.4.0.
     @classmethod
-    def _create_main_augmenters_list(cls, m, cval):
+    def _create_main_augmenters_list(
+        cls, m: iap.StochasticParameter, cval: FillColor
+    ) -> list[meta.Augmenter]:
         # pylint: disable=invalid-name
         m_max = cls._M_MAX
 
-        def _float_parameter(level, maxval):
+        def _float_parameter(level: iap.StochasticParameter, maxval: float) -> iap.StochasticParameter:
             maxval_norm = maxval / m_max
             return iap.Multiply(level, maxval_norm, elementwise=True)
 
-        def _int_parameter(level, maxval):
+        def _int_parameter(level: iap.StochasticParameter, maxval: float) -> iap.StochasticParameter:
             # paper applies just int(), so we don't round here
             return iap.Discretize(_float_parameter(level, maxval), round=False)
 
@@ -275,14 +284,15 @@ class RandAugment(meta.Sequential):
         # for each operation individually, but here we have only one fixed M
         # for all operations. Hence, we rather set this to 1.0 +/- M*0.9/10,
         # so that M=10 would result in 0.1 or 1.9.
-        def _enhance_parameter(level):
+        def _enhance_parameter(level: iap.StochasticParameter) -> iap.StochasticParameter:
             fparam = _float_parameter(level, 0.9)
             return iap.Clip(iap.Add(1.0, iap.RandomSign(fparam), elementwise=True), 0.1, 1.9)
 
-        def _subtract(a, b):
+        def _subtract(a: Numberish, b: Numberish) -> iap.StochasticParameter:
             return iap.Subtract(a, b, elementwise=True)
 
-        def _affine(*args, **kwargs):
+        def _affine(*args: object, **kwargs: object) -> pillike.Affine:
+            kwargs = dict(kwargs)
             kwargs["fillcolor"] = cval
             if "center" not in kwargs:
                 kwargs["center"] = (0.0, 0.0)
@@ -329,7 +339,7 @@ class RandAugment(meta.Sequential):
         ]
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[iap.StochasticParameter | int | Sequence[int]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         someof = self[1]
         return [someof.n, self._m, self._cval]

@@ -16,17 +16,29 @@ For MotionBlur, see ``blur.py``.
 from __future__ import annotations
 
 import itertools
+from collections.abc import Callable
+from typing import Literal, TypeAlias
 
 import cv2
 import numpy as np
+from numpy.typing import NDArray
 
 import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
+import imgaug2.random as iarandom
+from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import meta
+from imgaug2.augmenters._typing import ParamInput, RNGInput
+
+ImageArray: TypeAlias = NDArray[np.generic]
+KernelMatrix: TypeAlias = NDArray[np.generic]
+KernelInput: TypeAlias = KernelMatrix | list[KernelMatrix | None]
+MatrixGenerator: TypeAlias = Callable[[ImageArray, int, iarandom.RNG], KernelInput]
+MatrixInput: TypeAlias = KernelMatrix | MatrixGenerator | None
 
 
-def convolve(image, kernel):
+def convolve(image: ImageArray, kernel: KernelInput) -> ImageArray:
     """Apply a convolution kernel (or one per channel) to an image.
 
     See :func:`convolve_` for details.
@@ -55,7 +67,7 @@ def convolve(image, kernel):
     return convolve_(np.copy(image), kernel)
 
 
-def convolve_(image, kernel):
+def convolve_(image: ImageArray, kernel: KernelInput) -> ImageArray:
     """Apply a convolution kernel (or one per channel) in-place to an image.
 
     Use a list of matrices to apply one kernel per channel.
@@ -138,8 +150,7 @@ def convolve_(image, kernel):
         assert len(kernel) == nb_channels, (
             "Kernel was given as a list. Expected that list to contain as "
             "many arrays as there are image channels. "
-            "Got %d, but expected %d for image of shape %s."
-            % (len(kernel), nb_channels, image.shape)
+            f"Got {len(kernel)}, but expected {nb_channels} for image of shape {image.shape}."
         )
         matrices = kernel
 
@@ -249,12 +260,12 @@ class Convolve(meta.Augmenter):
 
     def __init__(
         self,
-        matrix=None,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        matrix: MatrixInput = None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -265,7 +276,7 @@ class Convolve(meta.Augmenter):
         elif ia.is_np_array(matrix):
             assert matrix.ndim == 2, (
                 "Expected convolution matrix to have exactly two dimensions, "
-                "got %d (shape %s)." % (matrix.ndim, matrix.shape)
+                f"got {matrix.ndim} (shape {matrix.shape})."
             )
             self.matrix = matrix
             self.matrix_type = "constant"
@@ -279,7 +290,13 @@ class Convolve(meta.Augmenter):
             )
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -304,7 +321,7 @@ class Convolve(meta.Augmenter):
 
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.matrix, self.matrix_type]
 
@@ -381,13 +398,13 @@ class Sharpen(Convolve):
 
     def __init__(
         self,
-        alpha=(0.0, 0.2),
-        lightness=(0.8, 1.2),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        alpha: ParamInput = (0.0, 0.2),
+        lightness: ParamInput = (0.8, 1.2),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         alpha_param = iap.handle_continuous_param(
             alpha, "alpha", value_range=(0, 1.0), tuple_to_uniform=True, list_to_choice=True
         )
@@ -411,11 +428,11 @@ class Sharpen(Convolve):
 
 
 class _SharpeningMatrixGenerator:
-    def __init__(self, alpha, lightness):
+    def __init__(self, alpha: iap.StochasticParameter, lightness: iap.StochasticParameter) -> None:
         self.alpha = alpha
         self.lightness = lightness
 
-    def __call__(self, _image, nb_channels, random_state):
+    def __call__(self, _image: ImageArray, nb_channels: int, random_state: iarandom.RNG) -> KernelMatrix:
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
             f"Expected 'alpha' to be in the interval [0.0, 1.0], got {alpha_sample:.4f}."
@@ -497,13 +514,13 @@ class Emboss(Convolve):
 
     def __init__(
         self,
-        alpha=(0.0, 1.0),
-        strength=(0.25, 1.0),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        alpha: ParamInput = (0.0, 1.0),
+        strength: ParamInput = (0.25, 1.0),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         alpha_param = iap.handle_continuous_param(
             alpha, "alpha", value_range=(0, 1.0), tuple_to_uniform=True, list_to_choice=True
         )
@@ -523,11 +540,11 @@ class Emboss(Convolve):
 
 
 class _EmbossMatrixGenerator:
-    def __init__(self, alpha, strength):
+    def __init__(self, alpha: iap.StochasticParameter, strength: iap.StochasticParameter) -> None:
         self.alpha = alpha
         self.strength = strength
 
-    def __call__(self, _image, nb_channels, random_state):
+    def __call__(self, _image: ImageArray, nb_channels: int, random_state: iarandom.RNG) -> KernelMatrix:
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
             f"Expected 'alpha' to be in the interval [0.0, 1.0], got {alpha_sample:.4f}."
@@ -600,12 +617,12 @@ class EdgeDetect(Convolve):
 
     def __init__(
         self,
-        alpha=(0.0, 0.75),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        alpha: ParamInput = (0.0, 0.75),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         alpha_param = iap.handle_continuous_param(
             alpha, "alpha", value_range=(0, 1.0), tuple_to_uniform=True, list_to_choice=True
         )
@@ -622,10 +639,10 @@ class EdgeDetect(Convolve):
 
 
 class _EdgeDetectMatrixGenerator:
-    def __init__(self, alpha):
+    def __init__(self, alpha: iap.StochasticParameter) -> None:
         self.alpha = alpha
 
-    def __call__(self, _image, nb_channels, random_state):
+    def __call__(self, _image: ImageArray, nb_channels: int, random_state: iarandom.RNG) -> KernelMatrix:
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
             f"Expected 'alpha' to be in the interval [0.0, 1.0], got {alpha_sample:.4f}."
@@ -731,13 +748,13 @@ class DirectedEdgeDetect(Convolve):
 
     def __init__(
         self,
-        alpha=(0.0, 0.75),
-        direction=(0.0, 1.0),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        alpha: ParamInput = (0.0, 0.75),
+        direction: ParamInput = (0.0, 1.0),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         alpha_param = iap.handle_continuous_param(
             alpha, "alpha", value_range=(0, 1.0), tuple_to_uniform=True, list_to_choice=True
         )
@@ -757,11 +774,13 @@ class DirectedEdgeDetect(Convolve):
 
 
 class _DirectedEdgeDetectMatrixGenerator:
-    def __init__(self, alpha, direction):
+    def __init__(self, alpha: iap.StochasticParameter, direction: iap.StochasticParameter) -> None:
         self.alpha = alpha
         self.direction = direction
 
-    def __call__(self, _image, nb_channels, random_state):
+    def __call__(
+        self, _image: ImageArray, nb_channels: int, random_state: iarandom.RNG
+    ) -> KernelMatrix:
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
             f"Expected 'alpha' to be in the interval [0.0, 1.0], got {alpha_sample:.4f}."

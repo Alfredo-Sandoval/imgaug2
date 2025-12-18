@@ -11,25 +11,35 @@ Added in 0.4.0.
 
 from __future__ import annotations
 
+from typing import Literal, TypeAlias
+
 import cv2
 import numpy as np
+from numpy.typing import NDArray
 
 import imgaug2.dtypes as iadt
+import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
+import imgaug2.random as iarandom
+from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import color as colorlib
 from imgaug2.augmenters import meta
+from imgaug2.augmenters._typing import ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
+
+Image: TypeAlias = NDArray[np.uint8]
+FloatArray: TypeAlias = NDArray[np.floating]
 
 
 def stylize_cartoon(
-    image,
-    blur_ksize=3,
-    segmentation_size=1.0,
-    saturation=2.0,
-    edge_prevalence=1.0,
-    suppress_edges=True,
-    from_colorspace=colorlib.CSPACE_RGB,
-):
+    image: Image,
+    blur_ksize: int = 3,
+    segmentation_size: float = 1.0,
+    saturation: float = 2.0,
+    edge_prevalence: float = 1.0,
+    suppress_edges: bool = True,
+    from_colorspace: str = colorlib.CSPACE_RGB,
+) -> Image:
     """Convert the style of an image to a more cartoonish one.
 
     This function was primarily designed for images with a size of ``200``
@@ -154,7 +164,7 @@ def stylize_cartoon(
 
 
 # Added in 0.4.0.
-def _find_edges_canny(image, edge_multiplier, from_colorspace):
+def _find_edges_canny(image: Image, edge_multiplier: float, from_colorspace: str) -> Image:
     image_gray = colorlib.change_colorspace_(
         np.copy(image), to_colorspace=colorlib.CSPACE_GRAY, from_colorspace=from_colorspace
     )
@@ -165,7 +175,7 @@ def _find_edges_canny(image, edge_multiplier, from_colorspace):
 
 
 # Added in 0.4.0.
-def _find_edges_laplacian(image, edge_multiplier, from_colorspace):
+def _find_edges_laplacian(image: Image, edge_multiplier: float, from_colorspace: str) -> Image:
     image_gray = colorlib.change_colorspace_(
         np.copy(image), to_colorspace=colorlib.CSPACE_GRAY, from_colorspace=from_colorspace
     )
@@ -183,7 +193,7 @@ def _find_edges_laplacian(image, edge_multiplier, from_colorspace):
 
 
 # Added in 0.4.0.
-def _blur_median(image, ksize):
+def _blur_median(image: Image, ksize: int) -> Image:
     if ksize % 2 == 0:
         ksize += 1
     if ksize <= 1:
@@ -192,7 +202,7 @@ def _blur_median(image, ksize):
 
 
 # Added in 0.4.0.
-def _threshold(image, thresh):
+def _threshold(image: Image, thresh: int) -> Image:
     mask = image < thresh
     result = np.copy(image)
     result[mask] = 0
@@ -200,7 +210,7 @@ def _threshold(image, thresh):
 
 
 # Added in 0.4.0.
-def _suppress_edge_blobs(edges, size, thresh, inverse):
+def _suppress_edge_blobs(edges: Image, size: int, thresh: int, inverse: bool) -> Image:
     kernel = np.ones((size, size), dtype=np.float32)
     counts = cv2.filter2D(_normalize_cv2_input_arr_(edges / 255.0), -1, kernel)
 
@@ -215,7 +225,7 @@ def _suppress_edge_blobs(edges, size, thresh, inverse):
 
 
 # Added in 0.4.0.
-def _saturate(image, factor, from_colorspace):
+def _saturate(image: Image, factor: float, from_colorspace: str) -> Image:
     image = np.copy(image)
     if np.isclose(factor, 1.0, atol=1e-2):
         return image
@@ -233,7 +243,7 @@ def _saturate(image, factor, from_colorspace):
 
 
 # Added in 0.4.0.
-def _blend_edges(image, image_edges):
+def _blend_edges(image: Image, image_edges: Image) -> Image:
     image_edges = 1.0 - (image_edges / 255.0)
     image_edges = np.tile(image_edges[..., np.newaxis], (1, 1, 3))
     return np.clip(np.round(image * image_edges), 0.0, 255.0).astype(np.uint8)
@@ -349,16 +359,16 @@ class Cartoon(meta.Augmenter):
     # Added in 0.4.0.
     def __init__(
         self,
-        blur_ksize=(1, 5),
-        segmentation_size=(0.8, 1.2),
-        saturation=(1.5, 2.5),
-        edge_prevalence=(0.9, 1.1),
-        from_colorspace=colorlib.CSPACE_RGB,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        blur_ksize: ParamInput = (1, 5),
+        segmentation_size: ParamInput = (0.8, 1.2),
+        saturation: ParamInput = (1.5, 2.5),
+        edge_prevalence: ParamInput = (0.9, 1.1),
+        from_colorspace: str = colorlib.CSPACE_RGB,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -394,7 +404,13 @@ class Cartoon(meta.Augmenter):
         self.from_colorspace = from_colorspace
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is not None:
             samples = self._draw_samples(batch, random_state)
             for i, image in enumerate(batch.images):
@@ -409,7 +425,9 @@ class Cartoon(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def _draw_samples(self, batch, random_state):
+    def _draw_samples(
+        self, batch: _BatchInAugmentation, random_state: iarandom.RNG
+    ) -> tuple[FloatArray, FloatArray, FloatArray, FloatArray]:
         nb_rows = batch.nb_rows
         return (
             self.blur_ksize.draw_samples((nb_rows,), random_state=random_state),
@@ -419,7 +437,7 @@ class Cartoon(meta.Augmenter):
         )
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [
             self.blur_ksize,

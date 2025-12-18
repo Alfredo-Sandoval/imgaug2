@@ -16,32 +16,48 @@ List of augmenters:
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
+from typing import Literal, TypeAlias, cast
+
 import cv2
 import numpy as np
 import skimage.exposure as ski_exposure
+from numpy.typing import NDArray
 
 import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
+import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import color as color_lib
 from imgaug2.augmenters import meta
+from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
+
+KernelSize: TypeAlias = int | tuple[int, int]
+FloatArray: TypeAlias = NDArray[np.floating]
+DTypeStrs: TypeAlias = str | Sequence[str]
+ContrastFunc: TypeAlias = Callable[..., Array]
+KernelSizeParamInput: TypeAlias = int | tuple[int, int] | list[int] | iap.StochasticParameter
+KernelSizeParamInput2D: TypeAlias = KernelSizeParamInput | tuple[
+    KernelSizeParamInput, KernelSizeParamInput
+]
+IntensityChannelFunc: TypeAlias = Callable[[list[Array | None], iarandom.RNG], list[Array]]
 
 
 class _ContrastFuncWrapper(meta.Augmenter):
     def __init__(
         self,
-        func,
-        params1d,
-        per_channel,
-        dtypes_allowed=None,
-        dtypes_disallowed=None,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        func: ContrastFunc,
+        params1d: Sequence[iap.StochasticParameter],
+        per_channel: ParamInput,
+        dtypes_allowed: DTypeStrs | None = None,
+        dtypes_disallowed: DTypeStrs | None = None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -52,7 +68,13 @@ class _ContrastFuncWrapper(meta.Augmenter):
         self.dtypes_disallowed = dtypes_disallowed
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -70,7 +92,7 @@ class _ContrastFuncWrapper(meta.Augmenter):
         rss = random_state.duplicate(1 + nb_images)
         per_channel = self.per_channel.draw_samples((nb_images,), random_state=rss[0])
 
-        gen = enumerate(zip(images, per_channel, rss[1:]))
+        gen = enumerate(zip(images, per_channel, rss[1:], strict=True))
         for i, (image, per_channel_i, rs) in gen:
             nb_channels = 1 if per_channel_i <= 0.5 else image.shape[2]
             # TODO improve efficiency by sampling once
@@ -97,13 +119,13 @@ class _ContrastFuncWrapper(meta.Augmenter):
             batch.images[i] = image_aug
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[iap.StochasticParameter]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
-        return self.params1d
+        return list(self.params1d)
 
 
 # TODO quite similar to the other adjust_contrast_*() functions, make DRY
-def adjust_contrast_gamma(arr, gamma):
+def adjust_contrast_gamma(arr: Array, gamma: float) -> Array:
     """
     Adjust image contrast by scaling pixel values to ``255*((v/255)**gamma)``.
 
@@ -177,7 +199,7 @@ def adjust_contrast_gamma(arr, gamma):
 
 
 # TODO quite similar to the other adjust_contrast_*() functions, make DRY
-def adjust_contrast_sigmoid(arr, gain, cutoff):
+def adjust_contrast_sigmoid(arr: Array, gain: float, cutoff: float) -> Array:
     """
     Adjust image contrast to ``255*1/(1+exp(gain*(cutoff-I_ij/255)))``.
 
@@ -260,7 +282,7 @@ def adjust_contrast_sigmoid(arr, gain, cutoff):
 
 # TODO quite similar to the other adjust_contrast_*() functions, make DRY
 # TODO add dtype gating
-def adjust_contrast_log(arr, gain):
+def adjust_contrast_log(arr: Array, gain: float) -> Array:
     """
     Adjust image contrast by scaling pixels to ``255*gain*log_2(1+v/255)``.
 
@@ -339,7 +361,7 @@ def adjust_contrast_log(arr, gain):
 
 
 # TODO quite similar to the other adjust_contrast_*() functions, make DRY
-def adjust_contrast_linear(arr, alpha):
+def adjust_contrast_linear(arr: Array, alpha: float) -> Array:
     """Adjust contrast by scaling each pixel to ``127 + alpha*(v-127)``.
 
     **Supported dtypes**:
@@ -479,13 +501,13 @@ class GammaContrast(_ContrastFuncWrapper):
 
     def __init__(
         self,
-        gamma=(0.7, 1.7),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        gamma: ParamInput = (0.7, 1.7),
+        per_channel: ParamInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         params1d = [
             iap.handle_continuous_param(
                 gamma, "gamma", value_range=None, tuple_to_uniform=True, list_to_choice=True
@@ -591,14 +613,14 @@ class SigmoidContrast(_ContrastFuncWrapper):
 
     def __init__(
         self,
-        gain=(5, 6),
-        cutoff=(0.3, 0.6),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        gain: ParamInput = (5, 6),
+        cutoff: ParamInput = (0.3, 0.6),
+        per_channel: ParamInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # TODO add inv parameter?
         params1d = [
             iap.handle_continuous_param(
@@ -690,13 +712,13 @@ class LogContrast(_ContrastFuncWrapper):
 
     def __init__(
         self,
-        gain=(0.4, 1.6),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        gain: ParamInput = (0.4, 1.6),
+        per_channel: ParamInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # TODO add inv parameter?
         params1d = [
             iap.handle_continuous_param(
@@ -782,13 +804,13 @@ class LinearContrast(_ContrastFuncWrapper):
 
     def __init__(
         self,
-        alpha=(0.6, 1.4),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        alpha: ParamInput = (0.6, 1.4),
+        per_channel: ParamInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         params1d = [
             iap.handle_continuous_param(
                 alpha, "alpha", value_range=None, tuple_to_uniform=True, list_to_choice=True
@@ -820,7 +842,7 @@ class _IntensityChannelBasedApplier:
     Lab = color_lib.CSPACE_Lab
     _CHANNEL_MAPPING = {HSV: 2, HLS: 1, Lab: 0}
 
-    def __init__(self, from_colorspace, to_colorspace):
+    def __init__(self, from_colorspace: str, to_colorspace: str) -> None:
         super().__init__()
 
         # TODO maybe add CIE, Luv?
@@ -837,7 +859,14 @@ class _IntensityChannelBasedApplier:
         self.from_colorspace = from_colorspace
         self.to_colorspace = to_colorspace
 
-    def apply(self, images, random_state, parents, hooks, func):
+    def apply(
+        self,
+        images: Array | Sequence[Array],
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+        func: IntensityChannelFunc,
+    ) -> Array | list[Array]:
         input_was_array = ia.is_np_array(images)
         rss = random_state.duplicate(3)
 
@@ -866,11 +895,10 @@ class _IntensityChannelBasedApplier:
                 images_change_cs.append(image[..., 0:3])
                 images_change_cs_indices.append(i)
             else:
+                parents_str = ", ".join(parent.name for parent in parents)
                 ia.warn(
-                    "Got image with %d channels in "
-                    "_IntensityChannelBasedApplier (parents: %s), "
-                    "expected 0, 1, 3 or 4 channels."
-                    % (nb_channels, ", ".join(parent.name for parent in parents))
+                    f"Got image with {nb_channels} channels in _IntensityChannelBasedApplier "
+                    f"(parents: {parents_str}), expected 0, 1, 3 or 4 channels."
                 )
                 images_normalized.append(image)
 
@@ -883,7 +911,7 @@ class _IntensityChannelBasedApplier:
                 from_colorspaces=self.from_colorspace,
             )
 
-            for image_new_cs, target_idx in zip(images_new_cs, images_change_cs_indices):
+            for image_new_cs, target_idx in zip(images_new_cs, images_change_cs_indices, strict=True):
                 chan_idx = self._CHANNEL_MAPPING[self.to_colorspace]
                 images_normalized[target_idx] = image_new_cs[..., chan_idx : chan_idx + 1]
                 images_after_color_conversion[target_idx] = image_new_cs
@@ -895,7 +923,7 @@ class _IntensityChannelBasedApplier:
         result = []
         images_change_cs = []
         images_change_cs_indices = []
-        gen = enumerate(zip(images, images_after_color_conversion, images_aug))
+        gen = enumerate(zip(images, images_after_color_conversion, images_aug, strict=True))
         for i, (image, image_conv, image_aug) in gen:
             nb_channels = image.shape[2]
             if nb_channels in [3, 4]:
@@ -916,7 +944,7 @@ class _IntensityChannelBasedApplier:
                 to_colorspaces=self.from_colorspace,
                 from_colorspaces=self.to_colorspace,
             )
-            for image_new_cs, target_idx in zip(images_new_cs, images_change_cs_indices):
+            for image_new_cs, target_idx in zip(images_new_cs, images_change_cs_indices, strict=True):
                 if result[target_idx] is None:
                     result[target_idx] = image_new_cs
                 else:
@@ -930,7 +958,7 @@ class _IntensityChannelBasedApplier:
 
         return result
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.from_colorspace, self.to_colorspace]
 
@@ -1029,15 +1057,15 @@ class AllChannelsCLAHE(meta.Augmenter):
 
     def __init__(
         self,
-        clip_limit=(0.1, 8),
-        tile_grid_size_px=(3, 12),
-        tile_grid_size_px_min=3,
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        clip_limit: ParamInput = (0.1, 8),
+        tile_grid_size_px: KernelSizeParamInput2D = (3, 12),
+        tile_grid_size_px_min: int = 3,
+        per_channel: ParamInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -1056,7 +1084,13 @@ class AllChannelsCLAHE(meta.Augmenter):
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -1090,7 +1124,14 @@ class AllChannelsCLAHE(meta.Augmenter):
         tile_grid_size_px_h = np.maximum(tile_grid_size_px_h, self.tile_grid_size_px_min)
 
         gen = enumerate(
-            zip(images, clip_limit, tile_grid_size_px_h, tile_grid_size_px_w, per_channel)
+            zip(
+                images,
+                clip_limit,
+                tile_grid_size_px_h,
+                tile_grid_size_px_w,
+                per_channel,
+                strict=True,
+            )
         )
         for i, (image, clip_limit_i, tgs_px_h_i, tgs_px_w_i, pchannel_i) in gen:
             if image.size == 0:
@@ -1118,7 +1159,7 @@ class AllChannelsCLAHE(meta.Augmenter):
             batch.images[i] = image_warped
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [
             self.clip_limit,
@@ -1300,16 +1341,16 @@ class CLAHE(meta.Augmenter):
 
     def __init__(
         self,
-        clip_limit=(0.1, 8),
-        tile_grid_size_px=(3, 12),
-        tile_grid_size_px_min=3,
-        from_colorspace=color_lib.CSPACE_RGB,
-        to_colorspace=color_lib.CSPACE_Lab,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        clip_limit: ParamInput = (0.1, 8),
+        tile_grid_size_px: KernelSizeParamInput2D = (3, 12),
+        tile_grid_size_px_min: int = 3,
+        from_colorspace: str = color_lib.CSPACE_RGB,
+        to_colorspace: str = color_lib.CSPACE_Lab,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -1326,7 +1367,13 @@ class CLAHE(meta.Augmenter):
         )
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -1334,20 +1381,24 @@ class CLAHE(meta.Augmenter):
 
         iadt.allow_only_uint8(images, augmenter=self)
 
-        def _augment_all_channels_clahe(images_normalized, random_state_derived):
+        def _augment_all_channels_clahe(
+            images_normalized: list[Array], random_state_derived: iarandom.RNG
+        ) -> list[Array]:
             # pylint: disable=protected-access
             # TODO would .augment_batch() be sufficient here?
             batch_imgs = _BatchInAugmentation(images=images_normalized)
-            return self.all_channel_clahe._augment_batch_(
+            batch_out = self.all_channel_clahe._augment_batch_(
                 batch_imgs, random_state_derived, parents + [self], hooks
-            ).images
+            )
+            assert batch_out.images is not None
+            return cast(list[Array], batch_out.images)
 
         batch.images = self.intensity_channel_based_applier.apply(
             images, random_state, parents + [self], hooks, _augment_all_channels_clahe
         )
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         ac_clahe = self.all_channel_clahe
         intb_applier = self.intensity_channel_based_applier
@@ -1423,13 +1474,25 @@ class AllChannelsHistogramEqualization(meta.Augmenter):
 
     """
 
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -1451,7 +1514,7 @@ class AllChannelsHistogramEqualization(meta.Augmenter):
             batch.images[i] = image_warped
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return []
 
@@ -1569,13 +1632,13 @@ class HistogramEqualization(meta.Augmenter):
 
     def __init__(
         self,
-        from_colorspace=color_lib.CSPACE_RGB,
-        to_colorspace=color_lib.CSPACE_Lab,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        from_colorspace: str = color_lib.CSPACE_RGB,
+        to_colorspace: str = color_lib.CSPACE_Lab,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -1589,7 +1652,13 @@ class HistogramEqualization(meta.Augmenter):
         )
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -1597,13 +1666,17 @@ class HistogramEqualization(meta.Augmenter):
 
         iadt.allow_only_uint8(images, augmenter=self)
 
-        def _augment_all_channels_histogram_equalization(images_normalized, random_state_derived):
+        def _augment_all_channels_histogram_equalization(
+            images_normalized: list[Array], random_state_derived: iarandom.RNG
+        ) -> list[Array]:
             # pylint: disable=protected-access
             # TODO would .augment_batch() be sufficient here
             batch_imgs = _BatchInAugmentation(images=images_normalized)
-            return self.all_channel_histogram_equalization._augment_batch_(
+            batch_out = self.all_channel_histogram_equalization._augment_batch_(
                 batch_imgs, random_state_derived, parents + [self], hooks
-            ).images
+            )
+            assert batch_out.images is not None
+            return cast(list[Array], batch_out.images)
 
         batch.images = self.intensity_channel_based_applier.apply(
             images,
@@ -1614,7 +1687,7 @@ class HistogramEqualization(meta.Augmenter):
         )
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         icb_applier = self.intensity_channel_based_applier
         return icb_applier.get_parameters()

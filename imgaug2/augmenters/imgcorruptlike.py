@@ -175,7 +175,7 @@ def _patch_imagecorruptions_modules_():
     # Keep behavior for clip_zoom(), but avoid scipy warning spam.
     corruptions.clipped_zoom = _clipped_zoom_no_scipy_warning
 
-    imagecorruptions.__imgaug2_patched__ = True
+    setattr(imagecorruptions, "__imgaug2_patched__", True)
     return imagecorruptions, corruptions
 
 

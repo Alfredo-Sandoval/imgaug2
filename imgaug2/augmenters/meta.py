@@ -28,6 +28,9 @@ import functools
 import itertools
 import re
 from abc import ABCMeta, abstractmethod
+from collections.abc import Callable, Iterable, Iterator, Sequence
+from types import TracebackType
+from typing import Literal, TypeAlias
 
 import numpy as np
 
@@ -36,23 +39,26 @@ import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import Batch, UnnormalizedBatch, _BatchInAugmentation
 from imgaug2.augmenters import base as iabase
+from imgaug2.augmenters._typing import Array, Images, RNGInput
 from imgaug2.compat.markers import legacy
+
+Number: TypeAlias = float | int
 
 
 @ia.deprecated("imgaug2.dtypes.clip_")
-def clip_augmented_image_(image, min_value, max_value):
+def clip_augmented_image_(image: Array, min_value: Number, max_value: Number) -> Array:
     """Clip image in-place."""
     return clip_augmented_images_(image, min_value, max_value)
 
 
 @ia.deprecated("imgaug2.dtypes.clip_")
-def clip_augmented_image(image, min_value, max_value):
+def clip_augmented_image(image: Array, min_value: Number, max_value: Number) -> Array:
     """Clip image."""
     return clip_augmented_images(image, min_value, max_value)
 
 
 @ia.deprecated("imgaug2.dtypes.clip_")
-def clip_augmented_images_(images, min_value, max_value):
+def clip_augmented_images_(images: Images, min_value: Number, max_value: Number) -> Images:
     """Clip images in-place."""
     if ia.is_np_array(images):
         return np.clip(images, min_value, max_value, out=images)
@@ -60,7 +66,7 @@ def clip_augmented_images_(images, min_value, max_value):
 
 
 @ia.deprecated("imgaug2.dtypes.clip_")
-def clip_augmented_images(images, min_value, max_value):
+def clip_augmented_images(images: Images, min_value: Number, max_value: Number) -> Images:
     """Clip images."""
     if ia.is_np_array(images):
         images = np.copy(images)
@@ -70,7 +76,12 @@ def clip_augmented_images(images, min_value, max_value):
 
 
 @legacy
-def handle_children_list(lst, augmenter_name, lst_name, default="sequential"):
+def handle_children_list(
+    lst: Augmenter | Sequence[Augmenter] | None,
+    augmenter_name: str,
+    lst_name: str,
+    default: Augmenter | Sequence[Augmenter] | None | Literal["sequential"] = "sequential",
+) -> Augmenter | Sequence[Augmenter] | None:
     """Normalize an augmenter list provided by a user."""
     if lst is None:
         if default == "sequential":
@@ -100,7 +111,7 @@ def handle_children_list(lst, augmenter_name, lst_name, default="sequential"):
 
 
 @legacy
-def reduce_to_nonempty(objs):
+def reduce_to_nonempty(objs: Sequence[object]) -> tuple[list[object], list[int]]:
     """Remove from a list all objects that don't follow ``obj.empty==True``."""
     objs_reduced = []
     ids = []
@@ -114,15 +125,17 @@ def reduce_to_nonempty(objs):
     return objs_reduced, ids
 
 
-def invert_reduce_to_nonempty(objs, ids, objs_reduced):
+def invert_reduce_to_nonempty(
+    objs: Sequence[object], ids: Sequence[int], objs_reduced: Sequence[object]
+) -> list[object]:
     """Inverse of :func:`reduce_to_nonempty`."""
     objs_inv = list(objs)
-    for idx, obj_from_reduced in zip(ids, objs_reduced):
+    for idx, obj_from_reduced in zip(ids, objs_reduced, strict=True):
         objs_inv[idx] = obj_from_reduced
     return objs_inv
 
 
-def estimate_max_number_of_channels(images):
+def estimate_max_number_of_channels(images: Images) -> int | None:
     """Compute the maximum number of image channels among a list of images."""
     if ia.is_np_array(images):
         assert images.ndim == 4, (
@@ -140,14 +153,14 @@ def estimate_max_number_of_channels(images):
     return max(channels)
 
 
-def copy_arrays(arrays):
+def copy_arrays(arrays: Images) -> Images:
     """Copy the arrays of a single input array or list of input arrays."""
     if ia.is_np_array(arrays):
         return np.copy(arrays)
     return [np.copy(array) for array in arrays]
 
 
-def _add_channel_axis(arrs):
+def _add_channel_axis(arrs: Images) -> Images:
     if ia.is_np_array(arrs):
         if arrs.ndim == 3:  # (N,H,W)
             return arrs[..., np.newaxis]  # (N,H,W) -> (N,H,W,1)
@@ -160,7 +173,7 @@ def _add_channel_axis(arrs):
     ]
 
 
-def _remove_added_channel_axis(arrs_added, arrs_orig):
+def _remove_added_channel_axis(arrs_added: Images, arrs_orig: Images) -> Images:
     if ia.is_np_array(arrs_orig):
         if arrs_orig.ndim == 3:  # (N,H,W)
             if ia.is_np_array(arrs_added):
@@ -193,7 +206,7 @@ class _maybe_deterministic_ctx:  # pylint: disable=invalid-name
 
     """
 
-    def __init__(self, random_state, deterministic=None):
+    def __init__(self, random_state: iarandom.RNG | Augmenter, deterministic: bool | None = None) -> None:
         if deterministic is None:
             augmenter = random_state
             self.random_state = augmenter.random_state
@@ -204,11 +217,16 @@ class _maybe_deterministic_ctx:  # pylint: disable=invalid-name
             self.deterministic = deterministic
         self.old_state = None
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         if self.deterministic:
             self.old_state = self.random_state.state
 
-    def __exit__(self, exception_type, exception_value, exception_traceback):
+    def __exit__(
+        self,
+        exception_type: type[BaseException] | None,
+        exception_value: BaseException | None,
+        exception_traceback: TracebackType | None,
+    ) -> None:
         if self.old_state is not None:
             self.random_state.state = self.old_state
 
@@ -275,7 +293,13 @@ class Augmenter(metaclass=ABCMeta):
 
     """
 
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         """Create a new Augmenter instance."""
         super().__init__()
 
@@ -317,7 +341,12 @@ class Augmenter(metaclass=ABCMeta):
 
         self.activated = True
 
-    def augment_batches(self, batches, hooks=None, background=False):
+    def augment_batches(
+        self,
+        batches: Batch | UnnormalizedBatch | Iterable[object],
+        hooks: ia.HooksImages | None = None,
+        background: bool = False,
+    ) -> Iterator[object]:
         """Augment multiple batches.
 
         In contrast to other ``augment_*`` method, this one **yields**
@@ -373,7 +402,7 @@ class Augmenter(metaclass=ABCMeta):
         if background:
             assert hooks is None, "Hooks can not be used when background augmentation is activated."
 
-        def _normalize_batch(idx, batch):
+        def _normalize_batch(idx: int, batch: object) -> tuple[Batch, str]:
             if isinstance(batch, Batch):
                 batch_copy = batch.deepcopy()
                 batch_copy.data = (idx, batch_copy.data)
@@ -446,7 +475,7 @@ class Augmenter(metaclass=ABCMeta):
             return batch_normalized, batch_orig_dt
 
         # unnormalization of non-Batch/UnnormalizedBatch is for legacy support
-        def _unnormalize_batch(batch_aug, batch_orig, batch_orig_dt):
+        def _unnormalize_batch(batch_aug: Batch, batch_orig: object, batch_orig_dt: str) -> object:
             if batch_orig_dt == "imgaug2.Batch":
                 batch_unnormalized = batch_aug
                 # change (i, .data) back to just .data
@@ -492,7 +521,7 @@ class Augmenter(metaclass=ABCMeta):
 
             id_to_batch_orig = dict()
 
-            def load_batches():
+            def load_batches() -> Iterator[Batch]:
                 for idx, batch in enumerate(batches):
                     batch_normalized, batch_orig_dt = _normalize_batch(idx, batch)
                     id_to_batch_orig[idx] = (batch, batch_orig_dt)
@@ -528,7 +557,9 @@ class Augmenter(metaclass=ABCMeta):
         "must be changed to "
         "`augment_batch(batch, hooks=hooks)`.",
     )
-    def augment_batch(self, batch, hooks=None):
+    def augment_batch(
+        self, batch: Batch | UnnormalizedBatch | _BatchInAugmentation, hooks: ia.HooksImages | None = None
+    ) -> Batch | UnnormalizedBatch | _BatchInAugmentation:
         """Augment a single batch.
 
         Deprecated since 0.4.0.
@@ -540,7 +571,12 @@ class Augmenter(metaclass=ABCMeta):
         return self.augment_batch_(batch, hooks=hooks)
 
     # TODO add more tests
-    def augment_batch_(self, batch, parents=None, hooks=None):
+    def augment_batch_(
+        self,
+        batch: Batch | UnnormalizedBatch | _BatchInAugmentation,
+        parents: list[Augmenter] | None = None,
+        hooks: ia.HooksImages | None = None,
+    ) -> Batch | UnnormalizedBatch | _BatchInAugmentation:
         """
         Augment a single batch in-place.
 
@@ -659,7 +695,13 @@ class Augmenter(metaclass=ABCMeta):
             return batch_norm
         return batch_inaug
 
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         """Augment a single batch in-place.
 
         This is the internal version of :func:`Augmenter.augment_batch_`.
@@ -727,7 +769,7 @@ class Augmenter(metaclass=ABCMeta):
 
         return batch
 
-    def augment_image(self, image, hooks=None):
+    def augment_image(self, image: Array, hooks: ia.HooksImages | None = None) -> Array:
         """Augment a single image.
 
         Parameters
@@ -765,7 +807,12 @@ class Augmenter(metaclass=ABCMeta):
         iabase._warn_on_suspicious_single_image_shape(image)
         return self.augment_images([image], hooks=hooks)[0]
 
-    def augment_images(self, images, parents=None, hooks=None):
+    def augment_images(
+        self,
+        images: Images,
+        parents: list[Augmenter] | None = None,
+        hooks: ia.HooksImages | None = None,
+    ) -> Images:
         """Augment a batch of images.
 
         Parameters
@@ -818,7 +865,13 @@ class Augmenter(metaclass=ABCMeta):
             UnnormalizedBatch(images=images), parents=parents, hooks=hooks
         ).images_aug
 
-    def _augment_images(self, images, random_state, parents, hooks):
+    def _augment_images(
+        self,
+        images: Images,
+        random_state: iarandom.RNG,
+        parents: list[Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> Images:
         """Augment a batch of images in-place.
 
         This is the internal version of :func:`Augmenter.augment_images`.
@@ -866,7 +919,12 @@ class Augmenter(metaclass=ABCMeta):
         """
         return images
 
-    def augment_heatmaps(self, heatmaps, parents=None, hooks=None):
+    def augment_heatmaps(
+        self,
+        heatmaps: ia.HeatmapsOnImage | list[ia.HeatmapsOnImage],
+        parents: list[Augmenter] | None = None,
+        hooks: ia.HooksHeatmaps | None = None,
+    ) -> ia.HeatmapsOnImage | list[ia.HeatmapsOnImage]:
         """Augment a batch of heatmaps.
 
         Parameters
@@ -895,7 +953,13 @@ class Augmenter(metaclass=ABCMeta):
             UnnormalizedBatch(heatmaps=heatmaps), parents=parents, hooks=hooks
         ).heatmaps_aug
 
-    def _augment_heatmaps(self, heatmaps, random_state, parents, hooks):
+    def _augment_heatmaps(
+        self,
+        heatmaps: ia.HeatmapsOnImage | list[ia.HeatmapsOnImage],
+        random_state: iarandom.RNG,
+        parents: list[Augmenter],
+        hooks: ia.HooksHeatmaps | None,
+    ) -> ia.HeatmapsOnImage | list[ia.HeatmapsOnImage]:
         """Augment a batch of heatmaps in-place.
 
         This is the internal version of :func:`Augmenter.augment_heatmaps`.
@@ -932,7 +996,12 @@ class Augmenter(metaclass=ABCMeta):
         """
         return heatmaps
 
-    def augment_segmentation_maps(self, segmaps, parents=None, hooks=None):
+    def augment_segmentation_maps(
+        self,
+        segmaps: ia.SegmentationMapsOnImage | list[ia.SegmentationMapsOnImage],
+        parents: list[Augmenter] | None = None,
+        hooks: ia.HooksHeatmaps | None = None,
+    ) -> ia.SegmentationMapsOnImage | list[ia.SegmentationMapsOnImage]:
         """Augment a batch of segmentation maps.
 
         Parameters
@@ -960,7 +1029,13 @@ class Augmenter(metaclass=ABCMeta):
             UnnormalizedBatch(segmentation_maps=segmaps), parents=parents, hooks=hooks
         ).segmentation_maps_aug
 
-    def _augment_segmentation_maps(self, segmaps, random_state, parents, hooks):
+    def _augment_segmentation_maps(
+        self,
+        segmaps: ia.SegmentationMapsOnImage | list[ia.SegmentationMapsOnImage],
+        random_state: iarandom.RNG,
+        parents: list[Augmenter],
+        hooks: ia.HooksHeatmaps | None,
+    ) -> ia.SegmentationMapsOnImage | list[ia.SegmentationMapsOnImage]:
         """Augment a batch of segmentation in-place.
 
         This is the internal version of
@@ -1000,7 +1075,12 @@ class Augmenter(metaclass=ABCMeta):
         """
         return segmaps
 
-    def augment_keypoints(self, keypoints_on_images, parents=None, hooks=None):
+    def augment_keypoints(
+        self,
+        keypoints_on_images: ia.KeypointsOnImage | list[ia.KeypointsOnImage],
+        parents: list[Augmenter] | None = None,
+        hooks: ia.HooksKeypoints | None = None,
+    ) -> ia.KeypointsOnImage | list[ia.KeypointsOnImage]:
         """Augment a batch of keypoints/landmarks.
 
         This is the corresponding function to :func:`Augmenter.augment_images`,
@@ -1063,7 +1143,13 @@ class Augmenter(metaclass=ABCMeta):
             UnnormalizedBatch(keypoints=keypoints_on_images), parents=parents, hooks=hooks
         ).keypoints_aug
 
-    def _augment_keypoints(self, keypoints_on_images, random_state, parents, hooks):
+    def _augment_keypoints(
+        self,
+        keypoints_on_images: ia.KeypointsOnImage | list[ia.KeypointsOnImage],
+        random_state: iarandom.RNG,
+        parents: list[Augmenter],
+        hooks: ia.HooksKeypoints | None,
+    ) -> ia.KeypointsOnImage | list[ia.KeypointsOnImage]:
         """Augment a batch of keypoints in-place.
 
         This is the internal version of :func:`Augmenter.augment_keypoints`.
@@ -1103,7 +1189,12 @@ class Augmenter(metaclass=ABCMeta):
         """
         return keypoints_on_images
 
-    def augment_bounding_boxes(self, bounding_boxes_on_images, parents=None, hooks=None):
+    def augment_bounding_boxes(
+        self,
+        bounding_boxes_on_images: ia.BoundingBoxesOnImage | list[ia.BoundingBoxesOnImage],
+        parents: list[Augmenter] | None = None,
+        hooks: ia.HooksKeypoints | None = None,
+    ) -> ia.BoundingBoxesOnImage | list[ia.BoundingBoxesOnImage]:
         """Augment a batch of bounding boxes.
 
         This is the corresponding function to
@@ -1168,7 +1259,12 @@ class Augmenter(metaclass=ABCMeta):
             UnnormalizedBatch(bounding_boxes=bounding_boxes_on_images), parents=parents, hooks=hooks
         ).bounding_boxes_aug
 
-    def augment_polygons(self, polygons_on_images, parents=None, hooks=None):
+    def augment_polygons(
+        self,
+        polygons_on_images: ia.PolygonsOnImage | list[ia.PolygonsOnImage],
+        parents: list[Augmenter] | None = None,
+        hooks: ia.HooksKeypoints | None = None,
+    ) -> ia.PolygonsOnImage | list[ia.PolygonsOnImage]:
         """Augment a batch of polygons.
 
         This is the corresponding function to :func:`Augmenter.augment_images`,
@@ -1232,7 +1328,12 @@ class Augmenter(metaclass=ABCMeta):
             UnnormalizedBatch(polygons=polygons_on_images), parents=parents, hooks=hooks
         ).polygons_aug
 
-    def augment_line_strings(self, line_strings_on_images, parents=None, hooks=None):
+    def augment_line_strings(
+        self,
+        line_strings_on_images: ia.LineStringsOnImage | list[ia.LineStringsOnImage],
+        parents: list[Augmenter] | None = None,
+        hooks: ia.HooksKeypoints | None = None,
+    ) -> ia.LineStringsOnImage | list[ia.LineStringsOnImage]:
         """Augment a batch of line strings.
 
         This is the corresponding function to
@@ -1298,7 +1399,13 @@ class Augmenter(metaclass=ABCMeta):
             UnnormalizedBatch(line_strings=line_strings_on_images), parents=parents, hooks=hooks
         ).line_strings_aug
 
-    def _augment_bounding_boxes(self, bounding_boxes_on_images, random_state, parents, hooks):
+    def _augment_bounding_boxes(
+        self,
+        bounding_boxes_on_images: ia.BoundingBoxesOnImage | list[ia.BoundingBoxesOnImage],
+        random_state: iarandom.RNG,
+        parents: list[Augmenter],
+        hooks: ia.HooksKeypoints | None,
+    ) -> ia.BoundingBoxesOnImage | list[ia.BoundingBoxesOnImage]:
         """Augment a batch of bounding boxes on images in-place.
 
         This is the internal version of
@@ -1344,7 +1451,13 @@ class Augmenter(metaclass=ABCMeta):
             bounding_boxes_on_images, random_state=random_state, parents=parents, hooks=hooks
         )
 
-    def _augment_polygons(self, polygons_on_images, random_state, parents, hooks):
+    def _augment_polygons(
+        self,
+        polygons_on_images: ia.PolygonsOnImage | list[ia.PolygonsOnImage],
+        random_state: iarandom.RNG,
+        parents: list[Augmenter],
+        hooks: ia.HooksKeypoints | None,
+    ) -> ia.PolygonsOnImage | list[ia.PolygonsOnImage]:
         """Augment a batch of polygons on images in-place.
 
         This is the internal version of :func:`Augmenter.augment_polygons`.
@@ -1387,7 +1500,13 @@ class Augmenter(metaclass=ABCMeta):
             polygons_on_images, random_state=random_state, parents=parents, hooks=hooks
         )
 
-    def _augment_line_strings(self, line_strings_on_images, random_state, parents, hooks):
+    def _augment_line_strings(
+        self,
+        line_strings_on_images: ia.LineStringsOnImage | list[ia.LineStringsOnImage],
+        random_state: iarandom.RNG,
+        parents: list[Augmenter],
+        hooks: ia.HooksKeypoints | None,
+    ) -> ia.LineStringsOnImage | list[ia.LineStringsOnImage]:
         """Augment a batch of line strings in-place.
 
         This is the internal version of
@@ -1432,8 +1551,12 @@ class Augmenter(metaclass=ABCMeta):
         )
 
     def _augment_bounding_boxes_as_keypoints(
-        self, bounding_boxes_on_images, random_state, parents, hooks
-    ):
+        self,
+        bounding_boxes_on_images: ia.BoundingBoxesOnImage | list[ia.BoundingBoxesOnImage],
+        random_state: iarandom.RNG,
+        parents: list[Augmenter],
+        hooks: ia.HooksKeypoints | None,
+    ) -> ia.BoundingBoxesOnImage | list[ia.BoundingBoxesOnImage]:
         """
         Augment BBs by applying keypoint augmentation to their corners.
 
@@ -1465,8 +1588,13 @@ class Augmenter(metaclass=ABCMeta):
         )
 
     def _augment_polygons_as_keypoints(
-        self, polygons_on_images, random_state, parents, hooks, recoverer=None
-    ):
+        self,
+        polygons_on_images: ia.PolygonsOnImage | list[ia.PolygonsOnImage],
+        random_state: iarandom.RNG,
+        parents: list[Augmenter],
+        hooks: ia.HooksKeypoints | None,
+        recoverer: object | None = None,
+    ) -> ia.PolygonsOnImage | list[ia.PolygonsOnImage]:
         """
         Augment polygons by applying keypoint augmentation to their vertices.
 
@@ -1514,8 +1642,12 @@ class Augmenter(metaclass=ABCMeta):
         )
 
     def _augment_line_strings_as_keypoints(
-        self, line_strings_on_images, random_state, parents, hooks
-    ):
+        self,
+        line_strings_on_images: ia.LineStringsOnImage | list[ia.LineStringsOnImage],
+        random_state: iarandom.RNG,
+        parents: list[Augmenter],
+        hooks: ia.HooksKeypoints | None,
+    ) -> ia.LineStringsOnImage | list[ia.LineStringsOnImage]:
         """
         Augment BBs by applying keypoint augmentation to their corners.
 
@@ -1544,7 +1676,21 @@ class Augmenter(metaclass=ABCMeta):
             line_strings_on_images, random_state=random_state, parents=parents, hooks=hooks
         )
 
-    def _augment_cbaois_as_keypoints(self, cbaois, random_state, parents, hooks):
+    def _augment_cbaois_as_keypoints(
+        self,
+        cbaois: ia.BoundingBoxesOnImage
+        | ia.PolygonsOnImage
+        | ia.LineStringsOnImage
+        | list[ia.BoundingBoxesOnImage | ia.PolygonsOnImage | ia.LineStringsOnImage],
+        random_state: iarandom.RNG,
+        parents: list[Augmenter],
+        hooks: ia.HooksKeypoints | None,
+    ) -> (
+        ia.BoundingBoxesOnImage
+        | ia.PolygonsOnImage
+        | ia.LineStringsOnImage
+        | list[ia.BoundingBoxesOnImage | ia.PolygonsOnImage | ia.LineStringsOnImage]
+    ):
         """
         Augment bounding boxes by applying KP augmentation to their corners.
 
@@ -1579,8 +1725,15 @@ class Augmenter(metaclass=ABCMeta):
 
     @classmethod
     def _apply_to_polygons_as_keypoints(
-        cls, polygons_on_images, func, recoverer=None, random_state=None
-    ):
+        cls,
+        polygons_on_images: ia.PolygonsOnImage | list[ia.PolygonsOnImage],
+        func: Callable[
+            [ia.KeypointsOnImage | list[ia.KeypointsOnImage]],
+            ia.KeypointsOnImage | list[ia.KeypointsOnImage],
+        ],
+        recoverer: object | None = None,
+        random_state: iarandom.RNG | None = None,
+    ) -> ia.PolygonsOnImage | list[ia.PolygonsOnImage]:
         """
         Apply a callback to polygons in keypoint-representation.
 
@@ -1637,7 +1790,22 @@ class Augmenter(metaclass=ABCMeta):
         return psois
 
     @classmethod
-    def _apply_to_cbaois_as_keypoints(cls, cbaois, func):
+    def _apply_to_cbaois_as_keypoints(
+        cls,
+        cbaois: ia.BoundingBoxesOnImage
+        | ia.PolygonsOnImage
+        | ia.LineStringsOnImage
+        | list[ia.BoundingBoxesOnImage | ia.PolygonsOnImage | ia.LineStringsOnImage],
+        func: Callable[
+            [ia.KeypointsOnImage | list[ia.KeypointsOnImage]],
+            ia.KeypointsOnImage | list[ia.KeypointsOnImage],
+        ],
+    ) -> (
+        ia.BoundingBoxesOnImage
+        | ia.PolygonsOnImage
+        | ia.LineStringsOnImage
+        | list[ia.BoundingBoxesOnImage | ia.PolygonsOnImage | ia.LineStringsOnImage]
+    ):
         """
         Augment bounding boxes by applying KP augmentation to their corners.
 
@@ -1669,7 +1837,12 @@ class Augmenter(metaclass=ABCMeta):
         kpsois_aug = func(kpsois)
         return invert_convert_cbaois_to_kpsois_(cbaois, kpsois_aug)
 
-    def augment(self, return_batch=False, hooks=None, **kwargs):
+    def augment(
+        self,
+        return_batch: bool = False,
+        hooks: ia.HooksImages | None = None,
+        **kwargs: object,
+    ) -> object:
         """Augment a batch.
 
         This method is a wrapper around
@@ -1968,11 +2141,13 @@ class Augmenter(metaclass=ABCMeta):
             return result[0]
         return tuple(result)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: object, **kwargs: object) -> object:
         """Alias for :func:`~imgaug2.augmenters.meta.Augmenter.augment`."""
         return self.augment(*args, **kwargs)
 
-    def pool(self, processes=None, maxtasksperchild=None, seed=None):
+    def pool(
+        self, processes: int | None = None, maxtasksperchild: int | None = None, seed: RNGInput = None
+    ) -> object:
         """Create a pool used for multicore augmentation.
 
         Parameters
@@ -2058,7 +2233,7 @@ class Augmenter(metaclass=ABCMeta):
     #      treated as one 3d image, in augment_images as (N, H, W))
     # TODO according to the docstring, this can handle (H,W) images, but not
     #      (H,W,1)
-    def draw_grid(self, images, rows, cols):
+    def draw_grid(self, images: Images, rows: int, cols: int) -> Array:
         """Augment images and draw the results as a single grid-like image.
 
         This method applies this augmenter to the provided images and returns
@@ -2155,7 +2330,7 @@ class Augmenter(metaclass=ABCMeta):
 
     # TODO test for 2D images
     # TODO test with C = 1
-    def show_grid(self, images, rows, cols):
+    def show_grid(self, images: Images, rows: int, cols: int) -> None:
         """Augment images and plot the results as a single grid-like image.
 
         This calls :func:`~imgaug2.augmenters.meta.Augmenter.draw_grid` and
@@ -2181,7 +2356,7 @@ class Augmenter(metaclass=ABCMeta):
         grid = self.draw_grid(images, rows, cols)
         ia.imshow(grid)
 
-    def to_deterministic(self, n=None):
+    def to_deterministic(self, n: int | None = None) -> Augmenter | list[Augmenter]:
         """Convert this augmenter from a stochastic to a deterministic one.
 
         A stochastic augmenter samples pseudo-random values for each parameter,
@@ -2222,7 +2397,7 @@ class Augmenter(metaclass=ABCMeta):
             return self.to_deterministic(1)[0]
         return [self._to_deterministic() for _ in range(n)]
 
-    def with_probability(self, p):
+    def with_probability(self, p: float | iap.StochasticParameter) -> Augmenter:
         """Wrap this augmenter in :class:`~imgaug2.augmenters.meta.Sometimes`.
 
         This is a convenience method to get a uniform "probability of applying"
@@ -2240,7 +2415,7 @@ class Augmenter(metaclass=ABCMeta):
         """
         return Sometimes(p, self)
 
-    def _to_deterministic(self):
+    def _to_deterministic(self) -> Augmenter:
         """Convert this augmenter from a stochastic to a deterministic one.
 
         Augmenter-specific implementation of
@@ -2272,7 +2447,7 @@ class Augmenter(metaclass=ABCMeta):
         return aug
 
     @ia.deprecated("imgaug2.augmenters.meta.Augmenter.seed_")
-    def reseed(self, random_state=None, deterministic_too=False):
+    def reseed(self, random_state: RNGInput = None, deterministic_too: bool = False) -> None:
         """Old name of :func:`~imgaug2.augmenters.meta.Augmenter.seed_`.
 
         Deprecated since 0.4.0.
@@ -2281,7 +2456,7 @@ class Augmenter(metaclass=ABCMeta):
         self.seed_(entropy=random_state, deterministic_too=deterministic_too)
 
     # TODO mark this as in-place
-    def seed_(self, entropy=None, deterministic_too=False):
+    def seed_(self, entropy: RNGInput = None, deterministic_too: bool = False) -> None:
         """Seed this augmenter and all of its children.
 
         This method assigns a new random number generator to the
@@ -2357,7 +2532,7 @@ class Augmenter(metaclass=ABCMeta):
             for aug in lst:
                 aug.seed_(entropy=random_state.derive_rng_(), deterministic_too=deterministic_too)
 
-    def localize_random_state(self, recursive=True):
+    def localize_random_state(self, recursive: bool = True) -> Augmenter:
         """Assign augmenter-specific RNGs to this augmenter and its children.
 
         See :func:`Augmenter.localize_random_state_` for more details.
@@ -2379,7 +2554,7 @@ class Augmenter(metaclass=ABCMeta):
         return aug
 
     # TODO rename random_state -> rng
-    def localize_random_state_(self, recursive=True):
+    def localize_random_state_(self, recursive: bool = True) -> Augmenter:
         """Assign augmenter-specific RNGs to this augmenter and its children.
 
         This method iterates over this augmenter and all of its children and
@@ -2433,12 +2608,12 @@ class Augmenter(metaclass=ABCMeta):
     # TODO adapt random_state -> rng
     def copy_random_state(
         self,
-        source,
-        recursive=True,
-        matching="position",
-        matching_tolerant=True,
-        copy_determinism=False,
-    ):
+        source: Augmenter,
+        recursive: bool = True,
+        matching: Literal["position", "name"] = "position",
+        matching_tolerant: bool = True,
+        copy_determinism: bool = False,
+    ) -> Augmenter:
         """Copy the RNGs from a source augmenter sequence.
 
         Parameters
@@ -2476,12 +2651,12 @@ class Augmenter(metaclass=ABCMeta):
 
     def copy_random_state_(
         self,
-        source,
-        recursive=True,
-        matching="position",
-        matching_tolerant=True,
-        copy_determinism=False,
-    ):
+        source: Augmenter,
+        recursive: bool = True,
+        matching: Literal["position", "name"] = "position",
+        matching_tolerant: bool = True,
+        copy_determinism: bool = False,
+    ) -> Augmenter:
         """Copy the RNGs from a source augmenter sequence (in-place).
 
         .. note::
@@ -2596,7 +2771,7 @@ class Augmenter(metaclass=ABCMeta):
         return self
 
     @abstractmethod
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """Get the parameters of this augmenter.
 
         Returns
@@ -2609,7 +2784,7 @@ class Augmenter(metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def get_children_lists(self):
+    def get_children_lists(self) -> list[list[Augmenter]]:
         """Get a list of lists of children of this augmenter.
 
         For most augmenters, the result will be a single empty list.
@@ -2650,7 +2825,7 @@ class Augmenter(metaclass=ABCMeta):
     #      get_children_lists() for flat=False, aside from returning list
     #      copies instead of the same instances as used by the augmenters.
     # TODO this can be simplified using imgaug2.imgaug2.flatten()?
-    def get_all_children(self, flat=False):
+    def get_all_children(self, flat: bool = False) -> list[Augmenter | list[Augmenter]]:
         """Get all children of this augmenter as a list.
 
         If the augmenter has no children, the returned list is empty.
@@ -2678,7 +2853,12 @@ class Augmenter(metaclass=ABCMeta):
                         result.append(children)
         return result
 
-    def find_augmenters(self, func, parents=None, flat=True):
+    def find_augmenters(
+        self,
+        func: Callable[[Augmenter, list[Augmenter]], bool],
+        parents: list[Augmenter] | None = None,
+        flat: bool = True,
+    ) -> list[Augmenter | list[Augmenter]]:
         """Find augmenters that match a condition.
 
         This function will compare this augmenter and all of its children
@@ -2738,7 +2918,9 @@ class Augmenter(metaclass=ABCMeta):
                         result.append(found)
         return result
 
-    def find_augmenters_by_name(self, name, regex=False, flat=True):
+    def find_augmenters_by_name(
+        self, name: str, regex: bool = False, flat: bool = True
+    ) -> list[Augmenter | list[Augmenter]]:
         """Find augmenter(s) by name.
 
         Parameters
@@ -2761,7 +2943,9 @@ class Augmenter(metaclass=ABCMeta):
         """
         return self.find_augmenters_by_names([name], regex=regex, flat=flat)
 
-    def find_augmenters_by_names(self, names, regex=False, flat=True):
+    def find_augmenters_by_names(
+        self, names: Sequence[str], regex: bool = False, flat: bool = True
+    ) -> list[Augmenter | list[Augmenter]]:
         """Find augmenter(s) by names.
 
         Parameters
@@ -2786,7 +2970,7 @@ class Augmenter(metaclass=ABCMeta):
         """
         if regex:
 
-            def comparer(aug, _parents):
+            def comparer(aug: Augmenter, _parents: list[Augmenter]) -> bool:
                 for pattern in names:
                     if re.match(pattern, aug.name):
                         return True
@@ -2797,7 +2981,13 @@ class Augmenter(metaclass=ABCMeta):
 
     # TODO remove copy arg
     # TODO allow first arg to be string name, class type or func
-    def remove_augmenters(self, func, copy=True, identity_if_topmost=True, noop_if_topmost=None):
+    def remove_augmenters(
+        self,
+        func: Callable[[Augmenter, list[Augmenter]], bool],
+        copy: bool = True,
+        identity_if_topmost: bool = True,
+        noop_if_topmost: bool | None = None,
+    ) -> Augmenter | None:
         """Remove this augmenter or children that match a condition.
 
         Parameters
@@ -2871,7 +3061,9 @@ class Augmenter(metaclass=ABCMeta):
         return aug
 
     @ia.deprecated("remove_augmenters_")
-    def remove_augmenters_inplace(self, func, parents=None):
+    def remove_augmenters_inplace(
+        self, func: Callable[[Augmenter, list[Augmenter]], bool], parents: list[Augmenter] | None = None
+    ) -> None:
         """Old name for :func:`~imgaug2.meta.Augmenter.remove_augmenters_`.
 
         Deprecated since 0.4.0.
@@ -2881,7 +3073,9 @@ class Augmenter(metaclass=ABCMeta):
 
     # TODO allow first arg to be string name, class type or func
     # TODO remove parents arg + add _remove_augmenters_() with parents arg
-    def remove_augmenters_(self, func, parents=None):
+    def remove_augmenters_(
+        self, func: Callable[[Augmenter, list[Augmenter]], bool], parents: list[Augmenter] | None = None
+    ) -> None:
         """Remove in-place children of this augmenter that match a condition.
 
         This is functionally identical to
@@ -2929,7 +3123,7 @@ class Augmenter(metaclass=ABCMeta):
             for aug in lst:
                 aug.remove_augmenters_(func, subparents)
 
-    def copy(self):
+    def copy(self) -> Augmenter:
         """Create a shallow copy of this Augmenter instance.
 
         Returns
@@ -2940,7 +3134,7 @@ class Augmenter(metaclass=ABCMeta):
         """
         return copy_module.copy(self)
 
-    def deepcopy(self):
+    def deepcopy(self) -> Augmenter:
         """Create a deep copy of this Augmenter instance.
 
         Returns
@@ -2957,10 +3151,10 @@ class Augmenter(metaclass=ABCMeta):
         # TODO write a custom copying routine?
         return copy_module.deepcopy(self)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
-    def __str__(self):
+    def __str__(self) -> str:
         params = self.get_parameters()
         params_str = ", ".join([param.__str__() for param in params])
         return f"{self.__class__.__name__}(name={self.name}, parameters=[{params_str}], deterministic={self.deterministic})"
@@ -3067,13 +3261,13 @@ class Sequential(Augmenter, list):
 
     def __init__(
         self,
-        children=None,
-        random_order=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        children: Augmenter | Sequence[Augmenter] | None = None,
+        random_order: bool = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         Augmenter.__init__(
             self, seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -3104,7 +3298,13 @@ class Sequential(Augmenter, list):
         self.random_order = random_order
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         with batch.propagation_hooks_ctx(self, hooks, parents):
             if self.random_order:
                 order = random_state.permutation(len(self))
@@ -3115,7 +3315,7 @@ class Sequential(Augmenter, list):
                 batch = self[index].augment_batch_(batch, parents=parents + [self], hooks=hooks)
         return batch
 
-    def _to_deterministic(self):
+    def _to_deterministic(self) -> Sequential:
         augs = [aug.to_deterministic() for aug in self]
         seq = self.copy()
         seq[:] = augs
@@ -3123,11 +3323,11 @@ class Sequential(Augmenter, list):
         seq.deterministic = True
         return seq
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.random_order]
 
-    def add(self, augmenter):
+    def add(self, augmenter: Augmenter) -> None:
         """Add an augmenter to the list of child augmenters.
 
         Parameters
@@ -3138,11 +3338,11 @@ class Sequential(Augmenter, list):
         """
         self.append(augmenter)
 
-    def get_children_lists(self):
+    def get_children_lists(self) -> list[list[Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
         return [self]
 
-    def __str__(self):
+    def __str__(self) -> str:
         augs_str = ", ".join([aug.__str__() for aug in self])
         pattern = "%s(name=%s, random_order=%s, children=[%s], deterministic=%s)"
         return pattern % (

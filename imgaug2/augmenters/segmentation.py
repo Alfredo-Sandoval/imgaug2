@@ -14,6 +14,8 @@ List of augmenters:
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
+from collections.abc import Sequence
+from typing import Literal
 
 import numpy as np
 import skimage.measure
@@ -27,7 +29,9 @@ import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
+from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import meta
+from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 from imgaug2.imgaug import _NUMBA_INSTALLED, _numbajit
 
 _SLIC_SUPPORTS_START_LABEL = tuple(map(int, skimage.__version__.split(".")[0:2])) >= (
@@ -37,7 +41,7 @@ _SLIC_SUPPORTS_START_LABEL = tuple(map(int, skimage.__version__.split(".")[0:2])
 
 
 # TODO merge this into imresize?
-def _ensure_image_max_size(image, max_size, interpolation):
+def _ensure_image_max_size(image: Array, max_size: int | None, interpolation: str | int) -> Array:
     """Ensure that images do not exceed a required maximum sidelength.
 
     This downscales to `max_size` if any side violates that maximum.
@@ -212,15 +216,15 @@ class Superpixels(meta.Augmenter):
 
     def __init__(
         self,
-        p_replace=(0.5, 1.0),
-        n_segments=(50, 120),
-        max_size=128,
-        interpolation="linear",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        p_replace: ParamInput = (0.5, 1.0),
+        n_segments: ParamInput = (50, 120),
+        max_size: int | None = 128,
+        interpolation: str | int = "linear",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -240,7 +244,13 @@ class Superpixels(meta.Augmenter):
         self.interpolation = interpolation
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -264,7 +274,7 @@ class Superpixels(meta.Augmenter):
         # TODO add test for this
         n_segments_samples = np.clip(n_segments_samples, 1, None)
 
-        for i, (image, rs) in enumerate(zip(images, rss[1:])):
+        for i, (image, rs) in enumerate(zip(images, rss[1:], strict=True)):
             if image.size == 0:
                 # Image with 0-sized axis, nothing to change.
                 # Placing this before the sampling step should be fine.
@@ -302,7 +312,7 @@ class Superpixels(meta.Augmenter):
             batch.images[i] = image_aug
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.p_replace, self.n_segments, self.max_size, self.interpolation]
 
@@ -311,7 +321,7 @@ class Superpixels(meta.Augmenter):
 #      be faster for these areas
 # TODO incorporate this dtype support in the dtype sections of docstrings for
 #      Superpixels and segment_voronoi()
-def replace_segments_(image, segments, replace_flags):
+def replace_segments_(image: Array, segments: Array, replace_flags: Array | None) -> Array:
     """Replace segments in images by their average colors in-place.
 
     This expects an image ``(H,W,[C])`` and an integer segmentation
@@ -389,7 +399,9 @@ def replace_segments_(image, segments, replace_flags):
 
 
 # Added in 0.5.0.
-def _replace_segments_np_(image, segments, replace_flags, _nb_segments):
+def _replace_segments_np_(
+    image: Array, segments: Array, replace_flags: Array | None, _nb_segments: int | None
+) -> Array:
     seg_ids = np.unique(segments)
     if replace_flags is None:
         replace_flags = np.ones((len(seg_ids),), dtype=bool)
@@ -402,7 +414,9 @@ def _replace_segments_np_(image, segments, replace_flags, _nb_segments):
 
 
 # Added in 0.5.0.
-def _replace_segments_numba_dispatcher_(image, segments, replace_flags, nb_segments):
+def _replace_segments_numba_dispatcher_(
+    image: Array, segments: Array, replace_flags: Array | None, nb_segments: int
+) -> Array:
     if replace_flags is None:
         replace_flags = np.ones((nb_segments,), dtype=bool)
     elif not np.any(replace_flags[:nb_segments]):
@@ -418,8 +432,12 @@ def _replace_segments_numba_dispatcher_(image, segments, replace_flags, nb_segme
 # Added in 0.5.0.
 @_numbajit(nopython=True, nogil=True, cache=True)
 def _replace_segments_numba_collect_avg_colors(
-    image, segments, replace_flags, nb_segments, output_dtype
-):
+    image: Array,
+    segments: Array,
+    replace_flags: Array,
+    nb_segments: int,
+    output_dtype: np.dtype[np.generic],
+) -> Array:
     height, width, nb_channels = image.shape
     nb_flags = len(replace_flags)
 
@@ -450,7 +468,9 @@ def _replace_segments_numba_collect_avg_colors(
 
 # Added in 0.5.0.
 @_numbajit(nopython=True, nogil=True, cache=True)
-def _replace_segments_numba_apply_avg_cols_(image, segments, replace_flags, average_colors):
+def _replace_segments_numba_apply_avg_cols_(
+    image: Array, segments: Array, replace_flags: Array, average_colors: Array
+) -> Array:
     height, width = image.shape[0:2]
     nb_flags = len(replace_flags)
 
@@ -464,7 +484,9 @@ def _replace_segments_numba_apply_avg_cols_(image, segments, replace_flags, aver
 
 
 # TODO don't average the alpha channel for RGBA?
-def segment_voronoi(image, cell_coordinates, replace_mask=None):
+def segment_voronoi(
+    image: Array, cell_coordinates: Array, replace_mask: Array | None = None
+) -> Array:
     """Average colors within voronoi cells of an image.
 
     **Supported dtypes**:
@@ -538,7 +560,7 @@ def segment_voronoi(image, cell_coordinates, replace_mask=None):
     return image_aug
 
 
-def _match_pixels_with_voronoi_cells(height, width, cell_coordinates):
+def _match_pixels_with_voronoi_cells(height: int, width: int, cell_coordinates: Array) -> Array:
     # deferred import so that scipy is an optional dependency
     from scipy.spatial import cKDTree as KDTree  # TODO add scipy for reqs
 
@@ -549,7 +571,7 @@ def _match_pixels_with_voronoi_cells(height, width, cell_coordinates):
     return ids_of_nearest_cells
 
 
-def _generate_pixel_coords(height, width):
+def _generate_pixel_coords(height: int, width: int) -> Array:
     xx, yy = np.meshgrid(np.arange(width), np.arange(height))
     return np.c_[xx.ravel(), yy.ravel()]
 
@@ -685,15 +707,15 @@ class Voronoi(meta.Augmenter):
 
     def __init__(
         self,
-        points_sampler,
-        p_replace=1.0,
-        max_size=128,
-        interpolation="linear",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        points_sampler: IPointsSampler,
+        p_replace: ParamInput = 1.0,
+        max_size: int | None = 128,
+        interpolation: str | int = "linear",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -712,7 +734,13 @@ class Voronoi(meta.Augmenter):
         self.interpolation = interpolation
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -721,11 +749,11 @@ class Voronoi(meta.Augmenter):
         iadt.allow_only_uint8(images, augmenter=self)
 
         rss = random_state.duplicate(len(images))
-        for i, (image, rs) in enumerate(zip(images, rss)):
+        for i, (image, rs) in enumerate(zip(images, rss, strict=True)):
             batch.images[i] = self._augment_single_image(image, rs)
         return batch
 
-    def _augment_single_image(self, image, random_state):
+    def _augment_single_image(self, image: Array, random_state: iarandom.RNG) -> Array:
         rss = random_state.duplicate(2)
         orig_shape = image.shape
         image = _ensure_image_max_size(image, self.max_size, self.interpolation)
@@ -743,7 +771,7 @@ class Voronoi(meta.Augmenter):
 
         return image_aug
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.points_sampler, self.p_replace, self.max_size, self.interpolation]
 
@@ -860,15 +888,15 @@ class UniformVoronoi(Voronoi):
 
     def __init__(
         self,
-        n_points=(50, 500),
-        p_replace=(0.5, 1.0),
-        max_size=128,
-        interpolation="linear",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        n_points: ParamInput = (50, 500),
+        p_replace: ParamInput = (0.5, 1.0),
+        max_size: int | None = 128,
+        interpolation: str | int = "linear",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             points_sampler=UniformPointsSampler(n_points),
             p_replace=p_replace,
@@ -1033,17 +1061,17 @@ class RegularGridVoronoi(Voronoi):
 
     def __init__(
         self,
-        n_rows=(10, 30),
-        n_cols=(10, 30),
-        p_drop_points=(0.0, 0.5),
-        p_replace=(0.5, 1.0),
-        max_size=128,
-        interpolation="linear",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        n_rows: ParamInput = (10, 30),
+        n_cols: ParamInput = (10, 30),
+        p_drop_points: ParamInput = (0.0, 0.5),
+        p_replace: ParamInput = (0.5, 1.0),
+        max_size: int | None = 128,
+        interpolation: str | int = "linear",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             points_sampler=DropoutPointsSampler(
                 RegularGridPointsSampler(n_rows, n_cols), p_drop_points
@@ -1225,17 +1253,17 @@ class RelativeRegularGridVoronoi(Voronoi):
 
     def __init__(
         self,
-        n_rows_frac=(0.05, 0.15),
-        n_cols_frac=(0.05, 0.15),
-        p_drop_points=(0.0, 0.5),
-        p_replace=(0.5, 1.0),
-        max_size=None,
-        interpolation="linear",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        n_rows_frac: ParamInput = (0.05, 0.15),
+        n_cols_frac: ParamInput = (0.05, 0.15),
+        p_drop_points: ParamInput = (0.0, 0.5),
+        p_replace: ParamInput = (0.5, 1.0),
+        max_size: int | None = None,
+        interpolation: str | int = "linear",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             points_sampler=DropoutPointsSampler(
                 RelativeRegularGridPointsSampler(n_rows_frac, n_cols_frac), p_drop_points
@@ -1260,7 +1288,7 @@ class IPointsSampler(metaclass=ABCMeta):
     """
 
     @abstractmethod
-    def sample_points(self, images, random_state):
+    def sample_points(self, images: Sequence[Array] | Array, random_state: RNGInput) -> list[Array]:
         """Generate coordinates of points on images.
 
         Parameters
@@ -1288,7 +1316,7 @@ class IPointsSampler(metaclass=ABCMeta):
         """
 
 
-def _verify_sample_points_images(images):
+def _verify_sample_points_images(images: Sequence[Array] | Array) -> None:
     assert len(images) > 0, "Expected at least one image, got zero."
     if isinstance(images, list):
         assert all([ia.is_np_array(image) for image in images]), (
@@ -1363,7 +1391,7 @@ class RegularGridPointsSampler(IPointsSampler):
 
     """
 
-    def __init__(self, n_rows, n_cols):
+    def __init__(self, n_rows: ParamInput, n_cols: ParamInput) -> None:
         self.n_rows = iap.handle_discrete_param(
             n_rows,
             "n_rows",
@@ -1381,21 +1409,21 @@ class RegularGridPointsSampler(IPointsSampler):
             allow_floats=False,
         )
 
-    def sample_points(self, images, random_state):
+    def sample_points(self, images: Sequence[Array] | Array, random_state: RNGInput) -> list[Array]:
         random_state = iarandom.RNG.create_if_not_rng_(random_state)
         _verify_sample_points_images(images)
 
         n_rows_lst, n_cols_lst = self._draw_samples(images, random_state)
         return self._generate_point_grids(images, n_rows_lst, n_cols_lst)
 
-    def _draw_samples(self, images, random_state):
+    def _draw_samples(self, images: Sequence[Array] | Array, random_state: iarandom.RNG) -> tuple[Array, Array]:
         rss = random_state.duplicate(2)
         n_rows_lst = self.n_rows.draw_samples(len(images), random_state=rss[0])
         n_cols_lst = self.n_cols.draw_samples(len(images), random_state=rss[1])
         return self._clip_rows_and_cols(n_rows_lst, n_cols_lst, images)
 
     @classmethod
-    def _clip_rows_and_cols(cls, n_rows_lst, n_cols_lst, images):
+    def _clip_rows_and_cols(cls, n_rows_lst: Array, n_cols_lst: Array, images: Sequence[Array] | Array) -> tuple[Array, Array]:
         heights = np.int32([image.shape[0] for image in images])
         widths = np.int32([image.shape[1] for image in images])
         # We clip intentionally not to H-1 or W-1 here. If e.g. an image has
@@ -1411,14 +1439,16 @@ class RegularGridPointsSampler(IPointsSampler):
         return n_rows_lst, n_cols_lst
 
     @classmethod
-    def _generate_point_grids(cls, images, n_rows_lst, n_cols_lst):
+    def _generate_point_grids(
+        cls, images: Sequence[Array] | Array, n_rows_lst: Array, n_cols_lst: Array
+    ) -> list[Array]:
         grids = []
-        for image, n_rows_i, n_cols_i in zip(images, n_rows_lst, n_cols_lst):
+        for image, n_rows_i, n_cols_i in zip(images, n_rows_lst, n_cols_lst, strict=True):
             grids.append(cls._generate_point_grid(image, n_rows_i, n_cols_i))
         return grids
 
     @classmethod
-    def _generate_point_grid(cls, image, n_rows, n_cols):
+    def _generate_point_grid(cls, image: Array, n_rows: int, n_cols: int) -> Array:
         height, width = image.shape[0:2]
 
         # We do not have to subtract 1 here from height/width as these are
@@ -1444,10 +1474,10 @@ class RegularGridPointsSampler(IPointsSampler):
         grid = np.vstack([xx.ravel(), yy.ravel()]).T
         return grid
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"RegularGridPointsSampler({self.n_rows}, {self.n_cols})"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()
 
 
@@ -1505,7 +1535,7 @@ class RelativeRegularGridPointsSampler(IPointsSampler):
 
     """
 
-    def __init__(self, n_rows_frac, n_cols_frac):
+    def __init__(self, n_rows_frac: ParamInput, n_cols_frac: ParamInput) -> None:
         eps = 1e-4
         self.n_rows_frac = iap.handle_continuous_param(
             n_rows_frac,
@@ -1522,7 +1552,7 @@ class RelativeRegularGridPointsSampler(IPointsSampler):
             list_to_choice=True,
         )
 
-    def sample_points(self, images, random_state):
+    def sample_points(self, images: Sequence[Array] | Array, random_state: RNGInput) -> list[Array]:
         # pylint: disable=protected-access
         random_state = iarandom.RNG.create_if_not_rng_(random_state)
         _verify_sample_points_images(images)
@@ -1530,7 +1560,7 @@ class RelativeRegularGridPointsSampler(IPointsSampler):
         n_rows, n_cols = self._draw_samples(images, random_state)
         return RegularGridPointsSampler._generate_point_grids(images, n_rows, n_cols)
 
-    def _draw_samples(self, images, random_state):
+    def _draw_samples(self, images: Sequence[Array] | Array, random_state: iarandom.RNG) -> tuple[Array, Array]:
         # pylint: disable=protected-access
         n_augmentables = len(images)
         rss = random_state.duplicate(2)
@@ -1545,10 +1575,10 @@ class RelativeRegularGridPointsSampler(IPointsSampler):
 
         return n_rows.astype(np.int32), n_cols.astype(np.int32)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"RelativeRegularGridPointsSampler({self.n_rows_frac}, {self.n_cols_frac})"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()
 
 
@@ -1594,7 +1624,7 @@ class DropoutPointsSampler(IPointsSampler):
 
     """
 
-    def __init__(self, other_points_sampler, p_drop):
+    def __init__(self, other_points_sampler: IPointsSampler, p_drop: ParamInput) -> None:
         assert isinstance(other_points_sampler, IPointsSampler), (
             "Expected to get an instance of IPointsSampler as argument "
             f"'other_points_sampler', got type {type(other_points_sampler)}."
@@ -1603,7 +1633,7 @@ class DropoutPointsSampler(IPointsSampler):
         self.p_drop = self._convert_p_drop_to_inverted_mask_param(p_drop)
 
     @classmethod
-    def _convert_p_drop_to_inverted_mask_param(cls, p_drop):
+    def _convert_p_drop_to_inverted_mask_param(cls, p_drop: ParamInput) -> iap.StochasticParameter:
         # TODO this is the same as in Dropout, make DRY
         # TODO add list as an option
         if ia.is_single_number(p_drop):
@@ -1630,7 +1660,7 @@ class DropoutPointsSampler(IPointsSampler):
             )
         return p_drop
 
-    def sample_points(self, images, random_state):
+    def sample_points(self, images: Sequence[Array] | Array, random_state: RNGInput) -> list[Array]:
         random_state = iarandom.RNG.create_if_not_rng_(random_state)
         _verify_sample_points_images(images)
 
@@ -1639,23 +1669,25 @@ class DropoutPointsSampler(IPointsSampler):
         drop_masks = self._draw_samples(points_on_images, rss[1])
         return self._apply_dropout_masks(points_on_images, drop_masks)
 
-    def _draw_samples(self, points_on_images, random_state):
+    def _draw_samples(self, points_on_images: list[Array], random_state: iarandom.RNG) -> list[Array]:
         rss = random_state.duplicate(len(points_on_images))
         drop_masks = [
             self._draw_samples_for_image(points_on_image, rs)
-            for points_on_image, rs in zip(points_on_images, rss)
+            for points_on_image, rs in zip(points_on_images, rss, strict=True)
         ]
         return drop_masks
 
-    def _draw_samples_for_image(self, points_on_image, random_state):
+    def _draw_samples_for_image(self, points_on_image: Array, random_state: iarandom.RNG) -> Array:
         drop_samples = self.p_drop.draw_samples((len(points_on_image),), random_state)
         keep_mask = drop_samples > 0.5
         return keep_mask
 
     @classmethod
-    def _apply_dropout_masks(cls, points_on_images, keep_masks):
+    def _apply_dropout_masks(
+        cls, points_on_images: list[Array], keep_masks: list[Array]
+    ) -> list[Array]:
         points_on_images_dropped = []
-        for points_on_image, keep_mask in zip(points_on_images, keep_masks):
+        for points_on_image, keep_mask in zip(points_on_images, keep_masks, strict=True):
             if len(points_on_image) == 0:
                 # other sampler didn't provide any points
                 poi_dropped = points_on_image
@@ -1672,10 +1704,10 @@ class DropoutPointsSampler(IPointsSampler):
             points_on_images_dropped.append(poi_dropped)
         return points_on_images_dropped
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"DropoutPointsSampler({self.other_points_sampler}, {self.p_drop})"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()
 
 
@@ -1710,7 +1742,7 @@ class UniformPointsSampler(IPointsSampler):
 
     """
 
-    def __init__(self, n_points):
+    def __init__(self, n_points: ParamInput) -> None:
         self.n_points = iap.handle_discrete_param(
             n_points,
             "n_points",
@@ -1720,7 +1752,7 @@ class UniformPointsSampler(IPointsSampler):
             allow_floats=False,
         )
 
-    def sample_points(self, images, random_state):
+    def sample_points(self, images: Sequence[Array] | Array, random_state: RNGInput) -> list[Array]:
         random_state = iarandom.RNG.create_if_not_rng_(random_state)
         _verify_sample_points_images(images)
 
@@ -1736,16 +1768,18 @@ class UniformPointsSampler(IPointsSampler):
             coords_relative_xy, n_points_imagewise, images
         )
 
-    def _draw_samples(self, n_augmentables, random_state):
+    def _draw_samples(self, n_augmentables: int, random_state: iarandom.RNG) -> Array:
         n_points = self.n_points.draw_samples((n_augmentables,), random_state=random_state)
         n_points_clipped = np.clip(n_points, 1, None)
         return n_points_clipped
 
     @classmethod
-    def _convert_relative_coords_to_absolute(cls, coords_rel_xy, n_points_imagewise, images):
+    def _convert_relative_coords_to_absolute(
+        cls, coords_rel_xy: Array, n_points_imagewise: Array, images: Sequence[Array] | Array
+    ) -> list[Array]:
         coords_absolute = []
         i = 0
-        for image, n_points_image in zip(images, n_points_imagewise):
+        for image, n_points_image in zip(images, n_points_imagewise, strict=True):
             height, width = image.shape[0:2]
             xx = coords_rel_xy[i : i + n_points_image, 0]
             yy = coords_rel_xy[i : i + n_points_image, 1]
@@ -1757,10 +1791,10 @@ class UniformPointsSampler(IPointsSampler):
             i += n_points_image
         return coords_absolute
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"UniformPointsSampler({self.n_points})"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()
 
 
@@ -1798,7 +1832,7 @@ class SubsamplingPointsSampler(IPointsSampler):
 
     """
 
-    def __init__(self, other_points_sampler, n_points_max):
+    def __init__(self, other_points_sampler: IPointsSampler, n_points_max: int) -> None:
         assert isinstance(other_points_sampler, IPointsSampler), (
             "Expected to get an instance of IPointsSampler as argument "
             f"'other_points_sampler', got type {type(other_points_sampler)}."
@@ -1812,7 +1846,7 @@ class SubsamplingPointsSampler(IPointsSampler):
                 "returned."
             )
 
-    def sample_points(self, images, random_state):
+    def sample_points(self, images: Sequence[Array] | Array, random_state: RNGInput) -> list[Array]:
         random_state = iarandom.RNG.create_if_not_rng_(random_state)
         _verify_sample_points_images(images)
 
@@ -1820,21 +1854,21 @@ class SubsamplingPointsSampler(IPointsSampler):
         points_on_images = self.other_points_sampler.sample_points(images, rss[-1])
         return [
             self._subsample(points_on_image, self.n_points_max, rs)
-            for points_on_image, rs in zip(points_on_images, rss[:-1])
+            for points_on_image, rs in zip(points_on_images, rss[:-1], strict=True)
         ]
 
     @classmethod
-    def _subsample(cls, points_on_image, n_points_max, random_state):
+    def _subsample(cls, points_on_image: Array, n_points_max: int, random_state: iarandom.RNG) -> Array:
         if len(points_on_image) <= n_points_max:
             return points_on_image
         indices = np.arange(len(points_on_image))
         indices_to_keep = random_state.permutation(indices)[0:n_points_max]
         return points_on_image[indices_to_keep]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"SubsamplingPointsSampler({self.other_points_sampler}, {self.n_points_max:d})"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()
 
 

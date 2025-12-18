@@ -14,15 +14,33 @@ still in ``convolutional.py``.
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
+from collections.abc import Sequence
+from typing import Literal, TypeAlias
 
 import cv2
 import numpy as np
+from numpy.typing import NDArray
 
 import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
+import imgaug2.random as iarandom
+from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import blend, meta
+from imgaug2.augmenters._typing import ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
+
+ImageArray: TypeAlias = NDArray[np.generic]
+BinaryMask: TypeAlias = NDArray[np.bool_]
+ColorSamples: TypeAlias = NDArray[np.integer]
+FloatArray: TypeAlias = NDArray[np.floating]
+NumberArray: TypeAlias = NDArray[np.number]
+IntArray: TypeAlias = NDArray[np.integer]
+
+DiscreteParamInput: TypeAlias = int | tuple[int, int] | list[int] | iap.StochasticParameter
+
+# Either a single param, or a tuple of two params (min,max).
+HysteresisThresholdsInput: TypeAlias = ParamInput | tuple[ParamInput, ParamInput]
 
 
 # TODO this should be placed in some other file than edges.py as it could be
@@ -31,7 +49,13 @@ class IBinaryImageColorizer(metaclass=ABCMeta):
     """Interface for classes that convert binary masks to color images."""
 
     @abstractmethod
-    def colorize(self, image_binary, image_original, nth_image, random_state):
+    def colorize(
+        self,
+        image_binary: BinaryMask,
+        image_original: ImageArray,
+        nth_image: int,
+        random_state: iarandom.RNG,
+    ) -> ImageArray:
         """
         Convert a binary image to a colorized one.
 
@@ -87,7 +111,9 @@ class RandomColorsBinaryImageColorizer(IBinaryImageColorizer):
 
     """
 
-    def __init__(self, color_true=(0, 255), color_false=(0, 255)):
+    def __init__(
+        self, color_true: DiscreteParamInput = (0, 255), color_false: DiscreteParamInput = (0, 255)
+    ) -> None:
         self.color_true = iap.handle_discrete_param(
             color_true,
             "color_true",
@@ -106,27 +132,33 @@ class RandomColorsBinaryImageColorizer(IBinaryImageColorizer):
             allow_floats=False,
         )
 
-    def _draw_samples(self, random_state):
+    def _draw_samples(self, random_state: iarandom.RNG) -> tuple[ColorSamples, ColorSamples]:
         color_true = self.color_true.draw_samples((3,), random_state=random_state)
         color_false = self.color_false.draw_samples((3,), random_state=random_state)
         return color_true, color_false
 
-    def colorize(self, image_binary, image_original, nth_image, random_state):
+    def colorize(
+        self,
+        image_binary: BinaryMask,
+        image_original: ImageArray,
+        nth_image: int,
+        random_state: iarandom.RNG,
+    ) -> ImageArray:
         assert image_binary.ndim == 2, (
-            "Expected binary image to colorize to be 2-dimensional, "
-            "got %d dimensions." % (image_binary.ndim,)
+            "Expected binary image to colorize to be 2-dimensional, got "
+            f"{image_binary.ndim} dimensions."
         )
         assert image_binary.dtype.kind == "b", (
             "Expected binary image to colorize to be boolean, "
             f"got dtype kind {image_binary.dtype.kind}."
         )
         assert image_original.ndim == 3, (
-            "Expected original image to be 3-dimensional, got %d "
-            "dimensions." % (image_original.ndim,)
+            "Expected original image to be 3-dimensional, got "
+            f"{image_original.ndim} dimensions."
         )
         assert image_original.shape[-1] in [1, 3, 4], (
-            "Expected original image to have 1, 3 or 4 channels. "
-            "Got %d channels." % (image_original.shape[-1],)
+            "Expected original image to have 1, 3 or 4 channels. Got "
+            f"{image_original.shape[-1]} channels."
         )
         assert image_original.dtype == iadt._UINT8_DTYPE, (
             f"Expected original image to have dtype uint8, got dtype {image_original.dtype.name}."
@@ -158,7 +190,7 @@ class RandomColorsBinaryImageColorizer(IBinaryImageColorizer):
 
         return image_colorized
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             "RandomColorsBinaryImageColorizer("
             f"color_true={self.color_true}, color_false={self.color_false})"
@@ -320,15 +352,18 @@ class Canny(meta.Augmenter):
 
     def __init__(
         self,
-        alpha=(0.0, 1.0),
-        hysteresis_thresholds=((100 - 40, 100 + 40), (200 - 40, 200 + 40)),
-        sobel_kernel_size=(3, 7),
-        colorizer=None,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        alpha: ParamInput = (0.0, 1.0),
+        hysteresis_thresholds: HysteresisThresholdsInput = (
+            (100 - 40, 100 + 40),
+            (200 - 40, 200 + 40),
+        ),
+        sobel_kernel_size: DiscreteParamInput = (3, 7),
+        colorizer: IBinaryImageColorizer | None = None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -385,7 +420,9 @@ class Canny(meta.Augmenter):
 
         self.colorizer = colorizer if colorizer is not None else RandomColorsBinaryImageColorizer()
 
-    def _draw_samples(self, augmentables, random_state):
+    def _draw_samples(
+        self, augmentables: Sequence[ImageArray], random_state: iarandom.RNG
+    ) -> tuple[FloatArray, NumberArray, IntArray]:
         nb_images = len(augmentables)
         rss = random_state.duplicate(4)
 
@@ -421,7 +458,13 @@ class Canny(meta.Augmenter):
         return alpha_samples, hthresh_samples, sobel_samples
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -435,12 +478,13 @@ class Canny(meta.Augmenter):
         hthresh_samples = samples[1]
         sobel_samples = samples[2]
 
-        gen = enumerate(zip(images, alpha_samples, hthresh_samples, sobel_samples))
+        gen = enumerate(zip(images, alpha_samples, hthresh_samples, sobel_samples, strict=True))
         for i, (image, alpha, hthreshs, sobel) in gen:
             assert image.shape[-1] in [1, 3, 4], (
                 "Canny edge detector can currently only handle images with "
-                "channel numbers that are 1, 3 or 4. Got %d."
-            ) % (image.shape[-1],)
+                "channel numbers that are 1, 3 or 4. Got "
+                f"{image.shape[-1]}."
+            )
 
             has_zero_sized_axes = 0 in image.shape[0:2]
             if alpha > 0 and sobel > 1 and not has_zero_sized_axes:
@@ -463,11 +507,11 @@ class Canny(meta.Augmenter):
 
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.alpha, self.hysteresis_thresholds, self.sobel_kernel_size, self.colorizer]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             "Canny("
             f"alpha={self.alpha}, "

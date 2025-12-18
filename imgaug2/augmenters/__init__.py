@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import os
+from abc import abstractmethod
+from collections.abc import Callable
+
 import imgaug2
 
-from abc import abstractproperty
-import os
+
+def abstractproperty(func: Callable[..., object]) -> property:
+    return property(abstractmethod(func))
 
 from . import (
     arithmetic,
@@ -30,12 +35,6 @@ from . import (
     size,
     weather,
 )
-
-from .base import (
-    SuspiciousMultiImageShapeWarning,
-    SuspiciousSingleImageShapeWarning,
-)
-
 from .arithmetic import (
     Add,
     AddElementwise,
@@ -78,12 +77,14 @@ from .arithmetic import (
     solarize_,
     tempfile,
 )
-
 from .artistic import (
     Cartoon,
     stylize_cartoon,
 )
-
+from .base import (
+    SuspiciousMultiImageShapeWarning,
+    SuspiciousSingleImageShapeWarning,
+)
 from .blend import (
     Alpha,
     AlphaElementwise,
@@ -115,7 +116,6 @@ from .blend import (
     blend_alpha,
     blend_alpha_,
 )
-
 from .blur import (
     AverageBlur,
     BilateralBlur,
@@ -128,29 +128,27 @@ from .blur import (
     blur_mean_shift_,
     iaa_convolutional,
 )
-
 from .collections import (
     RandAugment,
 )
-
 from .color import (
-    AddToBrightness,
-    AddToHue,
-    AddToHueAndSaturation,
-    AddToSaturation,
     CSPACE_ALL,
     CSPACE_BGR,
     CSPACE_CIE,
     CSPACE_GRAY,
     CSPACE_HLS,
     CSPACE_HSV,
+    CSPACE_RGB,
+    CSPACE_YUV,
+    AddToBrightness,
+    AddToHue,
+    AddToHueAndSaturation,
+    AddToSaturation,
+    ChangeColorspace,
+    ChangeColorTemperature,
     CSPACE_Lab,
     CSPACE_Luv,
-    CSPACE_RGB,
     CSPACE_YCrCb,
-    CSPACE_YUV,
-    ChangeColorTemperature,
-    ChangeColorspace,
     Grayscale,
     InColorspace,
     KMeansColorQuantization,
@@ -179,11 +177,10 @@ from .color import (
     quantize_uniform_to_n_bits,
     quantize_uniform_to_n_bits_,
 )
-
 from .contrast import (
+    CLAHE,
     AllChannelsCLAHE,
     AllChannelsHistogramEqualization,
-    CLAHE,
     GammaContrast,
     HistogramEqualization,
     LinearContrast,
@@ -196,7 +193,6 @@ from .contrast import (
     color_lib,
     ski_exposure,
 )
-
 from .convolutional import (
     Convolve,
     DirectedEdgeDetect,
@@ -206,7 +202,6 @@ from .convolutional import (
     convolve,
     convolve_,
 )
-
 from .debug import (
     SaveDebugImageEveryNBatches,
     blendlib,
@@ -215,13 +210,11 @@ from .debug import (
     imageio,
     sizelib,
 )
-
 from .edges import (
     Canny,
     IBinaryImageColorizer,
     RandomColorsBinaryImageColorizer,
 )
-
 from .experimental import (
     FancyPCA,
     FourierDomainAdaptation,
@@ -233,7 +226,6 @@ from .experimental import (
     ThinPlateSpline,
     ZoomBlur,
 )
-
 from .flip import (
     Fliplr,
     Flipud,
@@ -242,14 +234,13 @@ from .flip import (
     fliplr,
     flipud,
 )
-
 from .geometric import (
     Affine,
     AffineCv2,
     ElasticTransformation,
     GridDistortion,
-    OpticalDistortion,
     Jigsaw,
+    OpticalDistortion,
     PerspectiveTransform,
     PiecewiseAffine,
     Rot90,
@@ -270,7 +261,6 @@ from .geometric import (
     size_lib,
     tf,
 )
-
 from .meta import (
     AssertLambda,
     AssertShape,
@@ -302,19 +292,16 @@ from .meta import (
     reduce_to_nonempty,
     shuffle_channels,
 )
-
-from .pooling import (
-    AveragePooling,
-    MaxPooling,
-    MedianPooling,
-)
-
 from .mix import (
     cutmix,
     mixup,
     mosaic4,
 )
-
+from .pooling import (
+    AveragePooling,
+    MaxPooling,
+    MedianPooling,
+)
 from .segmentation import (
     ABCMeta,
     DropoutPointsSampler,
@@ -334,7 +321,6 @@ from .segmentation import (
     segment_voronoi,
     skimage,
 )
-
 from .size import (
     CenterCropToAspectRatio,
     CenterCropToFixedSize,
@@ -375,7 +361,6 @@ from .size import (
     pad_to_multiples_of,
     re,
 )
-
 from .weather import (
     CloudLayer,
     Clouds,

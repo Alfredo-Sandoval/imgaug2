@@ -9,7 +9,15 @@ Added in 0.4.0.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
+import numpy as np
+from numpy.typing import NDArray
+
 import imgaug2.imgaug as ia
+
+Array = NDArray[np.generic]
+Images = Array | Sequence[Array]
 
 
 class SuspiciousMultiImageShapeWarning(UserWarning):
@@ -20,7 +28,7 @@ class SuspiciousSingleImageShapeWarning(UserWarning):
     """Warning for single-image inputs that look like multiple images."""
 
 
-def _warn_on_suspicious_multi_image_shapes(images):
+def _warn_on_suspicious_multi_image_shapes(images: Images | None) -> None:
     if images is None:
         return
 
@@ -42,7 +50,7 @@ def _warn_on_suspicious_multi_image_shapes(images):
             )
 
 
-def _warn_on_suspicious_single_image_shape(image):
+def _warn_on_suspicious_single_image_shape(image: Array | None) -> None:
     if image is None:
         return
 

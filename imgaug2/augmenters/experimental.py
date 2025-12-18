@@ -14,21 +14,38 @@ Notes
 from __future__ import annotations
 
 import math
-from typing import Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Literal, TypeAlias
 
 import numpy as np
+from numpy.typing import NDArray
+
+import imgaug2.imgaug as ia
+import imgaug2.random as iarandom
+from imgaug2.augmenters._typing import Array, RNGInput
 
 from . import meta
 
 try:  # pragma: no cover
-    import cv2  # type: ignore
+    import cv2
 except Exception:  # pragma: no cover
-    cv2 = None  # type: ignore
+    cv2 = None
 
 try:  # pragma: no cover
-    import scipy.ndimage  # type: ignore
+    import scipy.ndimage
 except Exception:  # pragma: no cover
-    scipy = None  # type: ignore
+    scipy = None
+
+
+Number: TypeAlias = float | int
+Size: TypeAlias = int | tuple[int, ...] | None
+FloatArray: TypeAlias = NDArray[np.floating]
+IntArray: TypeAlias = NDArray[np.integer]
+
+Image: TypeAlias = Array
+ImageOrNone: TypeAlias = Image | None
+ImagesInput: TypeAlias = Sequence[ImageOrNone] | Array
+ImagesOutput: TypeAlias = list[ImageOrNone]
 
 
 # ---------------------------------------------------------------------
@@ -37,10 +54,10 @@ except Exception:  # pragma: no cover
 
 
 class _RNGAdapter:
-    def __init__(self, rng):
+    def __init__(self, rng: object) -> None:
         self._rng = rng
 
-    def random(self, size=None):
+    def random(self, size: Size = None) -> float | FloatArray:
         r = self._rng
         if hasattr(r, "random"):
             return r.random(size)
@@ -52,7 +69,7 @@ class _RNGAdapter:
             return r.rand(size)
         raise AttributeError("RNG has neither `.random()` nor `.rand()`")
 
-    def uniform(self, low, high=None, size=None):
+    def uniform(self, low: Number, high: Number | None = None, size: Size = None) -> float | FloatArray:
         r = self._rng
         if hasattr(r, "uniform"):
             return r.uniform(low, high, size)
@@ -61,7 +78,7 @@ class _RNGAdapter:
             low = 0.0
         return low + (high - low) * self.random(size)
 
-    def normal(self, loc=0.0, scale=1.0, size=None):
+    def normal(self, loc: float = 0.0, scale: float = 1.0, size: Size = None) -> float | FloatArray:
         r = self._rng
         if hasattr(r, "normal"):
             return r.normal(loc, scale, size)
@@ -71,7 +88,9 @@ class _RNGAdapter:
         z0 = np.sqrt(-2.0 * np.log(u1 + 1e-12)) * np.cos(2.0 * np.pi * u2)
         return loc + scale * z0
 
-    def integers(self, low, high=None, size=None, endpoint=False):
+    def integers(
+        self, low: int, high: int | None = None, size: Size = None, endpoint: bool = False
+    ) -> int | IntArray:
         r = self._rng
         if hasattr(r, "integers"):
             return r.integers(low, high=high, size=size, endpoint=endpoint)
@@ -81,7 +100,7 @@ class _RNGAdapter:
             return r.randint(low, high=high, size=size)
         raise AttributeError("RNG has neither `.integers()` nor `.randint()`")
 
-    def permutation(self, x):
+    def permutation(self, x: Sequence[object] | Array) -> Array:
         r = self._rng
         if hasattr(r, "permutation"):
             return r.permutation(x)
@@ -99,7 +118,7 @@ class _RNGAdapter:
 # ---------------------------------------------------------------------
 
 
-def _cv2_border_mode(mode: str):
+def _cv2_border_mode(mode: str) -> int | None:
     if cv2 is None:
         return None
     mode = mode.lower()
@@ -114,7 +133,7 @@ def _cv2_border_mode(mode: str):
     return cv2.BORDER_REFLECT_101
 
 
-def _cv2_interpolation(order: int):
+def _cv2_interpolation(order: int) -> int | None:
     if cv2 is None:
         return None
     if order == 0:
@@ -236,7 +255,7 @@ def _tps_fit(src: np.ndarray, dst: np.ndarray) -> np.ndarray:
 
 def _tps_eval(
     params: np.ndarray, ctrl: np.ndarray, x: np.ndarray, y: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     ctrl = np.asarray(ctrl, dtype=np.float64)
     N = ctrl.shape[0]
     w_x = params[0, :N]
@@ -264,8 +283,8 @@ def _tps_generate_inv_maps(
     num_control_points: int,
     scale: float,
     keep_corners: bool,
-    map_size: Union[int, Tuple[int, int]],
-) -> Tuple[np.ndarray, np.ndarray]:
+    map_size: int | tuple[int, int],
+) -> tuple[np.ndarray, np.ndarray]:
     # Control points on a grid (pixel coords)
     xs = np.linspace(0, width - 1, num_control_points)
     ys = np.linspace(0, height - 1, num_control_points)
@@ -343,19 +362,19 @@ class ThinPlateSpline(meta.Augmenter):
 
     def __init__(
         self,
-        scale: Union[float, Tuple[float, float]] = (0.01, 0.08),
+        scale: float | tuple[float, float] = (0.01, 0.08),
         num_control_points: int = 5,
         keep_corners: bool = True,
-        map_size: Union[int, Tuple[int, int]] = 32,
+        map_size: int | tuple[int, int] = 32,
         order: int = 1,
         mode: str = "reflect",
         cval: float = 0.0,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
-        super(ThinPlateSpline, self).__init__(
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
+        super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
         self.scale = scale
@@ -366,7 +385,13 @@ class ThinPlateSpline(meta.Augmenter):
         self.mode = str(mode)
         self.cval = float(cval)
 
-    def _augment_images(self, images, random_state, parents, hooks):
+    def _augment_images(
+        self,
+        images: ImagesInput,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> ImagesOutput:
         rng = _RNGAdapter(random_state)
         result = []
         for image in images:
@@ -394,7 +419,7 @@ class ThinPlateSpline(meta.Augmenter):
             result.append(warped)
         return result
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         return [
             self.scale,
             self.num_control_points,
@@ -431,22 +456,28 @@ class ZoomBlur(meta.Augmenter):
 
     def __init__(
         self,
-        max_factor: Union[float, Tuple[float, float]] = (1.05, 1.30),
+        max_factor: float | tuple[float, float] = (1.05, 1.30),
         steps: int = 8,
         order: int = 1,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
-        super(ZoomBlur, self).__init__(
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
+        super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
         self.max_factor = max_factor
         self.steps = int(steps)
         self.order = int(order)
 
-    def _augment_images(self, images, random_state, parents, hooks):
+    def _augment_images(
+        self,
+        images: ImagesInput,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> ImagesOutput:
         if cv2 is None:  # pragma: no cover
             raise ImportError("ZoomBlur requires opencv-python (cv2).")
 
@@ -478,7 +509,7 @@ class ZoomBlur(meta.Augmenter):
             result.append(out)
         return result
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         return [self.max_factor, self.steps, self.order]
 
 
@@ -508,16 +539,16 @@ class GlassBlur(meta.Augmenter):
 
     def __init__(
         self,
-        sigma: Union[float, Tuple[float, float]] = (0.5, 1.5),
+        sigma: float | tuple[float, float] = (0.5, 1.5),
         max_delta: int = 2,
         iterations: int = 2,
         swap_fraction: float = 0.25,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
-        super(GlassBlur, self).__init__(
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
+        super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
         self.sigma = sigma
@@ -525,7 +556,13 @@ class GlassBlur(meta.Augmenter):
         self.iterations = int(iterations)
         self.swap_fraction = float(swap_fraction)
 
-    def _augment_images(self, images, random_state, parents, hooks):
+    def _augment_images(
+        self,
+        images: ImagesInput,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> ImagesOutput:
         if cv2 is None:  # pragma: no cover
             raise ImportError("GlassBlur requires opencv-python (cv2).")
         rng = _RNGAdapter(random_state)
@@ -565,7 +602,7 @@ class GlassBlur(meta.Augmenter):
             result.append(out)
         return result
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         return [self.sigma, self.max_delta, self.iterations, self.swap_fraction]
 
 
@@ -636,14 +673,14 @@ class FourierDomainAdaptation(meta.Augmenter):
 
     def __init__(
         self,
-        reference_images: Sequence[np.ndarray],
-        beta: Union[float, Tuple[float, float]] = (0.01, 0.10),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
-        super(FourierDomainAdaptation, self).__init__(
+        reference_images: Sequence[Image] | None,
+        beta: float | tuple[float, float] = (0.01, 0.10),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
+        super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
         if reference_images is None or len(reference_images) == 0:
@@ -651,7 +688,13 @@ class FourierDomainAdaptation(meta.Augmenter):
         self.reference_images = list(reference_images)
         self.beta = beta
 
-    def _augment_images(self, images, random_state, parents, hooks):
+    def _augment_images(
+        self,
+        images: ImagesInput,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> ImagesOutput:
         if cv2 is None:  # pragma: no cover
             raise ImportError("FourierDomainAdaptation requires opencv-python (cv2) for resizing.")
         rng = _RNGAdapter(random_state)
@@ -669,7 +712,7 @@ class FourierDomainAdaptation(meta.Augmenter):
             result.append(_fda_image(image, ref, beta=beta))
         return result
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         return [len(self.reference_images), self.beta]
 
 
@@ -692,22 +735,28 @@ class FancyPCA(meta.Augmenter):
 
     def __init__(
         self,
-        alpha_std: Union[float, Tuple[float, float]] = (0.0, 0.1),
-        eigvecs: Optional[np.ndarray] = None,
-        eigvals: Optional[np.ndarray] = None,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
-        super(FancyPCA, self).__init__(
+        alpha_std: float | tuple[float, float] = (0.0, 0.1),
+        eigvecs: np.ndarray | None = None,
+        eigvals: np.ndarray | None = None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
+        super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
         self.alpha_std = alpha_std
         self.eigvecs = eigvecs
         self.eigvals = eigvals
 
-    def _augment_images(self, images, random_state, parents, hooks):
+    def _augment_images(
+        self,
+        images: ImagesInput,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> ImagesOutput:
         rng = _RNGAdapter(random_state)
         result = []
         for image in images:
@@ -749,7 +798,7 @@ class FancyPCA(meta.Augmenter):
             result.append(out)
         return result
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         return [self.alpha_std]
 
 
@@ -776,22 +825,28 @@ class HEStain(meta.Augmenter):
 
     def __init__(
         self,
-        alpha: Tuple[float, float] = (0.9, 1.1),
-        beta: Tuple[float, float] = (-0.02, 0.02),
-        stain_matrix: Optional[np.ndarray] = None,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
-        super(HEStain, self).__init__(
+        alpha: tuple[float, float] = (0.9, 1.1),
+        beta: tuple[float, float] = (-0.02, 0.02),
+        stain_matrix: np.ndarray | None = None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
+        super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
         self.alpha = (float(alpha[0]), float(alpha[1]))
         self.beta = (float(beta[0]), float(beta[1]))
         self.stain_matrix = stain_matrix
 
-    def _augment_images(self, images, random_state, parents, hooks):
+    def _augment_images(
+        self,
+        images: ImagesInput,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> ImagesOutput:
         rng = _RNGAdapter(random_state)
         result = []
         for image in images:
@@ -842,7 +897,7 @@ class HEStain(meta.Augmenter):
             result.append(out)
         return result
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         return [self.alpha, self.beta]
 
 
@@ -895,22 +950,28 @@ class PlanckianJitter(meta.Augmenter):
 
     def __init__(
         self,
-        temperature: Tuple[float, float] = (2500.0, 10000.0),
+        temperature: tuple[float, float] = (2500.0, 10000.0),
         reference_temp: float = 6500.0,
-        strength: Union[float, Tuple[float, float]] = (0.5, 1.0),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
-        super(PlanckianJitter, self).__init__(
+        strength: float | tuple[float, float] = (0.5, 1.0),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
+        super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
         self.temperature = (float(temperature[0]), float(temperature[1]))
         self.reference_temp = float(reference_temp)
         self.strength = strength
 
-    def _augment_images(self, images, random_state, parents, hooks):
+    def _augment_images(
+        self,
+        images: ImagesInput,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> ImagesOutput:
         rng = _RNGAdapter(random_state)
         rgb_ref = _temperature_to_rgb(self.reference_temp)
         result = []
@@ -938,7 +999,7 @@ class PlanckianJitter(meta.Augmenter):
             result.append(out)
         return result
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         return [self.temperature, self.reference_temp, self.strength]
 
 
@@ -1023,20 +1084,26 @@ class PlasmaBrightness(meta.Augmenter):
 
     def __init__(
         self,
-        intensity: Tuple[float, float] = (0.1, 0.5),
-        roughness: Tuple[float, float] = (0.6, 0.9),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
-        super(PlasmaBrightness, self).__init__(
+        intensity: tuple[float, float] = (0.1, 0.5),
+        roughness: tuple[float, float] = (0.6, 0.9),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
+        super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
         self.intensity = (float(intensity[0]), float(intensity[1]))
         self.roughness = (float(roughness[0]), float(roughness[1]))
 
-    def _augment_images(self, images, random_state, parents, hooks):
+    def _augment_images(
+        self,
+        images: ImagesInput,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> ImagesOutput:
         if cv2 is None:  # pragma: no cover
             raise ImportError("PlasmaBrightness requires opencv-python (cv2).")
         rng = _RNGAdapter(random_state)
@@ -1065,7 +1132,7 @@ class PlasmaBrightness(meta.Augmenter):
             result.append(out)
         return result
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         return [self.intensity, self.roughness]
 
 
@@ -1083,20 +1150,26 @@ class PlasmaShadow(meta.Augmenter):
 
     def __init__(
         self,
-        intensity: Tuple[float, float] = (0.2, 0.8),
-        roughness: Tuple[float, float] = (0.6, 0.9),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
-        super(PlasmaShadow, self).__init__(
+        intensity: tuple[float, float] = (0.2, 0.8),
+        roughness: tuple[float, float] = (0.6, 0.9),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
+        super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
         self.intensity = (float(intensity[0]), float(intensity[1]))
         self.roughness = (float(roughness[0]), float(roughness[1]))
 
-    def _augment_images(self, images, random_state, parents, hooks):
+    def _augment_images(
+        self,
+        images: ImagesInput,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> ImagesOutput:
         if cv2 is None:  # pragma: no cover
             raise ImportError("PlasmaShadow requires opencv-python (cv2).")
         rng = _RNGAdapter(random_state)
@@ -1125,5 +1198,5 @@ class PlasmaShadow(meta.Augmenter):
             result.append(out)
         return result
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         return [self.intensity, self.roughness]
