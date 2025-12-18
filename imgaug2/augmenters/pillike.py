@@ -50,6 +50,9 @@ Added in 0.4.0.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Literal, TypeAlias
+
 import cv2
 import numpy as np
 import PIL.Image
@@ -60,10 +63,13 @@ import PIL.ImageOps
 import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
+import imgaug2.random as iarandom
+from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import arithmetic, geometric, meta
 from imgaug2.augmenters import color as colorlib
 from imgaug2.augmenters import contrast as contrastlib
 from imgaug2.augmenters import size as sizelib
+from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 # TODO some of the augmenters in this module broke on numpy arrays as
@@ -72,9 +78,12 @@ from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 _EQUALIZE_USE_PIL_BELOW = 64 * 64  # H*W
 
+FillColor: TypeAlias = int | tuple[int, ...] | None
+IgnoreValues: TypeAlias = int | Sequence[int] | None
+
 
 # Added in 0.4.0.
-def _ensure_valid_shape(image, func_name):
+def _ensure_valid_shape(image: Array, func_name: str) -> tuple[Array, bool]:
     is_hw1 = image.ndim == 3 and image.shape[-1] == 1
     if is_hw1:
         image = image[:, :, 0]
@@ -86,7 +95,7 @@ def _ensure_valid_shape(image, func_name):
     return image, is_hw1
 
 
-def solarize_(image, threshold=128):
+def solarize_(image: Array, threshold: int = 128) -> Array:
     """Invert all array components above a threshold in-place.
 
     This function has identical outputs to ``PIL.ImageOps.solarize``.
@@ -118,7 +127,7 @@ def solarize_(image, threshold=128):
     return arithmetic.invert_(image, threshold=threshold)
 
 
-def solarize(image, threshold=128):
+def solarize(image: Array, threshold: int = 128) -> Array:
     """Invert all array components above a threshold.
 
     This function has identical outputs to ``PIL.ImageOps.solarize``.
@@ -147,7 +156,7 @@ def solarize(image, threshold=128):
     return arithmetic.invert(image, threshold=threshold)
 
 
-def posterize_(image, bits):
+def posterize_(image: Array, bits: int) -> Array:
     """Reduce the number of bits for each color channel in-place.
 
     This function has identical outputs to ``PIL.ImageOps.posterize``.
@@ -178,7 +187,7 @@ def posterize_(image, bits):
     return colorlib.posterize(image, bits)
 
 
-def posterize(image, bits):
+def posterize(image: Array, bits: int) -> Array:
     """Reduce the number of bits for each color channel.
 
     This function has identical outputs to ``PIL.ImageOps.posterize``.
@@ -207,7 +216,7 @@ def posterize(image, bits):
     return colorlib.posterize(image, bits)
 
 
-def equalize(image, mask=None):
+def equalize(image: Array, mask: Array | None = None) -> Array:
     """Equalize the image histogram.
 
     See :func:`~imgaug2.augmenters.pillike.equalize_` for details.
@@ -245,7 +254,7 @@ def equalize(image, mask=None):
     return equalize_(image, mask)
 
 
-def equalize_(image, mask=None):
+def equalize_(image: Array, mask: Array | None = None) -> Array:
     """Equalize the image histogram in-place.
 
     This function applies a non-linear mapping to the input image, in order
@@ -311,7 +320,7 @@ def equalize_(image, mask=None):
 # note that this is supposed to be a non-PIL reimplementation of PIL's
 # equalize, which produces slightly different results from cv2.equalizeHist()
 # Added in 0.4.0.
-def _equalize_no_pil_(image, mask=None):
+def _equalize_no_pil_(image: Array, mask: Array | None = None) -> Array:
     nb_channels = 1 if image.ndim == 2 else image.shape[-1]
     # TODO remove the first axis, no longer needed
     lut = np.empty((1, 256, nb_channels), dtype=np.int32)
@@ -342,7 +351,7 @@ def _equalize_no_pil_(image, mask=None):
 
 
 # Added in 0.4.0.
-def _equalize_pil_(image, mask=None):
+def _equalize_pil_(image: Array, mask: Array | None = None) -> Array:
     if mask is not None:
         mask = PIL.Image.fromarray(mask).convert("L")
 
@@ -351,7 +360,7 @@ def _equalize_pil_(image, mask=None):
     return image
 
 
-def autocontrast(image, cutoff=0, ignore=None):
+def autocontrast(image: Array, cutoff: int = 0, ignore: IgnoreValues = None) -> Array:
     """Maximize (normalize) image contrast.
 
     This function calculates a histogram of the input image, removes
@@ -414,7 +423,7 @@ def autocontrast(image, cutoff=0, ignore=None):
 
 
 # Added in 0.4.0.
-def _autocontrast_pil(image, cutoff, ignore):
+def _autocontrast_pil(image: Array, cutoff: int, ignore: IgnoreValues) -> Array:
     # don't return np.asarray(...) as its results are read-only
     return np.array(
         PIL.ImageOps.autocontrast(PIL.Image.fromarray(image), cutoff=cutoff, ignore=ignore)
@@ -425,7 +434,7 @@ def _autocontrast_pil(image, cutoff, ignore):
 # cutoff is used.
 # C901 is "<functionname> is too complex"
 # Added in 0.4.0.
-def _autocontrast_no_pil(image, cutoff, ignore):  # noqa: C901
+def _autocontrast_no_pil(image: Array, cutoff: int, ignore: IgnoreValues) -> Array:  # noqa: C901
     # pylint: disable=invalid-name
     if ignore is not None and not ia.is_iterable(ignore):
         ignore = [ignore]
@@ -515,7 +524,9 @@ def _autocontrast_no_pil(image, cutoff, ignore):  # noqa: C901
 
 
 # Added in 0.4.0.
-def _apply_enhance_func(image, cls, factor):
+def _apply_enhance_func(
+    image: Array, cls: type[PIL.ImageEnhance._Enhance], factor: float
+) -> Array:
     iadt.allow_only_uint8({image.dtype})
 
     if 0 in image.shape:
@@ -530,7 +541,7 @@ def _apply_enhance_func(image, cls, factor):
     return result
 
 
-def enhance_color(image, factor):
+def enhance_color(image: Array, factor: float) -> Array:
     """Change the strength of colors in an image.
 
     This function has identical outputs to
@@ -573,7 +584,7 @@ def enhance_color(image, factor):
     return _apply_enhance_func(image, PIL.ImageEnhance.Color, factor)
 
 
-def enhance_contrast(image, factor):
+def enhance_contrast(image: Array, factor: float) -> Array:
     """Change the contrast of an image.
 
     This function has identical outputs to
@@ -617,7 +628,7 @@ def enhance_contrast(image, factor):
     return _apply_enhance_func(image, PIL.ImageEnhance.Contrast, factor)
 
 
-def enhance_brightness(image, factor):
+def enhance_brightness(image: Array, factor: float) -> Array:
     """Change the brightness of images.
 
     This function has identical outputs to
@@ -660,7 +671,7 @@ def enhance_brightness(image, factor):
     return _apply_enhance_func(image, PIL.ImageEnhance.Brightness, factor)
 
 
-def enhance_sharpness(image, factor):
+def enhance_sharpness(image: Array, factor: float) -> Array:
     """Change the sharpness of an image.
 
     This function has identical outputs to
@@ -704,7 +715,7 @@ def enhance_sharpness(image, factor):
 
 
 # Added in 0.4.0.
-def _filter_by_kernel(image, kernel):
+def _filter_by_kernel(image: Array, kernel: PIL.ImageFilter.Filter) -> Array:
     iadt.allow_only_uint8({image.dtype})
 
     if 0 in image.shape:
@@ -723,7 +734,7 @@ def _filter_by_kernel(image, kernel):
     return result
 
 
-def filter_blur(image):
+def filter_blur(image: Array) -> Array:
     """Apply a blur filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.BLUR`` kernel.
@@ -760,7 +771,7 @@ def filter_blur(image):
     return _filter_by_kernel(image, PIL.ImageFilter.BLUR)
 
 
-def filter_smooth(image):
+def filter_smooth(image: Array) -> Array:
     """Apply a smoothness filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.SMOOTH`` kernel.
@@ -797,7 +808,7 @@ def filter_smooth(image):
     return _filter_by_kernel(image, PIL.ImageFilter.SMOOTH)
 
 
-def filter_smooth_more(image):
+def filter_smooth_more(image: Array) -> Array:
     """Apply a strong smoothness filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.SMOOTH_MORE`` kernel.
@@ -834,7 +845,7 @@ def filter_smooth_more(image):
     return _filter_by_kernel(image, PIL.ImageFilter.SMOOTH_MORE)
 
 
-def filter_edge_enhance(image):
+def filter_edge_enhance(image: Array) -> Array:
     """Apply an edge enhancement filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.EDGE_ENHANCE`` kernel.
@@ -871,7 +882,7 @@ def filter_edge_enhance(image):
     return _filter_by_kernel(image, PIL.ImageFilter.EDGE_ENHANCE)
 
 
-def filter_edge_enhance_more(image):
+def filter_edge_enhance_more(image: Array) -> Array:
     """Apply a stronger edge enhancement filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.EDGE_ENHANCE_MORE``
@@ -909,7 +920,7 @@ def filter_edge_enhance_more(image):
     return _filter_by_kernel(image, PIL.ImageFilter.EDGE_ENHANCE_MORE)
 
 
-def filter_find_edges(image):
+def filter_find_edges(image: Array) -> Array:
     """Apply an edge detection filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.FIND_EDGES`` kernel.
@@ -946,7 +957,7 @@ def filter_find_edges(image):
     return _filter_by_kernel(image, PIL.ImageFilter.FIND_EDGES)
 
 
-def filter_contour(image):
+def filter_contour(image: Array) -> Array:
     """Apply a contour filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.CONTOUR`` kernel.
@@ -983,7 +994,7 @@ def filter_contour(image):
     return _filter_by_kernel(image, PIL.ImageFilter.CONTOUR)
 
 
-def filter_emboss(image):
+def filter_emboss(image: Array) -> Array:
     """Apply an emboss filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.EMBOSS`` kernel.
@@ -1020,7 +1031,7 @@ def filter_emboss(image):
     return _filter_by_kernel(image, PIL.ImageFilter.EMBOSS)
 
 
-def filter_sharpen(image):
+def filter_sharpen(image: Array) -> Array:
     """Apply a sharpening filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.SHARPEN`` kernel.
@@ -1057,7 +1068,7 @@ def filter_sharpen(image):
     return _filter_by_kernel(image, PIL.ImageFilter.SHARPEN)
 
 
-def filter_detail(image):
+def filter_detail(image: Array) -> Array:
     """Apply a detail enhancement filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.DETAIL`` kernel.
@@ -1098,15 +1109,15 @@ def filter_detail(image):
 #      there is probably no need to keep these separate
 # Added in 0.4.0.
 def _create_affine_matrix(
-    scale_x=1.0,
-    scale_y=1.0,
-    translate_x_px=0,
-    translate_y_px=0,
-    rotate_deg=0,
-    shear_x_deg=0,
-    shear_y_deg=0,
-    center_px=(0, 0),
-):
+    scale_x: float = 1.0,
+    scale_y: float = 1.0,
+    translate_x_px: float = 0,
+    translate_y_px: float = 0,
+    rotate_deg: float = 0,
+    shear_x_deg: float = 0,
+    shear_y_deg: float = 0,
+    center_px: tuple[float, float] = (0, 0),
+) -> Array:
     from imgaug2.augmenters.geometric import _RAD_PER_DEGREE, _AffineMatrixGenerator
 
     scale_x = max(scale_x, 0.0001)
@@ -1131,17 +1142,17 @@ def _create_affine_matrix(
 
 
 def warp_affine(
-    image,
-    scale_x=1.0,
-    scale_y=1.0,
-    translate_x_px=0,
-    translate_y_px=0,
-    rotate_deg=0,
-    shear_x_deg=0,
-    shear_y_deg=0,
-    fillcolor=None,
-    center=(0.5, 0.5),
-):
+    image: Array,
+    scale_x: float = 1.0,
+    scale_y: float = 1.0,
+    translate_x_px: float = 0,
+    translate_y_px: float = 0,
+    rotate_deg: float = 0,
+    shear_x_deg: float = 0,
+    shear_y_deg: float = 0,
+    fillcolor: FillColor = None,
+    center: tuple[float, float] = (0.5, 0.5),
+) -> Array:
     """Apply an affine transformation to an image.
 
     This function has identical outputs to
@@ -1313,13 +1324,13 @@ class Solarize(arithmetic.Invert):
 
     def __init__(
         self,
-        p=1.0,
-        threshold=128,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        p: ParamInput = 1.0,
+        threshold: ParamInput = 128,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             p=p,
             per_channel=False,
@@ -1394,13 +1405,25 @@ class Equalize(meta.Augmenter):
     """
 
     # Added in 0.4.0.
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         # pylint: disable=no-self-use
         if batch.images is not None:
             for image in batch.images:
@@ -1408,7 +1431,7 @@ class Equalize(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return []
 
@@ -1484,13 +1507,13 @@ class Autocontrast(contrastlib._ContrastFuncWrapper):
     # Added in 0.4.0.
     def __init__(
         self,
-        cutoff=(0, 20),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        cutoff: ParamInput = (0, 20),
+        per_channel: ParamInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         params1d = [
             iap.handle_discrete_param(
                 cutoff, "cutoff", value_range=(0, 49), tuple_to_uniform=True, list_to_choice=True

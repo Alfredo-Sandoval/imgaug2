@@ -30,7 +30,7 @@ import re
 from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from types import TracebackType
-from typing import Literal, TypeAlias
+from typing import Literal, TypeAlias, cast
 
 import numpy as np
 
@@ -413,7 +413,7 @@ class Augmenter(metaclass=ABCMeta):
                 batch_copy.data = (idx, batch_copy.data)
                 batch_normalized = batch_copy
                 batch_orig_dt = "imgaug2.UnnormalizedBatch"
-            elif ia.is_np_array(batch):
+            elif isinstance(batch, np.ndarray):
                 assert batch.ndim in (3, 4), (
                     "Expected numpy array to have shape (N, H, W) or "
                     f"(N, H, W, C), got {batch.shape}."
@@ -484,7 +484,10 @@ class Augmenter(metaclass=ABCMeta):
                 # change (i, .data) back to just .data
                 batch_aug.data = batch_aug.data[1]
 
-                batch_unnormalized = batch_orig.fill_from_augmented_normalized_batch(batch_aug)
+                batch_orig_unnormalized = cast(UnnormalizedBatch, batch_orig)
+                batch_unnormalized = batch_orig_unnormalized.fill_from_augmented_normalized_batch(
+                    batch_aug
+                )
             elif batch_orig_dt == "numpy_array":
                 batch_unnormalized = batch_aug.images_aug
             elif batch_orig_dt == "empty_list":
@@ -861,9 +864,19 @@ class Augmenter(metaclass=ABCMeta):
 
         """
         iabase._warn_on_suspicious_multi_image_shapes(images)
-        return self.augment_batch_(
+        batch_aug = self.augment_batch_(
             UnnormalizedBatch(images=images), parents=parents, hooks=hooks
-        ).images_aug
+        )
+        images_aug = batch_aug.images_aug
+        assert images_aug is not None, "Expected `images_aug` to be set after image augmentation."
+        if isinstance(images_aug, np.ndarray):
+            return cast(Array, images_aug)
+        if isinstance(images_aug, Sequence):
+            return cast(Sequence[Array], images_aug)
+        raise AssertionError(
+            "Expected `images_aug` to be a numpy array or a sequence of numpy arrays, "
+            f"got type {type(images_aug)}."
+        )
 
     def _augment_images(
         self,
@@ -3471,14 +3484,14 @@ class SomeOf(Augmenter, list):
 
     def __init__(
         self,
-        n=None,
-        children=None,
-        random_order=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        n: int | tuple[int, int | None] | list[int | None] | iap.StochasticParameter | None = None,
+        children: Augmenter | Sequence[Augmenter] | None = None,
+        random_order: bool = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         Augmenter.__init__(
             self, seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -3512,7 +3525,9 @@ class SomeOf(Augmenter, list):
         self.random_order = random_order
 
     @classmethod
-    def _handle_arg_n(cls, n):
+    def _handle_arg_n(
+        cls, n: int | Sequence[int | None] | iap.StochasticParameter | None
+    ) -> tuple[int | tuple[int, int | None] | iap.StochasticParameter | None, str]:
         if ia.is_single_number(n):
             n = int(n)
             n_mode = "deterministic"
@@ -3541,7 +3556,7 @@ class SomeOf(Augmenter, list):
             )
         return n, n_mode
 
-    def _get_n(self, nb_images, random_state):
+    def _get_n(self, nb_images: int, random_state: iarandom.RNG) -> Sequence[int]:
         if self.n_mode == "deterministic":
             return [self.n] * nb_images
         if self.n_mode == "None":
@@ -3553,14 +3568,14 @@ class SomeOf(Augmenter, list):
             return self.n.draw_samples((nb_images,), random_state=random_state)
         raise Exception(f"Invalid n_mode: {self.n_mode}")
 
-    def _get_augmenter_order(self, random_state):
+    def _get_augmenter_order(self, random_state: iarandom.RNG) -> Array:
         if not self.random_order:
             augmenter_order = np.arange(len(self))
         else:
             augmenter_order = random_state.permutation(len(self))
         return augmenter_order
 
-    def _get_augmenter_active(self, nb_rows, random_state):
+    def _get_augmenter_active(self, nb_rows: int, random_state: iarandom.RNG) -> Array:
         # pylint: disable=invalid-name
         nn = self._get_n(nb_rows, random_state)
         nn = [min(n, len(self)) for n in nn]
@@ -3573,7 +3588,13 @@ class SomeOf(Augmenter, list):
         return augmenter_active
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         with batch.propagation_hooks_ctx(self, hooks, parents):
             # This must happen before creating the augmenter_active array,
             # otherwise in case of determinism the number of augmented images
@@ -3605,7 +3626,7 @@ class SomeOf(Augmenter, list):
 
             return batch
 
-    def _to_deterministic(self):
+    def _to_deterministic(self) -> SomeOf:
         augs = [aug.to_deterministic() for aug in self]
         seq = self.copy()
         seq[:] = augs
@@ -3613,11 +3634,11 @@ class SomeOf(Augmenter, list):
         seq.deterministic = True
         return seq
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.n]
 
-    def add(self, augmenter):
+    def add(self, augmenter: Augmenter) -> None:
         """Add an augmenter to the list of child augmenters.
 
         Parameters
@@ -3628,11 +3649,11 @@ class SomeOf(Augmenter, list):
         """
         self.append(augmenter)
 
-    def get_children_lists(self):
+    def get_children_lists(self) -> list[list[Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
         return [self]
 
-    def __str__(self):
+    def __str__(self) -> str:
         augs_str = ", ".join([aug.__str__() for aug in self])
         pattern = "%s(name=%s, n=%s, random_order=%s, augmenters=[%s], deterministic=%s)"
         return pattern % (
@@ -3704,8 +3725,13 @@ class OneOf(SomeOf):
     """
 
     def __init__(
-        self, children, seed=None, name=None, random_state="deprecated", deterministic="deprecated"
-    ):
+        self,
+        children: Augmenter | Sequence[Augmenter],
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             n=1,
             children=children,
