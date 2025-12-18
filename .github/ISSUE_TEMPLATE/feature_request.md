@@ -1,20 +1,28 @@
 ---
 name: Feature request
-about: Suggest an idea for this project
-title: ''
-labels: ''
+about: Suggest a new augmenter or enhancement
+title: '[FEATURE] '
+labels: enhancement
 assignees: ''
 
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+**Description**
+A clear description of the feature or augmenter you'd like.
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+**Use case**
+Why is this feature useful? What problem does it solve?
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+**Proposed API (optional)**
+```python
+# Example of how you'd like to use this feature
+from imgaug2 import augmenters as iaa
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+aug = iaa.ProposedAugmenter(param=value)
+```
+
+**References (optional)**
+Links to papers, implementations, or examples of this technique.
+
+**Alternatives considered**
+Any workarounds or alternative approaches you've tried.
