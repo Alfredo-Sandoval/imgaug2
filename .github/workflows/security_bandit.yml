@@ -26,4 +26,4 @@ jobs:
 
       - name: Run bandit
         run: |
-          bandit -c bandit.yml -r imgaug2 -ll
+          bandit -c pyproject.toml -r imgaug2 -ll
