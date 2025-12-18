@@ -21,6 +21,8 @@ List of augmenters:
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias
 
 import cv2
 import numpy as np
@@ -29,12 +31,41 @@ import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
+from imgaug2.augmentables.batches import _BatchInAugmentation
+from imgaug2.augmentables.bbs import BoundingBoxesOnImage
+from imgaug2.augmentables.kps import KeypointsOnImage
+from imgaug2.augmentables.lines import LineStringsOnImage
+from imgaug2.augmentables.polys import PolygonsOnImage
 from imgaug2.augmentables import utils as augm_utils
 from imgaug2.augmenters import meta
+from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
 
+if TYPE_CHECKING:
+    from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
 
-def _split_1d_array_to_list(arr, sizes):
+AlphaInput: TypeAlias = float | int | Sequence[float | int] | Array
+PerChannelInput: TypeAlias = bool | float | iap.StochasticParameter
+ChildrenInput: TypeAlias = meta.Augmenter | Sequence[meta.Augmenter] | None
+CoordinateAugmentable: TypeAlias = (
+    KeypointsOnImage | BoundingBoxesOnImage | PolygonsOnImage | LineStringsOnImage
+)
+UpscaleMethodInput: TypeAlias = None | Literal["ALL"] | str | list[str] | iap.StochasticParameter
+AggregationMethodInput: TypeAlias = Literal["ALL"] | str | list[str] | iap.StochasticParameter
+SigmoidInput: TypeAlias = bool | float
+LabelInput: TypeAlias = None | str | list[str] | iap.StochasticParameter
+
+
+class _BranchAugmenter(Protocol):
+    foreground: meta.Augmenter | None
+    background: meta.Augmenter | None
+    deterministic: bool
+    random_state: iarandom.RNG
+
+    def copy(self) -> _BranchAugmenter: ...
+
+
+def _split_1d_array_to_list(arr: Array, sizes: Sequence[int]) -> list[Array]:
     result = []
     i = 0
     for size in sizes:
@@ -43,7 +74,7 @@ def _split_1d_array_to_list(arr, sizes):
     return result
 
 
-def blend_alpha(image_fg, image_bg, alpha, eps=1e-2):
+def blend_alpha(image_fg: Array, image_bg: Array, alpha: AlphaInput, eps: float = 1e-2) -> Array:
     """
     Blend two images using an alpha blending.
 
@@ -90,7 +121,7 @@ def blend_alpha(image_fg, image_bg, alpha, eps=1e-2):
     return blend_alpha_(np.copy(image_fg), image_bg, alpha, eps=eps)
 
 
-def blend_alpha_(image_fg, image_bg, alpha, eps=1e-2):
+def blend_alpha_(image_fg: Array, image_bg: Array, alpha: AlphaInput, eps: float = 1e-2) -> Array:
     """
     Blend two images in-place using an alpha blending.
 
@@ -259,7 +290,9 @@ def blend_alpha_(image_fg, image_bg, alpha, eps=1e-2):
 
 
 # Added in 0.5.0.
-def _blend_alpha_uint8_single_alpha_(image_fg, image_bg, alpha, inplace):
+def _blend_alpha_uint8_single_alpha_(
+    image_fg: Array, image_bg: Array, alpha: float, inplace: bool
+) -> Array:
     # here we are not guarantueed that inputs have ndim=3, can be ndim=2
     result = cv2.addWeighted(
         _normalize_cv2_input_arr_(image_fg),
@@ -275,7 +308,7 @@ def _blend_alpha_uint8_single_alpha_(image_fg, image_bg, alpha, inplace):
 
 
 # Added in 0.5.0.
-def _blend_alpha_uint8_channelwise_alphas_(image_fg, image_bg, alphas):
+def _blend_alpha_uint8_channelwise_alphas_(image_fg: Array, image_bg: Array, alphas: Array) -> Array:
     # we are guarantueed here that image_fg and image_bg have ndim=3
     result = []
     for i, alpha in enumerate(alphas):
@@ -290,7 +323,7 @@ def _blend_alpha_uint8_channelwise_alphas_(image_fg, image_bg, alphas):
 
 
 # Added in 0.5.0.
-def _blend_alpha_uint8_elementwise_(image_fg, image_bg, alphas):
+def _blend_alpha_uint8_elementwise_(image_fg: Array, image_bg: Array, alphas: Array) -> Array:
     betas = 1.0 - alphas
 
     is_2d = alphas.ndim == 2 or alphas.shape[2] == 1
@@ -335,7 +368,7 @@ def _blend_alpha_uint8_elementwise_(image_fg, image_bg, alphas):
 
 # Added in 0.5.0.
 # (Extracted from blend_alpha().)
-def _blend_alpha_non_uint8(image_fg, image_bg, alpha):
+def _blend_alpha_non_uint8(image_fg: Array, image_bg: Array, alpha: Array) -> Array:
     if alpha.ndim == 2:
         alpha = alpha[:, :, np.newaxis]
 
@@ -384,7 +417,7 @@ def _blend_alpha_non_uint8(image_fg, image_bg, alpha):
     return image_blend
 
 
-def _merge_channels(channels, input_was_3d):
+def _merge_channels(channels: Sequence[Array], input_was_3d: bool) -> Array:
     if len(channels) <= 512:
         image_blend = cv2.merge(channels)
     else:
@@ -395,7 +428,12 @@ def _merge_channels(channels, input_was_3d):
 
 
 # Added in 0.4.0.
-def _generate_branch_outputs(augmenter, batch, hooks, parents):
+def _generate_branch_outputs(
+    augmenter: _BranchAugmenter,
+    batch: _BatchInAugmentation,
+    hooks: ia.HooksImages | None,
+    parents: list[meta.Augmenter],
+) -> tuple[_BatchInAugmentation, _BatchInAugmentation]:
     parents_extended = parents + [augmenter]
 
     # Note here that the propagation hook removes columns in the batch
@@ -422,7 +460,7 @@ def _generate_branch_outputs(augmenter, batch, hooks, parents):
 
 
 # Added in 0.4.0.
-def _to_deterministic(augmenter):
+def _to_deterministic(augmenter: _BranchAugmenter) -> _BranchAugmenter:
     aug = augmenter.copy()
     aug.foreground = aug.foreground.to_deterministic() if aug.foreground is not None else None
     aug.background = aug.background.to_deterministic() if aug.background is not None else None
@@ -571,15 +609,15 @@ class BlendAlpha(meta.Augmenter):
     # Added in 0.4.0.
     def __init__(
         self,
-        factor=(0.0, 1.0),
-        foreground=None,
-        background=None,
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        factor: ParamInput = (0.0, 1.0),
+        foreground: ChildrenInput = None,
+        background: ChildrenInput = None,
+        per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -604,7 +642,13 @@ class BlendAlpha(meta.Augmenter):
         self.epsilon = 1e-2
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         batch_fg, batch_bg = _generate_branch_outputs(self, batch, hooks, parents)
 
         columns = batch.columns
@@ -649,21 +693,21 @@ class BlendAlpha(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def _to_deterministic(self):
+    def _to_deterministic(self) -> meta.Augmenter:
         return _to_deterministic(self)
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.factor, self.per_channel]
 
     # Added in 0.4.0.
-    def get_children_lists(self):
+    def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
         return [lst for lst in [self.foreground, self.background] if lst is not None]
 
     # Added in 0.4.0.
-    def __str__(self):
+    def __str__(self) -> str:
         pattern = (
             "%s(factor=%s, per_channel=%s, name=%s, foreground=%s, background=%s, deterministic=%s)"
         )
@@ -789,14 +833,14 @@ class BlendAlphaMask(meta.Augmenter):
     # Added in 0.4.0.
     def __init__(
         self,
-        mask_generator,
-        foreground=None,
-        background=None,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        mask_generator: IBatchwiseMaskGenerator,
+        foreground: ChildrenInput = None,
+        background: ChildrenInput = None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -835,7 +879,13 @@ class BlendAlphaMask(meta.Augmenter):
         self.epsilon = 1e-2
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         batch_fg, batch_bg = _generate_branch_outputs(self, batch, hooks, parents)
 
         masks = self.mask_generator.draw_masks(batch, random_state)
@@ -883,7 +933,7 @@ class BlendAlphaMask(meta.Augmenter):
 
     # Added in 0.4.0.
     @classmethod
-    def _binarize_mask(cls, mask, arr_height, arr_width):
+    def _binarize_mask(cls, mask: Array, arr_height: int, arr_width: int) -> Array:
         # Average over channels, resize to heatmap/segmap array size
         # (+clip for cubic interpolation). We can use none-NN interpolation
         # for segmaps here as this is just the mask and not the segmap
@@ -903,7 +953,14 @@ class BlendAlphaMask(meta.Augmenter):
 
     # Added in 0.4.0.
     @classmethod
-    def _blend_coordinates(cls, cbaoi, cbaoi_fg, cbaoi_bg, mask_image, mode):
+    def _blend_coordinates(
+        cls,
+        cbaoi: CoordinateAugmentable,
+        cbaoi_fg: CoordinateAugmentable,
+        cbaoi_bg: CoordinateAugmentable,
+        mask_image: Array,
+        mode: str,
+    ) -> CoordinateAugmentable:
         coords = augm_utils.convert_cbaois_to_kpsois(cbaoi)
         coords_fg = augm_utils.convert_cbaois_to_kpsois(cbaoi_fg)
         coords_bg = augm_utils.convert_cbaois_to_kpsois(cbaoi_bg)
@@ -965,21 +1022,21 @@ class BlendAlphaMask(meta.Augmenter):
         return augm_utils.invert_convert_cbaois_to_kpsois_(cbaoi, kpsoi_aug)
 
     # Added in 0.4.0.
-    def _to_deterministic(self):
+    def _to_deterministic(self) -> meta.Augmenter:
         return _to_deterministic(self)
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.mask_generator]
 
     # Added in 0.4.0.
-    def get_children_lists(self):
+    def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
         return [lst for lst in [self.foreground, self.background] if lst is not None]
 
     # Added in 0.4.0.
-    def __str__(self):
+    def __str__(self) -> str:
         pattern = "%s(mask_generator=%s, name=%s, foreground=%s, background=%s, deterministic=%s)"
         return pattern % (
             self.__class__.__name__,
@@ -1132,15 +1189,15 @@ class BlendAlphaElementwise(BlendAlphaMask):
     # Added in 0.4.0.
     def __init__(
         self,
-        factor=(0.0, 1.0),
-        foreground=None,
-        background=None,
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        factor: ParamInput = (0.0, 1.0),
+        foreground: ChildrenInput = None,
+        background: ChildrenInput = None,
+        per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         factor = iap.handle_continuous_param(
             factor, "factor", value_range=(0, 1.0), tuple_to_uniform=True, list_to_choice=True
         )
@@ -1157,7 +1214,7 @@ class BlendAlphaElementwise(BlendAlphaMask):
 
     # Added in 0.4.0.
     @property
-    def factor(self):
+    def factor(self) -> iap.StochasticParameter:
         return self.mask_generator.parameter
 
 
@@ -1344,20 +1401,20 @@ class BlendAlphaSimplexNoise(BlendAlphaElementwise):
     # Added in 0.4.0.
     def __init__(
         self,
-        foreground=None,
-        background=None,
-        per_channel=False,
-        size_px_max=(2, 16),
-        upscale_method=None,
-        iterations=(1, 3),
-        aggregation_method="max",
-        sigmoid=True,
-        sigmoid_thresh=None,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        foreground: ChildrenInput = None,
+        background: ChildrenInput = None,
+        per_channel: PerChannelInput = False,
+        size_px_max: ParamInput = (2, 16),
+        upscale_method: UpscaleMethodInput = None,
+        iterations: ParamInput = (1, 3),
+        aggregation_method: AggregationMethodInput = "max",
+        sigmoid: SigmoidInput = True,
+        sigmoid_thresh: ParamInput | None = None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         upscale_method_default = iap.Choice(["nearest", "linear", "cubic"], p=[0.05, 0.6, 0.35])
         sigmoid_thresh_default = iap.Normal(0.0, 5.0)
 
@@ -1604,21 +1661,21 @@ class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
     # Added in 0.4.0.
     def __init__(
         self,
-        exponent=(-4, 4),
-        foreground=None,
-        background=None,
-        per_channel=False,
-        size_px_max=(4, 16),
-        upscale_method=None,
-        iterations=(1, 3),
-        aggregation_method=["avg", "max"],
-        sigmoid=0.5,
-        sigmoid_thresh=None,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        exponent: ParamInput = (-4, 4),
+        foreground: ChildrenInput = None,
+        background: ChildrenInput = None,
+        per_channel: PerChannelInput = False,
+        size_px_max: ParamInput = (4, 16),
+        upscale_method: UpscaleMethodInput = None,
+        iterations: ParamInput = (1, 3),
+        aggregation_method: AggregationMethodInput = ["avg", "max"],
+        sigmoid: SigmoidInput = 0.5,
+        sigmoid_thresh: ParamInput | None = None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # pylint: disable=dangerous-default-value
         upscale_method_default = iap.Choice(["nearest", "linear", "cubic"], p=[0.05, 0.6, 0.35])
         sigmoid_thresh_default = iap.Normal(0.0, 5.0)
@@ -1785,18 +1842,18 @@ class BlendAlphaSomeColors(BlendAlphaMask):
     # Added in 0.4.0.
     def __init__(
         self,
-        foreground=None,
-        background=None,
-        nb_bins=(5, 15),
-        smoothness=(0.1, 0.3),
-        alpha=[0.0, 1.0],
-        rotation_deg=(0, 360),
-        from_colorspace="RGB",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        foreground: ChildrenInput = None,
+        background: ChildrenInput = None,
+        nb_bins: ParamInput = (5, 15),
+        smoothness: ParamInput = (0.1, 0.3),
+        alpha: ParamInput = [0.0, 1.0],
+        rotation_deg: ParamInput = (0, 360),
+        from_colorspace: str = "RGB",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # pylint: disable=dangerous-default-value
         super().__init__(
             SomeColorsMaskGen(
@@ -1921,17 +1978,17 @@ class BlendAlphaHorizontalLinearGradient(BlendAlphaMask):
     # Added in 0.4.0.
     def __init__(
         self,
-        foreground=None,
-        background=None,
-        min_value=(0.0, 0.2),
-        max_value=(0.8, 1.0),
-        start_at=(0.0, 0.2),
-        end_at=(0.8, 1.0),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        foreground: ChildrenInput = None,
+        background: ChildrenInput = None,
+        min_value: ParamInput = (0.0, 0.2),
+        max_value: ParamInput = (0.8, 1.0),
+        start_at: ParamInput = (0.0, 0.2),
+        end_at: ParamInput = (0.8, 1.0),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             HorizontalLinearGradientMaskGen(
                 min_value=min_value, max_value=max_value, start_at=start_at, end_at=end_at
@@ -2058,17 +2115,17 @@ class BlendAlphaVerticalLinearGradient(BlendAlphaMask):
     # Added in 0.4.0.
     def __init__(
         self,
-        foreground=None,
-        background=None,
-        min_value=(0.0, 0.2),
-        max_value=(0.8, 1.0),
-        start_at=(0.0, 0.2),
-        end_at=(0.8, 1.0),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        foreground: ChildrenInput = None,
+        background: ChildrenInput = None,
+        min_value: ParamInput = (0.0, 0.2),
+        max_value: ParamInput = (0.8, 1.0),
+        start_at: ParamInput = (0.0, 0.2),
+        end_at: ParamInput = (0.8, 1.0),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             VerticalLinearGradientMaskGen(
                 min_value=min_value, max_value=max_value, start_at=start_at, end_at=end_at
@@ -2194,16 +2251,16 @@ class BlendAlphaRegularGrid(BlendAlphaMask):
     # Added in 0.4.0.
     def __init__(
         self,
-        nb_rows,
-        nb_cols,
-        foreground=None,
-        background=None,
-        alpha=[0.0, 1.0],
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        nb_rows: ParamInput,
+        nb_cols: ParamInput,
+        foreground: ChildrenInput = None,
+        background: ChildrenInput = None,
+        alpha: ParamInput = [0.0, 1.0],
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # pylint: disable=dangerous-default-value
         super().__init__(
             RegularGridMaskGen(nb_rows=nb_rows, nb_cols=nb_cols, alpha=alpha),
@@ -2304,15 +2361,15 @@ class BlendAlphaCheckerboard(BlendAlphaMask):
     # Added in 0.4.0.
     def __init__(
         self,
-        nb_rows,
-        nb_cols,
-        foreground=None,
-        background=None,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        nb_rows: ParamInput,
+        nb_cols: ParamInput,
+        foreground: ChildrenInput = None,
+        background: ChildrenInput = None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             CheckerboardMaskGen(nb_rows=nb_rows, nb_cols=nb_cols),
             foreground=foreground,
@@ -2441,15 +2498,15 @@ class BlendAlphaSegMapClassIds(BlendAlphaMask):
     # Added in 0.4.0.
     def __init__(
         self,
-        class_ids,
-        foreground=None,
-        background=None,
-        nb_sample_classes=None,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        class_ids: ParamInput,
+        foreground: ChildrenInput = None,
+        background: ChildrenInput = None,
+        nb_sample_classes: ParamInput | None = None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             SegMapClassIdsMaskGen(class_ids=class_ids, nb_sample_classes=nb_sample_classes),
             foreground=foreground,
@@ -2575,15 +2632,15 @@ class BlendAlphaBoundingBoxes(BlendAlphaMask):
     # Added in 0.4.0.
     def __init__(
         self,
-        labels,
-        foreground=None,
-        background=None,
-        nb_sample_labels=None,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        labels: LabelInput,
+        foreground: ChildrenInput = None,
+        background: ChildrenInput = None,
+        nb_sample_labels: ParamInput | None = None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             BoundingBoxesMaskGen(labels=labels, nb_sample_labels=nb_sample_labels),
             foreground=foreground,
@@ -2607,7 +2664,8 @@ class IBatchwiseMaskGenerator(metaclass=ABCMeta):
     """
 
     # Added in 0.4.0.
-    def draw_masks(self, batch, random_state=None):
+    @abstractmethod
+    def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """Generate a mask with given shape.
 
         Parameters
@@ -2631,6 +2689,7 @@ class IBatchwiseMaskGenerator(metaclass=ABCMeta):
             same mask.
 
         """
+        raise NotImplementedError
 
 
 class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
@@ -2664,13 +2723,13 @@ class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
     """
 
     # Added in 0.4.0.
-    def __init__(self, parameter, per_channel):
+    def __init__(self, parameter: iap.StochasticParameter, per_channel: PerChannelInput) -> None:
         super().__init__()
         self.parameter = parameter
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
     # Added in 0.4.0.
-    def draw_masks(self, batch, random_state=None):
+    def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
 
@@ -2685,7 +2744,9 @@ class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
         ]
 
     # Added in 0.4.0.
-    def _draw_mask(self, shape, random_state, per_channel):
+    def _draw_mask(
+        self, shape: tuple[int, ...], random_state: iarandom.RNG, per_channel: float
+    ) -> Array:
         if len(shape) == 2 or per_channel >= 0.5:
             mask = self.parameter.draw_samples(shape, random_state=random_state)
         else:
@@ -2815,12 +2876,12 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
     # TODO colorlib.CSPACE_RGB produces 'has no attribute' error?
     def __init__(
         self,
-        nb_bins=(5, 15),
-        smoothness=(0.1, 0.3),
-        alpha=[0.0, 1.0],
-        rotation_deg=(0, 360),
-        from_colorspace="RGB",
-    ):
+        nb_bins: ParamInput = (5, 15),
+        smoothness: ParamInput = (0.1, 0.3),
+        alpha: ParamInput = [0.0, 1.0],
+        rotation_deg: ParamInput = (0, 360),
+        from_colorspace: str = "RGB",
+    ) -> None:
         # pylint: disable=dangerous-default-value
         super().__init__()
 
@@ -2849,7 +2910,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         self.sigma_max = 10.0
 
     # Added in 0.4.0.
-    def draw_masks(self, batch, random_state=None):
+    def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
 
@@ -2864,7 +2925,9 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         return [self._draw_mask(image, i, samples) for i, image in enumerate(batch.images)]
 
     # Added in 0.4.0.
-    def _draw_mask(self, image, image_idx, samples):
+    def _draw_mask(
+        self, image: Array, image_idx: int, samples: tuple[list[Array], Array, Array]
+    ) -> Array:
         return self.generate_mask(
             image,
             samples[0][image_idx],
@@ -2874,7 +2937,9 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         )
 
     # Added in 0.4.0.
-    def _draw_samples(self, batch, random_state):
+    def _draw_samples(
+        self, batch: _BatchInAugmentation, random_state: iarandom.RNG
+    ) -> tuple[list[Array], Array, Array]:
         nb_rows = batch.nb_rows
         nb_bins = self.nb_bins.draw_samples((nb_rows,), random_state=random_state)
         smoothness = self.smoothness.draw_samples((nb_rows,), random_state=random_state)
@@ -2891,7 +2956,14 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         return binwise_alphas, smoothness, rotation_bins
 
     @classmethod
-    def generate_mask(cls, image, binwise_alphas, sigma, rotation_bins, from_colorspace):
+    def generate_mask(
+        cls,
+        image: Array,
+        binwise_alphas: Array,
+        sigma: float,
+        rotation_bins: int,
+        from_colorspace: str,
+    ) -> Array:
         """Generate a colorwise alpha mask for a single image.
 
         Added in 0.4.0.
@@ -2947,7 +3019,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
 
     # Added in 0.4.0.
     @classmethod
-    def _upscale_to_256_alpha_bins(cls, alphas):
+    def _upscale_to_256_alpha_bins(cls, alphas: Array) -> Array:
         # repeat alphas bins so that B sampled bins become 256 bins
         nb_bins = len(alphas)
         nb_repeats_per_bin = int(np.ceil(256 / nb_bins))
@@ -2957,7 +3029,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
 
     # Added in 0.4.0.
     @classmethod
-    def _rotate_alpha_bins(cls, alphas, rotation_bins):
+    def _rotate_alpha_bins(cls, alphas: Array, rotation_bins: int) -> Array:
         # e.g. for offset 2: abcdef -> cdefab
         # note: offset here is expected to be in [0, 256]
         if rotation_bins > 0:
@@ -2966,7 +3038,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
 
     # Added in 0.4.0.
     @classmethod
-    def _smoothen_alphas(cls, alphas, sigma):
+    def _smoothen_alphas(cls, alphas: Array, sigma: float) -> Array:
         if sigma <= 0.0 + 1e-2:
             return alphas
 
@@ -3001,7 +3073,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
 
     # Added in 0.4.0.
     @classmethod
-    def _generate_pixelwise_alpha_mask(cls, image_hsv, hue_to_alpha):
+    def _generate_pixelwise_alpha_mask(cls, image_hsv: Array, hue_to_alpha: Array) -> Array:
         hue = image_hsv[:, :, 0]
         table = hue_to_alpha * 255
         table = np.clip(np.round(table), 0, 255).astype(np.uint8)
@@ -3012,7 +3084,14 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
 # Added in 0.4.0.
 class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
     # Added in 0.4.0.
-    def __init__(self, axis, min_value=0.0, max_value=1.0, start_at=0.0, end_at=1.0):
+    def __init__(
+        self,
+        axis: int,
+        min_value: ParamInput = 0.0,
+        max_value: ParamInput = 1.0,
+        start_at: ParamInput = 0.0,
+        end_at: ParamInput = 1.0,
+    ) -> None:
         self.axis = axis
         self.min_value = iap.handle_continuous_param(
             min_value,
@@ -3035,7 +3114,7 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
             end_at, "end_at", value_range=(0.0, 1.0), tuple_to_uniform=True, list_to_choice=True
         )
 
-    def draw_masks(self, batch, random_state=None):
+    def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
 
@@ -3049,7 +3128,9 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
         return [self._draw_mask(shape, i, samples) for i, shape in enumerate(shapes)]
 
     # Added in 0.4.0.
-    def _draw_mask(self, shape, image_idx, samples):
+    def _draw_mask(
+        self, shape: tuple[int, ...], image_idx: int, samples: tuple[Array, Array, Array, Array]
+    ) -> Array:
         return self.generate_mask(
             shape,
             samples[0][image_idx],
@@ -3059,7 +3140,9 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
         )
 
     # Added in 0.4.0.
-    def _draw_samples(self, nb_rows, random_state):
+    def _draw_samples(
+        self, nb_rows: int, random_state: iarandom.RNG
+    ) -> tuple[Array, Array, Array, Array]:
         min_value = self.min_value.draw_samples((nb_rows,), random_state=random_state)
         max_value = self.max_value.draw_samples((nb_rows,), random_state=random_state)
         start_at = self.start_at.draw_samples((nb_rows,), random_state=random_state)
@@ -3069,7 +3152,14 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
 
     @classmethod
     @abstractmethod
-    def generate_mask(cls, shape, min_value, max_value, start_at, end_at):
+    def generate_mask(
+        cls,
+        shape: tuple[int, ...],
+        min_value: float,
+        max_value: float,
+        start_at: float,
+        end_at: float,
+    ) -> Array:
         """Generate a horizontal gradient mask.
 
         Added in 0.4.0.
@@ -3101,10 +3191,19 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
             Values are in ``[0.0, 1.0]``.
 
         """
+        raise NotImplementedError
 
     # Added in 0.4.0.
     @classmethod
-    def _generate_mask(cls, shape, axis, min_value, max_value, start_at, end_at):
+    def _generate_mask(
+        cls,
+        shape: tuple[int, ...],
+        axis: int,
+        min_value: float,
+        max_value: float,
+        start_at: float,
+        end_at: float,
+    ) -> Array:
         height, width = shape[0:2]
 
         axis_size = shape[axis]
@@ -3197,14 +3296,20 @@ class HorizontalLinearGradientMaskGen(_LinearGradientMaskGen):
 
     # Added in 0.4.0.
     def __init__(
-        self, min_value=(0.0, 0.2), max_value=(0.8, 1.0), start_at=(0.0, 0.2), end_at=(0.8, 1.0)
-    ):
+        self,
+        min_value: ParamInput = (0.0, 0.2),
+        max_value: ParamInput = (0.8, 1.0),
+        start_at: ParamInput = (0.0, 0.2),
+        end_at: ParamInput = (0.8, 1.0),
+    ) -> None:
         super().__init__(
             axis=1, min_value=min_value, max_value=max_value, start_at=start_at, end_at=end_at
         )
 
     @classmethod
-    def generate_mask(cls, shape, min_value, max_value, start_at, end_at):
+    def generate_mask(
+        cls, shape: tuple[int, ...], min_value: float, max_value: float, start_at: float, end_at: float
+    ) -> Array:
         """Generate a linear horizontal gradient mask.
 
         Added in 0.4.0.
@@ -3295,14 +3400,20 @@ class VerticalLinearGradientMaskGen(_LinearGradientMaskGen):
 
     # Added in 0.4.0.
     def __init__(
-        self, min_value=(0.0, 0.2), max_value=(0.8, 1.0), start_at=(0.0, 0.2), end_at=(0.8, 1.0)
-    ):
+        self,
+        min_value: ParamInput = (0.0, 0.2),
+        max_value: ParamInput = (0.8, 1.0),
+        start_at: ParamInput = (0.0, 0.2),
+        end_at: ParamInput = (0.8, 1.0),
+    ) -> None:
         super().__init__(
             axis=0, min_value=min_value, max_value=max_value, start_at=start_at, end_at=end_at
         )
 
     @classmethod
-    def generate_mask(cls, shape, min_value, max_value, start_at, end_at):
+    def generate_mask(
+        cls, shape: tuple[int, ...], min_value: float, max_value: float, start_at: float, end_at: float
+    ) -> Array:
         """Generate a linear horizontal gradient mask.
 
         Added in 0.4.0.
@@ -3386,7 +3497,7 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
     """
 
     # Added in 0.4.0.
-    def __init__(self, nb_rows, nb_cols, alpha=[0.0, 1.0]):
+    def __init__(self, nb_rows: ParamInput, nb_cols: ParamInput, alpha: ParamInput = [0.0, 1.0]) -> None:
         # pylint: disable=dangerous-default-value
         self.nb_rows = iap.handle_discrete_param(
             nb_rows,
@@ -3408,7 +3519,7 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
             alpha, "alpha", value_range=(0.0, 1.0), tuple_to_uniform=True, list_to_choice=True
         )
 
-    def draw_masks(self, batch, random_state=None):
+    def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
 
@@ -3425,7 +3536,9 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
         ]
 
     # Added in 0.4.0.
-    def _draw_samples(self, nb_images, random_state):
+    def _draw_samples(
+        self, nb_images: int, random_state: iarandom.RNG
+    ) -> tuple[Array, Array, list[Array]]:
         nb_rows = self.nb_rows.draw_samples((nb_images,), random_state=random_state)
         nb_cols = self.nb_cols.draw_samples((nb_images,), random_state=random_state)
         nb_alphas_per_img = nb_rows * nb_cols
@@ -3436,7 +3549,7 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
         return nb_rows, nb_cols, alpha
 
     @classmethod
-    def generate_mask(cls, shape, nb_rows, nb_cols, alphas):
+    def generate_mask(cls, shape: tuple[int, ...], nb_rows: int, nb_cols: int, alphas: Array) -> Array:
         """Generate a mask following a checkerboard pattern.
 
         Added in 0.4.0.
@@ -3530,11 +3643,11 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
 
     """
 
-    def __init__(self, nb_rows, nb_cols):
+    def __init__(self, nb_rows: ParamInput, nb_cols: ParamInput) -> None:
         self.grid = RegularGridMaskGen(nb_rows=nb_rows, nb_cols=nb_cols, alpha=1)
 
     @property
-    def nb_rows(self):
+    def nb_rows(self) -> iap.StochasticParameter:
         """Get the number of rows of the checkerboard grid.
 
         Added in 0.4.0.
@@ -3548,7 +3661,7 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
         return self.grid.nb_rows
 
     @property
-    def nb_cols(self):
+    def nb_cols(self) -> iap.StochasticParameter:
         """Get the number of columns of the checkerboard grid.
 
         Added in 0.4.0.
@@ -3561,7 +3674,7 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
         """
         return self.grid.nb_cols
 
-    def draw_masks(self, batch, random_state=None):
+    def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
 
@@ -3579,7 +3692,7 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
         ]
 
     @classmethod
-    def generate_mask(cls, shape, nb_rows, nb_cols):
+    def generate_mask(cls, shape: tuple[int, ...], nb_rows: int, nb_cols: int) -> Array:
         """Generate a mask following a checkerboard pattern.
 
         Added in 0.4.0.
@@ -3687,7 +3800,7 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
     """
 
     # Added in 0.4.0.
-    def __init__(self, class_ids, nb_sample_classes=None):
+    def __init__(self, class_ids: ParamInput, nb_sample_classes: ParamInput | None = None) -> None:
         if nb_sample_classes is None:
             if ia.is_single_integer(class_ids):
                 class_ids = [class_ids]
@@ -3717,7 +3830,7 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
                 allow_floats=False,
             )
 
-    def draw_masks(self, batch, random_state=None):
+    def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
 
@@ -3737,7 +3850,7 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
         ]
 
     # Added in 0.4.0.
-    def _draw_samples(self, nb_rows, random_state):
+    def _draw_samples(self, nb_rows: int, random_state: iarandom.RNG) -> list[Sequence[int]]:
         nb_sample_classes = self.nb_sample_classes
         if nb_sample_classes is None:
             assert isinstance(self.class_ids, list), (
@@ -3758,7 +3871,7 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
     # TODO this could be simplified to something like:
     #      segmap.keep_only_classes(class_ids).draw_mask()
     @classmethod
-    def generate_mask(cls, segmap, class_ids):
+    def generate_mask(cls, segmap: SegmentationMapsOnImage, class_ids: Sequence[int]) -> Array:
         """Generate a mask of where the segmentation map has the given classes.
 
         Added in 0.4.0.
@@ -3860,7 +3973,7 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
     """
 
     # Added in 0.4.0.
-    def __init__(self, labels=None, nb_sample_labels=None):
+    def __init__(self, labels: LabelInput = None, nb_sample_labels: ParamInput | None = None) -> None:
         if labels is None:
             self.labels = None
             self.nb_sample_labels = None
@@ -3886,7 +3999,7 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
                 allow_floats=False,
             )
 
-    def draw_masks(self, batch, random_state=None):
+    def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
 
@@ -3910,7 +4023,7 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
         ]
 
     # Added in 0.4.0.
-    def _draw_samples(self, nb_rows, random_state):
+    def _draw_samples(self, nb_rows: int, random_state: iarandom.RNG) -> list[Sequence[str]]:
         nb_sample_labels = self.nb_sample_labels
         if nb_sample_labels is None:
             assert isinstance(self.labels, list), f"Expected list got {type(self.labels).__name__}."
@@ -3929,7 +4042,7 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
     # TODO this could be simplified to something like
     #      bbsoi.only_labels(labels).draw_mask()
     @classmethod
-    def generate_mask(cls, bbsoi, labels):
+    def generate_mask(cls, bbsoi: BoundingBoxesOnImage, labels: Sequence[str] | None) -> Array:
         """Generate a mask of the areas of bounding boxes with given labels.
 
         Added in 0.4.0.
@@ -3989,11 +4102,11 @@ class InvertMaskGen(IBatchwiseMaskGenerator):
     """
 
     # Added in 0.4.0.
-    def __init__(self, p, child):
+    def __init__(self, p: PerChannelInput, child: IBatchwiseMaskGenerator) -> None:
         self.p = iap.handle_probability_param(p, "p")
         self.child = child
 
-    def draw_masks(self, batch, random_state=None):
+    def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
 
@@ -4018,15 +4131,15 @@ class InvertMaskGen(IBatchwiseMaskGenerator):
     "Parameter 'second' was renamed to 'background'.",
 )
 def Alpha(
-    factor=0,
-    first=None,
-    second=None,
-    per_channel=False,
-    seed=None,
-    name=None,
-    random_state="deprecated",
-    deterministic="deprecated",
-):
+    factor: ParamInput = 0,
+    first: ChildrenInput = None,
+    second: ChildrenInput = None,
+    per_channel: PerChannelInput = False,
+    seed: RNGInput = None,
+    name: str | None = None,
+    random_state: RNGInput | Literal["deprecated"] = "deprecated",
+    deterministic: bool | Literal["deprecated"] = "deprecated",
+) -> BlendAlpha:
     """See :class:`BlendAlpha`.
 
     Deprecated since 0.4.0.
@@ -4054,15 +4167,15 @@ def Alpha(
     "Parameter 'second' was renamed to 'background'.",
 )
 def AlphaElementwise(
-    factor=0,
-    first=None,
-    second=None,
-    per_channel=False,
-    seed=None,
-    name=None,
-    random_state="deprecated",
-    deterministic="deprecated",
-):
+    factor: ParamInput = 0,
+    first: ChildrenInput = None,
+    second: ChildrenInput = None,
+    per_channel: PerChannelInput = False,
+    seed: RNGInput = None,
+    name: str | None = None,
+    random_state: RNGInput | Literal["deprecated"] = "deprecated",
+    deterministic: bool | Literal["deprecated"] = "deprecated",
+) -> BlendAlphaElementwise:
     """See :class:`BlendAlphaElementwise`.
 
     Deprecated since 0.4.0.
@@ -4090,20 +4203,20 @@ def AlphaElementwise(
     "Parameter 'second' was renamed to 'background'.",
 )
 def SimplexNoiseAlpha(
-    first=None,
-    second=None,
-    per_channel=False,
-    size_px_max=(2, 16),
-    upscale_method=None,
-    iterations=(1, 3),
-    aggregation_method="max",
-    sigmoid=True,
-    sigmoid_thresh=None,
-    seed=None,
-    name=None,
-    random_state="deprecated",
-    deterministic="deprecated",
-):
+    first: ChildrenInput = None,
+    second: ChildrenInput = None,
+    per_channel: PerChannelInput = False,
+    size_px_max: ParamInput = (2, 16),
+    upscale_method: UpscaleMethodInput = None,
+    iterations: ParamInput = (1, 3),
+    aggregation_method: AggregationMethodInput = "max",
+    sigmoid: SigmoidInput = True,
+    sigmoid_thresh: ParamInput | None = None,
+    seed: RNGInput = None,
+    name: str | None = None,
+    random_state: RNGInput | Literal["deprecated"] = "deprecated",
+    deterministic: bool | Literal["deprecated"] = "deprecated",
+) -> BlendAlphaSimplexNoise:
     """See :class:`BlendAlphaSimplexNoise`.
 
     Deprecated since 0.4.0.
@@ -4136,21 +4249,21 @@ def SimplexNoiseAlpha(
     "Parameter 'second' was renamed to 'background'.",
 )
 def FrequencyNoiseAlpha(
-    exponent=(-4, 4),
-    first=None,
-    second=None,
-    per_channel=False,
-    size_px_max=(4, 16),
-    upscale_method=None,
-    iterations=(1, 3),
-    aggregation_method=["avg", "max"],
-    sigmoid=0.5,
-    sigmoid_thresh=None,
-    seed=None,
-    name=None,
-    random_state="deprecated",
-    deterministic="deprecated",
-):
+    exponent: ParamInput = (-4, 4),
+    first: ChildrenInput = None,
+    second: ChildrenInput = None,
+    per_channel: PerChannelInput = False,
+    size_px_max: ParamInput = (4, 16),
+    upscale_method: UpscaleMethodInput = None,
+    iterations: ParamInput = (1, 3),
+    aggregation_method: AggregationMethodInput = ["avg", "max"],
+    sigmoid: SigmoidInput = 0.5,
+    sigmoid_thresh: ParamInput | None = None,
+    seed: RNGInput = None,
+    name: str | None = None,
+    random_state: RNGInput | Literal["deprecated"] = "deprecated",
+    deterministic: bool | Literal["deprecated"] = "deprecated",
+) -> BlendAlphaFrequencyNoise:
     """See :class:`BlendAlphaFrequencyNoise`.
 
     Deprecated since 0.4.0.

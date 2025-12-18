@@ -51,7 +51,7 @@ Added in 0.4.0.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal, TypeAlias
+from typing import Literal, Protocol, TypeAlias
 
 import cv2
 import numpy as np
@@ -80,6 +80,8 @@ _EQUALIZE_USE_PIL_BELOW = 64 * 64  # H*W
 
 FillColor: TypeAlias = int | tuple[int, ...] | None
 IgnoreValues: TypeAlias = int | Sequence[int] | None
+AffineParam: TypeAlias = ParamInput | dict[str, ParamInput]
+AffineParamOrNone: TypeAlias = AffineParam | None
 
 
 # Added in 0.4.0.
@@ -483,8 +485,10 @@ def _autocontrast_no_pil(image: Array, cutoff: int, ignore: IgnoreValues) -> Arr
                 h[hi] = hi_cut[255 - hi]
 
         # find lowest/highest samples after preprocessing
-        for lo, lo_val in enumerate(h):
+        lo = 255
+        for idx, lo_val in enumerate(h):
             if lo_val:
+                lo = idx
                 break
         for hi in range(255, -1, -1):
             if h[hi]:
@@ -524,8 +528,12 @@ def _autocontrast_no_pil(image: Array, cutoff: int, ignore: IgnoreValues) -> Arr
 
 
 # Added in 0.4.0.
+class _EnhanceCtor(Protocol):
+    def __call__(self, image: PIL.Image.Image) -> PIL.ImageEnhance._Enhance: ...
+
+
 def _apply_enhance_func(
-    image: Array, cls: type[PIL.ImageEnhance._Enhance], factor: float
+    image: Array, cls: _EnhanceCtor, factor: float
 ) -> Array:
     iadt.allow_only_uint8({image.dtype})
 
@@ -1541,14 +1549,14 @@ class _EnhanceBase(meta.Augmenter):
     # Added in 0.4.0.
     def __init__(
         self,
-        func,
-        factor,
-        factor_value_range,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        func: object,
+        factor: ParamInput,
+        factor_value_range: tuple[float | None, float | None],
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -1562,21 +1570,27 @@ class _EnhanceBase(meta.Augmenter):
         )
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
         factors = self._draw_samples(len(batch.images), random_state)
-        for image, factor in zip(batch.images, factors):
+        for image, factor in zip(batch.images, factors, strict=True):
             image[...] = self.func(image, factor)
         return batch
 
     # Added in 0.4.0.
-    def _draw_samples(self, nb_rows, random_state):
+    def _draw_samples(self, nb_rows: int, random_state: iarandom.RNG) -> Array:
         return self.factor.draw_samples((nb_rows,), random_state=random_state)
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.factor]
 
@@ -1637,12 +1651,12 @@ class EnhanceColor(_EnhanceBase):
     # Added in 0.4.0.
     def __init__(
         self,
-        factor=(0.0, 3.0),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        factor: ParamInput = (0.0, 3.0),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             func=enhance_color,
             factor=factor,
@@ -1711,12 +1725,12 @@ class EnhanceContrast(_EnhanceBase):
     # Added in 0.4.0.
     def __init__(
         self,
-        factor=(0.5, 1.5),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        factor: ParamInput = (0.5, 1.5),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             func=enhance_contrast,
             factor=factor,
@@ -1785,12 +1799,12 @@ class EnhanceBrightness(_EnhanceBase):
     # Added in 0.4.0.
     def __init__(
         self,
-        factor=(0.5, 1.5),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        factor: ParamInput = (0.5, 1.5),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             func=enhance_brightness,
             factor=factor,
@@ -1859,12 +1873,12 @@ class EnhanceSharpness(_EnhanceBase):
     # Added in 0.4.0.
     def __init__(
         self,
-        factor=(0.0, 2.0),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        factor: ParamInput = (0.0, 2.0),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             func=enhance_sharpness,
             factor=factor,
@@ -1880,22 +1894,33 @@ class EnhanceSharpness(_EnhanceBase):
 class _FilterBase(meta.Augmenter):
     # Added in 0.4.0.
     def __init__(
-        self, func, seed=None, name=None, random_state="deprecated", deterministic="deprecated"
-    ):
+        self,
+        func: object,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
         self.func = func
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is not None:
             for image in batch.images:
                 image[...] = self.func(image)
         return batch
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return []
 
@@ -1941,7 +1966,13 @@ class FilterBlur(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             func=filter_blur,
             seed=seed,
@@ -1992,7 +2023,13 @@ class FilterSmooth(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             func=filter_smooth,
             seed=seed,
@@ -2044,7 +2081,13 @@ class FilterSmoothMore(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             func=filter_smooth_more,
             seed=seed,
@@ -2097,7 +2140,13 @@ class FilterEdgeEnhance(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             func=filter_edge_enhance,
             seed=seed,
@@ -2150,7 +2199,13 @@ class FilterEdgeEnhanceMore(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             func=filter_edge_enhance_more,
             seed=seed,
@@ -2202,7 +2257,13 @@ class FilterFindEdges(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             func=filter_find_edges,
             seed=seed,
@@ -2254,7 +2315,13 @@ class FilterContour(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             func=filter_contour,
             seed=seed,
@@ -2305,7 +2372,13 @@ class FilterEmboss(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             func=filter_emboss,
             seed=seed,
@@ -2356,7 +2429,13 @@ class FilterSharpen(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             func=filter_sharpen,
             seed=seed,
@@ -2408,7 +2487,13 @@ class FilterDetail(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             func=filter_detail,
             seed=seed,
@@ -2524,18 +2609,18 @@ class Affine(geometric.Affine):
     # Added in 0.4.0.
     def __init__(
         self,
-        scale=1.0,
-        translate_percent=None,
-        translate_px=None,
-        rotate=0.0,
-        shear=0.0,
-        fillcolor=0,
-        center=(0.5, 0.5),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        scale: AffineParam = 1.0,
+        translate_percent: AffineParamOrNone = None,
+        translate_px: AffineParamOrNone = None,
+        rotate: ParamInput = 0.0,
+        shear: AffineParam = 0.0,
+        fillcolor: ParamInput = 0,
+        center: object = (0.5, 0.5),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             scale=scale,
             translate_percent=translate_percent,
@@ -2556,7 +2641,13 @@ class Affine(geometric.Affine):
         self.center = sizelib._handle_position_parameter(center)
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         cols = batch.get_column_names()
         assert len(cols) == 0 or (len(cols) == 1 and "images" in cols), (
             "pillike.Affine can currently only process image data. Got a "
@@ -2567,7 +2658,13 @@ class Affine(geometric.Affine):
         return super()._augment_batch_(batch, random_state, parents, hooks)
 
     # Added in 0.4.0.
-    def _augment_images_by_samples(self, images, samples, image_shapes=None, return_matrices=False):
+    def _augment_images_by_samples(
+        self,
+        images: list[Array],
+        samples: object,
+        image_shapes: list[tuple[int, ...]] | None = None,
+        return_matrices: bool = False,
+    ) -> list[Array]:
         assert return_matrices is False, (
             "Got unexpectedly return_matrices=True. pillike.Affine does not "
             "yet produce that output."
@@ -2596,7 +2693,7 @@ class Affine(geometric.Affine):
         return images
 
     # Added in 0.4.0.
-    def _draw_samples(self, nb_samples, random_state):
+    def _draw_samples(self, nb_samples: int, random_state: iarandom.RNG) -> object:
         # standard affine samples
         samples = super()._draw_samples(nb_samples, random_state)
 
@@ -2615,6 +2712,6 @@ class Affine(geometric.Affine):
         return samples
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.scale, self.translate, self.rotate, self.shear, self.cval, self.center]

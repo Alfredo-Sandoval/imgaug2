@@ -33,6 +33,8 @@ List of augmenters:
 from __future__ import annotations
 
 import tempfile
+from collections.abc import Sequence
+from typing import Literal, TypeAlias
 
 import cv2
 import imageio
@@ -42,7 +44,9 @@ import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
+from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import meta
+from imgaug2.augmenters._typing import Array, Images, Number, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 # fill modes for apply_cutout_() and Cutout augmenter
@@ -58,8 +62,21 @@ _CUTOUT_FILL_MODES = {
     "gaussian": ("imgaug2.augmenters.arithmetic", "_fill_rectangle_gaussian_"),
 }
 
+ScalarInput: TypeAlias = Number | Array
+PerChannelInput: TypeAlias = bool | float | iap.StochasticParameter
+CValInput: TypeAlias = Number | Sequence[Number] | Array
+FillModeInput: TypeAlias = Literal["constant", "gaussian"]
+IntParamInput: TypeAlias = int | tuple[int, int] | list[int] | iap.StochasticParameter
+SizePxInput: TypeAlias = None | int | tuple[int, int] | iap.StochasticParameter
+SizePercentInput: TypeAlias = None | float | tuple[float, float] | iap.StochasticParameter
+PositionInput: TypeAlias = (
+    str
+    | tuple[float | int | iap.StochasticParameter, float | int | iap.StochasticParameter]
+    | iap.StochasticParameter
+)
 
-def add_scalar(image, value):
+
+def add_scalar(image: Array, value: ScalarInput) -> Array:
     """Add a scalar value (or one scalar per channel) to an image.
 
     This method ensures that ``uint8`` does not overflow during the addition.
@@ -103,7 +120,7 @@ def add_scalar(image, value):
     return add_scalar_(np.copy(image), value)
 
 
-def add_scalar_(image, value):
+def add_scalar_(image: Array, value: ScalarInput) -> Array:
     """Add in-place a scalar value (or one scalar per channel) to an image.
 
     This method ensures that ``uint8`` does not overflow during the addition.
@@ -169,7 +186,7 @@ def add_scalar_(image, value):
     return _add_scalar_to_non_uint8(image, value)
 
 
-def _add_scalar_to_uint8_(image, value):
+def _add_scalar_to_uint8_(image: Array, value: ScalarInput) -> Array:
     if ia.is_single_number(value):
         is_single_value = True
         value = round(value)
@@ -201,7 +218,7 @@ def _add_scalar_to_uint8_(image, value):
     return image_add.reshape(input_shape)
 
 
-def _add_scalar_to_non_uint8(image, value):
+def _add_scalar_to_non_uint8(image: Array, value: ScalarInput) -> Array:
     input_dtype = image.dtype
 
     is_single_value = (
@@ -243,7 +260,7 @@ def _add_scalar_to_non_uint8(image, value):
     return iadt.restore_dtypes_(image, input_dtype)
 
 
-def add_elementwise(image, values):
+def add_elementwise(image: Array, values: Array) -> Array:
     """Add an array of values to an image.
 
     This method ensures that ``uint8`` does not overflow during the addition.
@@ -316,7 +333,7 @@ def add_elementwise(image, values):
     return _add_elementwise_np_to_non_uint8(image, values)
 
 
-def _add_elementwise_cv2_to_uint8(image, values):
+def _add_elementwise_cv2_to_uint8(image: Array, values: Array) -> Array:
     ind, vnd = image.ndim, values.ndim
     valid_vnd = [ind] if ind == 2 else [ind - 1, ind]
     assert vnd in valid_vnd, (
@@ -336,7 +353,7 @@ def _add_elementwise_cv2_to_uint8(image, values):
     return result
 
 
-def _add_elementwise_np_to_uint8(image, values):
+def _add_elementwise_np_to_uint8(image: Array, values: Array) -> Array:
     # This special uint8 block is around 60-100% faster than the
     # corresponding non-uint8 function further below (more speedup
     # for smaller images).
@@ -358,7 +375,7 @@ def _add_elementwise_np_to_uint8(image, values):
     return image_aug
 
 
-def _add_elementwise_np_to_non_uint8(image, values):
+def _add_elementwise_np_to_non_uint8(image: Array, values: Array) -> Array:
     # We limit here the value range of the value parameter to the
     # bytes in the image's dtype. This prevents overflow problems
     # and makes it less likely that the image has to be up-casted,
@@ -401,7 +418,7 @@ def _add_elementwise_np_to_non_uint8(image, values):
     return image
 
 
-def multiply_scalar(image, multiplier):
+def multiply_scalar(image: Array, multiplier: ScalarInput) -> Array:
     """Multiply an image by a single scalar or one scalar per channel.
 
     This method ensures that ``uint8`` does not overflow during the
@@ -459,7 +476,7 @@ def multiply_scalar(image, multiplier):
     return multiply_scalar_(np.copy(image), multiplier)
 
 
-def multiply_scalar_(image, multiplier):
+def multiply_scalar_(image: Array, multiplier: ScalarInput) -> Array:
     """Multiply in-place an image by a single scalar or one scalar per channel.
 
     This method ensures that ``uint8`` does not overflow during the
@@ -546,7 +563,7 @@ def multiply_scalar_(image, multiplier):
 
 # TODO add a c++/cython method here to compute the LUT tables
 # Added in 0.5.0.
-def _multiply_scalar_to_uint8_lut_(image, multiplier):
+def _multiply_scalar_to_uint8_lut_(image: Array, multiplier: ScalarInput) -> Array:
     is_single_value = (
         ia.is_single_number(multiplier)
         or ia.is_np_scalar(multiplier)
@@ -581,7 +598,7 @@ def _multiply_scalar_to_uint8_lut_(image, multiplier):
 
 
 # Added in 0.5.0.
-def _multiply_scalar_to_uint8_cv2_mul_(image, multiplier):
+def _multiply_scalar_to_uint8_cv2_mul_(image: Array, multiplier: ScalarInput) -> Array:
     # multiplier must already be an array_like
     if multiplier.size > 1:
         multiplier = multiplier[np.newaxis, np.newaxis, :]
@@ -595,7 +612,7 @@ def _multiply_scalar_to_uint8_cv2_mul_(image, multiplier):
     return result
 
 
-def _multiply_scalar_to_non_uint8(image, multiplier):
+def _multiply_scalar_to_non_uint8(image: Array, multiplier: ScalarInput) -> Array:
     # TODO estimate via image min/max values whether a resolution
     #      increase is necessary
     input_dtype = image.dtype
@@ -644,7 +661,7 @@ def _multiply_scalar_to_non_uint8(image, multiplier):
     return iadt.restore_dtypes_(image, input_dtype)
 
 
-def multiply_elementwise(image, multipliers):
+def multiply_elementwise(image: Array, multipliers: Array) -> Array:
     """Multiply an image with an array of values.
 
     This method ensures that ``uint8`` does not overflow during the addition.
@@ -700,7 +717,7 @@ def multiply_elementwise(image, multipliers):
     return multiply_elementwise_(np.copy(image), multipliers)
 
 
-def multiply_elementwise_(image, multipliers):
+def multiply_elementwise_(image: Array, multipliers: Array) -> Array:
     """Multiply in-place an image with an array of values.
 
     This method ensures that ``uint8`` does not overflow during the addition.
@@ -775,7 +792,7 @@ def multiply_elementwise_(image, multipliers):
 
 
 # Added in 0.5.0.
-def _multiply_elementwise_to_uint8_(image, multipliers):
+def _multiply_elementwise_to_uint8_(image: Array, multipliers: Array) -> Array:
     dt = multipliers.dtype
     kind = dt.kind
     if kind == "f" and dt != iadt._FLOAT32_DTYPE:
@@ -805,7 +822,7 @@ def _multiply_elementwise_to_uint8_(image, multipliers):
     return result
 
 
-def _multiply_elementwise_to_non_uint8(image, multipliers):
+def _multiply_elementwise_to_non_uint8(image: Array, multipliers: Array) -> Array:
     input_dtype = image.dtype
 
     # TODO maybe introduce to stochastic parameters some way to
@@ -849,7 +866,17 @@ def _multiply_elementwise_to_non_uint8(image, multipliers):
     return iadt.restore_dtypes_(image, input_dtype)
 
 
-def cutout(image, x1, y1, x2, y2, fill_mode="constant", cval=0, fill_per_channel=False, seed=None):
+def cutout(
+    image: Array,
+    x1: float | int,
+    y1: float | int,
+    x2: float | int,
+    y2: float | int,
+    fill_mode: FillModeInput = "constant",
+    cval: CValInput = 0,
+    fill_per_channel: bool | float = False,
+    seed: RNGInput = None,
+) -> Array:
     """Fill a single area within an image using a fill mode.
 
     This cutout method uses the top-left and bottom-right corner coordinates
@@ -905,7 +932,17 @@ def cutout(image, x1, y1, x2, y2, fill_mode="constant", cval=0, fill_per_channel
     return cutout_(np.copy(image), x1, y1, x2, y2, fill_mode, cval, fill_per_channel, seed)
 
 
-def cutout_(image, x1, y1, x2, y2, fill_mode="constant", cval=0, fill_per_channel=False, seed=None):
+def cutout_(
+    image: Array,
+    x1: float | int,
+    y1: float | int,
+    x2: float | int,
+    y2: float | int,
+    fill_mode: FillModeInput = "constant",
+    cval: CValInput = 0,
+    fill_per_channel: bool | float = False,
+    seed: RNGInput = None,
+) -> Array:
     """Fill a single area within an image using a fill mode (in-place).
 
     This cutout method uses the top-left and bottom-right corner coordinates
@@ -998,7 +1035,16 @@ def cutout_(image, x1, y1, x2, y2, fill_mode="constant", cval=0, fill_per_channe
     return image
 
 
-def _fill_rectangle_gaussian_(image, x1, y1, x2, y2, cval, per_channel, random_state):
+def _fill_rectangle_gaussian_(
+    image: Array,
+    x1: int,
+    y1: int,
+    x2: int,
+    y2: int,
+    cval: CValInput,
+    per_channel: bool,
+    random_state: iarandom.RNG,
+) -> Array:
     """Fill a rectangular image area with samples from a gaussian.
 
     Added in 0.4.0.
@@ -1062,7 +1108,16 @@ def _fill_rectangle_gaussian_(image, x1, y1, x2, y2, cval, per_channel, random_s
     return image
 
 
-def _fill_rectangle_constant_(image, x1, y1, x2, y2, cval, per_channel, random_state):
+def _fill_rectangle_constant_(
+    image: Array,
+    x1: int,
+    y1: int,
+    x2: int,
+    y2: int,
+    cval: CValInput,
+    per_channel: bool,
+    random_state: iarandom.RNG,
+) -> Array:
     """Fill a rectangular area within an image with constant value(s).
 
     `cval` may be a single value or one per channel. If the number of items
@@ -1107,7 +1162,7 @@ def _fill_rectangle_constant_(image, x1, y1, x2, y2, cval, per_channel, random_s
     return image
 
 
-def replace_elementwise_(image, mask, replacements):
+def replace_elementwise_(image: Array, mask: Array, replacements: Array) -> Array:
     """Replace components in an image array with new values.
 
     **Supported dtypes**:
@@ -1213,7 +1268,13 @@ def replace_elementwise_(image, mask, replacements):
     return image
 
 
-def invert(image, min_value=None, max_value=None, threshold=None, invert_above_threshold=True):
+def invert(
+    image: Array,
+    min_value: Number | None = None,
+    max_value: Number | None = None,
+    threshold: Number | None = None,
+    invert_above_threshold: bool = True,
+) -> Array:
     """Invert an array.
 
     **Supported dtypes**:
@@ -1252,7 +1313,13 @@ def invert(image, min_value=None, max_value=None, threshold=None, invert_above_t
     )
 
 
-def invert_(image, min_value=None, max_value=None, threshold=None, invert_above_threshold=True):
+def invert_(
+    image: Array,
+    min_value: Number | None = None,
+    max_value: Number | None = None,
+    threshold: Number | None = None,
+    invert_above_threshold: bool = True,
+) -> Array:
     """Invert an array in-place.
 
     Added in 0.4.0.
@@ -1393,7 +1460,7 @@ def invert_(image, min_value=None, max_value=None, threshold=None, invert_above_
     return image
 
 
-def _invert_bool(arr, min_value, max_value):
+def _invert_bool(arr: Array, min_value: Number, max_value: Number) -> Array:
     assert min_value == 0 and max_value == 1, (
         "min_value and max_value must be 0 and 1 for bool arrays. "
         f"Got {min_value:.4f} and {max_value:.4f}."
@@ -1402,7 +1469,13 @@ def _invert_bool(arr, min_value, max_value):
 
 
 # Added in 0.4.0.
-def _invert_uint8_(arr, min_value, max_value, threshold, invert_above_threshold):
+def _invert_uint8_(
+    arr: Array,
+    min_value: int,
+    max_value: int,
+    threshold: Number | None,
+    invert_above_threshold: bool,
+) -> Array:
     shape = arr.shape
     nb_channels = shape[-1] if len(shape) == 3 else 1
     valid_for_cv2 = (
@@ -1419,7 +1492,13 @@ def _invert_uint8_(arr, min_value, max_value, threshold, invert_above_threshold)
 
 
 # Added in 0.5.0.
-def _invert_uint8_lut_pregenerated_(arr, min_value, max_value, threshold, invert_above_threshold):
+def _invert_uint8_lut_pregenerated_(
+    arr: Array,
+    min_value: int,
+    max_value: int,
+    threshold: Number | None,
+    invert_above_threshold: bool,
+) -> Array:
     table = _InvertTablesSingleton.get_instance().get_table(
         min_value=min_value,
         max_value=max_value,
@@ -1431,7 +1510,7 @@ def _invert_uint8_lut_pregenerated_(arr, min_value, max_value, threshold, invert
 
 
 # Added in 0.5.0.
-def _invert_uint8_subtract_(arr, max_value):
+def _invert_uint8_subtract_(arr: Array, max_value: int) -> Array:
     if arr.size == 0:
         return arr
 
@@ -1460,7 +1539,7 @@ def _invert_uint8_subtract_(arr, max_value):
 
 
 # Added in 0.4.0.
-def _invert_uint16_or_larger_(arr, min_value, max_value):
+def _invert_uint16_or_larger_(arr: Array, min_value: int, max_value: int) -> Array:
     min_max_is_vr = min_value == 0 and max_value == np.iinfo(arr.dtype).max
     if min_max_is_vr:
         return max_value - arr
@@ -1468,7 +1547,7 @@ def _invert_uint16_or_larger_(arr, min_value, max_value):
 
 
 # Added in 0.4.0.
-def _invert_int_(arr, min_value, max_value):
+def _invert_int_(arr: Array, min_value: int, max_value: int) -> Array:
     # note that for int dtypes the max value is
     #   (-1) * min_value - 1
     # e.g. -128 and 127 (min/max) for int8
@@ -1505,13 +1584,13 @@ def _invert_int_(arr, min_value, max_value):
     return _invert_by_distance(np.clip(arr, min_value, max_value), min_value, max_value)
 
 
-def _invert_float(arr, min_value, max_value):
+def _invert_float(arr: Array, min_value: float, max_value: float) -> Array:
     if np.isclose(max_value, (-1) * min_value, rtol=0):
         return (-1) * arr
     return _invert_by_distance(np.clip(arr, min_value, max_value), min_value, max_value)
 
 
-def _invert_by_distance(arr, min_value, max_value):
+def _invert_by_distance(arr: Array, min_value: Number, max_value: Number) -> Array:
     arr_inv = arr
     if arr.dtype.kind in ["i", "f"]:
         arr_inv = iadt.increase_array_resolutions_([np.copy(arr)], 2)[0]
@@ -1528,7 +1607,9 @@ def _invert_by_distance(arr, min_value, max_value):
 
 
 # Added in 0.4.0.
-def _generate_table_for_invert_uint8(min_value, max_value, threshold, invert_above_threshold):
+def _generate_table_for_invert_uint8(
+    min_value: int, max_value: int, threshold: Number | None, invert_above_threshold: bool
+) -> Array:
     table = np.arange(256).astype(np.int32)
     full_value_range = min_value == 0 and max_value == 255
     if full_value_range:
@@ -1555,11 +1636,13 @@ def _generate_table_for_invert_uint8(min_value, max_value, threshold, invert_abo
 # Added in 0.5.0.
 class _InvertTables:
     # Added in 0.5.0.
-    def __init__(self):
+    def __init__(self) -> None:
         self.tables = {}
 
     # Added in 0.5.0.
-    def get_table(self, min_value, max_value, threshold, invert_above_threshold):
+    def get_table(
+        self, min_value: int, max_value: int, threshold: Number | None, invert_above_threshold: bool
+    ) -> Array:
         if min_value == 0 and max_value == 255:
             key = (threshold, invert_above_threshold)
             table = self.tables.get(key, None)
@@ -1580,13 +1663,13 @@ class _InvertTablesSingleton:
 
     # Added in 0.5.0.
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls) -> _InvertTables:
         if cls._INSTANCE is None:
             cls._INSTANCE = _InvertTables()
         return cls._INSTANCE
 
 
-def solarize(image, threshold=128):
+def solarize(image: Array, threshold: Number | None = 128) -> Array:
     """Invert pixel values above a threshold.
 
     Added in 0.4.0.
@@ -1612,7 +1695,7 @@ def solarize(image, threshold=128):
     return solarize_(np.copy(image), threshold=threshold)
 
 
-def solarize_(image, threshold=128):
+def solarize_(image: Array, threshold: Number | None = 128) -> Array:
     """Invert pixel values above a threshold in-place.
 
     This function is a wrapper around :func:`invert`.
@@ -1646,7 +1729,7 @@ def solarize_(image, threshold=128):
     return invert_(image, threshold=threshold)
 
 
-def compress_jpeg(image, compression):
+def compress_jpeg(image: Array, compression: int) -> Array:
     """Compress an image using jpeg compression.
 
     **Supported dtypes**:
@@ -1822,13 +1905,13 @@ class Add(meta.Augmenter):
 
     def __init__(
         self,
-        value=(-20, 20),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        value: ParamInput = (-20, 20),
+        per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -1844,7 +1927,13 @@ class Add(meta.Augmenter):
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -1888,7 +1977,7 @@ class Add(meta.Augmenter):
 
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.value, self.per_channel]
 
@@ -1976,13 +2065,13 @@ class AddElementwise(meta.Augmenter):
 
     def __init__(
         self,
-        value=(-20, 20),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        value: ParamInput = (-20, 20),
+        per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -1993,7 +2082,13 @@ class AddElementwise(meta.Augmenter):
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -2012,7 +2107,7 @@ class AddElementwise(meta.Augmenter):
 
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.value, self.per_channel]
 
@@ -2117,14 +2212,14 @@ class AdditiveGaussianNoise(AddElementwise):
 
     def __init__(
         self,
-        loc=0,
-        scale=(0, 15),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        loc: ParamInput = 0,
+        scale: ParamInput = (0, 15),
+        per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         loc2 = iap.handle_continuous_param(
             loc, "loc", value_range=None, tuple_to_uniform=True, list_to_choice=True
         )
@@ -2252,14 +2347,14 @@ class AdditiveLaplaceNoise(AddElementwise):
 
     def __init__(
         self,
-        loc=0,
-        scale=(0, 15),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        loc: ParamInput = 0,
+        scale: ParamInput = (0, 15),
+        per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         loc2 = iap.handle_continuous_param(
             loc, "loc", value_range=None, tuple_to_uniform=True, list_to_choice=True
         )
@@ -2379,13 +2474,13 @@ class AdditivePoissonNoise(AddElementwise):
 
     def __init__(
         self,
-        lam=(0.0, 15.0),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        lam: ParamInput = (0.0, 15.0),
+        per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         lam2 = iap.handle_continuous_param(
             lam, "lam", value_range=(0, None), tuple_to_uniform=True, list_to_choice=True
         )
@@ -2480,13 +2575,13 @@ class Multiply(meta.Augmenter):
 
     def __init__(
         self,
-        mul=(0.8, 1.2),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        mul: ParamInput = (0.8, 1.2),
+        per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -2497,7 +2592,13 @@ class Multiply(meta.Augmenter):
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -2540,7 +2641,7 @@ class Multiply(meta.Augmenter):
 
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.mul, self.per_channel]
 
@@ -2627,13 +2728,13 @@ class MultiplyElementwise(meta.Augmenter):
 
     def __init__(
         self,
-        mul=(0.8, 1.2),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        mul: ParamInput = (0.8, 1.2),
+        per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -2644,7 +2745,13 @@ class MultiplyElementwise(meta.Augmenter):
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -2674,7 +2781,7 @@ class MultiplyElementwise(meta.Augmenter):
 
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.mul, self.per_channel]
 
@@ -2684,16 +2791,16 @@ class _CutoutSamples:
     # Added in 0.4.0.
     def __init__(
         self,
-        nb_iterations,
-        pos_x,
-        pos_y,
-        size_h,
-        size_w,
-        squared,
-        fill_mode,
-        cval,
-        fill_per_channel,
-    ):
+        nb_iterations: Array,
+        pos_x: Array,
+        pos_y: Array,
+        size_h: Array,
+        size_w: Array,
+        squared: Array,
+        fill_mode: Array,
+        cval: Array,
+        fill_per_channel: Array,
+    ) -> None:
         self.nb_iterations = nb_iterations
         self.pos_x = pos_x
         self.pos_y = pos_y
@@ -2875,18 +2982,18 @@ class Cutout(meta.Augmenter):
     # Added in 0.4.0.
     def __init__(
         self,
-        nb_iterations=1,
-        position="uniform",
-        size=0.2,
-        squared=True,
-        fill_mode="constant",
-        cval=128,
-        fill_per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        nb_iterations: IntParamInput = 1,
+        position: PositionInput = "uniform",
+        size: ParamInput = 0.2,
+        squared: PerChannelInput = True,
+        fill_mode: FillModeInput | Sequence[FillModeInput] | iap.StochasticParameter = "constant",
+        cval: CValInput = 128,
+        fill_per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         from imgaug2.augmenters.geometric import _handle_cval_arg  # TODO move to iap
         from imgaug2.augmenters.size import _handle_position_parameter  # TODO move to iap
 
@@ -2912,7 +3019,9 @@ class Cutout(meta.Augmenter):
 
     # Added in 0.4.0.
     @classmethod
-    def _handle_fill_mode_param(cls, fill_mode):
+    def _handle_fill_mode_param(
+        cls, fill_mode: FillModeInput | Sequence[FillModeInput] | iap.StochasticParameter
+    ) -> iap.StochasticParameter:
         if ia.is_string(fill_mode):
             assert fill_mode in _CUTOUT_FILL_MODES, (
                 f"Expected 'fill_mode' to be one of: {str(list(_CUTOUT_FILL_MODES.keys()))}. Got {fill_mode}."
@@ -2927,7 +3036,13 @@ class Cutout(meta.Augmenter):
         return iap.Choice(fill_mode)
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -2968,7 +3083,7 @@ class Cutout(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def _draw_samples(self, images, random_state):
+    def _draw_samples(self, images: Images, random_state: iarandom.RNG) -> _CutoutSamples:
         rngs = random_state.duplicate(8)
         nb_rows = len(images)
         nb_channels_max = meta.estimate_max_number_of_channels(images)
@@ -3009,8 +3124,18 @@ class Cutout(meta.Augmenter):
     # Added in 0.4.0.
     @classmethod
     def _augment_image_by_samples(
-        cls, image, x1, y1, x2, y2, squared, fill_mode, cval, fill_per_channel, random_state
-    ):
+        cls,
+        image: Array,
+        x1: Array,
+        y1: Array,
+        x2: Array,
+        y2: Array,
+        squared: Array,
+        fill_mode: Array,
+        cval: Array,
+        fill_per_channel: Array,
+        random_state: iarandom.RNG,
+    ) -> Array:
         for i, x1_i in enumerate(x1):
             x2_i = x2[i]
             if squared[i] >= 0.5:
@@ -3033,7 +3158,7 @@ class Cutout(meta.Augmenter):
         return image
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [
             self.nb_iterations,
@@ -3131,13 +3256,13 @@ class Dropout(MultiplyElementwise):
 
     def __init__(
         self,
-        p=(0.0, 0.05),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        p: ParamInput = (0.0, 0.05),
+        per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         p_param = _handle_dropout_probability_param(p, "p")
 
         super().__init__(
@@ -3151,7 +3276,7 @@ class Dropout(MultiplyElementwise):
 
 
 # Added in 0.4.0.
-def _handle_dropout_probability_param(p, name):
+def _handle_dropout_probability_param(p: ParamInput, name: str) -> iap.StochasticParameter:
     if ia.is_single_number(p):
         p_param = iap.Binomial(1 - p)
     elif isinstance(p, tuple):
@@ -3351,16 +3476,16 @@ class CoarseDropout(MultiplyElementwise):
 
     def __init__(
         self,
-        p=(0.02, 0.1),
-        size_px=None,
-        size_percent=None,
-        per_channel=False,
-        min_size=3,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        p: ParamInput = (0.02, 0.1),
+        size_px: SizePxInput = None,
+        size_percent: SizePercentInput = None,
+        per_channel: PerChannelInput = False,
+        min_size: int = 3,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         p_param = _handle_dropout_probability_param(p, "p")
 
         if size_px is not None:
@@ -3483,13 +3608,13 @@ class Dropout2d(meta.Augmenter):
     # Added in 0.4.0.
     def __init__(
         self,
-        p=0.1,
-        nb_keep_channels=1,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        p: ParamInput = 0.1,
+        nb_keep_channels: int = 1,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -3508,7 +3633,13 @@ class Dropout2d(meta.Augmenter):
         self._segmentation_maps_cval = 0
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         imagewise_drop_channel_ids, all_dropped_ids = self._draw_samples(batch, random_state)
 
         if batch.images is not None:
@@ -3542,7 +3673,9 @@ class Dropout2d(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def _draw_samples(self, batch, random_state):
+    def _draw_samples(
+        self, batch: _BatchInAugmentation, random_state: iarandom.RNG
+    ) -> tuple[list[Array], list[int]]:
         # maybe noteworthy here that the channel axis can have size 0,
         # e.g. (5, 5, 0)
         shapes = batch.get_rowwise_shapes()
@@ -3582,7 +3715,7 @@ class Dropout2d(meta.Augmenter):
         return imagewise_channels_to_drop, all_dropped_ids
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.p, self.nb_keep_channels]
 
@@ -3669,8 +3802,13 @@ class TotalDropout(meta.Augmenter):
 
     # Added in 0.4.0.
     def __init__(
-        self, p=1, seed=None, name=None, random_state="deprecated", deterministic="deprecated"
-    ):
+        self,
+        p: ParamInput = 1,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -3688,7 +3826,13 @@ class TotalDropout(meta.Augmenter):
         self._segmentation_maps_cval = 0
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         drop_mask = self._draw_samples(batch, random_state)
         drop_ids = None
 
@@ -3725,20 +3869,20 @@ class TotalDropout(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def _draw_samples(self, batch, random_state):
+    def _draw_samples(self, batch: _BatchInAugmentation, random_state: iarandom.RNG) -> Array:
         p = self.p.draw_samples((batch.nb_rows,), random_state=random_state)
         drop_mask = p < 0.5
         return drop_mask
 
     # Added in 0.4.0.
     @classmethod
-    def _generate_drop_ids_once(cls, drop_mask, drop_ids):
+    def _generate_drop_ids_once(cls, drop_mask: Array, drop_ids: Array | None) -> Array:
         if drop_ids is None:
             drop_ids = np.nonzero(drop_mask)[0]
         return drop_ids
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.p]
 
@@ -3851,14 +3995,14 @@ class ReplaceElementwise(meta.Augmenter):
 
     def __init__(
         self,
-        mask,
-        replacement,
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        mask: ParamInput,
+        replacement: ParamInput,
+        per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -3870,7 +4014,13 @@ class ReplaceElementwise(meta.Augmenter):
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -3909,7 +4059,7 @@ class ReplaceElementwise(meta.Augmenter):
 
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.mask, self.replacement, self.per_channel]
 
@@ -3982,13 +4132,13 @@ class SaltAndPepper(ReplaceElementwise):
 
     def __init__(
         self,
-        p=(0.0, 0.03),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        p: ParamInput = (0.0, 0.03),
+        per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             mask=p,
             replacement=iap.Beta(0.5, 0.5) * 255,
@@ -4054,12 +4204,12 @@ class ImpulseNoise(SaltAndPepper):
 
     def __init__(
         self,
-        p=(0.0, 0.03),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        p: ParamInput = (0.0, 0.03),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             p=p,
             per_channel=True,
@@ -4202,16 +4352,16 @@ class CoarseSaltAndPepper(ReplaceElementwise):
 
     def __init__(
         self,
-        p=(0.02, 0.1),
-        size_px=None,
-        size_percent=None,
-        per_channel=False,
-        min_size=3,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        p: ParamInput = (0.02, 0.1),
+        size_px: SizePxInput = None,
+        size_percent: SizePercentInput = None,
+        per_channel: PerChannelInput = False,
+        min_size: int = 3,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         mask = iap.handle_probability_param(p, "p", tuple_to_uniform=True, list_to_choice=True)
 
         if size_px is not None:
@@ -4301,13 +4451,13 @@ class Salt(ReplaceElementwise):
 
     def __init__(
         self,
-        p=(0.0, 0.03),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        p: ParamInput = (0.0, 0.03),
+        per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         replacement01 = iap.ForceSign(iap.Beta(0.5, 0.5) - 0.5, positive=True, mode="invert") + 0.5
         # FIXME max replacement seems to essentially never exceed 254
         replacement = replacement01 * 255
@@ -4435,16 +4585,16 @@ class CoarseSalt(ReplaceElementwise):
 
     def __init__(
         self,
-        p=(0.02, 0.1),
-        size_px=None,
-        size_percent=None,
-        per_channel=False,
-        min_size=3,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        p: ParamInput = (0.02, 0.1),
+        size_px: SizePxInput = None,
+        size_percent: SizePercentInput = None,
+        per_channel: PerChannelInput = False,
+        min_size: int = 3,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         mask = iap.handle_probability_param(p, "p", tuple_to_uniform=True, list_to_choice=True)
 
         if size_px is not None:
@@ -4538,13 +4688,13 @@ class Pepper(ReplaceElementwise):
 
     def __init__(
         self,
-        p=(0.0, 0.05),
-        per_channel=False,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        p: ParamInput = (0.0, 0.05),
+        per_channel: PerChannelInput = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         replacement01 = iap.ForceSign(iap.Beta(0.5, 0.5) - 0.5, positive=False, mode="invert") + 0.5
         replacement = replacement01 * 255
 
@@ -4669,16 +4819,16 @@ class CoarsePepper(ReplaceElementwise):
 
     def __init__(
         self,
-        p=(0.02, 0.1),
-        size_px=None,
-        size_percent=None,
-        per_channel=False,
-        min_size=3,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        p: ParamInput = (0.02, 0.1),
+        size_px: SizePxInput = None,
+        size_percent: SizePercentInput = None,
+        per_channel: PerChannelInput = False,
+        min_size: int = 3,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         mask = iap.handle_probability_param(p, "p", tuple_to_uniform=True, list_to_choice=True)
 
         if size_px is not None:
@@ -4836,17 +4986,17 @@ class Invert(meta.Augmenter):
 
     def __init__(
         self,
-        p=1,
-        per_channel=False,
-        min_value=None,
-        max_value=None,
-        threshold=None,
-        invert_above_threshold=0.5,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        p: PerChannelInput = 1,
+        per_channel: PerChannelInput = False,
+        min_value: Number | None = None,
+        max_value: Number | None = None,
+        threshold: ParamInput | None = None,
+        invert_above_threshold: PerChannelInput = 0.5,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -4868,7 +5018,13 @@ class Invert(meta.Augmenter):
         )
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -4896,7 +5052,9 @@ class Invert(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def _draw_samples(self, batch, random_state):
+    def _draw_samples(
+        self, batch: _BatchInAugmentation, random_state: iarandom.RNG
+    ) -> _InvertSamples:
         nb_images = batch.nb_rows
         nb_channels = meta.estimate_max_number_of_channels(batch.images)
         p = self.p.draw_samples((nb_images, nb_channels), random_state=random_state)
@@ -4925,7 +5083,7 @@ class Invert(meta.Augmenter):
             invert_above_threshold=invert_above_threshold,
         )
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [
             self.p,
@@ -4940,7 +5098,15 @@ class Invert(meta.Augmenter):
 # Added in 0.4.0.
 class _InvertSamples:
     # Added in 0.4.0.
-    def __init__(self, p, per_channel, min_value, max_value, threshold, invert_above_threshold):
+    def __init__(
+        self,
+        p: Array,
+        per_channel: Array,
+        min_value: list[Number | None],
+        max_value: list[Number | None],
+        threshold: list[Number | None] | Array,
+        invert_above_threshold: Array,
+    ) -> None:
         self.p = p
         self.per_channel = per_channel
         self.min_value = min_value
@@ -5014,17 +5180,17 @@ class Solarize(Invert):
 
     def __init__(
         self,
-        p=1,
-        per_channel=False,
-        min_value=None,
-        max_value=None,
-        threshold=(128 - 64, 128 + 64),
-        invert_above_threshold=True,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        p: PerChannelInput = 1,
+        per_channel: PerChannelInput = False,
+        min_value: Number | None = None,
+        max_value: Number | None = None,
+        threshold: ParamInput | None = (128 - 64, 128 + 64),
+        invert_above_threshold: PerChannelInput = True,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             p=p,
             per_channel=per_channel,
@@ -5042,13 +5208,13 @@ class Solarize(Invert):
 # TODO remove from examples
 @ia.deprecated("imgaug2.contrast.LinearContrast")
 def ContrastNormalization(
-    alpha=1.0,
-    per_channel=False,
-    seed=None,
-    name=None,
-    random_state="deprecated",
-    deterministic="deprecated",
-):
+    alpha: ParamInput = 1.0,
+    per_channel: PerChannelInput = False,
+    seed: RNGInput = None,
+    name: str | None = None,
+    random_state: RNGInput | Literal["deprecated"] = "deprecated",
+    deterministic: bool | Literal["deprecated"] = "deprecated",
+) -> meta.Augmenter:
     """
     Change the contrast of images.
 
@@ -5203,12 +5369,12 @@ class JpegCompression(meta.Augmenter):
 
     def __init__(
         self,
-        compression=(0, 100),
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        compression: ParamInput = (0, 100),
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -5224,7 +5390,13 @@ class JpegCompression(meta.Augmenter):
         )
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -5237,6 +5409,6 @@ class JpegCompression(meta.Augmenter):
 
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.compression]

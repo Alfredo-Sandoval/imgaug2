@@ -35,14 +35,20 @@ from __future__ import annotations
 
 import functools
 import re
+from collections.abc import Sequence
+from typing import Literal, TypeAlias, overload
 
 import cv2
 import numpy as np
+from numpy.typing import NDArray
 
 import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
+import imgaug2.random as iarandom
+from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import meta
+from imgaug2.augmenters._typing import Array, Images, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 __all__ = [
@@ -83,8 +89,87 @@ __all__ = [
     "KeepSizeByResize",
 ]
 
+Shape: TypeAlias = tuple[int, ...]
+Shape2D: TypeAlias = tuple[int, int]
+TRBL: TypeAlias = tuple[int, int, int, int]
+XYXY: TypeAlias = tuple[int, int, int, int]
 
-def _crop_trbl_to_xyxy(shape, top, right, bottom, left, prevent_zero_size=True):
+ResizeSizeScalar: TypeAlias = float | int
+ResizeSizeTuple: TypeAlias = tuple[ResizeSizeScalar, ResizeSizeScalar]
+ResizeSizeList: TypeAlias = list[ResizeSizeScalar]
+ResizeSizeDictValue: TypeAlias = Literal["keep", "keep-aspect-ratio"] | ResizeSizeScalar | ResizeSizeTuple | ResizeSizeList
+ResizeSizeDict: TypeAlias = dict[str, ResizeSizeDictValue]
+ResizeSizeParam: TypeAlias = iap.StochasticParameter | tuple[iap.StochasticParameter, iap.StochasticParameter]
+ResizeSizeInput: TypeAlias = (
+    Literal["keep"]
+    | ResizeSizeScalar
+    | ResizeSizeTuple
+    | ResizeSizeList
+    | iap.StochasticParameter
+    | ResizeSizeDict
+)
+ResizeInterpolationInput: TypeAlias = (
+    Literal["ALL"] | int | str | Sequence[int | str] | iap.StochasticParameter
+)
+ResizeSamplingResult: TypeAlias = tuple[Array, Array, Array]
+
+CropAndPadPxSingleParam: TypeAlias = int | tuple[int, int] | list[int] | iap.StochasticParameter
+CropAndPadPxInput: TypeAlias = (
+    int
+    | tuple[int, int]
+    | tuple[
+        CropAndPadPxSingleParam,
+        CropAndPadPxSingleParam,
+        CropAndPadPxSingleParam,
+        CropAndPadPxSingleParam,
+    ]
+    | iap.StochasticParameter
+)
+CropAndPadPercentSingleParam: TypeAlias = (
+    float | int | tuple[float | int, float | int] | list[float | int] | iap.StochasticParameter
+)
+CropAndPadPercentInput: TypeAlias = (
+    float
+    | int
+    | tuple[float | int, float | int]
+    | tuple[
+        CropAndPadPercentSingleParam,
+        CropAndPadPercentSingleParam,
+        CropAndPadPercentSingleParam,
+        CropAndPadPercentSingleParam,
+    ]
+    | iap.StochasticParameter
+)
+CropAndPadMode: TypeAlias = Literal["noop", "px", "percent"]
+CropAndPadParamReturn: TypeAlias = tuple[
+    CropAndPadMode,
+    iap.StochasticParameter | None,
+    iap.StochasticParameter | None,
+    iap.StochasticParameter | None,
+    iap.StochasticParameter | None,
+    iap.StochasticParameter | None,
+]
+
+MinSizeWH: TypeAlias = tuple[int | None, int | None]
+PadToFixedSizeSamplingResult: TypeAlias = tuple[list[MinSizeWH], Array, Array, Array, Array]
+CropToFixedSizeSamplingResult: TypeAlias = tuple[list[MinSizeWH], Array, Array]
+
+KeepSizeByResizeInterpolationInput: TypeAlias = (
+    Literal["NO_RESIZE"] | str | int | list[str | int] | iap.StochasticParameter
+)
+KeepSizeByResizeInterpolationMapsInput: TypeAlias = (
+    KeepSizeByResizeInterpolationInput | Literal["SAME_AS_IMAGES"]
+)
+
+
+def _crop_trbl_to_xyxy(
+    shape: Shape,
+    top: int,
+    right: int,
+    bottom: int,
+    left: int,
+    prevent_zero_size: bool = True,
+) -> XYXY:
     if prevent_zero_size:
         top, bottom = _prevent_zero_size_after_crop_(shape[0], top, bottom)
         left, right = _prevent_zero_size_after_crop_(shape[1], left, right)
@@ -106,14 +191,28 @@ def _crop_trbl_to_xyxy(shape, top, right, bottom, left, prevent_zero_size=True):
     return x1, y1, x2, y2
 
 
-def _crop_arr_(arr, top, right, bottom, left, prevent_zero_size=True):
+def _crop_arr_(
+    arr: Array,
+    top: int,
+    right: int,
+    bottom: int,
+    left: int,
+    prevent_zero_size: bool = True,
+) -> Array:
     x1, y1, x2, y2 = _crop_trbl_to_xyxy(
         arr.shape, top, right, bottom, left, prevent_zero_size=prevent_zero_size
     )
     return arr[y1:y2, x1:x2, ...]
 
 
-def _crop_and_pad_arr(arr, croppings, paddings, pad_mode="constant", pad_cval=0, keep_size=False):
+def _crop_and_pad_arr(
+    arr: Array,
+    croppings: TRBL,
+    paddings: TRBL,
+    pad_mode: str = "constant",
+    pad_cval: float | int | Sequence[float | int] | Array = 0,
+    keep_size: bool = False,
+) -> Array:
     height, width = arr.shape[0:2]
 
     image_cr = _crop_arr_(arr, *croppings)
@@ -135,24 +234,39 @@ def _crop_and_pad_arr(arr, croppings, paddings, pad_mode="constant", pad_cval=0,
 
 
 def _crop_and_pad_heatmap_(
-    heatmap, croppings_img, paddings_img, pad_mode="constant", pad_cval=0.0, keep_size=False
-):
+    heatmap: ia.HeatmapsOnImage,
+    croppings_img: TRBL,
+    paddings_img: TRBL,
+    pad_mode: str = "constant",
+    pad_cval: float = 0.0,
+    keep_size: bool = False,
+) -> ia.HeatmapsOnImage:
     return _crop_and_pad_hms_or_segmaps_(
         heatmap, croppings_img, paddings_img, pad_mode, pad_cval, keep_size
     )
 
 
 def _crop_and_pad_segmap_(
-    segmap, croppings_img, paddings_img, pad_mode="constant", pad_cval=0, keep_size=False
-):
+    segmap: ia.SegmentationMapsOnImage,
+    croppings_img: TRBL,
+    paddings_img: TRBL,
+    pad_mode: str = "constant",
+    pad_cval: int = 0,
+    keep_size: bool = False,
+) -> ia.SegmentationMapsOnImage:
     return _crop_and_pad_hms_or_segmaps_(
         segmap, croppings_img, paddings_img, pad_mode, pad_cval, keep_size
     )
 
 
 def _crop_and_pad_hms_or_segmaps_(
-    augmentable, croppings_img, paddings_img, pad_mode="constant", pad_cval=None, keep_size=False
-):
+    augmentable: ia.HeatmapsOnImage | ia.SegmentationMapsOnImage,
+    croppings_img: TRBL,
+    paddings_img: TRBL,
+    pad_mode: str | np.generic = "constant",
+    pad_cval: float | int | np.generic | None = None,
+    keep_size: bool = False,
+) -> ia.HeatmapsOnImage | ia.SegmentationMapsOnImage:
     if isinstance(augmentable, ia.HeatmapsOnImage):
         arr_attr_name = "arr_0to1"
         pad_cval = pad_cval if pad_cval is not None else 0.0
@@ -196,7 +310,9 @@ def _crop_and_pad_hms_or_segmaps_(
     return augmentable
 
 
-def _crop_and_pad_kpsoi_(kpsoi, croppings_img, paddings_img, keep_size):
+def _crop_and_pad_kpsoi_(
+    kpsoi: ia.KeypointsOnImage, croppings_img: TRBL, paddings_img: TRBL, keep_size: bool
+) -> ia.KeypointsOnImage:
     # using the trbl function instead of croppings_img has the advantage
     # of incorporating prevent_zero_size, dealing with zero-sized input image
     # axis and dealing the negative crop amounts
@@ -212,7 +328,7 @@ def _crop_and_pad_kpsoi_(kpsoi, croppings_img, paddings_img, keep_size):
     return shifted
 
 
-def _compute_shape_after_crop_and_pad(old_shape, croppings, paddings):
+def _compute_shape_after_crop_and_pad(old_shape: Shape, croppings: TRBL, paddings: TRBL) -> Shape:
     x1, y1, x2, y2 = _crop_trbl_to_xyxy(old_shape, *croppings)
     new_shape = list(old_shape)
     new_shape[0] = y2 - y1 + paddings[0] + paddings[2]
@@ -220,7 +336,7 @@ def _compute_shape_after_crop_and_pad(old_shape, croppings, paddings):
     return tuple(new_shape)
 
 
-def _prevent_zero_size_after_crop_trbl_(height, width, crop_trbl):
+def _prevent_zero_size_after_crop_trbl_(height: int, width: int, crop_trbl: TRBL) -> TRBL:
     crop_top = crop_trbl[0]
     crop_right = crop_trbl[1]
     crop_bottom = crop_trbl[2]
@@ -231,7 +347,7 @@ def _prevent_zero_size_after_crop_trbl_(height, width, crop_trbl):
     return (crop_top, crop_right, crop_bottom, crop_left)
 
 
-def _prevent_zero_size_after_crop_(axis_size, crop_start, crop_end):
+def _prevent_zero_size_after_crop_(axis_size: int, crop_start: int, crop_end: int) -> tuple[int, int]:
     crops_start, crops_end = _prevent_zero_sizes_after_crops_(
         np.array([axis_size], dtype=np.int32),
         np.array([crop_start], dtype=np.int32),
@@ -240,7 +356,9 @@ def _prevent_zero_size_after_crop_(axis_size, crop_start, crop_end):
     return int(crops_start[0]), int(crops_end[0])
 
 
-def _prevent_zero_sizes_after_crops_(axis_sizes, crops_start, crops_end):
+def _prevent_zero_sizes_after_crops_(
+    axis_sizes: Array, crops_start: Array, crops_end: Array
+) -> tuple[Array, Array]:
     remaining_sizes = axis_sizes - (crops_start + crops_end)
 
     mask_bad_sizes = remaining_sizes < 1
@@ -265,7 +383,7 @@ def _prevent_zero_sizes_after_crops_(axis_sizes, crops_start, crops_end):
     return crops_start, crops_end
 
 
-def _project_size_changes(trbl, from_shape, to_shape):
+def _project_size_changes(trbl: TRBL, from_shape: Shape, to_shape: Shape) -> TRBL:
     if from_shape[0:2] == to_shape[0:2]:
         return trbl
 
@@ -297,13 +415,15 @@ def _project_size_changes(trbl, from_shape, to_shape):
     return top, right, bottom, left
 
 
-def _int_r(value):
+def _int_r(value: float) -> int:
     return int(np.round(value))
 
 
 # TODO somehow integrate this with pad()
 @iap._prefetchable_str
-def _handle_pad_mode_param(pad_mode):
+def _handle_pad_mode_param(
+    pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"],
+) -> iap.StochasticParameter:
     pad_modes_available = {
         "constant",
         "edge",
@@ -341,7 +461,11 @@ def _handle_pad_mode_param(pad_mode):
 
 
 @iap._prefetchable
-def _handle_position_parameter(position):
+def _handle_position_parameter(
+    position: str
+    | tuple[float | int | iap.StochasticParameter, float | int | iap.StochasticParameter]
+    | iap.StochasticParameter,
+) -> iap.StochasticParameter | tuple[iap.StochasticParameter, iap.StochasticParameter]:
     if position == "uniform":
         return iap.Uniform(0.0, 1.0), iap.Uniform(0.0, 1.0)
     if position == "normal":
@@ -395,7 +519,7 @@ def _handle_position_parameter(position):
 
 # TODO this is the same as in imgaug2.py, make DRY
 # Added in 0.4.0.
-def _assert_two_or_three_dims(shape):
+def _assert_two_or_three_dims(shape: Shape | Array) -> None:
     if hasattr(shape, "shape"):
         shape = shape.shape
     assert len(shape) in [2, 3], (
@@ -404,7 +528,15 @@ def _assert_two_or_three_dims(shape):
     )
 
 
-def pad(arr, top=0, right=0, bottom=0, left=0, mode="constant", cval=0):
+def pad(
+    arr: Array,
+    top: int = 0,
+    right: int = 0,
+    bottom: int = 0,
+    left: int = 0,
+    mode: str = "constant",
+    cval: float | int | Sequence[float | int] | Array = 0,
+) -> Array:
     """Pad an image-like array on its top/right/bottom/left side.
 
     This function is a wrapper around :func:`numpy.pad`.
@@ -616,7 +748,13 @@ def pad(arr, top=0, right=0, bottom=0, left=0, mode="constant", cval=0):
     return np.copy(arr)
 
 
-def pad_to_aspect_ratio(arr, aspect_ratio, mode="constant", cval=0, return_pad_amounts=False):
+def pad_to_aspect_ratio(
+    arr: Array,
+    aspect_ratio: float,
+    mode: str = "constant",
+    cval: float | int | Sequence[float | int] | Array = 0,
+    return_pad_amounts: bool = False,
+) -> Array | tuple[Array, TRBL]:
     """Pad an image array on its sides so that it matches a target aspect ratio.
 
     See :func:`~imgaug2.imgaug2.compute_paddings_for_aspect_ratio` for an
@@ -679,8 +817,13 @@ def pad_to_aspect_ratio(arr, aspect_ratio, mode="constant", cval=0, return_pad_a
 
 
 def pad_to_multiples_of(
-    arr, height_multiple, width_multiple, mode="constant", cval=0, return_pad_amounts=False
-):
+    arr: Array,
+    height_multiple: int | None,
+    width_multiple: int | None,
+    mode: str = "constant",
+    cval: float | int | Sequence[float | int] | Array = 0,
+    return_pad_amounts: bool = False,
+) -> Array | tuple[Array, TRBL]:
     """Pad an image array until its side lengths are multiples of given values.
 
     See :func:`~imgaug2.imgaug2.compute_paddings_for_aspect_ratio` for an
@@ -747,7 +890,7 @@ def pad_to_multiples_of(
     return arr_padded
 
 
-def compute_paddings_to_reach_aspect_ratio(arr, aspect_ratio):
+def compute_paddings_to_reach_aspect_ratio(arr: Array | Shape, aspect_ratio: float) -> TRBL:
     """Compute pad amounts required to fulfill an aspect ratio.
 
     "Pad amounts" here denotes the number of pixels that have to be added to
@@ -817,7 +960,7 @@ def compute_paddings_to_reach_aspect_ratio(arr, aspect_ratio):
     return pad_top, pad_right, pad_bottom, pad_left
 
 
-def compute_croppings_to_reach_aspect_ratio(arr, aspect_ratio):
+def compute_croppings_to_reach_aspect_ratio(arr: Array | Shape, aspect_ratio: float) -> TRBL:
     """Compute crop amounts required to fulfill an aspect ratio.
 
     "Crop amounts" here denotes the number of pixels that have to be removed
@@ -887,7 +1030,9 @@ def compute_croppings_to_reach_aspect_ratio(arr, aspect_ratio):
     return top, right, bottom, left
 
 
-def compute_paddings_to_reach_multiples_of(arr, height_multiple, width_multiple):
+def compute_paddings_to_reach_multiples_of(
+    arr: Array | Shape, height_multiple: int | None, width_multiple: int | None
+) -> TRBL:
     """Compute pad amounts until img height/width are multiples of given values.
 
     See :func:`~imgaug2.imgaug2.compute_paddings_for_aspect_ratio` for an
@@ -920,7 +1065,7 @@ def compute_paddings_to_reach_multiples_of(arr, height_multiple, width_multiple)
 
     """
 
-    def _compute_axis_value(axis_size, multiple):
+    def _compute_axis_value(axis_size: int, multiple: int | None) -> tuple[int, int]:
         if multiple is None:
             return 0, 0
         if axis_size == 0:
@@ -951,7 +1096,9 @@ def compute_paddings_to_reach_multiples_of(arr, height_multiple, width_multiple)
     return top, right, bottom, left
 
 
-def compute_croppings_to_reach_multiples_of(arr, height_multiple, width_multiple):
+def compute_croppings_to_reach_multiples_of(
+    arr: Array | Shape, height_multiple: int | None, width_multiple: int | None
+) -> TRBL:
     """Compute croppings to reach multiples of given heights/widths.
 
     See :func:`~imgaug2.imgaug2.compute_paddings_for_aspect_ratio` for an
@@ -983,7 +1130,7 @@ def compute_croppings_to_reach_multiples_of(arr, height_multiple, width_multiple
 
     """
 
-    def _compute_axis_value(axis_size, multiple):
+    def _compute_axis_value(axis_size: int, multiple: int | None) -> tuple[int, int]:
         if multiple is None:
             return 0, 0
         if axis_size == 0:
@@ -1014,7 +1161,12 @@ def compute_croppings_to_reach_multiples_of(arr, height_multiple, width_multiple
     return top, right, bottom, left
 
 
-def compute_paddings_to_reach_powers_of(arr, height_base, width_base, allow_zero_exponent=False):
+def compute_paddings_to_reach_powers_of(
+    arr: Array | Shape,
+    height_base: int | None,
+    width_base: int | None,
+    allow_zero_exponent: bool = False,
+) -> TRBL:
     """Compute paddings to reach powers of given base values.
 
     For given axis size ``S``, padded size ``S'`` (``S' >= S``) and base ``B``
@@ -1053,7 +1205,7 @@ def compute_paddings_to_reach_powers_of(arr, height_base, width_base, allow_zero
 
     """
 
-    def _compute_axis_value(axis_size, base):
+    def _compute_axis_value(axis_size: int, base: int | None) -> tuple[int, int]:
         if base is None:
             return 0, 0
         if axis_size == 0:
@@ -1084,7 +1236,12 @@ def compute_paddings_to_reach_powers_of(arr, height_base, width_base, allow_zero
     return top, right, bottom, left
 
 
-def compute_croppings_to_reach_powers_of(arr, height_base, width_base, allow_zero_exponent=False):
+def compute_croppings_to_reach_powers_of(
+    arr: Array | Shape,
+    height_base: int | None,
+    width_base: int | None,
+    allow_zero_exponent: bool = False,
+) -> TRBL:
     """Compute croppings to reach powers of given base values.
 
     For given axis size ``S``, cropped size ``S'`` (``S' <= S``) and base ``B``
@@ -1128,7 +1285,7 @@ def compute_croppings_to_reach_powers_of(arr, height_base, width_base, allow_zer
 
     """
 
-    def _compute_axis_value(axis_size, base):
+    def _compute_axis_value(axis_size: int, base: int | None) -> tuple[int, int]:
         if base is None:
             return 0, 0
         if axis_size == 0:
@@ -1161,7 +1318,7 @@ def compute_croppings_to_reach_powers_of(arr, height_base, width_base, allow_zer
 
 
 @ia.deprecated(alt_func="Resize", comment="Resize has the exactly same interface as Scale.")
-def Scale(*args, **kwargs):
+def Scale(*args: object, **kwargs: object) -> Resize:
     """Augmenter that resizes images to specified heights and widths."""
     # pylint: disable=invalid-name
     return Resize(*args, **kwargs)
@@ -1307,13 +1464,13 @@ class Resize(meta.Augmenter):
 
     def __init__(
         self,
-        size,
-        interpolation="cubic",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        size: ResizeSizeInput,
+        interpolation: ResizeInterpolationInput = "cubic",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -1323,8 +1480,12 @@ class Resize(meta.Augmenter):
 
     @classmethod
     @iap._prefetchable_str
-    def _handle_size_arg(cls, size, subcall):
-        def _dict_to_size_tuple(val1, val2):
+    def _handle_size_arg(
+        cls, size: ResizeSizeInput, subcall: bool
+    ) -> ResizeSizeParam | tuple[ResizeSizeParam, str]:
+        def _dict_to_size_tuple(
+            val1: ResizeSizeDictValue, val2: ResizeSizeDictValue
+        ) -> tuple[iap.StochasticParameter, iap.StochasticParameter]:
             kaa = "keep-aspect-ratio"
             not_both_kaa = val1 != kaa or val2 != kaa
             assert not_both_kaa, (
@@ -1340,7 +1501,7 @@ class Resize(meta.Augmenter):
                 size_tuple.append(entry)
             return tuple(size_tuple)
 
-        def _contains_any_key(dict_, keys):
+        def _contains_any_key(dict_: dict[str, object], keys: Sequence[str]) -> bool:
             return any([key in dict_ for key in keys])
 
         # HW = height, width
@@ -1409,7 +1570,7 @@ class Resize(meta.Augmenter):
         return result, size_order
 
     @classmethod
-    def _handle_interpolation_arg(cls, interpolation):
+    def _handle_interpolation_arg(cls, interpolation: ResizeInterpolationInput) -> iap.StochasticParameter:
         if interpolation == ia.ALL:
             interpolation = iap.Choice(["nearest", "linear", "area", "cubic"])
         elif ia.is_single_integer(interpolation):
@@ -1428,7 +1589,13 @@ class Resize(meta.Augmenter):
         return interpolation
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         nb_rows = batch.nb_rows
         samples = self._draw_samples(nb_rows, random_state)
 
@@ -1455,7 +1622,7 @@ class Resize(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def _augment_images_by_samples(self, images, samples):
+    def _augment_images_by_samples(self, images: Images, samples: ResizeSamplingResult) -> Images:
         input_was_array = False
         input_dtype = None
         if ia.is_np_array(images):
@@ -1479,7 +1646,12 @@ class Resize(meta.Augmenter):
         return result
 
     # Added in 0.4.0.
-    def _augment_maps_by_samples(self, augmentables, arr_attr_name, samples):
+    def _augment_maps_by_samples(
+        self,
+        augmentables: list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage],
+        arr_attr_name: str,
+        samples: ResizeSamplingResult,
+    ) -> list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage]:
         result = []
         samples_h, samples_w, samples_ip = samples
 
@@ -1506,7 +1678,9 @@ class Resize(meta.Augmenter):
         return result
 
     # Added in 0.4.0.
-    def _augment_keypoints_by_samples(self, kpsois, samples):
+    def _augment_keypoints_by_samples(
+        self, kpsois: list[ia.KeypointsOnImage], samples: ResizeSamplingResult
+    ) -> list[ia.KeypointsOnImage]:
         result = []
         samples_a, samples_b, _samples_ip = samples
         for i, kpsoi in enumerate(kpsois):
@@ -1520,7 +1694,7 @@ class Resize(meta.Augmenter):
 
         return result
 
-    def _draw_samples(self, nb_images, random_state):
+    def _draw_samples(self, nb_images: int, random_state: iarandom.RNG) -> ResizeSamplingResult:
         rngs = random_state.duplicate(3)
         if isinstance(self.size, tuple):
             samples_h = self.size[0].draw_samples(nb_images, random_state=rngs[0])
@@ -1533,7 +1707,13 @@ class Resize(meta.Augmenter):
         return samples_h, samples_w, samples_ip
 
     @classmethod
-    def _compute_height_width(cls, image_shape, sample_a, sample_b, size_order):
+    def _compute_height_width(
+        cls,
+        image_shape: Shape,
+        sample_a: float | int | str,
+        sample_b: float | int | str,
+        size_order: str,
+    ) -> tuple[int, int]:
         imh, imw = image_shape[0:2]
 
         if size_order == 'SL':
@@ -1571,7 +1751,7 @@ class Resize(meta.Augmenter):
 
         return h, w
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.size, self.interpolation, self.size_order]
 
@@ -1579,17 +1759,17 @@ class Resize(meta.Augmenter):
 class _CropAndPadSamplingResult:
     def __init__(
         self,
-        crop_top,
-        crop_right,
-        crop_bottom,
-        crop_left,
-        pad_top,
-        pad_right,
-        pad_bottom,
-        pad_left,
-        pad_mode,
-        pad_cval,
-    ):
+        crop_top: Array,
+        crop_right: Array,
+        crop_bottom: Array,
+        crop_left: Array,
+        pad_top: Array,
+        pad_right: Array,
+        pad_bottom: Array,
+        pad_left: Array,
+        pad_mode: Array,
+        pad_cval: Array,
+    ) -> None:
         self.crop_top = crop_top
         self.crop_right = crop_right
         self.crop_bottom = crop_bottom
@@ -1601,13 +1781,23 @@ class _CropAndPadSamplingResult:
         self.pad_mode = pad_mode
         self.pad_cval = pad_cval
 
-    def croppings(self, i):
+    def croppings(self, i: int) -> TRBL:
         """Get absolute pixel amounts of croppings as a TRBL tuple."""
-        return (self.crop_top[i], self.crop_right[i], self.crop_bottom[i], self.crop_left[i])
+        return (
+            int(self.crop_top[i]),
+            int(self.crop_right[i]),
+            int(self.crop_bottom[i]),
+            int(self.crop_left[i]),
+        )
 
-    def paddings(self, i):
+    def paddings(self, i: int) -> TRBL:
         """Get absolute pixel amounts of paddings as a TRBL tuple."""
-        return (self.pad_top[i], self.pad_right[i], self.pad_bottom[i], self.pad_left[i])
+        return (
+            int(self.pad_top[i]),
+            int(self.pad_right[i]),
+            int(self.pad_bottom[i]),
+            int(self.pad_left[i]),
+        )
 
 
 class CropAndPad(meta.Augmenter):
@@ -1850,17 +2040,17 @@ class CropAndPad(meta.Augmenter):
 
     def __init__(
         self,
-        px=None,
-        percent=None,
-        pad_mode="constant",
-        pad_cval=0,
-        keep_size=True,
-        sample_independently=True,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        px: CropAndPadPxInput | None = None,
+        percent: CropAndPadPercentInput | None = None,
+        pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"] = "constant",
+        pad_cval: ParamInput = 0,
+        keep_size: bool = True,
+        sample_independently: bool = True,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # pylint: disable=invalid-name
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
@@ -1896,7 +2086,9 @@ class CropAndPad(meta.Augmenter):
 
     @classmethod
     @iap._prefetchable
-    def _handle_px_and_percent_args(cls, px, percent):
+    def _handle_px_and_percent_args(
+        cls, px: CropAndPadPxInput | None, percent: CropAndPadPercentInput | None
+    ) -> CropAndPadParamReturn:
         # pylint: disable=invalid-name
         all_sides = None
         top, right, bottom, left = None, None, None, None
@@ -1914,7 +2106,15 @@ class CropAndPad(meta.Augmenter):
         return mode, all_sides, top, right, bottom, left
 
     @classmethod
-    def _handle_px_arg(cls, px):
+    def _handle_px_arg(
+        cls, px: CropAndPadPxInput
+    ) -> tuple[
+        iap.StochasticParameter | None,
+        iap.StochasticParameter | None,
+        iap.StochasticParameter | None,
+        iap.StochasticParameter | None,
+        iap.StochasticParameter | None,
+    ]:
         # pylint: disable=invalid-name
         all_sides = None
         top, right, bottom, left = None, None, None, None
@@ -1926,7 +2126,7 @@ class CropAndPad(meta.Augmenter):
                 f"Expected 'px' given as a tuple to contain 2 or 4 entries, got {len(px)}."
             )
 
-            def handle_param(p):
+            def handle_param(p: CropAndPadPxSingleParam | tuple[int, int]) -> iap.StochasticParameter:
                 if ia.is_single_integer(p):
                     return iap.Deterministic(p)
                 if isinstance(p, tuple):
@@ -1969,7 +2169,15 @@ class CropAndPad(meta.Augmenter):
         return all_sides, top, right, bottom, left
 
     @classmethod
-    def _handle_percent_arg(cls, percent):
+    def _handle_percent_arg(
+        cls, percent: CropAndPadPercentInput
+    ) -> tuple[
+        iap.StochasticParameter | None,
+        iap.StochasticParameter | None,
+        iap.StochasticParameter | None,
+        iap.StochasticParameter | None,
+        iap.StochasticParameter | None,
+    ]:
         all_sides = None
         top, right, bottom, left = None, None, None, None
 
@@ -1982,7 +2190,9 @@ class CropAndPad(meta.Augmenter):
                 f"entries, got {len(percent)}."
             )
 
-            def handle_param(p):
+            def handle_param(
+                p: CropAndPadPercentSingleParam | tuple[float | int, float | int],
+            ) -> iap.StochasticParameter:
                 if ia.is_single_number(p):
                     return iap.Deterministic(p)
                 if isinstance(p, tuple):
@@ -2033,7 +2243,13 @@ class CropAndPad(meta.Augmenter):
         return all_sides, top, right, bottom, left
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         shapes = batch.get_rowwise_shapes()
         samples = self._draw_samples(random_state, shapes)
 
@@ -2063,7 +2279,9 @@ class CropAndPad(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def _augment_images_by_samples(self, images, samples):
+    def _augment_images_by_samples(
+        self, images: Images, samples: _CropAndPadSamplingResult
+    ) -> Images:
         result = []
         for i, image in enumerate(images):
             image_cr_pa = _crop_and_pad_arr(
@@ -2088,7 +2306,13 @@ class CropAndPad(meta.Augmenter):
         return result
 
     # Added in 0.4.0.
-    def _augment_maps_by_samples(self, augmentables, pad_mode, pad_cval, samples):
+    def _augment_maps_by_samples(
+        self,
+        augmentables: list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage],
+        pad_mode: str | None,
+        pad_cval: float | int | np.number | None,
+        samples: _CropAndPadSamplingResult,
+    ) -> list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage]:
         result = []
         for i, augmentable in enumerate(augmentables):
             augmentable = _crop_and_pad_hms_or_segmaps_(
@@ -2105,7 +2329,9 @@ class CropAndPad(meta.Augmenter):
         return result
 
     # Added in 0.4.0.
-    def _augment_keypoints_by_samples(self, keypoints_on_images, samples):
+    def _augment_keypoints_by_samples(
+        self, keypoints_on_images: list[ia.KeypointsOnImage], samples: _CropAndPadSamplingResult
+    ) -> list[ia.KeypointsOnImage]:
         result = []
         for i, keypoints_on_image in enumerate(keypoints_on_images):
             kpsoi_aug = _crop_and_pad_kpsoi_(
@@ -2118,7 +2344,9 @@ class CropAndPad(meta.Augmenter):
 
         return result
 
-    def _draw_samples(self, random_state, shapes):
+    def _draw_samples(
+        self, random_state: iarandom.RNG, shapes: Sequence[Shape]
+    ) -> _CropAndPadSamplingResult:
         nb_rows = len(shapes)
 
         shapes_arr = np.array([shape[0:2] for shape in shapes], dtype=np.int32)
@@ -2191,7 +2419,7 @@ class CropAndPad(meta.Augmenter):
             pad_cval=pad_cval,
         )
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [
             self.all_sides,
@@ -2402,18 +2630,18 @@ class Pad(CropAndPad):
 
     def __init__(
         self,
-        px=None,
-        percent=None,
-        pad_mode="constant",
-        pad_cval=0,
-        keep_size=True,
-        sample_independently=True,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
-        def recursive_validate(value):
+        px: CropAndPadPxInput | None = None,
+        percent: CropAndPadPercentInput | None = None,
+        pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"] = "constant",
+        pad_cval: ParamInput = 0,
+        keep_size: bool = True,
+        sample_independently: bool = True,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
+        def recursive_validate(value: object) -> object:
             if value is None:
                 return value
             if ia.is_single_number(value):
@@ -2601,16 +2829,16 @@ class Crop(CropAndPad):
 
     def __init__(
         self,
-        px=None,
-        percent=None,
-        keep_size=True,
-        sample_independently=True,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
-        def recursive_negate(value):
+        px: CropAndPadPxInput | None = None,
+        percent: CropAndPadPercentInput | None = None,
+        keep_size: bool = True,
+        sample_independently: bool = True,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
+        def recursive_negate(value: object) -> object:
             if value is None:
                 return value
             if ia.is_single_number(value):
@@ -2780,16 +3008,18 @@ class PadToFixedSize(meta.Augmenter):
 
     def __init__(
         self,
-        width,
-        height,
-        pad_mode="constant",
-        pad_cval=0,
-        position="uniform",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        width: int | None,
+        height: int | None,
+        pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"] = "constant",
+        pad_cval: ParamInput = 0,
+        position: str
+        | tuple[float | int | iap.StochasticParameter, float | int | iap.StochasticParameter]
+        | iap.StochasticParameter = "uniform",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -2823,7 +3053,13 @@ class PadToFixedSize(meta.Augmenter):
         self._pad_cval_segmentation_maps = 0
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         # Providing the whole batch to _draw_samples() would not be necessary
         # for this augmenter. The number of rows would be sufficient. This
         # formulation however enables derived augmenters to use rowwise shapes
@@ -2853,7 +3089,9 @@ class PadToFixedSize(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def _augment_images_by_samples(self, images, samples):
+    def _augment_images_by_samples(
+        self, images: Images, samples: PadToFixedSizeSamplingResult
+    ) -> list[Array]:
         result = []
         sizes, pad_xs, pad_ys, pad_modes, pad_cvals = samples
         for i, (image, size) in enumerate(zip(images, sizes)):
@@ -2875,7 +3113,9 @@ class PadToFixedSize(meta.Augmenter):
         return result
 
     # Added in 0.4.0.
-    def _augment_keypoints_by_samples(self, keypoints_on_images, samples):
+    def _augment_keypoints_by_samples(
+        self, keypoints_on_images: list[ia.KeypointsOnImage], samples: PadToFixedSizeSamplingResult
+    ) -> list[ia.KeypointsOnImage]:
         result = []
         sizes, pad_xs, pad_ys, _, _ = samples
         for i, (kpsoi, size) in enumerate(zip(keypoints_on_images, sizes)):
@@ -2894,7 +3134,13 @@ class PadToFixedSize(meta.Augmenter):
         return result
 
     # Added in 0.4.0.
-    def _augment_maps_by_samples(self, augmentables, samples, pad_mode, pad_cval):
+    def _augment_maps_by_samples(
+        self,
+        augmentables: list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage],
+        samples: PadToFixedSizeSamplingResult,
+        pad_mode: str | None,
+        pad_cval: float | int | np.generic | None,
+    ) -> list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage]:
         sizes, pad_xs, pad_ys, pad_modes, pad_cvals = samples
 
         for i, (augmentable, size) in enumerate(zip(augmentables, sizes)):
@@ -2922,7 +3168,9 @@ class PadToFixedSize(meta.Augmenter):
 
         return augmentables
 
-    def _draw_samples(self, batch, random_state):
+    def _draw_samples(
+        self, batch: _BatchInAugmentation, random_state: iarandom.RNG
+    ) -> PadToFixedSizeSamplingResult:
         nb_images = batch.nb_rows
         rngs = random_state.duplicate(4)
 
@@ -2943,8 +3191,14 @@ class PadToFixedSize(meta.Augmenter):
 
     @classmethod
     def _calculate_paddings(
-        cls, height_image, width_image, height_min, width_min, pad_xs_i, pad_ys_i
-    ):
+        cls,
+        height_image: int,
+        width_image: int,
+        height_min: int | None,
+        width_min: int | None,
+        pad_xs_i: float | np.floating,
+        pad_ys_i: float | np.floating,
+    ) -> TRBL:
         pad_top = 0
         pad_right = 0
         pad_bottom = 0
@@ -2962,7 +3216,7 @@ class PadToFixedSize(meta.Augmenter):
 
         return pad_top, pad_right, pad_bottom, pad_left
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.size[0], self.size[1], self.pad_mode, self.pad_cval, self.position]
 
@@ -3026,15 +3280,15 @@ class CenterPadToFixedSize(PadToFixedSize):
     # Added in 0.4.0.
     def __init__(
         self,
-        width,
-        height,
-        pad_mode="constant",
-        pad_cval=0,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        width: int | None,
+        height: int | None,
+        pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"] = "constant",
+        pad_cval: ParamInput = 0,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             width=width,
             height=height,
@@ -3177,14 +3431,16 @@ class CropToFixedSize(meta.Augmenter):
 
     def __init__(
         self,
-        width,
-        height,
-        position="uniform",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        width: int | None,
+        height: int | None,
+        position: str
+        | tuple[float | int | iap.StochasticParameter, float | int | iap.StochasticParameter]
+        | iap.StochasticParameter = "uniform",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -3200,7 +3456,13 @@ class CropToFixedSize(meta.Augmenter):
         self.position = _handle_position_parameter(position)
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         # Providing the whole batch to _draw_samples() would not be necessary
         # for this augmenter. The number of rows would be sufficient. This
         # formulation however enables derived augmenters to use rowwise shapes
@@ -3228,7 +3490,9 @@ class CropToFixedSize(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def _augment_images_by_samples(self, images, samples):
+    def _augment_images_by_samples(
+        self, images: Images, samples: CropToFixedSizeSamplingResult
+    ) -> list[Array]:
         result = []
         sizes, offset_xs, offset_ys = samples
         for i, (image, size) in enumerate(zip(images, sizes)):
@@ -3246,7 +3510,9 @@ class CropToFixedSize(meta.Augmenter):
         return result
 
     # Added in 0.4.0.
-    def _augment_keypoints_by_samples(self, kpsois, samples):
+    def _augment_keypoints_by_samples(
+        self, kpsois: list[ia.KeypointsOnImage], samples: CropToFixedSizeSamplingResult
+    ) -> list[ia.KeypointsOnImage]:
         result = []
         sizes, offset_xs, offset_ys = samples
         for i, (kpsoi, size) in enumerate(zip(kpsois, sizes)):
@@ -3266,7 +3532,11 @@ class CropToFixedSize(meta.Augmenter):
         return result
 
     # Added in 0.4.0.
-    def _augment_maps_by_samples(self, augmentables, samples):
+    def _augment_maps_by_samples(
+        self,
+        augmentables: list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage],
+        samples: CropToFixedSizeSamplingResult,
+    ) -> list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage]:
         sizes, offset_xs, offset_ys = samples
         for i, (augmentable, size) in enumerate(zip(augmentables, sizes)):
             w, h = size
@@ -3284,8 +3554,14 @@ class CropToFixedSize(meta.Augmenter):
 
     @classmethod
     def _calculate_crop_amounts(
-        cls, height_image, width_image, height_max, width_max, offset_y, offset_x
-    ):
+        cls,
+        height_image: int,
+        width_image: int,
+        height_max: int | None,
+        width_max: int | None,
+        offset_y: float | np.floating,
+        offset_x: float | np.floating,
+    ) -> TRBL:
         crop_top = 0
         crop_right = 0
         crop_bottom = 0
@@ -3301,7 +3577,9 @@ class CropToFixedSize(meta.Augmenter):
 
         return crop_top, crop_right, crop_bottom, crop_left
 
-    def _draw_samples(self, batch, random_state):
+    def _draw_samples(
+        self, batch: _BatchInAugmentation, random_state: iarandom.RNG
+    ) -> CropToFixedSizeSamplingResult:
         nb_images = batch.nb_rows
         rngs = random_state.duplicate(2)
 
@@ -3320,7 +3598,7 @@ class CropToFixedSize(meta.Augmenter):
         # derived augmenters to define image-specific heights/widths.
         return [self.size] * nb_images, offset_xs, offset_ys
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.size[0], self.size[1], self.position]
 
@@ -3382,13 +3660,13 @@ class CenterCropToFixedSize(CropToFixedSize):
     # Added in 0.4.0.
     def __init__(
         self,
-        width,
-        height,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        width: int | None,
+        height: int | None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             width=width,
             height=height,
@@ -3464,14 +3742,16 @@ class CropToMultiplesOf(CropToFixedSize):
     # Added in 0.4.0.
     def __init__(
         self,
-        width_multiple,
-        height_multiple,
-        position="uniform",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        width_multiple: int | None,
+        height_multiple: int | None,
+        position: str
+        | tuple[float | int | iap.StochasticParameter, float | int | iap.StochasticParameter]
+        | iap.StochasticParameter = "uniform",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             width=None,
             height=None,
@@ -3485,7 +3765,9 @@ class CropToMultiplesOf(CropToFixedSize):
         self.height_multiple = height_multiple
 
     # Added in 0.4.0.
-    def _draw_samples(self, batch, random_state):
+    def _draw_samples(
+        self, batch: _BatchInAugmentation, random_state: iarandom.RNG
+    ) -> CropToFixedSizeSamplingResult:
         _sizes, offset_xs, offset_ys = super()._draw_samples(batch, random_state)
 
         shapes = batch.get_rowwise_shapes()
@@ -3505,7 +3787,7 @@ class CropToMultiplesOf(CropToFixedSize):
         return sizes, offset_xs, offset_ys
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.width_multiple, self.height_multiple, self.position]
 
@@ -3566,13 +3848,13 @@ class CenterCropToMultiplesOf(CropToMultiplesOf):
     # Added in 0.4.0.
     def __init__(
         self,
-        width_multiple,
-        height_multiple,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        width_multiple: int | None,
+        height_multiple: int | None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             width_multiple=width_multiple,
             height_multiple=height_multiple,
@@ -3647,16 +3929,18 @@ class PadToMultiplesOf(PadToFixedSize):
     # Added in 0.4.0.
     def __init__(
         self,
-        width_multiple,
-        height_multiple,
-        pad_mode="constant",
-        pad_cval=0,
-        position="uniform",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        width_multiple: int | None,
+        height_multiple: int | None,
+        pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"] = "constant",
+        pad_cval: ParamInput = 0,
+        position: str
+        | tuple[float | int | iap.StochasticParameter, float | int | iap.StochasticParameter]
+        | iap.StochasticParameter = "uniform",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             width=None,
             height=None,
@@ -3672,7 +3956,9 @@ class PadToMultiplesOf(PadToFixedSize):
         self.height_multiple = height_multiple
 
     # Added in 0.4.0.
-    def _draw_samples(self, batch, random_state):
+    def _draw_samples(
+        self, batch: _BatchInAugmentation, random_state: iarandom.RNG
+    ) -> PadToFixedSizeSamplingResult:
         _sizes, pad_xs, pad_ys, pad_modes, pad_cvals = super()._draw_samples(batch, random_state)
 
         shapes = batch.get_rowwise_shapes()
@@ -3692,7 +3978,7 @@ class PadToMultiplesOf(PadToFixedSize):
         return sizes, pad_xs, pad_ys, pad_modes, pad_cvals
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [
             self.width_multiple,
@@ -3765,15 +4051,15 @@ class CenterPadToMultiplesOf(PadToMultiplesOf):
     # Added in 0.4.0.
     def __init__(
         self,
-        width_multiple,
-        height_multiple,
-        pad_mode="constant",
-        pad_cval=0,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        width_multiple: int | None,
+        height_multiple: int | None,
+        pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"] = "constant",
+        pad_cval: ParamInput = 0,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             width_multiple=width_multiple,
             height_multiple=height_multiple,
@@ -3858,14 +4144,16 @@ class CropToPowersOf(CropToFixedSize):
     # Added in 0.4.0.
     def __init__(
         self,
-        width_base,
-        height_base,
-        position="uniform",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        width_base: int | None,
+        height_base: int | None,
+        position: str
+        | tuple[float | int | iap.StochasticParameter, float | int | iap.StochasticParameter]
+        | iap.StochasticParameter = "uniform",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             width=None,
             height=None,
@@ -3879,7 +4167,9 @@ class CropToPowersOf(CropToFixedSize):
         self.height_base = height_base
 
     # Added in 0.4.0.
-    def _draw_samples(self, batch, random_state):
+    def _draw_samples(
+        self, batch: _BatchInAugmentation, random_state: iarandom.RNG
+    ) -> CropToFixedSizeSamplingResult:
         _sizes, offset_xs, offset_ys = super()._draw_samples(batch, random_state)
 
         shapes = batch.get_rowwise_shapes()
@@ -3899,7 +4189,7 @@ class CropToPowersOf(CropToFixedSize):
         return sizes, offset_xs, offset_ys
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.width_base, self.height_base, self.position]
 
@@ -3960,13 +4250,13 @@ class CenterCropToPowersOf(CropToPowersOf):
     # Added in 0.4.0.
     def __init__(
         self,
-        width_base,
-        height_base,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        width_base: int | None,
+        height_base: int | None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             width_base=width_base,
             height_base=height_base,
@@ -4048,16 +4338,18 @@ class PadToPowersOf(PadToFixedSize):
     # Added in 0.4.0.
     def __init__(
         self,
-        width_base,
-        height_base,
-        pad_mode="constant",
-        pad_cval=0,
-        position="uniform",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        width_base: int | None,
+        height_base: int | None,
+        pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"] = "constant",
+        pad_cval: ParamInput = 0,
+        position: str
+        | tuple[float | int | iap.StochasticParameter, float | int | iap.StochasticParameter]
+        | iap.StochasticParameter = "uniform",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             width=None,
             height=None,
@@ -4073,7 +4365,9 @@ class PadToPowersOf(PadToFixedSize):
         self.height_base = height_base
 
     # Added in 0.4.0.
-    def _draw_samples(self, batch, random_state):
+    def _draw_samples(
+        self, batch: _BatchInAugmentation, random_state: iarandom.RNG
+    ) -> PadToFixedSizeSamplingResult:
         _sizes, pad_xs, pad_ys, pad_modes, pad_cvals = super()._draw_samples(batch, random_state)
 
         shapes = batch.get_rowwise_shapes()
@@ -4093,7 +4387,7 @@ class PadToPowersOf(PadToFixedSize):
         return sizes, pad_xs, pad_ys, pad_modes, pad_cvals
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.width_base, self.height_base, self.pad_mode, self.pad_cval, self.position]
 
@@ -4159,15 +4453,15 @@ class CenterPadToPowersOf(PadToPowersOf):
     # Added in 0.4.0.
     def __init__(
         self,
-        width_base,
-        height_base,
-        pad_mode="constant",
-        pad_cval=0,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        width_base: int | None,
+        height_base: int | None,
+        pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"] = "constant",
+        pad_cval: ParamInput = 0,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             width_base=width_base,
             height_base=height_base,
@@ -4238,13 +4532,15 @@ class CropToAspectRatio(CropToFixedSize):
     # Added in 0.4.0.
     def __init__(
         self,
-        aspect_ratio,
-        position="uniform",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        aspect_ratio: float | int,
+        position: str
+        | tuple[float | int | iap.StochasticParameter, float | int | iap.StochasticParameter]
+        | iap.StochasticParameter = "uniform",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             width=None,
             height=None,
@@ -4257,7 +4553,9 @@ class CropToAspectRatio(CropToFixedSize):
         self.aspect_ratio = aspect_ratio
 
     # Added in 0.4.0.
-    def _draw_samples(self, batch, random_state):
+    def _draw_samples(
+        self, batch: _BatchInAugmentation, random_state: iarandom.RNG
+    ) -> CropToFixedSizeSamplingResult:
         _sizes, offset_xs, offset_ys = super()._draw_samples(batch, random_state)
 
         shapes = batch.get_rowwise_shapes()
@@ -4281,7 +4579,7 @@ class CropToAspectRatio(CropToFixedSize):
         return sizes, offset_xs, offset_ys
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.aspect_ratio, self.position]
 
@@ -4339,12 +4637,12 @@ class CenterCropToAspectRatio(CropToAspectRatio):
     # Added in 0.4.0.
     def __init__(
         self,
-        aspect_ratio,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        aspect_ratio: float | int,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             aspect_ratio=aspect_ratio,
             position="center",
@@ -4415,15 +4713,17 @@ class PadToAspectRatio(PadToFixedSize):
     # Added in 0.4.0.
     def __init__(
         self,
-        aspect_ratio,
-        pad_mode="constant",
-        pad_cval=0,
-        position="uniform",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        aspect_ratio: float | int,
+        pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"] = "constant",
+        pad_cval: ParamInput = 0,
+        position: str
+        | tuple[float | int | iap.StochasticParameter, float | int | iap.StochasticParameter]
+        | iap.StochasticParameter = "uniform",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             width=None,
             height=None,
@@ -4438,7 +4738,9 @@ class PadToAspectRatio(PadToFixedSize):
         self.aspect_ratio = aspect_ratio
 
     # Added in 0.4.0.
-    def _draw_samples(self, batch, random_state):
+    def _draw_samples(
+        self, batch: _BatchInAugmentation, random_state: iarandom.RNG
+    ) -> PadToFixedSizeSamplingResult:
         _sizes, pad_xs, pad_ys, pad_modes, pad_cvals = super()._draw_samples(batch, random_state)
 
         shapes = batch.get_rowwise_shapes()
@@ -4457,7 +4759,7 @@ class PadToAspectRatio(PadToFixedSize):
         return sizes, pad_xs, pad_ys, pad_modes, pad_cvals
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.aspect_ratio, self.pad_mode, self.pad_cval, self.position]
 
@@ -4513,14 +4815,14 @@ class CenterPadToAspectRatio(PadToAspectRatio):
     # Added in 0.4.0.
     def __init__(
         self,
-        aspect_ratio,
-        pad_mode="constant",
-        pad_cval=0,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        aspect_ratio: float | int,
+        pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"] = "constant",
+        pad_cval: ParamInput = 0,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             aspect_ratio=aspect_ratio,
             position="center",
@@ -4584,12 +4886,14 @@ class CropToSquare(CropToAspectRatio):
     # Added in 0.4.0.
     def __init__(
         self,
-        position="uniform",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        position: str
+        | tuple[float | int | iap.StochasticParameter, float | int | iap.StochasticParameter]
+        | iap.StochasticParameter = "uniform",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             aspect_ratio=1.0,
             position=position,
@@ -4654,7 +4958,13 @@ class CenterCropToSquare(CropToSquare):
     """
 
     # Added in 0.4.0.
-    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             position="center",
             seed=seed,
@@ -4719,14 +5029,16 @@ class PadToSquare(PadToAspectRatio):
     # Added in 0.4.0.
     def __init__(
         self,
-        pad_mode="constant",
-        pad_cval=0,
-        position="uniform",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"] = "constant",
+        pad_cval: ParamInput = 0,
+        position: str
+        | tuple[float | int | iap.StochasticParameter, float | int | iap.StochasticParameter]
+        | iap.StochasticParameter = "uniform",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             aspect_ratio=1.0,
             pad_mode=pad_mode,
@@ -4787,13 +5099,13 @@ class CenterPadToSquare(PadToSquare):
     # Added in 0.4.0.
     def __init__(
         self,
-        pad_mode="constant",
-        pad_cval=0,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"] = "constant",
+        pad_cval: ParamInput = 0,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             pad_mode=pad_mode,
             pad_cval=pad_cval,
@@ -4917,22 +5229,34 @@ class KeepSizeByResize(meta.Augmenter):
 
     def __init__(
         self,
-        children,
-        interpolation="cubic",
-        interpolation_heatmaps=SAME_AS_IMAGES,
-        interpolation_segmaps="nearest",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        children: meta.Augmenter | Sequence[meta.Augmenter] | None,
+        interpolation: KeepSizeByResizeInterpolationInput = "cubic",
+        interpolation_heatmaps: KeepSizeByResizeInterpolationMapsInput = SAME_AS_IMAGES,
+        interpolation_segmaps: KeepSizeByResizeInterpolationMapsInput = "nearest",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
         self.children = children
 
+        @overload
+        def _validate_param(
+            val: KeepSizeByResizeInterpolationInput, allow_same_as_images: Literal[False]
+        ) -> iap.StochasticParameter: ...
+
+        @overload
+        def _validate_param(
+            val: KeepSizeByResizeInterpolationMapsInput, allow_same_as_images: Literal[True]
+        ) -> iap.StochasticParameter | Literal["SAME_AS_IMAGES"]: ...
+
         @iap._prefetchable_str
-        def _validate_param(val, allow_same_as_images):
+        def _validate_param(
+            val: KeepSizeByResizeInterpolationMapsInput, allow_same_as_images: bool
+        ) -> iap.StochasticParameter | Literal["SAME_AS_IMAGES"]:
             valid_ips_and_resize = ia.IMRESIZE_VALID_INTERPOLATIONS + [KeepSizeByResize.NO_RESIZE]
             if allow_same_as_images and val == self.SAME_AS_IMAGES:
                 return self.SAME_AS_IMAGES
@@ -4965,7 +5289,13 @@ class KeepSizeByResize(meta.Augmenter):
         self.interpolation_segmaps = _validate_param(interpolation_segmaps, True)
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         with batch.propagation_hooks_ctx(self, hooks, parents):
             images_were_array = None
             if batch.images is not None:
@@ -5010,7 +5340,13 @@ class KeepSizeByResize(meta.Augmenter):
 
     # Added in 0.4.0.
     @classmethod
-    def _keep_size_images(cls, images, shapes_orig, images_were_array, samples):
+    def _keep_size_images(
+        cls,
+        images: Images,
+        shapes_orig: list[Shape],
+        images_were_array: bool,
+        samples: tuple[Array, Array, Array],
+    ) -> Images:
         interpolations, _, _ = samples
 
         gen = zip(images, interpolations, shapes_orig)
@@ -5033,7 +5369,13 @@ class KeepSizeByResize(meta.Augmenter):
 
     # Added in 0.4.0.
     @classmethod
-    def _keep_size_maps(cls, augmentables, shapes_orig_images, shapes_orig_arrs, interpolations):
+    def _keep_size_maps(
+        cls,
+        augmentables: list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage],
+        shapes_orig_images: list[Shape],
+        shapes_orig_arrs: list[Shape],
+        interpolations: Array,
+    ) -> list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage]:
         result = []
         gen = zip(augmentables, interpolations, shapes_orig_arrs, shapes_orig_images)
         for augmentable, interpolation, arr_shape_orig, img_shape_orig in gen:
@@ -5048,7 +5390,9 @@ class KeepSizeByResize(meta.Augmenter):
 
     # Added in 0.4.0.
     @classmethod
-    def _keep_size_keypoints(cls, kpsois_aug, shapes_orig, interpolations):
+    def _keep_size_keypoints(
+        cls, kpsois_aug: list[ia.KeypointsOnImage], shapes_orig: list[Shape], interpolations: Array
+    ) -> list[ia.KeypointsOnImage]:
         result = []
         gen = zip(kpsois_aug, interpolations, shapes_orig)
         for kpsoi_aug, interpolation, input_shape in gen:
@@ -5061,7 +5405,7 @@ class KeepSizeByResize(meta.Augmenter):
 
     # Added in 0.4.0.
     @classmethod
-    def _get_shapes(cls, batch):
+    def _get_shapes(cls, batch: _BatchInAugmentation) -> dict[str, list[Shape]]:
         result = dict()
         for column in batch.columns:
             result[column.name] = [cell.shape for cell in column.value]
@@ -5074,7 +5418,9 @@ class KeepSizeByResize(meta.Augmenter):
 
         return result
 
-    def _draw_samples(self, nb_images, random_state):
+    def _draw_samples(
+        self, nb_images: int, random_state: iarandom.RNG
+    ) -> tuple[Array, Array, Array]:
         rngs = random_state.duplicate(3)
         interpolations = self.interpolation.draw_samples((nb_images,), random_state=rngs[0])
 
@@ -5115,22 +5461,22 @@ class KeepSizeByResize(meta.Augmenter):
 
         return interpolations, interpolations_heatmaps, interpolations_segmaps
 
-    def _to_deterministic(self):
+    def _to_deterministic(self) -> KeepSizeByResize:
         aug = self.copy()
         aug.children = aug.children.to_deterministic()
         aug.deterministic = True
         aug.random_state = self.random_state.derive_rng_()
         return aug
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.interpolation, self.interpolation_heatmaps]
 
-    def get_children_lists(self):
+    def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
         return [self.children]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"{self.__class__.__name__}("
             f"interpolation={self.interpolation}, "

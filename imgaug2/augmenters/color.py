@@ -29,6 +29,8 @@ List of augmenters:
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
+from collections.abc import Sequence
+from typing import Literal, TypeAlias
 
 import cv2
 import numpy as np
@@ -37,7 +39,9 @@ import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
+from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import arithmetic, blend, meta
+from imgaug2.augmenters._typing import Array, Images, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 # pylint: disable=invalid-name
@@ -66,8 +70,27 @@ CSPACE_ALL = {
 }
 # pylint: enable=invalid-name
 
+ColorSpace: TypeAlias = Literal[
+    "RGB",
+    "BGR",
+    "GRAY",
+    "YCrCb",
+    "HSV",
+    "HLS",
+    "Lab",
+    "Luv",
+    "YUV",
+    "CIE",
+]
+ColorSpaceInput: TypeAlias = ColorSpace | Sequence[ColorSpace]
+KelvinInput: TypeAlias = float | int | Sequence[float | int] | Array
+PerChannelInput: TypeAlias = bool | float | iap.StochasticParameter
+ChildrenInput: TypeAlias = meta.Augmenter | Sequence[meta.Augmenter] | None
+ToColorspaceParamInput: TypeAlias = Literal["ALL"] | ColorSpaceInput | iap.StochasticParameter
+ToColorspaceChoiceInput: TypeAlias = ColorSpaceInput | iap.StochasticParameter
 
-def _get_opencv_attr(attr_names):
+
+def _get_opencv_attr(attr_names: Sequence[str]) -> int | None:
     for attr_name in attr_names:
         if hasattr(cv2, attr_name):
             return getattr(cv2, attr_name)
@@ -172,7 +195,9 @@ _CHANGE_COLORSPACE_INPLACE = {
 }
 
 
-def change_colorspace_(image, to_colorspace, from_colorspace=CSPACE_RGB):
+def change_colorspace_(
+    image: Array, to_colorspace: ColorSpace, from_colorspace: ColorSpace = CSPACE_RGB
+) -> Array:
     """Change the colorspace of an image inplace.
 
     .. note::
@@ -235,7 +260,7 @@ def change_colorspace_(image, to_colorspace, from_colorspace=CSPACE_RGB):
     # results in errors, ie uint8 is expected
 
     # this was once used to accomodate for image .flags -- still necessary?
-    def _get_dst(image_, from_to_cspace):
+    def _get_dst(image_: Array, from_to_cspace: tuple[ColorSpace, ColorSpace]) -> Array | None:
         if _CHANGE_COLORSPACE_INPLACE[from_to_cspace]:
             return image_
         return None
@@ -300,7 +325,11 @@ def change_colorspace_(image, to_colorspace, from_colorspace=CSPACE_RGB):
     return image_aug
 
 
-def change_colorspaces_(images, to_colorspaces, from_colorspaces=CSPACE_RGB):
+def change_colorspaces_(
+    images: Images,
+    to_colorspaces: ColorSpaceInput,
+    from_colorspaces: ColorSpaceInput = CSPACE_RGB,
+) -> Images:
     """Change the colorspaces of a batch of images inplace.
 
     .. note::
@@ -362,7 +391,7 @@ def change_colorspaces_(images, to_colorspaces, from_colorspaces=CSPACE_RGB):
 
     """
 
-    def _validate(arg, arg_name):
+    def _validate(arg: ColorSpaceInput, arg_name: str) -> Sequence[ColorSpace]:
         if ia.is_string(arg):
             arg = [arg] * len(images)
         else:
@@ -392,7 +421,7 @@ class _KelvinToRGBTableSingleton:
 
     # Added in 0.4.0.
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls) -> _KelvinToRGBTable:
         if cls._INSTANCE is None:
             cls._INSTANCE = _KelvinToRGBTable()
         return cls._INSTANCE
@@ -403,10 +432,10 @@ class _KelvinToRGBTable:
     _TABLE = None
 
     # Added in 0.4.0.
-    def __init__(self):
+    def __init__(self) -> None:
         self.table = self.create_table()
 
-    def transform_kelvins_to_rgb_multipliers(self, kelvins):
+    def transform_kelvins_to_rgb_multipliers(self, kelvins: Array) -> Array:
         """Transform kelvin values to corresponding multipliers for RGB images.
 
         A single returned multiplier denotes the channelwise multipliers
@@ -446,7 +475,7 @@ class _KelvinToRGBTable:
 
     # Added in 0.4.0.
     @classmethod
-    def create_table(cls):
+    def create_table(cls) -> Array:
         table = (
             np.float32(
                 [
@@ -849,7 +878,11 @@ class _KelvinToRGBTable:
         return table
 
 
-def change_color_temperatures_(images, kelvins, from_colorspaces=CSPACE_RGB):
+def change_color_temperatures_(
+    images: Images,
+    kelvins: KelvinInput,
+    from_colorspaces: ColorSpaceInput = CSPACE_RGB,
+) -> Images:
     """Change in-place the temperature of images to given values in Kelvin.
 
     Added in 0.4.0.
@@ -886,7 +919,11 @@ def change_color_temperatures_(images, kelvins, from_colorspaces=CSPACE_RGB):
 
     # TODO this is very similar to the validation in change_colorspaces_().
     #      Make DRY.
-    def _validate(arg, arg_name, datatype):
+    def _validate(
+        arg: ColorSpaceInput | KelvinInput,
+        arg_name: str,
+        datatype: Literal["str", "number"],
+    ) -> Array | Sequence[ColorSpace] | Sequence[float | int]:
         if ia.is_iterable(arg) and not ia.is_string(arg):
             assert len(arg) == len(images), (
                 "If `%s` is provided as an iterable it must have the same "
@@ -948,7 +985,9 @@ def change_color_temperatures_(images, kelvins, from_colorspaces=CSPACE_RGB):
     return images
 
 
-def change_color_temperature(image, kelvin, from_colorspace=CSPACE_RGB):
+def change_color_temperature(
+    image: Array, kelvin: float | int, from_colorspace: ColorSpace = CSPACE_RGB
+) -> Array:
     """Change the temperature of an image to a given value in Kelvin.
 
     Added in 0.4.0.
@@ -985,14 +1024,14 @@ def change_color_temperature(image, kelvin, from_colorspace=CSPACE_RGB):
 
 @ia.deprecated(alt_func="WithColorspace")
 def InColorspace(
-    to_colorspace,
-    from_colorspace="RGB",
-    children=None,
-    seed=None,
-    name=None,
-    random_state="deprecated",
-    deterministic="deprecated",
-):
+    to_colorspace: ColorSpace,
+    from_colorspace: ColorSpace = "RGB",
+    children: ChildrenInput = None,
+    seed: RNGInput = None,
+    name: str | None = None,
+    random_state: RNGInput | Literal["deprecated"] = "deprecated",
+    deterministic: bool | Literal["deprecated"] = "deprecated",
+) -> WithColorspace:
     """Convert images to another colorspace."""
     # pylint: disable=invalid-name
     return WithColorspace(
@@ -1068,14 +1107,14 @@ class WithColorspace(meta.Augmenter):
 
     def __init__(
         self,
-        to_colorspace,
-        from_colorspace=CSPACE_RGB,
-        children=None,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        to_colorspace: ColorSpaceInput,
+        from_colorspace: ColorSpace = CSPACE_RGB,
+        children: ChildrenInput = None,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -1085,7 +1124,13 @@ class WithColorspace(meta.Augmenter):
         self.children = meta.handle_children_list(children, self.name, "then")
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         with batch.propagation_hooks_ctx(self, hooks, parents):
             # TODO this did not fail in the tests when there was only one
             #      `if` with all three steps in it
@@ -1106,22 +1151,22 @@ class WithColorspace(meta.Augmenter):
                 )
         return batch
 
-    def _to_deterministic(self):
+    def _to_deterministic(self) -> meta.Augmenter:
         aug = self.copy()
         aug.children = aug.children.to_deterministic()
         aug.deterministic = True
         aug.random_state = self.random_state.derive_rng_()
         return aug
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.to_colorspace, self.from_colorspace]
 
-    def get_children_lists(self):
+    def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
         return [self.children]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"WithColorspace(from_colorspace={self.from_colorspace}, "
             f"to_colorspace={self.to_colorspace}, name={self.name}, children=[{self.children}], deterministic={self.deterministic})"
@@ -1225,14 +1270,21 @@ class WithBrightnessChannels(meta.Augmenter):
     # Added in 0.4.0.
     def __init__(
         self,
-        children=None,
-        to_colorspace=[CSPACE_YCrCb, CSPACE_HSV, CSPACE_HLS, CSPACE_Lab, CSPACE_Luv, CSPACE_YUV],
-        from_colorspace="RGB",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        children: ChildrenInput = None,
+        to_colorspace: ToColorspaceParamInput = [
+            CSPACE_YCrCb,
+            CSPACE_HSV,
+            CSPACE_HLS,
+            CSPACE_Lab,
+            CSPACE_Luv,
+            CSPACE_YUV,
+        ],
+        from_colorspace: ColorSpace = "RGB",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # pylint: disable=dangerous-default-value
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
@@ -1245,7 +1297,13 @@ class WithBrightnessChannels(meta.Augmenter):
         self.from_colorspace = from_colorspace
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         with batch.propagation_hooks_ctx(self, hooks, parents):
             images_cvt = None
             to_colorspaces = None
@@ -1277,7 +1335,9 @@ class WithBrightnessChannels(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def _extract_brightness_channels(self, images, colorspaces):
+    def _extract_brightness_channels(
+        self, images: Images, colorspaces: Sequence[ColorSpace]
+    ) -> list[Array]:
         result = []
         for image, colorspace in zip(images, colorspaces):
             channel_id = self._CSPACE_TO_CHANNEL_ID[colorspace]
@@ -1288,14 +1348,16 @@ class WithBrightnessChannels(meta.Augmenter):
         return result
 
     # Added in 0.4.0.
-    def _invert_extract_brightness_channels(self, channels, images, colorspaces):
+    def _invert_extract_brightness_channels(
+        self, channels: Sequence[Array], images: Images, colorspaces: Sequence[ColorSpace]
+    ) -> Images:
         for channel, image, colorspace in zip(channels, images, colorspaces):
             channel_id = self._CSPACE_TO_CHANNEL_ID[colorspace]
             image[:, :, channel_id : channel_id + 1] = channel
         return images
 
     # Added in 0.4.0.
-    def _to_deterministic(self):
+    def _to_deterministic(self) -> meta.Augmenter:
         aug = self.copy()
         aug.children = aug.children.to_deterministic()
         aug.deterministic = True
@@ -1303,17 +1365,17 @@ class WithBrightnessChannels(meta.Augmenter):
         return aug
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.to_colorspace, self.from_colorspace]
 
     # Added in 0.4.0.
-    def get_children_lists(self):
+    def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
         return [self.children]
 
     # Added in 0.4.0.
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             "WithBrightnessChannels("
             f"to_colorspace={self.to_colorspace}, "
@@ -1387,16 +1449,23 @@ class MultiplyAndAddToBrightness(WithBrightnessChannels):
     # Added in 0.4.0.
     def __init__(
         self,
-        mul=(0.7, 1.3),
-        add=(-30, 30),
-        to_colorspace=[CSPACE_YCrCb, CSPACE_HSV, CSPACE_HLS, CSPACE_Lab, CSPACE_Luv, CSPACE_YUV],
-        from_colorspace="RGB",
-        random_order=True,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        mul: ParamInput = (0.7, 1.3),
+        add: ParamInput = (-30, 30),
+        to_colorspace: ToColorspaceParamInput = [
+            CSPACE_YCrCb,
+            CSPACE_HSV,
+            CSPACE_HLS,
+            CSPACE_Lab,
+            CSPACE_Luv,
+            CSPACE_YUV,
+        ],
+        from_colorspace: ColorSpace = "RGB",
+        random_order: bool = True,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # pylint: disable=dangerous-default-value
         mul = (
             meta.Identity()
@@ -1416,7 +1485,7 @@ class MultiplyAndAddToBrightness(WithBrightnessChannels):
         )
 
     # Added in 0.4.0.
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             "MultiplyAndAddToBrightness("
             f"mul={str(self.children[0])}, "
@@ -1483,14 +1552,21 @@ class MultiplyBrightness(MultiplyAndAddToBrightness):
     # Added in 0.4.0.
     def __init__(
         self,
-        mul=(0.7, 1.3),
-        to_colorspace=[CSPACE_YCrCb, CSPACE_HSV, CSPACE_HLS, CSPACE_Lab, CSPACE_Luv, CSPACE_YUV],
-        from_colorspace="RGB",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        mul: ParamInput = (0.7, 1.3),
+        to_colorspace: ToColorspaceParamInput = [
+            CSPACE_YCrCb,
+            CSPACE_HSV,
+            CSPACE_HLS,
+            CSPACE_Lab,
+            CSPACE_Luv,
+            CSPACE_YUV,
+        ],
+        from_colorspace: ColorSpace = "RGB",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # pylint: disable=dangerous-default-value
         super().__init__(
             mul=mul,
@@ -1559,14 +1635,21 @@ class AddToBrightness(MultiplyAndAddToBrightness):
     # Added in 0.4.0.
     def __init__(
         self,
-        add=(-30, 30),
-        to_colorspace=[CSPACE_YCrCb, CSPACE_HSV, CSPACE_HLS, CSPACE_Lab, CSPACE_Luv, CSPACE_YUV],
-        from_colorspace="RGB",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        add: ParamInput = (-30, 30),
+        to_colorspace: ToColorspaceParamInput = [
+            CSPACE_YCrCb,
+            CSPACE_HSV,
+            CSPACE_HLS,
+            CSPACE_Lab,
+            CSPACE_Luv,
+            CSPACE_YUV,
+        ],
+        from_colorspace: ColorSpace = "RGB",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # pylint: disable=dangerous-default-value
         super().__init__(
             mul=1.0,
@@ -1665,13 +1748,13 @@ class WithHueAndSaturation(meta.Augmenter):
 
     def __init__(
         self,
-        children=None,
-        from_colorspace="RGB",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        children: ChildrenInput = None,
+        from_colorspace: ColorSpace = "RGB",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -1684,7 +1767,13 @@ class WithHueAndSaturation(meta.Augmenter):
         self._internal_dtype = np.int16
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         with batch.propagation_hooks_ctx(self, hooks, parents):
             images_hs, images_hsv = self._images_to_hsv_(batch.images)
             batch.images = images_hs
@@ -1696,7 +1785,7 @@ class WithHueAndSaturation(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def _images_to_hsv_(self, images):
+    def _images_to_hsv_(self, images: Images | None) -> tuple[Images | None, Images | None]:
         if images is None:
             return None, None
 
@@ -1719,7 +1808,7 @@ class WithHueAndSaturation(meta.Augmenter):
         return images_hs, images_hsv
 
     # Added in 0.4.0.
-    def _hs_to_images_(self, images_hs, images_hsv):
+    def _hs_to_images_(self, images_hs: Images | None, images_hsv: Images | None) -> Images | None:
         if images_hs is None:
             return None
         # postprocess augmented HS int16 data
@@ -1745,22 +1834,22 @@ class WithHueAndSaturation(meta.Augmenter):
         )
         return images_rgb
 
-    def _to_deterministic(self):
+    def _to_deterministic(self) -> meta.Augmenter:
         aug = self.copy()
         aug.children = aug.children.to_deterministic()
         aug.deterministic = True
         aug.random_state = self.random_state.derive_rng_()
         return aug
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.from_colorspace]
 
-    def get_children_lists(self):
+    def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
         return [self.children]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"WithHueAndSaturation(from_colorspace={self.from_colorspace}, "
             f"name={self.name}, children=[{self.children}], deterministic={self.deterministic})"
@@ -1886,16 +1975,16 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
 
     def __init__(
         self,
-        mul=None,
-        mul_hue=None,
-        mul_saturation=None,
-        per_channel=False,
-        from_colorspace="RGB",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        mul: ParamInput | None = None,
+        mul_hue: ParamInput | None = None,
+        mul_saturation: ParamInput | None = None,
+        per_channel: PerChannelInput = False,
+        from_colorspace: ColorSpace = "RGB",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         if mul is None and mul_hue is None and mul_saturation is None:
             mul_hue = (0.5, 1.5)
             mul_saturation = (0.0, 1.7)
@@ -2061,13 +2150,13 @@ class MultiplyHue(MultiplyHueAndSaturation):
 
     def __init__(
         self,
-        mul=(-3.0, 3.0),
-        from_colorspace="RGB",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        mul: ParamInput = (-3.0, 3.0),
+        from_colorspace: ColorSpace = "RGB",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             mul_hue=mul,
             from_colorspace=from_colorspace,
@@ -2139,13 +2228,13 @@ class MultiplySaturation(MultiplyHueAndSaturation):
 
     def __init__(
         self,
-        mul=(0.0, 3.0),
-        from_colorspace="RGB",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        mul: ParamInput = (0.0, 3.0),
+        from_colorspace: ColorSpace = "RGB",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             mul_saturation=mul,
             from_colorspace=from_colorspace,
@@ -2227,13 +2316,13 @@ class RemoveSaturation(MultiplySaturation):
     # Added in 0.4.0.
     def __init__(
         self,
-        mul=1,
-        from_colorspace=CSPACE_RGB,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        mul: ParamInput = 1,
+        from_colorspace: ColorSpace = CSPACE_RGB,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         mul = iap.Subtract(
             1.0,
             iap.handle_continuous_param(
@@ -2419,16 +2508,16 @@ class AddToHueAndSaturation(meta.Augmenter):
 
     def __init__(
         self,
-        value=None,
-        value_hue=None,
-        value_saturation=None,
-        per_channel=False,
-        from_colorspace="RGB",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        value: ParamInput | None = None,
+        value_hue: ParamInput | None = None,
+        value_saturation: ParamInput | None = None,
+        per_channel: PerChannelInput = False,
+        from_colorspace: ColorSpace = "RGB",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -2447,7 +2536,7 @@ class AddToHueAndSaturation(meta.Augmenter):
         if self.backend == "cv2" and AddToHueAndSaturation._LUT_CACHE is None:
             AddToHueAndSaturation._LUT_CACHE = self._generate_lut_table()
 
-    def _draw_samples(self, augmentables, random_state):
+    def _draw_samples(self, augmentables: Images, random_state: iarandom.RNG) -> tuple[Array, Array]:
         nb_images = len(augmentables)
         rss = random_state.duplicate(2)
 
@@ -2487,7 +2576,13 @@ class AddToHueAndSaturation(meta.Augmenter):
         return samples_hue, samples_saturation
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -2528,7 +2623,7 @@ class AddToHueAndSaturation(meta.Augmenter):
         return batch
 
     @classmethod
-    def _transform_image_cv2(cls, image_hsv, hue, saturation):
+    def _transform_image_cv2(cls, image_hsv: Array, hue: int, saturation: int) -> Array:
         # this has roughly the same speed as the numpy backend
         # for 64x64 and is about 25% faster for 224x224
 
@@ -2552,7 +2647,7 @@ class AddToHueAndSaturation(meta.Augmenter):
         return image_hsv
 
     @classmethod
-    def _transform_image_numpy(cls, image_hsv, hue, saturation):
+    def _transform_image_numpy(cls, image_hsv: Array, hue: int, saturation: int) -> Array:
         # int16 seems to be slightly faster than int32
         image_hsv = image_hsv.astype(np.int16)
         # np.mod() works also as required here for negative values
@@ -2560,7 +2655,7 @@ class AddToHueAndSaturation(meta.Augmenter):
         image_hsv[..., 1] = np.clip(image_hsv[..., 1] + saturation, 0, 255)
         return image_hsv
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [
             self.value,
@@ -2571,7 +2666,9 @@ class AddToHueAndSaturation(meta.Augmenter):
         ]
 
     @classmethod
-    def _handle_value_arg(cls, value, value_hue, value_saturation):
+    def _handle_value_arg(
+        cls, value: ParamInput | None, value_hue: ParamInput | None, value_saturation: ParamInput | None
+    ) -> iap.StochasticParameter | None:
         if value is not None:
             assert value_hue is None, (
                 "`value_hue` may not be set if `value` is set. "
@@ -2593,7 +2690,7 @@ class AddToHueAndSaturation(meta.Augmenter):
         return None
 
     @classmethod
-    def _handle_value_hue_arg(cls, value_hue):
+    def _handle_value_hue_arg(cls, value_hue: ParamInput | None) -> iap.StochasticParameter | None:
         if value_hue is not None:
             # we don't have to verify here that value is None, as the
             # exclusivity was already ensured in _handle_value_arg()
@@ -2609,7 +2706,9 @@ class AddToHueAndSaturation(meta.Augmenter):
         return None
 
     @classmethod
-    def _handle_value_saturation_arg(cls, value_saturation):
+    def _handle_value_saturation_arg(
+        cls, value_saturation: ParamInput | None
+    ) -> iap.StochasticParameter | None:
         if value_saturation is not None:
             # we don't have to verify here that value is None, as the
             # exclusivity was already ensured in _handle_value_arg()
@@ -2624,7 +2723,7 @@ class AddToHueAndSaturation(meta.Augmenter):
         return None
 
     @classmethod
-    def _generate_lut_table(cls):
+    def _generate_lut_table(cls) -> tuple[Array, Array]:
         # TODO Changing the dtype here to int8 makes gen test for this method
         #      fail, but all other tests still succeed. How can this be?
         #      The dtype was verified to remain int8, having min & max at
@@ -2708,13 +2807,13 @@ class AddToHue(AddToHueAndSaturation):
 
     def __init__(
         self,
-        value=(-255, 255),
-        from_colorspace=CSPACE_RGB,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        value: ParamInput = (-255, 255),
+        from_colorspace: ColorSpace = CSPACE_RGB,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             value_hue=value,
             from_colorspace=from_colorspace,
@@ -2790,13 +2889,13 @@ class AddToSaturation(AddToHueAndSaturation):
 
     def __init__(
         self,
-        value=(-75, 75),
-        from_colorspace="RGB",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        value: ParamInput = (-75, 75),
+        from_colorspace: ColorSpace = "RGB",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             value_saturation=value,
             from_colorspace=from_colorspace,
@@ -2927,14 +3026,14 @@ class ChangeColorspace(meta.Augmenter):
 
     def __init__(
         self,
-        to_colorspace,
-        from_colorspace=CSPACE_RGB,
-        alpha=1.0,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        to_colorspace: ToColorspaceChoiceInput,
+        from_colorspace: ColorSpace = CSPACE_RGB,
+        alpha: ParamInput = 1.0,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -2989,14 +3088,20 @@ class ChangeColorspace(meta.Augmenter):
         # epsilon value to check if alpha is close to 1.0 or 0.0
         self.eps = 0.001
 
-    def _draw_samples(self, n_augmentables, random_state):
+    def _draw_samples(self, n_augmentables: int, random_state: iarandom.RNG) -> tuple[Array, Array]:
         rss = random_state.duplicate(2)
         alphas = self.alpha.draw_samples((n_augmentables,), random_state=rss[0])
         to_colorspaces = self.to_colorspace.draw_samples((n_augmentables,), random_state=rss[1])
         return alphas, to_colorspaces
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -3019,7 +3124,7 @@ class ChangeColorspace(meta.Augmenter):
 
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.to_colorspace, self.alpha]
 
@@ -3098,13 +3203,13 @@ class Grayscale(ChangeColorspace):
 
     def __init__(
         self,
-        alpha=1,
-        from_colorspace=CSPACE_RGB,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        alpha: ParamInput = 1,
+        from_colorspace: ColorSpace = CSPACE_RGB,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             to_colorspace=CSPACE_GRAY,
             alpha=alpha,
@@ -3162,13 +3267,13 @@ class ChangeColorTemperature(meta.Augmenter):
     # Added in 0.4.0.
     def __init__(
         self,
-        kelvin=(1000, 11000),
-        from_colorspace=CSPACE_RGB,
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        kelvin: ParamInput = (1000, 11000),
+        from_colorspace: ColorSpace = CSPACE_RGB,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -3179,7 +3284,13 @@ class ChangeColorTemperature(meta.Augmenter):
         self.from_colorspace = from_colorspace
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is not None:
             nb_rows = batch.nb_rows
             kelvins = self.kelvin.draw_samples((nb_rows,), random_state=random_state)
@@ -3191,7 +3302,7 @@ class ChangeColorTemperature(meta.Augmenter):
         return batch
 
     # Added in 0.4.0.
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.kelvin, self.from_colorspace]
 
@@ -3199,17 +3310,17 @@ class ChangeColorTemperature(meta.Augmenter):
 class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
     def __init__(
         self,
-        counts=(2, 16),  # number of bits or colors
-        counts_value_range=(2, None),
-        from_colorspace=CSPACE_RGB,
-        to_colorspace=[CSPACE_RGB, CSPACE_Lab],
-        max_size=128,
-        interpolation="linear",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        counts: ParamInput = (2, 16),  # number of bits or colors
+        counts_value_range: tuple[int, int | None] = (2, None),
+        from_colorspace: ColorSpace = CSPACE_RGB,
+        to_colorspace: ToColorspaceChoiceInput | None = [CSPACE_RGB, CSPACE_Lab],
+        max_size: int | None = 128,
+        interpolation: str = "linear",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # pylint: disable=dangerous-default-value
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
@@ -3229,7 +3340,7 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
         self.max_size = max_size
         self.interpolation = interpolation
 
-    def _draw_samples(self, n_augmentables, random_state):
+    def _draw_samples(self, n_augmentables: int, random_state: iarandom.RNG) -> Array:
         counts = self.counts.draw_samples((n_augmentables,), random_state)
         counts = np.round(counts).astype(np.int32)
 
@@ -3241,7 +3352,13 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
         return counts
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
         if batch.images is None:
             return batch
 
@@ -3253,7 +3370,7 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
             batch.images[i] = self._augment_single_image(image, counts[i], rss[i])
         return batch
 
-    def _augment_single_image(self, image, counts, random_state):
+    def _augment_single_image(self, image: Array, counts: int, random_state: iarandom.RNG) -> Array:
         # pylint: disable=protected-access, invalid-name
         assert image.shape[-1] in [1, 3, 4], (
             "Expected image with 1, 3 or 4 channels, "
@@ -3311,10 +3428,10 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
         return image_aug
 
     @abstractmethod
-    def _quantize(self, image, counts):
+    def _quantize(self, image: Array, counts: int) -> Array:
         """Apply the augmenter-specific quantization function to an image."""
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [
             self.counts,
@@ -3327,7 +3444,7 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
     # TODO this is the same function as in Superpixels._ensure_max_size
     #      make DRY
     @classmethod
-    def _ensure_max_size(cls, image, max_size, interpolation):
+    def _ensure_max_size(cls, image: Array, max_size: int | None, interpolation: str) -> Array:
         if max_size is not None:
             size = max(image.shape[0], image.shape[1])
             if size > max_size:
@@ -3475,16 +3592,16 @@ class KMeansColorQuantization(_AbstractColorQuantization):
 
     def __init__(
         self,
-        n_colors=(2, 16),
-        from_colorspace=CSPACE_RGB,
-        to_colorspace=[CSPACE_RGB, CSPACE_Lab],
-        max_size=128,
-        interpolation="linear",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        n_colors: ParamInput = (2, 16),
+        from_colorspace: ColorSpace = CSPACE_RGB,
+        to_colorspace: ToColorspaceChoiceInput | None = [CSPACE_RGB, CSPACE_Lab],
+        max_size: int | None = 128,
+        interpolation: str = "linear",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # pylint: disable=dangerous-default-value
         super().__init__(
             counts=n_colors,
@@ -3499,7 +3616,7 @@ class KMeansColorQuantization(_AbstractColorQuantization):
         )
 
     @property
-    def n_colors(self):
+    def n_colors(self) -> iap.StochasticParameter:
         """Alias for property ``counts``.
 
         Added in 0.4.0.
@@ -3507,12 +3624,14 @@ class KMeansColorQuantization(_AbstractColorQuantization):
         """
         return self.counts
 
-    def _quantize(self, image, counts):
+    def _quantize(self, image: Array, counts: int) -> Array:
         return quantize_kmeans(image, counts)
 
 
 @ia.deprecated("imgaug2.augmenters.colors.quantize_kmeans")
-def quantize_colors_kmeans(image, n_colors, n_max_iter=10, eps=1.0):
+def quantize_colors_kmeans(
+    image: Array, n_colors: int, n_max_iter: int = 10, eps: float = 1.0
+) -> Array:
     """Outdated name of :func:`quantize_kmeans`.
 
     Deprecated since 0.4.0.
@@ -3521,7 +3640,7 @@ def quantize_colors_kmeans(image, n_colors, n_max_iter=10, eps=1.0):
     return quantize_kmeans(arr=image, nb_clusters=n_colors, nb_max_iter=n_max_iter, eps=eps)
 
 
-def quantize_kmeans(arr, nb_clusters, nb_max_iter=10, eps=1.0):
+def quantize_kmeans(arr: Array, nb_clusters: int, nb_max_iter: int = 10, eps: float = 1.0) -> Array:
     """Quantize an array into N bins using k-means clustering.
 
     If the input is an image, this method returns in an image with a maximum
@@ -3763,16 +3882,16 @@ class UniformColorQuantization(_AbstractColorQuantization):
 
     def __init__(
         self,
-        n_colors=(2, 16),
-        from_colorspace=CSPACE_RGB,
-        to_colorspace=None,
-        max_size=None,
-        interpolation="linear",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        n_colors: ParamInput = (2, 16),
+        from_colorspace: ColorSpace = CSPACE_RGB,
+        to_colorspace: ToColorspaceChoiceInput | None = None,
+        max_size: int | None = None,
+        interpolation: str = "linear",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # pylint: disable=dangerous-default-value
         super().__init__(
             counts=n_colors,
@@ -3787,7 +3906,7 @@ class UniformColorQuantization(_AbstractColorQuantization):
         )
 
     @property
-    def n_colors(self):
+    def n_colors(self) -> iap.StochasticParameter:
         """Alias for property ``counts``.
 
         Added in 0.4.0.
@@ -3795,7 +3914,7 @@ class UniformColorQuantization(_AbstractColorQuantization):
         """
         return self.counts
 
-    def _quantize(self, image, counts):
+    def _quantize(self, image: Array, counts: int) -> Array:
         return quantize_uniform_(image, counts)
 
 
@@ -3928,16 +4047,16 @@ class UniformColorQuantizationToNBits(_AbstractColorQuantization):
     # Added in 0.4.0.
     def __init__(
         self,
-        nb_bits=(1, 8),
-        from_colorspace=CSPACE_RGB,
-        to_colorspace=None,
-        max_size=None,
-        interpolation="linear",
-        seed=None,
-        name=None,
-        random_state="deprecated",
-        deterministic="deprecated",
-    ):
+        nb_bits: ParamInput = (1, 8),
+        from_colorspace: ColorSpace = CSPACE_RGB,
+        to_colorspace: ToColorspaceChoiceInput | None = None,
+        max_size: int | None = None,
+        interpolation: str = "linear",
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         # pylint: disable=dangerous-default-value
 
         # wrt value range: for discrete params, (1, 8) results in
@@ -3956,7 +4075,7 @@ class UniformColorQuantizationToNBits(_AbstractColorQuantization):
         )
 
     # Added in 0.4.0.
-    def _quantize(self, image, counts):
+    def _quantize(self, image: Array, counts: int) -> Array:
         return quantize_uniform_to_n_bits_(image, counts)
 
 
@@ -3973,7 +4092,7 @@ class Posterize(UniformColorQuantizationToNBits):
 
 
 @ia.deprecated("imgaug2.augmenters.colors.quantize_uniform")
-def quantize_colors_uniform(image, n_colors):
+def quantize_colors_uniform(image: Array, n_colors: int) -> Array:
     """Outdated name for :func:`quantize_uniform`.
 
     Deprecated since 0.4.0.
@@ -3982,7 +4101,7 @@ def quantize_colors_uniform(image, n_colors):
     return quantize_uniform(arr=image, nb_bins=n_colors)
 
 
-def quantize_uniform(arr, nb_bins, to_bin_centers=True):
+def quantize_uniform(arr: Array, nb_bins: int, to_bin_centers: bool = True) -> Array:
     """Quantize an array into N equally-sized bins.
 
     See :func:`quantize_uniform_` for details.
@@ -4013,7 +4132,7 @@ def quantize_uniform(arr, nb_bins, to_bin_centers=True):
     return quantize_uniform_(np.copy(arr), nb_bins=nb_bins, to_bin_centers=to_bin_centers)
 
 
-def quantize_uniform_(arr, nb_bins, to_bin_centers=True):
+def quantize_uniform_(arr: Array, nb_bins: int, to_bin_centers: bool = True) -> Array:
     """Quantize an array into N equally-sized bins in-place.
 
     This can be used to quantize/posterize an image into N colors.
@@ -4101,7 +4220,7 @@ class _QuantizeUniformCenterizedLUTTableSingleton:
     _INSTANCE = None
 
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls) -> _QuantizeUniformLUTTable:
         """Get singleton instance of :class:`_QuantizeUniformLUTTable`.
 
         Added in 0.4.0.
@@ -4124,7 +4243,7 @@ class _QuantizeUniformNotCenterizedLUTTableSingleton:
     _INSTANCE = None
 
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls) -> _QuantizeUniformLUTTable:
         """Get singleton instance of :class:`_QuantizeUniformLUTTable`.
 
         Added in 0.4.0.
@@ -4142,10 +4261,10 @@ class _QuantizeUniformNotCenterizedLUTTableSingleton:
 
 # Added in 0.4.0.
 class _QuantizeUniformLUTTable:
-    def __init__(self, centerize):
+    def __init__(self, centerize: bool) -> None:
         self.table = self._generate_quantize_uniform_table(centerize)
 
-    def get_for_nb_bins(self, nb_bins):
+    def get_for_nb_bins(self, nb_bins: int) -> Array:
         """Get LUT ndarray for a provided number of bins.
 
         Added in 0.4.0.
@@ -4155,7 +4274,7 @@ class _QuantizeUniformLUTTable:
 
     # Added in 0.4.0.
     @classmethod
-    def _generate_quantize_uniform_table(cls, centerize):
+    def _generate_quantize_uniform_table(cls, centerize: bool) -> Array:
         # For simplicity, we generate here the tables for nb_bins=0 (results
         # in all zeros) and nb_bins=256 too, even though these should usually
         # not be requested.
@@ -4175,7 +4294,7 @@ class _QuantizeUniformLUTTable:
         return table_all_nb_bins
 
 
-def quantize_uniform_to_n_bits(arr, nb_bits):
+def quantize_uniform_to_n_bits(arr: Array, nb_bits: int) -> Array:
     """Reduce each component in an array to a maximum number of bits.
 
     See :func:`quantize_uniform_to_n_bits` for details.
@@ -4203,7 +4322,7 @@ def quantize_uniform_to_n_bits(arr, nb_bits):
     return quantize_uniform_to_n_bits_(np.copy(arr), nb_bits=nb_bits)
 
 
-def quantize_uniform_to_n_bits_(arr, nb_bits):
+def quantize_uniform_to_n_bits_(arr: Array, nb_bits: int) -> Array:
     """Reduce each component in an array to a maximum number of bits in-place.
 
     This operation sets the ``8-B`` highest frequency (rightmost) bits to zero.
@@ -4259,7 +4378,7 @@ def quantize_uniform_to_n_bits_(arr, nb_bits):
     return quantize_uniform_(arr, nb_bins=2**nb_bits, to_bin_centers=False)
 
 
-def posterize(arr, nb_bits):
+def posterize(arr: Array, nb_bits: int) -> Array:
     """Alias for :func:`quantize_uniform_to_n_bits`.
 
     This function is an alias for :func:`quantize_uniform_to_n_bits` and was

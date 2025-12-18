@@ -22,7 +22,7 @@ from numpy.typing import NDArray
 
 import imgaug2.imgaug as ia
 import imgaug2.random as iarandom
-from imgaug2.augmenters._typing import Array, RNGInput
+from imgaug2.augmenters._typing import Array, Images, RNGInput
 
 from . import meta
 
@@ -43,9 +43,6 @@ FloatArray: TypeAlias = NDArray[np.floating]
 IntArray: TypeAlias = NDArray[np.integer]
 
 Image: TypeAlias = Array
-ImageOrNone: TypeAlias = Image | None
-ImagesInput: TypeAlias = Sequence[ImageOrNone] | Array
-ImagesOutput: TypeAlias = list[ImageOrNone]
 
 
 # ---------------------------------------------------------------------
@@ -387,17 +384,14 @@ class ThinPlateSpline(meta.Augmenter):
 
     def _augment_images(
         self,
-        images: ImagesInput,
+        images: Images,
         random_state: iarandom.RNG,
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
-    ) -> ImagesOutput:
+    ) -> Images:
         rng = _RNGAdapter(random_state)
-        result = []
+        result: list[Image] = []
         for image in images:
-            if image is None:
-                result.append(image)
-                continue
             h, w = image.shape[0], image.shape[1]
             if isinstance(self.scale, (tuple, list)):
                 scale = float(rng.uniform(self.scale[0], self.scale[1]))
@@ -473,20 +467,17 @@ class ZoomBlur(meta.Augmenter):
 
     def _augment_images(
         self,
-        images: ImagesInput,
+        images: Images,
         random_state: iarandom.RNG,
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
-    ) -> ImagesOutput:
+    ) -> Images:
         if cv2 is None:  # pragma: no cover
             raise ImportError("ZoomBlur requires opencv-python (cv2).")
 
         rng = _RNGAdapter(random_state)
-        result = []
+        result: list[Image] = []
         for image in images:
-            if image is None:
-                result.append(image)
-                continue
             h, w = image.shape[0], image.shape[1]
             if isinstance(self.max_factor, (tuple, list)):
                 max_factor = float(rng.uniform(self.max_factor[0], self.max_factor[1]))
@@ -558,19 +549,16 @@ class GlassBlur(meta.Augmenter):
 
     def _augment_images(
         self,
-        images: ImagesInput,
+        images: Images,
         random_state: iarandom.RNG,
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
-    ) -> ImagesOutput:
+    ) -> Images:
         if cv2 is None:  # pragma: no cover
             raise ImportError("GlassBlur requires opencv-python (cv2).")
         rng = _RNGAdapter(random_state)
-        result = []
+        result: list[Image] = []
         for image in images:
-            if image is None:
-                result.append(image)
-                continue
             if isinstance(self.sigma, (tuple, list)):
                 sigma = float(rng.uniform(self.sigma[0], self.sigma[1]))
             else:
@@ -690,19 +678,16 @@ class FourierDomainAdaptation(meta.Augmenter):
 
     def _augment_images(
         self,
-        images: ImagesInput,
+        images: Images,
         random_state: iarandom.RNG,
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
-    ) -> ImagesOutput:
+    ) -> Images:
         if cv2 is None:  # pragma: no cover
             raise ImportError("FourierDomainAdaptation requires opencv-python (cv2) for resizing.")
         rng = _RNGAdapter(random_state)
-        result = []
+        result: list[Image] = []
         for image in images:
-            if image is None:
-                result.append(image)
-                continue
             if isinstance(self.beta, (tuple, list)):
                 beta = float(rng.uniform(self.beta[0], self.beta[1]))
             else:
@@ -752,15 +737,15 @@ class FancyPCA(meta.Augmenter):
 
     def _augment_images(
         self,
-        images: ImagesInput,
+        images: Images,
         random_state: iarandom.RNG,
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
-    ) -> ImagesOutput:
+    ) -> Images:
         rng = _RNGAdapter(random_state)
-        result = []
+        result: list[Image] = []
         for image in images:
-            if image is None or image.ndim != 3 or image.shape[2] < 3:
+            if image.ndim != 3 or image.shape[2] < 3:
                 result.append(image)
                 continue
 
@@ -842,15 +827,15 @@ class HEStain(meta.Augmenter):
 
     def _augment_images(
         self,
-        images: ImagesInput,
+        images: Images,
         random_state: iarandom.RNG,
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
-    ) -> ImagesOutput:
+    ) -> Images:
         rng = _RNGAdapter(random_state)
-        result = []
+        result: list[Image] = []
         for image in images:
-            if image is None or image.ndim != 3 or image.shape[2] < 3:
+            if image.ndim != 3 or image.shape[2] < 3:
                 result.append(image)
                 continue
 
@@ -967,16 +952,16 @@ class PlanckianJitter(meta.Augmenter):
 
     def _augment_images(
         self,
-        images: ImagesInput,
+        images: Images,
         random_state: iarandom.RNG,
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
-    ) -> ImagesOutput:
+    ) -> Images:
         rng = _RNGAdapter(random_state)
         rgb_ref = _temperature_to_rgb(self.reference_temp)
-        result = []
+        result: list[Image] = []
         for image in images:
-            if image is None or image.ndim != 3 or image.shape[2] < 3:
+            if image.ndim != 3 or image.shape[2] < 3:
                 result.append(image)
                 continue
             t = float(rng.uniform(self.temperature[0], self.temperature[1]))
@@ -1099,19 +1084,16 @@ class PlasmaBrightness(meta.Augmenter):
 
     def _augment_images(
         self,
-        images: ImagesInput,
+        images: Images,
         random_state: iarandom.RNG,
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
-    ) -> ImagesOutput:
+    ) -> Images:
         if cv2 is None:  # pragma: no cover
             raise ImportError("PlasmaBrightness requires opencv-python (cv2).")
         rng = _RNGAdapter(random_state)
-        result = []
+        result: list[Image] = []
         for image in images:
-            if image is None:
-                result.append(image)
-                continue
             h, w = image.shape[0], image.shape[1]
             r = float(rng.uniform(self.roughness[0], self.roughness[1]))
             mask = _plasma_fractal(h, w, rng, roughness=r)
@@ -1165,19 +1147,16 @@ class PlasmaShadow(meta.Augmenter):
 
     def _augment_images(
         self,
-        images: ImagesInput,
+        images: Images,
         random_state: iarandom.RNG,
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
-    ) -> ImagesOutput:
+    ) -> Images:
         if cv2 is None:  # pragma: no cover
             raise ImportError("PlasmaShadow requires opencv-python (cv2).")
         rng = _RNGAdapter(random_state)
-        result = []
+        result: list[Image] = []
         for image in images:
-            if image is None:
-                result.append(image)
-                continue
             h, w = image.shape[0], image.shape[1]
             r = float(rng.uniform(self.roughness[0], self.roughness[1]))
             mask = _plasma_fractal(h, w, rng, roughness=r)
