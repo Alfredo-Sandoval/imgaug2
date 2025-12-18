@@ -72,15 +72,34 @@ you can compare results across machines. Use `--label ...` to keep runs organize
 
 ## Running Your Own Benchmarks
 
-### Benchmarks runner (recommended)
+### Full benchmark suite (recommended)
 
-Run the structured benchmark suite (writes JSON with `system_info` to `benchmarks/results/`):
+Run everything (CPU suite + legacy suite + ops suite + report generation):
+
+```bash
+python -m benchmarks.run_all
+```
+
+Useful flags:
+
+- Skip ops-level suite: `--skip-ops`
+- Skip legacy suite: `--skip-legacy`
+- Skip third-party baseline: `--skip-third-party`
+
+Outputs:
+
+- JSON results: `benchmarks/results/*.json`
+- Markdown report: `benchmarks/reports/out/benchmark_report.md`
+
+### Benchmarks runner (advanced)
+
+Run the augmenter-level benchmark suite only (writes JSON with `system_info` to `benchmarks/results/`):
 
 ```bash
 python -m benchmarks.runner --platform cpu
 ```
 
-Generate a Markdown summary report:
+Generate a Markdown summary report from existing JSON results:
 
 ```bash
 python -m benchmarks.reports.generate_report --results-dir benchmarks/results
