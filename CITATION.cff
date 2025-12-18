@@ -1,0 +1,71 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "imgaug2"
+authors:
+  - family-names: "Sandoval"
+    given-names: "Alfredo"
+repository-code: "https://github.com/Alfredo-Sandoval/imgaug2"
+
+abstract: "Modern image augmentation library for machine learning. Fast, flexible augmentation with 130+ augmenters and framework-agnostic design. MIT licensed forever."
+keywords:
+  - image-augmentation
+  - computer-vision
+  - machine-learning
+  - deep-learning
+  - pytorch
+
+license: MIT
+version: "0.0.1"
+
+references:
+  - type: software
+    title: "imgaug"
+    authors:
+      - family-names: "Jung"
+        given-names: "Alexander B."
+      - family-names: "Wada"
+        given-names: "Kentaro"
+      - family-names: "Crall"
+        given-names: "Jon"
+      - family-names: "Tanaka"
+        given-names: "Satoshi"
+      - family-names: "Graving"
+        given-names: "Jake"
+      - family-names: "Reinders"
+        given-names: "Christoph"
+      - family-names: "Yadav"
+        given-names: "Sarthak"
+      - family-names: "Banerjee"
+        given-names: "Joy"
+      - family-names: "Vecsei"
+        given-names: "Gábor"
+      - family-names: "Kraft"
+        given-names: "Adam"
+      - family-names: "Rui"
+        given-names: "Zheng"
+      - family-names: "Borovec"
+        given-names: "Jirka"
+      - family-names: "Vallentin"
+        given-names: "Christian"
+      - family-names: "Zhydenko"
+        given-names: "Semen"
+      - family-names: "Pfeiffer"
+        given-names: "Kilian"
+      - family-names: "Cook"
+        given-names: "Ben"
+      - family-names: "Fernández"
+        given-names: "Ismael"
+      - family-names: "De Rainville"
+        given-names: "François-Michel"
+      - family-names: "Weng"
+        given-names: "Chi-Hung"
+      - family-names: "Ayala-Acevedo"
+        given-names: "Abner"
+      - family-names: "Meudec"
+        given-names: "Raphael"
+      - family-names: "Laporte"
+        given-names: "Matias"
+    repository-code: "https://github.com/aleju/imgaug"
+    year: 2020
+    notes: "Original imgaug library that imgaug2 is based upon"
