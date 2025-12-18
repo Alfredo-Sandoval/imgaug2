@@ -9,6 +9,7 @@ import random
 import threading
 import time
 import traceback
+import warnings
 from queue import Empty as QueueEmpty
 from queue import Full as QueueFull
 
@@ -527,11 +528,24 @@ class BatchLoader:
         assert nb_workers >= 1, (
             f"Number of workers for BatchLoader must be at least 1, got {nb_workers}"
         )
-        self._queue_internal = multiprocessing.Queue(queue_size // 2)
-        self.queue = multiprocessing.Queue(queue_size // 2)
-        self.join_signal = multiprocessing.Event()
+        ctx = multiprocessing
+        if not threaded:
+            ctx = _get_context()
+            if (
+                ctx.get_start_method() == "spawn"
+                and "fork" in multiprocessing.get_all_start_methods()
+                and "NixOS" not in platform.version()
+            ):
+                ctx = multiprocessing.get_context("fork")
+
+        self._queue_internal = ctx.Queue(queue_size // 2)
+        self.queue = ctx.Queue(queue_size // 2)
+        self.join_signal = ctx.Event()
         self.workers = []
         self.threaded = threaded
+        suppress_fork_multithread_warning = (
+            (not threaded) and hasattr(ctx, "get_start_method") and ctx.get_start_method() == "fork"
+        )
         seeds = iarandom.get_global_rng().generate_seeds_(nb_workers)
         for i in range(nb_workers):
             if threaded:
@@ -540,12 +554,21 @@ class BatchLoader:
                     args=(load_batch_func, self._queue_internal, self.join_signal, None),
                 )
             else:
-                worker = multiprocessing.Process(
+                worker = ctx.Process(
                     target=self._load_batches,
                     args=(load_batch_func, self._queue_internal, self.join_signal, seeds[i]),
                 )
             worker.daemon = True
-            worker.start()
+            if suppress_fork_multithread_warning:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        message=r"This process \(pid=\d+\) is multi-threaded, use of fork\(\) may lead to deadlocks in the child\.",
+                        category=DeprecationWarning,
+                    )
+                    worker.start()
+            else:
+                worker.start()
             self.workers.append(worker)
 
         self.main_worker_thread = threading.Thread(target=self._main_worker, args=())
@@ -604,9 +627,10 @@ class BatchLoader:
     def _load_batches(cls, load_batch_func, queue_internal, join_signal, seedval):
         # pylint: disable=broad-except
         if seedval is not None:
-            random.seed(seedval)
-            np.random.seed(seedval)
-            iarandom.seed(seedval)
+            seedval_int = int(seedval)
+            random.seed(seedval_int)
+            np.random.seed(seedval_int)
+            iarandom.seed(seedval_int)
 
         try:
             gen = load_batch_func() if not ia.is_generator(load_batch_func) else load_batch_func

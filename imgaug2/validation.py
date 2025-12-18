@@ -1,10 +1,14 @@
 """Helper functions to validate input data and produce error messages."""
+
 from __future__ import annotations
+
+from collections.abc import Iterable
+from typing import Any
 
 import imgaug2.imgaug as ia
 
 
-def convert_iterable_to_string_of_types(iterable_var):
+def convert_iterable_to_string_of_types(iterable_var: Iterable[Any]) -> str:
     """Convert an iterable of values to a string of their types.
 
     Parameters
@@ -23,7 +27,7 @@ def convert_iterable_to_string_of_types(iterable_var):
     return ", ".join(types)
 
 
-def is_iterable_of(iterable_var, classes):
+def is_iterable_of(iterable_var: Any, classes: type | Iterable[type]) -> bool:
     """Check whether `iterable_var` contains only instances of given classes.
 
     Parameters
@@ -46,13 +50,13 @@ def is_iterable_of(iterable_var, classes):
         return False
 
     for var_i in iterable_var:
-        if not isinstance(var_i, classes):
+        if not isinstance(var_i, classes):  # type: ignore[arg-type]
             return False
 
     return True
 
 
-def assert_is_iterable_of(iterable_var, classes):
+def assert_is_iterable_of(iterable_var: Any, classes: type | Iterable[type]) -> None:
     """Assert that `iterable_var` only contains instances of given classes.
 
     Parameters
@@ -67,9 +71,10 @@ def assert_is_iterable_of(iterable_var, classes):
     valid = is_iterable_of(iterable_var, classes)
     if not valid:
         expected_types_str = (
-            ", ".join([class_.__name__ for class_ in classes])
+            ", ".join([class_.__name__ for class_ in classes])  # type: ignore[union-attr]
             if not isinstance(classes, type)
-            else classes.__name__)
+            else classes.__name__
+        )
         if not ia.is_iterable(iterable_var):
             raise AssertionError(
                 f"Expected an iterable of the following types: {expected_types_str}. "

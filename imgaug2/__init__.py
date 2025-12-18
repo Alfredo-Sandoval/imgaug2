@@ -1,4 +1,5 @@
 """Imports for package imgaug2."""
+
 from __future__ import annotations
 
 import os
@@ -10,6 +11,7 @@ from . import (
     dtypes,
     external,
     imgaug,
+    mlx,
     parameters,
     random,
 )
@@ -145,7 +147,7 @@ from imgaug2.augmentables import (
     utils,
 )
 
-__version__ = "0.5.0"
+__version__ = "0.0.1"
 
 __all__ = [
     "ALL",

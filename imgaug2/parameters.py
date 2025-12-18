@@ -25,7 +25,8 @@ import scipy.stats
 import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.random as iarandom
-from imgaug2.external.opensimplex import OpenSimplex
+from imgaug2.compat.markers import legacy, new
+from opensimplex import OpenSimplex
 
 # Added in 0.5.0.
 _PREFETCHING_ENABLED = True
@@ -36,6 +37,7 @@ _NB_PREFETCH_STRINGS = 1000
 
 
 # Added in 0.5.0.
+@legacy(version="0.5.0")
 def _prefetchable(func):
     @wraps(func)
     def _inner(*args, **kwargs):
@@ -46,6 +48,7 @@ def _prefetchable(func):
 
 
 # Added in 0.5.0.
+@legacy(version="0.5.0")
 def _prefetchable_str(func):
     @wraps(func)
     def _inner(*args, **kwargs):
@@ -56,6 +59,7 @@ def _prefetchable_str(func):
 
 
 # Added in 0.5.0.
+@legacy(version="0.5.0")
 def _wrap_param_in_prefetchers(param, nb_prefetch):
     for key, value in param.__dict__.items():
         if isinstance(value, StochasticParameter):
@@ -67,6 +71,7 @@ def _wrap_param_in_prefetchers(param, nb_prefetch):
 
 
 # Added in 0.5.0.
+@legacy(version="0.5.0")
 def _wrap_leafs_of_param_in_prefetchers(param, nb_prefetch):
     param_wrapped, _did_wrap_any_child = _wrap_leafs_of_param_in_prefetchers_recursive(
         param, nb_prefetch
@@ -75,6 +80,7 @@ def _wrap_leafs_of_param_in_prefetchers(param, nb_prefetch):
 
 
 # Added in 0.5.0.
+@legacy(version="0.5.0")
 def _wrap_leafs_of_param_in_prefetchers_recursive(param, nb_prefetch):
     # Do not descent into AutoPrefetcher, otherwise we risk turning an
     # AutoPrefetcher(X) into AutoPrefetcher(AutoPrefetcher(X)) if X is
@@ -118,6 +124,7 @@ def _wrap_leafs_of_param_in_prefetchers_recursive(param, nb_prefetch):
     return param, did_wrap_any_child
 
 
+@legacy(version="0.5.0")
 def toggle_prefetching(enabled) -> None:
     """Toggle prefetching on or off.
 
@@ -134,6 +141,7 @@ def toggle_prefetching(enabled) -> None:
     _PREFETCHING_ENABLED = enabled
 
 
+@legacy(version="0.5.0")
 class toggled_prefetching:  # pylint: disable=invalid-name
     """Context that toggles prefetching on or off depending on a flag.
 
@@ -165,6 +173,7 @@ class toggled_prefetching:  # pylint: disable=invalid-name
         _PREFETCHING_ENABLED = self._old_state
 
 
+@legacy(version="0.5.0")
 class no_prefetching(toggled_prefetching):  # pylint: disable=invalid-name
     """Context that deactviates prefetching.
 
@@ -177,6 +186,7 @@ class no_prefetching(toggled_prefetching):  # pylint: disable=invalid-name
         super().__init__(False)
 
 
+@legacy
 def _check_value_range(value, name, value_range) -> bool:
     if value_range is None:
         return True
@@ -220,6 +230,7 @@ def _check_value_range(value, name, value_range) -> bool:
 
 # FIXME this uses _check_value_range, which checks for a<=x<=b, but a produced
 #       Uniform parameter has value range a<=x<b.
+@legacy
 def handle_continuous_param(
     param, name, value_range=None, tuple_to_uniform=True, list_to_choice=True, prefetch=True
 ):
@@ -264,6 +275,7 @@ def handle_continuous_param(
     )
 
 
+@legacy
 def handle_discrete_param(
     param,
     name,
@@ -329,6 +341,7 @@ def handle_discrete_param(
 
 
 # Added in 0.4.0.
+@legacy(version="0.4.0")
 def handle_categorical_string_param(param, name, valid_values=None, prefetch=True):
     result = None
 
@@ -375,6 +388,7 @@ def handle_categorical_string_param(param, name, valid_values=None, prefetch=Tru
     )
 
 
+@legacy
 def handle_discrete_kernel_size_param(
     param, name, value_range=(1, None), allow_floats=True, prefetch=True
 ):
@@ -440,6 +454,7 @@ def handle_discrete_kernel_size_param(
     )
 
 
+@legacy
 def handle_probability_param(
     param, name, tuple_to_uniform=False, list_to_choice=False, prefetch=True
 ):
@@ -497,12 +512,14 @@ def handle_probability_param(
     )
 
 
+@legacy
 def force_np_float_dtype(val):
     if val.dtype.kind == "f":
         return val
     return val.astype(np.float64)
 
 
+@legacy
 def both_np_float_if_one_is_float(a, b):
     # pylint: disable=invalid-name
     a_f = a.dtype.type in ia.NP_FLOAT_TYPES
@@ -516,6 +533,7 @@ def both_np_float_if_one_is_float(a, b):
     return a.astype(np.float64), b.astype(np.float64)
 
 
+@legacy
 def draw_distributions_grid(
     params, rows=None, cols=None, graph_sizes=(350, 350), sample_sizes=None, titles=None
 ):
@@ -540,6 +558,7 @@ def draw_distributions_grid(
     return grid
 
 
+@legacy
 def show_distributions_grid(
     params, rows=None, cols=None, graph_sizes=(350, 350), sample_sizes=None, titles=None
 ) -> None:
@@ -555,6 +574,7 @@ def show_distributions_grid(
     )
 
 
+@legacy
 class StochasticParameter(metaclass=ABCMeta):
     """Abstract parent class for all stochastic parameters.
 
@@ -869,6 +889,7 @@ class StochasticParameter(metaclass=ABCMeta):
         return data
 
 
+@legacy(version="0.5.0")
 class AutoPrefetcher(StochasticParameter):
     """Parameter that prefetches random samples from a child parameter.
 
@@ -974,6 +995,7 @@ class AutoPrefetcher(StochasticParameter):
         )
 
 
+@legacy
 class Deterministic(StochasticParameter):
     """Parameter that is a constant value.
 
@@ -1031,6 +1053,7 @@ class Deterministic(StochasticParameter):
 
 
 # TODO replace two-value parameters used in tests with this
+@legacy(version="0.4.0")
 class DeterministicList(StochasticParameter):
     """Parameter that repeats elements from a list in the given order.
 
@@ -1097,6 +1120,7 @@ class DeterministicList(StochasticParameter):
         return f"DeterministicList({str(self.values.tolist())})"
 
 
+@legacy
 class Choice(StochasticParameter):
     """Parameter that samples value from a list of allowed values.
 
@@ -1211,6 +1235,7 @@ class Choice(StochasticParameter):
         return f"Choice(a={str(self.a)}, replace={str(self.replace)}, p={str(self.p)})"
 
 
+@legacy
 class Binomial(StochasticParameter):
     """Binomial distribution.
 
@@ -1267,6 +1292,7 @@ class Binomial(StochasticParameter):
         return f"Binomial({self.p})"
 
 
+@legacy
 class DiscreteUniform(StochasticParameter):
     """Uniform distribution over the discrete interval ``[a..b]``.
 
@@ -1334,6 +1360,7 @@ class DiscreteUniform(StochasticParameter):
         return f"DiscreteUniform({self.a}, {self.b})"
 
 
+@legacy
 class Poisson(StochasticParameter):
     """Parameter that resembles a poisson distribution.
 
@@ -1394,6 +1421,7 @@ class Poisson(StochasticParameter):
         return f"Poisson({self.lam})"
 
 
+@legacy
 class Normal(StochasticParameter):
     """Parameter that resembles a normal/gaussian distribution.
 
@@ -1459,6 +1487,7 @@ class Normal(StochasticParameter):
 
 
 # TODO docstring for parameters is outdated
+@legacy
 class TruncatedNormal(StochasticParameter):
     """Parameter that resembles a truncated normal distribution.
 
@@ -1555,6 +1584,7 @@ class TruncatedNormal(StochasticParameter):
         )
 
 
+@legacy
 class Laplace(StochasticParameter):
     """Parameter that resembles a (continuous) laplace distribution.
 
@@ -1622,6 +1652,7 @@ class Laplace(StochasticParameter):
         return f"Laplace(loc={self.loc}, scale={self.scale})"
 
 
+@legacy
 class ChiSquare(StochasticParameter):
     """Parameter that resembles a (continuous) chi-square distribution.
 
@@ -1678,6 +1709,7 @@ class ChiSquare(StochasticParameter):
         return f"ChiSquare(df={self.df})"
 
 
+@legacy
 class Weibull(StochasticParameter):
     """
     Parameter that resembles a (continuous) weibull distribution.
@@ -1736,6 +1768,7 @@ class Weibull(StochasticParameter):
 
 
 # TODO rename (a, b) to (low, high) as in numpy?
+@legacy
 class Uniform(StochasticParameter):
     """Parameter that resembles a uniform distribution over ``[a, b)``.
 
@@ -1803,6 +1836,7 @@ class Uniform(StochasticParameter):
         return f"Uniform({self.a}, {self.b})"
 
 
+@legacy
 class Beta(StochasticParameter):
     """Parameter that resembles a (continuous) beta distribution.
 
@@ -1871,6 +1905,7 @@ class Beta(StochasticParameter):
         return f"Beta({self.alpha}, {self.beta})"
 
 
+@legacy
 class FromLowerResolution(StochasticParameter):
     """Parameter to sample from other parameters at lower image resolutions.
 
@@ -1947,7 +1982,9 @@ class FromLowerResolution(StochasticParameter):
 
     """
 
-    def __init__(self, other_param, size_percent=None, size_px=None, method="nearest", min_size=1) -> None:
+    def __init__(
+        self, other_param, size_percent=None, size_px=None, method="nearest", min_size=1
+    ) -> None:
         super().__init__()
 
         assert size_percent is not None or size_px is not None, (
@@ -2079,6 +2116,7 @@ class FromLowerResolution(StochasticParameter):
         return pattern % (self.size_px, self.method, self.other_param)
 
 
+@legacy
 class Clip(StochasticParameter):
     """Clip another parameter to a defined value range.
 
@@ -2145,6 +2183,7 @@ class Clip(StochasticParameter):
         return f"Clip({opstr}, None, None)"
 
 
+@legacy
 class Discretize(StochasticParameter):
     """Convert a continuous distribution to a discrete one.
 
@@ -2207,6 +2246,7 @@ class Discretize(StochasticParameter):
         return f"Discretize({opstr}, round={str(self.round)})"
 
 
+@legacy
 class Multiply(StochasticParameter):
     """Multiply the samples of another stochastic parameter.
 
@@ -2281,6 +2321,7 @@ class Multiply(StochasticParameter):
         return f"Multiply({str(self.other_param)}, {str(self.val)}, {self.elementwise})"
 
 
+@legacy
 class Divide(StochasticParameter):
     """Divide the samples of another stochastic parameter.
 
@@ -2370,6 +2411,7 @@ class Divide(StochasticParameter):
 #      N times the same value as (N,) values will be sampled from 10, but only
 #      one from Uniform() unless elementwise=True is explicitly set. That
 #      seems unintuitive. How can this be prevented?
+@legacy
 class Add(StochasticParameter):
     """Add to the samples of another stochastic parameter.
 
@@ -2444,6 +2486,7 @@ class Add(StochasticParameter):
         return f"Add({str(self.other_param)}, {str(self.val)}, {self.elementwise})"
 
 
+@legacy
 class Subtract(StochasticParameter):
     """Subtract from the samples of another stochastic parameter.
 
@@ -2518,6 +2561,7 @@ class Subtract(StochasticParameter):
         return f"Subtract({str(self.other_param)}, {str(self.val)}, {self.elementwise})"
 
 
+@legacy
 class Power(StochasticParameter):
     """Exponentiate the samples of another stochastic parameter.
 
@@ -2605,6 +2649,7 @@ class Power(StochasticParameter):
         return f"Power({str(self.other_param)}, {str(self.val)}, {self.elementwise})"
 
 
+@legacy
 class Absolute(StochasticParameter):
     """Convert the samples of another parameter to their absolute values.
 
@@ -2641,6 +2686,7 @@ class Absolute(StochasticParameter):
         return f"Absolute({opstr})"
 
 
+@legacy
 class RandomSign(StochasticParameter):
     """Convert a parameter's samples randomly to positive or negative values.
 
@@ -2704,6 +2750,7 @@ class RandomSign(StochasticParameter):
         return f"RandomSign({opstr}, {self.p_positive:.2f})"
 
 
+@legacy
 class ForceSign(StochasticParameter):
     """Convert a parameter's samples to either positive or negative values.
 
@@ -2807,6 +2854,7 @@ class ForceSign(StochasticParameter):
         return f"ForceSign({opstr}, {self.positive!s}, {self.mode}, {self.reroll_count_max:d})"
 
 
+@legacy
 def Positive(other_param, mode="invert", reroll_count_max=2):
     """Convert another parameter's results to positive values.
 
@@ -2846,6 +2894,7 @@ def Positive(other_param, mode="invert", reroll_count_max=2):
     )
 
 
+@legacy
 def Negative(other_param, mode="invert", reroll_count_max=2):
     """Convert another parameter's results to negative values.
 
@@ -2888,6 +2937,7 @@ def Negative(other_param, mode="invert", reroll_count_max=2):
 # TODO this always aggregates the result in high resolution space, instead of
 #      aggregating them in low resolution and then only upscaling the final
 #      image (for N iterations that would save up to N-1 upscales)
+@legacy
 class IterativeNoiseAggregator(StochasticParameter):
     """Aggregate multiple iterations of samples from another parameter.
 
@@ -3060,6 +3110,7 @@ class IterativeNoiseAggregator(StochasticParameter):
         return f"IterativeNoiseAggregator({opstr}, {str(self.iterations)}, {str(self.aggregation_method)})"
 
 
+@legacy
 class Sigmoid(StochasticParameter):
     """Apply a sigmoid function to the outputs of another parameter.
 
@@ -3185,6 +3236,7 @@ class Sigmoid(StochasticParameter):
         return f"Sigmoid({opstr}, {str(self.threshold)}, {str(self.activated)}, {str(self.mul)}, {str(self.add)})"
 
 
+@legacy
 class SimplexNoise(StochasticParameter):
     """Parameter that generates simplex noise of varying resolutions.
 
@@ -3345,7 +3397,7 @@ class SimplexNoise(StochasticParameter):
         noise = np.zeros((h_small, w_small), dtype=np.float32)
         for y in range(h_small):
             for x in range(w_small):
-                noise[y, x] = generator.noise2d(y=y, x=x)
+                noise[y, x] = generator.noise2(y=y, x=x)
 
         # TODO this was previously (noise+0.5)/2, which was wrong as the noise
         #      here is in range [-1.0, 1.0], but this new normalization might
@@ -3371,6 +3423,7 @@ class SimplexNoise(StochasticParameter):
         return f"SimplexNoise({str(self.size_px_max)}, {str(self.upscale_method)})"
 
 
+@legacy
 class FrequencyNoise(StochasticParameter):
     """Parameter to generate noise of varying frequencies.
 
@@ -3451,7 +3504,9 @@ class FrequencyNoise(StochasticParameter):
 
     """
 
-    def __init__(self, exponent=(-4, 4), size_px_max=(4, 32), upscale_method=["linear", "nearest"]) -> None:
+    def __init__(
+        self, exponent=(-4, 4), size_px_max=(4, 32), upscale_method=["linear", "nearest"]
+    ) -> None:
         # pylint: disable=dangerous-default-value
         super().__init__()
         self.exponent = handle_continuous_param(exponent, "exponent")

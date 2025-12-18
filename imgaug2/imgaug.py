@@ -18,6 +18,8 @@ import numpy as np
 import skimage.draw
 import skimage.measure
 
+from imgaug2.compat.markers import legacy, new
+
 try:
     import numba
 except ImportError:
@@ -121,6 +123,7 @@ _UINT8_DTYPE = np.dtype("uint8")
 ###############################################################################
 
 
+@legacy
 class DeprecationWarning(Warning):  # pylint: disable=redefined-builtin
     """Warning for deprecated calls.
 
@@ -130,6 +133,7 @@ class DeprecationWarning(Warning):  # pylint: disable=redefined-builtin
     """
 
 
+@legacy
 def warn(msg, category=UserWarning, stacklevel=2):
     """Generate a a warning with stacktrace.
 
@@ -152,6 +156,7 @@ def warn(msg, category=UserWarning, stacklevel=2):
     warnings.warn(msg, category=category, stacklevel=stacklevel)
 
 
+@legacy
 def warn_deprecated(msg, stacklevel=2):
     """Generate a non-silent deprecation warning with stacktrace.
 
@@ -171,6 +176,7 @@ def warn_deprecated(msg, stacklevel=2):
     warn(msg, category=DeprecationWarning, stacklevel=stacklevel)
 
 
+@legacy
 class deprecated:  # pylint: disable=invalid-name
     """Decorator to mark deprecated functions with warning.
 
@@ -257,6 +263,7 @@ class deprecated:  # pylint: disable=invalid-name
 ###############################################################################
 
 
+@legacy
 def is_np_array(val: object) -> typing.TypeGuard[np.ndarray]:
     """Check whether a variable is a numpy array.
 
@@ -277,6 +284,7 @@ def is_np_array(val: object) -> typing.TypeGuard[np.ndarray]:
     return isinstance(val, np.ndarray)
 
 
+@legacy
 def is_np_scalar(val: object) -> bool:
     """Check whether a variable is a numpy scalar.
 
@@ -298,6 +306,7 @@ def is_np_scalar(val: object) -> bool:
     return isinstance(val, np.generic) and np.isscalar(val)
 
 
+@legacy
 def is_single_integer(val: object) -> bool:
     """Check whether a variable is an ``int``.
 
@@ -315,6 +324,7 @@ def is_single_integer(val: object) -> bool:
     return isinstance(val, numbers.Integral) and not isinstance(val, bool)
 
 
+@legacy
 def is_single_float(val: object) -> bool:
     """Check whether a variable is a ``float``.
 
@@ -334,6 +344,7 @@ def is_single_float(val: object) -> bool:
     )
 
 
+@legacy
 def is_single_number(val: object) -> bool:
     """Check whether a variable is a ``number``, i.e. an ``int`` or ``float``.
 
@@ -351,6 +362,7 @@ def is_single_number(val: object) -> bool:
     return is_single_integer(val) or is_single_float(val)
 
 
+@legacy
 def is_iterable(val: object) -> bool:
     """
     Checks whether a variable is iterable.
@@ -370,6 +382,7 @@ def is_iterable(val: object) -> bool:
 
 
 # TODO convert to is_single_string() or rename is_single_integer/float/number()
+@legacy
 def is_string(val: object) -> bool:
     """Check whether a variable is a string.
 
@@ -387,6 +400,7 @@ def is_string(val: object) -> bool:
     return isinstance(val, str)
 
 
+@legacy
 def is_single_bool(val: object) -> bool:
     """Check whether a variable is a ``bool``.
 
@@ -404,6 +418,7 @@ def is_single_bool(val: object) -> bool:
     return isinstance(val, bool)
 
 
+@legacy
 def is_integer_array(val: object) -> bool:
     """Check whether a variable is a numpy integer array.
 
@@ -424,6 +439,7 @@ def is_integer_array(val: object) -> bool:
     return issubclass(val.dtype.type, np.integer)
 
 
+@legacy
 def is_float_array(val: object) -> bool:
     """Check whether a variable is a numpy float array.
 
@@ -444,6 +460,7 @@ def is_float_array(val: object) -> bool:
     return issubclass(val.dtype.type, np.floating)
 
 
+@legacy
 def is_callable(val: object) -> bool:
     """Check whether a variable is a callable, e.g. a function.
 
@@ -461,6 +478,7 @@ def is_callable(val: object) -> bool:
     return callable(val)
 
 
+@legacy
 def is_generator(val: object) -> bool:
     """Check whether a variable is a generator.
 
@@ -478,6 +496,7 @@ def is_generator(val: object) -> bool:
     return isinstance(val, types.GeneratorType)
 
 
+@legacy
 def flatten(nested_iterable):
     """Flatten arbitrarily nested lists/tuples.
 
@@ -507,6 +526,7 @@ def flatten(nested_iterable):
 
 
 # TODO no longer used anywhere. deprecate?
+@legacy
 def caller_name():
     """Return the name of the caller, e.g. a function.
 
@@ -520,6 +540,7 @@ def caller_name():
     return sys._getframe(1).f_code.co_name
 
 
+@legacy
 def seed(entropy=None, seedval=None):
     """Set the seed of imgaug's global RNG.
 
@@ -565,6 +586,7 @@ def seed(entropy=None, seedval=None):
     imgaug2.random.seed(entropy)
 
 
+@legacy(deprecated=True, replacement="imgaug2.random.normalize_generator")
 @deprecated("imgaug2.random.normalize_generator")
 def normalize_random_state(random_state):
     """Normalize various inputs to a numpy random generator.
@@ -586,6 +608,7 @@ def normalize_random_state(random_state):
     return imgaug2.random.normalize_generator_(random_state)
 
 
+@legacy(deprecated=True, replacement="imgaug2.random.get_global_rng")
 @deprecated("imgaug2.random.get_global_rng")
 def current_random_state():
     """Get or create the current global RNG of imgaug2.
@@ -603,6 +626,7 @@ def current_random_state():
     return imgaug2.random.get_global_rng()
 
 
+@legacy
 @deprecated("imgaug2.random.convert_seed_to_rng")
 def new_random_state(seed=None, fully_random=False):
     """Create a new numpy random number generator.
@@ -635,6 +659,7 @@ def new_random_state(seed=None, fully_random=False):
 
 
 # TODO seems to not be used anywhere anymore
+@legacy
 @deprecated("imgaug2.random.convert_seed_to_rng")
 def dummy_random_state():
     """Create a dummy random state using a seed of ``1``.
@@ -650,6 +675,7 @@ def dummy_random_state():
     return imgaug2.random.RNG(1)
 
 
+@legacy
 @deprecated("imgaug2.random.copy_generator_unless_global_rng")
 def copy_random_state(random_state, force_copy=False):
     """Copy an existing numpy (random number) generator.
@@ -677,6 +703,7 @@ def copy_random_state(random_state, force_copy=False):
     return imgaug2.random.copy_generator_unless_global_generator(random_state)
 
 
+@legacy
 @deprecated("imgaug2.random.derive_generator_")
 def derive_random_state(random_state):
     """Derive a child numpy random generator from another one.
@@ -698,6 +725,7 @@ def derive_random_state(random_state):
     return imgaug2.random.derive_generator_(random_state)
 
 
+@legacy
 @deprecated("imgaug2.random.derive_generators_")
 def derive_random_states(random_state, n=1):
     """Derive child numpy random generators from another one.
@@ -723,6 +751,7 @@ def derive_random_states(random_state, n=1):
     return imgaug2.random.derive_generators_(random_state, n=n)
 
 
+@legacy
 @deprecated("imgaug2.random.advance_generator_")
 def forward_random_state(random_state):
     """Advance a numpy random generator's internal state.
@@ -739,6 +768,7 @@ def forward_random_state(random_state):
 
 
 # TODO change this to some atan2 stuff?
+@legacy
 def angle_between_vectors(v1, v2):
     """Calculcate the angle in radians between vectors `v1` and `v2`.
 
@@ -782,6 +812,7 @@ def angle_between_vectors(v1, v2):
 # TODO is this used anywhere?
 # TODO this might also be covered by augmentables.utils or
 #      augmentables.polys/lines
+@legacy
 def compute_line_intersection_point(x1, y1, x2, y2, x3, y3, x4, y4):
     """Compute the intersection point of two lines.
 
@@ -851,6 +882,7 @@ def compute_line_intersection_point(x1, y1, x2, y2, x3, y3, x4, y4):
 
 
 # TODO replace by cv2.putText()?
+@legacy
 def draw_text(img, y, x, text, color=(0, 255, 0), size=25):
     """Draw text on an image.
 
@@ -940,6 +972,7 @@ def draw_text(img, y, x, text, color=(0, 255, 0), size=25):
 
 
 # TODO rename sizes to size?
+@legacy
 def imresize_many_images(images, sizes=None, interpolation=None):
     """Resize each image in a list or array to a specified size.
 
@@ -1204,6 +1237,7 @@ def _assert_two_or_three_dims(shape):
     )
 
 
+@legacy
 def imresize_single_image(image, sizes, interpolation=None):
     """Resize a single image.
 
@@ -1242,6 +1276,7 @@ def imresize_single_image(image, sizes, interpolation=None):
     return rs[0, ...]
 
 
+@legacy
 def pool(arr, block_size, func, pad_mode="constant", pad_cval=0, preserve_dtype=True, cval=None):
     """Resize an array by pooling values within blocks.
 
@@ -1366,6 +1401,7 @@ def pool(arr, block_size, func, pad_mode="constant", pad_cval=0, preserve_dtype=
 # This automatically calls a special uint8 method if it fulfills standard
 # cv2 criteria. Otherwise it falls back to pool().
 # Added in 0.5.0.
+@legacy
 def _pool_dispatcher_(
     arr,
     block_size,
@@ -1404,6 +1440,7 @@ def _pool_dispatcher_(
     )
 
 
+@legacy
 def avg_pool(arr, block_size, pad_mode="reflect", pad_cval=128, preserve_dtype=True, cval=None):
     """Resize an array using average pooling.
 
@@ -1465,6 +1502,7 @@ def avg_pool(arr, block_size, pad_mode="reflect", pad_cval=128, preserve_dtype=T
 
 
 # Added in 0.5.0.
+@legacy
 def _avg_pool_uint8(arr, block_size, pad_mode="reflect", pad_cval=128):
     from imgaug2.augmenters.size import pad_to_multiples_of
 
@@ -1491,6 +1529,7 @@ def _avg_pool_uint8(arr, block_size, pad_mode="reflect", pad_cval=128):
     return arr
 
 
+@legacy
 def max_pool(arr, block_size, pad_mode="edge", pad_cval=0, preserve_dtype=True, cval=None):
     """Resize an array using max-pooling.
 
@@ -1543,6 +1582,7 @@ def max_pool(arr, block_size, pad_mode="edge", pad_cval=0, preserve_dtype=True, 
     )
 
 
+@legacy
 def max_pool_(arr, block_size, pad_mode="edge", pad_cval=0, preserve_dtype=True, cval=None):
     """Resize an array in-place using max-pooling.
 
@@ -1601,6 +1641,7 @@ def max_pool_(arr, block_size, pad_mode="edge", pad_cval=0, preserve_dtype=True,
     )
 
 
+@legacy
 def min_pool(arr, block_size, pad_mode="edge", pad_cval=255, preserve_dtype=True):
     """Resize an array using min-pooling.
 
@@ -1649,6 +1690,7 @@ def min_pool(arr, block_size, pad_mode="edge", pad_cval=255, preserve_dtype=True
     )
 
 
+@legacy
 def min_pool_(arr, block_size, pad_mode="edge", pad_cval=255, preserve_dtype=True):
     """Resize an array in-place using min-pooling.
 
@@ -1704,16 +1746,19 @@ def min_pool_(arr, block_size, pad_mode="edge", pad_cval=255, preserve_dtype=Tru
 
 
 # Added in 0.5.0.
+@legacy
 def _min_pool_uint8_(arr, block_size, pad_mode="edge", pad_cval=255):
     return _minmax_pool_uint8_(arr, block_size, cv2.erode, pad_mode=pad_mode, pad_cval=pad_cval)
 
 
 # Added in 0.5.0.
+@legacy
 def _max_pool_uint8_(arr, block_size, pad_mode="edge", pad_cval=0):
     return _minmax_pool_uint8_(arr, block_size, cv2.dilate, pad_mode=pad_mode, pad_cval=pad_cval)
 
 
 # Added in 0.5.0.
+@legacy
 def _minmax_pool_uint8_(arr, block_size, func, pad_mode, pad_cval):
     from imgaug2.augmenters.size import pad_to_multiples_of
 
@@ -1748,6 +1793,7 @@ def _minmax_pool_uint8_(arr, block_size, func, pad_mode, pad_cval):
     return arr[start_height :: block_size[0], start_width :: block_size[1]]
 
 
+@legacy
 def median_pool(arr, block_size, pad_mode="reflect", pad_cval=128, preserve_dtype=True):
     """Resize an array using median-pooling.
 
@@ -1828,6 +1874,7 @@ def median_pool(arr, block_size, pad_mode="reflect", pad_cval=128, preserve_dtyp
 # block_size must be a single integer here, in contrast to the other cv2
 # pool methods that support (int, int).
 # Added in 0.5.0.
+@legacy
 def _median_pool_cv2(arr, block_size, pad_mode, pad_cval):
     from imgaug2.augmenters.size import pad_to_multiples_of
 
@@ -1849,6 +1896,7 @@ def _median_pool_cv2(arr, block_size, pad_mode, pad_cval):
     return arr[start_height::block_size, start_width::block_size]
 
 
+@legacy
 def draw_grid(images, rows=None, cols=None):
     """Combine multiple images into a single grid-like image.
 
@@ -1963,6 +2011,7 @@ def draw_grid(images, rows=None, cols=None):
     return grid
 
 
+@legacy
 def show_grid(images, rows=None, cols=None):
     """Combine multiple images into a single image and plot the result.
 
@@ -1991,6 +2040,7 @@ def show_grid(images, rows=None, cols=None):
     imshow(grid)
 
 
+@legacy
 def imshow(image, backend=IMSHOW_BACKEND_DEFAULT):
     """Show an image in a window.
 
@@ -2055,6 +2105,7 @@ def imshow(image, backend=IMSHOW_BACKEND_DEFAULT):
         plt.show()
 
 
+@legacy
 def do_assert(condition, message="Assertion failed."):
     """Assert that a ``condition`` holds or raise an ``Exception`` otherwise.
 
@@ -2076,6 +2127,7 @@ def do_assert(condition, message="Assertion failed."):
 
 
 # Added in 0.4.0.
+@legacy
 def _normalize_cv2_input_arr_(arr):
     flags = arr.flags
     if not flags["OWNDATA"]:
@@ -2086,6 +2138,7 @@ def _normalize_cv2_input_arr_(arr):
     return arr
 
 
+@legacy
 def apply_lut(image, table):
     """Map an input image to a new one using a lookup table.
 
@@ -2114,6 +2167,7 @@ def apply_lut(image, table):
 
 # TODO make this function compatible with short max sized images, probably
 #      isn't right now
+@legacy
 def apply_lut_(image, table):
     """Map an input image in-place to a new one using a lookup table.
 
@@ -2201,6 +2255,7 @@ def apply_lut_(image, table):
 
 
 # Added in 0.5.0.
+@legacy
 def _identity_decorator(*_dec_args, **_dec_kwargs):
     def _decorator(func):
         @functools.wraps(func)
@@ -2219,6 +2274,7 @@ else:
     _numbajit = _identity_decorator
 
 
+@legacy
 class HooksImages:
     """Class to intervene with image augmentation runs.
 
@@ -2362,6 +2418,7 @@ class HooksImages:
         return self.postprocessor(images, augmenter, parents)
 
 
+@legacy
 class HooksHeatmaps(HooksImages):
     """Class to intervene with heatmap augmentation runs.
 
@@ -2373,6 +2430,7 @@ class HooksHeatmaps(HooksImages):
     """
 
 
+@legacy
 class HooksKeypoints(HooksImages):
     """Class to intervene with keypoint augmentation runs.
 
@@ -2389,6 +2447,7 @@ class HooksKeypoints(HooksImages):
 #####################################################################
 
 
+@legacy
 def _is_moved_class_name(name):
     name_stripped = name.lstrip("_")
     return bool(name_stripped) and name_stripped[0].isupper()
@@ -2404,6 +2463,10 @@ class _MovedClassProxyMeta(type):
         return target
 
     def __call__(cls, *args, **kwargs):
+        warn_deprecated(
+            f"`imgaug2.imgaug.{cls.__name__}` is deprecated. Use `{cls._moved_alt_func}` instead.",
+            stacklevel=3,
+        )
         return cls._resolve_target()(*args, **kwargs)
 
     def __instancecheck__(cls, instance):
@@ -2421,6 +2484,7 @@ def _mark_moved_class_or_function(name_old, module_name_new, name_new):
     name_new = name_new if name_new is not None else name_old
 
     if _is_moved_class_name(name_old):
+
         def __mro_entries__(cls, bases):
             return (cls._resolve_target(),)
 
@@ -2430,6 +2494,7 @@ def _mark_moved_class_or_function(name_old, module_name_new, name_new):
             {
                 "_moved_module_name_new": module_name_new,
                 "_moved_attr_name_new": name_new,
+                "_moved_alt_func": f"{module_name_new}.{name_new}",
                 "_moved_target": None,
                 "__mro_entries__": __mro_entries__,
                 "__module__": __name__,
@@ -2439,6 +2504,10 @@ def _mark_moved_class_or_function(name_old, module_name_new, name_new):
     def _func(*args, **kwargs):
         module = importlib.import_module(module_name_new)
         return getattr(module, name_new)(*args, **kwargs)
+
+    # These are legacy access paths that are kept for backwards compatibility,
+    # but should emit a deprecation warning to guide users towards the new location.
+    _func = deprecated(f"{module_name_new}.{name_new}")(_func)
 
     return _func
 

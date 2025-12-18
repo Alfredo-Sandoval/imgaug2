@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import imageio
+import imageio.v2 as imageio
 import numpy as np
 
 # filepath to the quokka image, its annotations and depth map
@@ -198,7 +198,7 @@ def quokka(size=None, extract=None):
     """
     import imgaug2.imgaug as ia
 
-    img = imageio.imread(str(_QUOKKA_FP), pilmode="RGB")
+    img = imageio.imread(str(_QUOKKA_FP), mode="RGB")
     if extract is not None:
         bb = _quokka_normalize_extract(extract)
         img = bb.extract_from_image(img)
@@ -255,7 +255,7 @@ def quokka_heatmap(size=None, extract=None):
     import imgaug2.imgaug as ia
     from imgaug2.augmentables.heatmaps import HeatmapsOnImage
 
-    img = imageio.imread(str(_QUOKKA_DEPTH_MAP_HALFRES_FP), pilmode="RGB")
+    img = imageio.imread(str(_QUOKKA_DEPTH_MAP_HALFRES_FP), mode="RGB")
     img = ia.imresize_single_image(img, (643, 960), interpolation="cubic")
 
     if extract is not None:
