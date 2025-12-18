@@ -1,4 +1,3 @@
-
 import unittest
 from unittest import mock
 
@@ -18,8 +17,7 @@ class Test_stylize_cartoon(unittest.TestCase):
     def _test_integrationtest(cls, size, validate_grads):
         image = ia.data.quokka_square((size, size))
 
-        image_cartoon = iaa.stylize_cartoon(image, blur_ksize=5,
-                                            segmentation_size=2.0)
+        image_cartoon = iaa.stylize_cartoon(image, blur_ksize=5, segmentation_size=2.0)
 
         image_avg = np.average(image.astype(np.float32), axis=2)
         image_cartoon_avg = np.average(image_cartoon.astype(np.float32), axis=2)
@@ -30,27 +28,16 @@ class Test_stylize_cartoon(unittest.TestCase):
             gradx_cartoon = image_cartoon_avg[:, :-1] - image_cartoon_avg[:, 1:]
             grady_cartoon = image_cartoon_avg[:-1, :] - image_cartoon_avg[1:, :]
 
-            assert (
-                (
-                    np.average(np.abs(gradx_cartoon))
-                    + np.average(np.abs(grady_cartoon))
-                )
-                <
-                (
-                    np.average(np.abs(gradx_image))
-                    + np.average(np.abs(grady_image))
-                )
+            assert (np.average(np.abs(gradx_cartoon)) + np.average(np.abs(grady_cartoon))) < (
+                np.average(np.abs(gradx_image)) + np.average(np.abs(grady_image))
             )
 
         # average saturation of cartoon image should be increased
-        image_hsv = colorlib.change_colorspace_(np.copy(image),
-                                                to_colorspace=iaa.CSPACE_HSV)
-        cartoon_hsv = colorlib.change_colorspace_(np.copy(image_cartoon),
-                                                  to_colorspace=iaa.CSPACE_HSV)
-        assert (
-            np.average(cartoon_hsv[:, :, 1])
-            > np.average(image_hsv[:, :, 1])
+        image_hsv = colorlib.change_colorspace_(np.copy(image), to_colorspace=iaa.CSPACE_HSV)
+        cartoon_hsv = colorlib.change_colorspace_(
+            np.copy(image_cartoon), to_colorspace=iaa.CSPACE_HSV
         )
+        assert np.average(cartoon_hsv[:, :, 1]) > np.average(image_hsv[:, :, 1])
 
         # as edges are all drawn in completely black, there should be more
         # completely black pixels in the cartoon image
@@ -73,7 +60,7 @@ class Test_stylize_cartoon(unittest.TestCase):
             return image
 
         mock_blur.side_effect = _side_effect
-        image = np.arange(4*4*3).astype(np.uint8).reshape((4, 4, 3))
+        image = np.arange(4 * 4 * 3).astype(np.uint8).reshape((4, 4, 3))
 
         _ = iaa.stylize_cartoon(image, blur_ksize=1)
 
@@ -87,7 +74,7 @@ class Test_stylize_cartoon(unittest.TestCase):
             return image
 
         mock_blur.side_effect = _side_effect
-        image = np.arange(4*4*3).astype(np.uint8).reshape((4, 4, 3))
+        image = np.arange(4 * 4 * 3).astype(np.uint8).reshape((4, 4, 3))
 
         _ = iaa.stylize_cartoon(image, blur_ksize=7)
 
@@ -100,7 +87,7 @@ class Test_stylize_cartoon(unittest.TestCase):
             dst[...] = image
 
         mock_msf.side_effect = _side_effect
-        image = np.arange(4*4*3).astype(np.uint8).reshape((4, 4, 3))
+        image = np.arange(4 * 4 * 3).astype(np.uint8).reshape((4, 4, 3))
 
         _ = iaa.stylize_cartoon(image, segmentation_size=0.0)
 
@@ -112,17 +99,17 @@ class Test_stylize_cartoon(unittest.TestCase):
             dst[...] = image
 
         mock_msf.side_effect = _side_effect
-        image = np.arange(4*4*3).astype(np.uint8).reshape((4, 4, 3))
+        image = np.arange(4 * 4 * 3).astype(np.uint8).reshape((4, 4, 3))
 
         _ = iaa.stylize_cartoon(image, segmentation_size=0.5)
 
         assert mock_msf.call_count == 1
-        assert np.allclose(mock_msf.call_args_list[0][1]["sp"], 10*0.5)
-        assert np.allclose(mock_msf.call_args_list[0][1]["sr"], 20*0.5)
+        assert np.allclose(mock_msf.call_args_list[0][1]["sp"], 10 * 0.5)
+        assert np.allclose(mock_msf.call_args_list[0][1]["sr"], 20 * 0.5)
 
     @mock.patch("imgaug2.augmenters.artistic._suppress_edge_blobs")
     def test_suppress_edges_true(self, mock_seb):
-        image = np.arange(4*4*3).astype(np.uint8).reshape((4, 4, 3))
+        image = np.arange(4 * 4 * 3).astype(np.uint8).reshape((4, 4, 3))
         mock_seb.return_value = np.copy(image[..., 0])
 
         _ = iaa.stylize_cartoon(image, suppress_edges=True)
@@ -131,7 +118,7 @@ class Test_stylize_cartoon(unittest.TestCase):
 
     @mock.patch("imgaug2.augmenters.artistic._suppress_edge_blobs")
     def test_suppress_edges_false(self, mock_seb):
-        image = np.arange(4*4*3).astype(np.uint8).reshape((4, 4, 3))
+        image = np.arange(4 * 4 * 3).astype(np.uint8).reshape((4, 4, 3))
 
         _ = iaa.stylize_cartoon(image, suppress_edges=False)
 
@@ -156,16 +143,19 @@ class Test__saturate(unittest.TestCase):
         return np.average(hsv[..., 1])
 
     def test_saturation_is_1(self):
-        image = np.array([
-            [10, 20, 30],
-            [40, 50, 60],
-            [70, 80, 90],
-            [100, 110, 120],
-            [10, 10, 10],
-            [100, 0, 0],
-            [0, 100, 0],
-            [0, 0, 100]
-        ], dtype=np.uint8).reshape((1, 8, 3))
+        image = np.array(
+            [
+                [10, 20, 30],
+                [40, 50, 60],
+                [70, 80, 90],
+                [100, 110, 120],
+                [10, 10, 10],
+                [100, 0, 0],
+                [0, 100, 0],
+                [0, 0, 100],
+            ],
+            dtype=np.uint8,
+        ).reshape((1, 8, 3))
 
         observed_1 = artisticlib._saturate(image, 1.0, colorlib.CSPACE_RGB)
         observed_2 = artisticlib._saturate(image, 2.0, colorlib.CSPACE_RGB)
@@ -201,14 +191,14 @@ class TestCartoon(unittest.TestCase):
 
         samples = aug._draw_samples(mock_batch, rs)
 
-        assert len(np.unique(np.round(samples[0]*100, decimals=0))) > 1
-        assert len(np.unique(np.round(samples[1]*100, decimals=0))) > 1
-        assert len(np.unique(np.round(samples[2]*100, decimals=0))) > 1
-        assert len(np.unique(np.round(samples[3]*100, decimals=0))) > 1
+        assert len(np.unique(np.round(samples[0] * 100, decimals=0))) > 1
+        assert len(np.unique(np.round(samples[1] * 100, decimals=0))) > 1
+        assert len(np.unique(np.round(samples[2] * 100, decimals=0))) > 1
+        assert len(np.unique(np.round(samples[3] * 100, decimals=0))) > 1
 
     @mock.patch("imgaug2.augmenters.artistic.stylize_cartoon")
     def test_call_of_stylize_cartoon(self, mock_sc):
-        image = np.arange(4*4*3).astype(np.uint8).reshape((4, 4, 3))
+        image = np.arange(4 * 4 * 3).astype(np.uint8).reshape((4, 4, 3))
         aug = iaa.Cartoon()
 
         mock_sc.return_value = np.copy(image)

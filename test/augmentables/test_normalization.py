@@ -1,4 +1,3 @@
-
 import unittest
 from unittest import mock
 
@@ -9,6 +8,7 @@ import imgaug2.augmentables.normalization as normalization
 from imgaug2.testutils import reseed
 
 # TODO split up tests here
+
 
 class TestNormalization(unittest.TestCase):
     def setUp(self):
@@ -48,8 +48,7 @@ class TestNormalization(unittest.TestCase):
         arr2 = np.zeros((5, 5, 3), dtype=np.uint8)
         arr1_old = np.zeros((4, 4), dtype=np.uint8)
         arr2_old = np.zeros((5, 5, 3), dtype=np.uint8)
-        observed = normalization.invert_normalize_images([arr1, arr2],
-                                                         [arr1_old, arr2_old])
+        observed = normalization.invert_normalize_images([arr1, arr2], [arr1_old, arr2_old])
         assert isinstance(observed, list)
         assert len(observed) == 2
         assert ia.is_np_array(observed[0])
@@ -63,8 +62,7 @@ class TestNormalization(unittest.TestCase):
         # images turned to list during augmentation
         # ---------
         # different shapes, each 3D
-        images = [np.zeros((3, 4, 1), dtype=np.uint8),
-                  np.zeros((4, 3, 1), dtype=np.uint8)]
+        images = [np.zeros((3, 4, 1), dtype=np.uint8), np.zeros((4, 3, 1), dtype=np.uint8)]
         images_old = np.zeros((2, 4, 4, 1), dtype=np.uint8)
         observed = normalization.invert_normalize_images(images, images_old)
         assert isinstance(observed, list)
@@ -73,8 +71,7 @@ class TestNormalization(unittest.TestCase):
         assert observed[1] is images[1]
 
         # different shapes, each 2D
-        images = [np.zeros((3, 4, 1), dtype=np.uint8),
-                  np.zeros((4, 3, 1), dtype=np.uint8)]
+        images = [np.zeros((3, 4, 1), dtype=np.uint8), np.zeros((4, 3, 1), dtype=np.uint8)]
         images_old = np.zeros((2, 4, 4), dtype=np.uint8)
         observed = normalization.invert_normalize_images(images, images_old)
         assert isinstance(observed, list)
@@ -83,8 +80,7 @@ class TestNormalization(unittest.TestCase):
         assert observed[1].shape == (4, 3)
 
         # same shapes, each 3D
-        images = [np.zeros((3, 4, 1), dtype=np.uint8),
-                  np.zeros((3, 4, 1), dtype=np.uint8)]
+        images = [np.zeros((3, 4, 1), dtype=np.uint8), np.zeros((3, 4, 1), dtype=np.uint8)]
         images_old = np.zeros((2, 4, 4, 1), dtype=np.uint8)
         observed = normalization.invert_normalize_images(images, images_old)
         # assert ia.is_np_array(observed)
@@ -95,8 +91,7 @@ class TestNormalization(unittest.TestCase):
         assert observed[1] is images[1]
 
         # same shapes, each 2D
-        images = [np.zeros((3, 4, 1), dtype=np.uint8),
-                  np.zeros((3, 4, 1), dtype=np.uint8)]
+        images = [np.zeros((3, 4, 1), dtype=np.uint8), np.zeros((3, 4, 1), dtype=np.uint8)]
         images_old = np.zeros((2, 4, 4), dtype=np.uint8)
         observed = normalization.invert_normalize_images(images, images_old)
         # assert ia.is_np_array(observed)
@@ -132,8 +127,7 @@ class TestNormalization(unittest.TestCase):
     def test_invert_normalize_heatmaps(self):
         def _norm_and_invert(heatmaps, images):
             return normalization.invert_normalize_heatmaps(
-                normalization.normalize_heatmaps(heatmaps, shapes=images),
-                heatmaps
+                normalization.normalize_heatmaps(heatmaps, shapes=images), heatmaps
             )
 
         # ----
@@ -145,8 +139,10 @@ class TestNormalization(unittest.TestCase):
         # ----
         # array
         # ----
-        for images in [[np.zeros((1, 1, 3), dtype=np.uint8)],
-                       np.zeros((1, 1, 1, 3), dtype=np.uint8)]:
+        for images in [
+            [np.zeros((1, 1, 3), dtype=np.uint8)],
+            np.zeros((1, 1, 1, 3), dtype=np.uint8),
+        ]:
             before = np.zeros((1, 1, 1, 1), dtype=np.float32) + 0.1
             after = _norm_and_invert(before, images=images)
             assert ia.is_np_array(after)
@@ -157,9 +153,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         # single HeatmapsOnImage
         # ----
-        before = ia.HeatmapsOnImage(
-                    np.zeros((1, 1, 1), dtype=np.float32) + 0.1,
-                    shape=(1, 1, 3))
+        before = ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32) + 0.1, shape=(1, 1, 3))
         after = _norm_and_invert(before, images=None)
         assert isinstance(after, ia.HeatmapsOnImage)
         assert after.shape == before.shape
@@ -176,8 +170,10 @@ class TestNormalization(unittest.TestCase):
         # ----
         # iterable of arrays
         # ----
-        for images in [[np.zeros((1, 1, 3), dtype=np.uint8)],
-                       np.zeros((1, 1, 1, 3), dtype=np.uint8)]:
+        for images in [
+            [np.zeros((1, 1, 3), dtype=np.uint8)],
+            np.zeros((1, 1, 1, 3), dtype=np.uint8),
+        ]:
             before = [np.zeros((1, 1, 1), dtype=np.float32) + 0.1]
             after = _norm_and_invert(before, images=images)
             assert isinstance(after, list)
@@ -189,9 +185,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         # iterable of HeatmapsOnImage
         # ----
-        before = [ia.HeatmapsOnImage(
-                    np.zeros((1, 1, 1), dtype=np.float32) + 0.1,
-                    shape=(1, 1, 3))]
+        before = [ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32) + 0.1, shape=(1, 1, 3))]
         after = _norm_and_invert(before, images=None)
         assert isinstance(after, list)
         assert isinstance(after[0], ia.HeatmapsOnImage)
@@ -201,9 +195,7 @@ class TestNormalization(unittest.TestCase):
     def test_invert_normalize_segmentation_maps(self):
         def _norm_and_invert(segmaps, images):
             return normalization.invert_normalize_segmentation_maps(
-                normalization.normalize_segmentation_maps(
-                    segmaps, shapes=images),
-                segmaps
+                normalization.normalize_segmentation_maps(segmaps, shapes=images), segmaps
             )
 
         # ----
@@ -216,8 +208,10 @@ class TestNormalization(unittest.TestCase):
         # array
         # ----
         for dt in [np.dtype("int32"), np.dtype("uint16"), np.dtype(bool)]:
-            for images in [[np.zeros((1, 1, 3), dtype=np.uint8)],
-                           np.zeros((1, 1, 3), dtype=np.uint8)]:
+            for images in [
+                [np.zeros((1, 1, 3), dtype=np.uint8)],
+                np.zeros((1, 1, 3), dtype=np.uint8),
+            ]:
                 before = np.ones((1, 1, 1, 1), dtype=dt)
                 after = _norm_and_invert(before, images=images)
                 assert ia.is_np_array(after)
@@ -229,8 +223,8 @@ class TestNormalization(unittest.TestCase):
         # single SegmentationMapsOnImage
         # ----
         before = ia.SegmentationMapsOnImage(
-                     np.zeros((1, 1, 1), dtype=np.int32) + 1,
-                     shape=(1, 1, 3))
+            np.zeros((1, 1, 1), dtype=np.int32) + 1, shape=(1, 1, 3)
+        )
         after = _norm_and_invert(before, images=None)
         assert isinstance(after, ia.SegmentationMapsOnImage)
         assert after.shape == before.shape
@@ -248,8 +242,10 @@ class TestNormalization(unittest.TestCase):
         # iterable of arrays
         # ----
         for dt in [np.dtype("int32"), np.dtype("uint16"), np.dtype(bool)]:
-            for images in [[np.zeros((1, 1, 3), dtype=np.uint8)],
-                           np.zeros((1, 1, 1, 3), dtype=np.uint8)]:
+            for images in [
+                [np.zeros((1, 1, 3), dtype=np.uint8)],
+                np.zeros((1, 1, 1, 3), dtype=np.uint8),
+            ]:
                 before = [np.ones((1, 1, 1), dtype=dt)]
                 after = _norm_and_invert(before, images=images)
                 assert isinstance(after, list)
@@ -261,9 +257,9 @@ class TestNormalization(unittest.TestCase):
         # ----
         # iterable of SegmentationMapsOnImage
         # ----
-        before = [ia.SegmentationMapsOnImage(
-                    np.zeros((1, 1, 1), dtype=np.int32) + 1,
-                    shape=(1, 1, 3))]
+        before = [
+            ia.SegmentationMapsOnImage(np.zeros((1, 1, 1), dtype=np.int32) + 1, shape=(1, 1, 3))
+        ]
         after = _norm_and_invert(before, images=None)
         assert isinstance(after, list)
         assert isinstance(after[0], ia.SegmentationMapsOnImage)
@@ -273,9 +269,7 @@ class TestNormalization(unittest.TestCase):
     def test_invert_normalize_keypoints(self):
         def _norm_and_invert(kps, images):
             return normalization.invert_normalize_keypoints(
-                normalization.normalize_keypoints(
-                    kps, shapes=images),
-                kps
+                normalization.normalize_keypoints(kps, shapes=images), kps
             )
 
         # ----
@@ -288,8 +282,10 @@ class TestNormalization(unittest.TestCase):
         # array
         # ----
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
-            for images in [[np.zeros((1, 1, 3), dtype=np.uint8)],
-                           np.zeros((1, 1, 1, 3), dtype=np.uint8)]:
+            for images in [
+                [np.zeros((1, 1, 3), dtype=np.uint8)],
+                np.zeros((1, 1, 1, 3), dtype=np.uint8),
+            ]:
                 before = np.zeros((1, 1, 2), dtype=dt) + 1
                 after = _norm_and_invert(before, images=images)
                 assert ia.is_np_array(after)
@@ -301,8 +297,7 @@ class TestNormalization(unittest.TestCase):
         # (x,y)
         # ----
         before = (1, 2)
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, tuple)
         assert after == (1, 2)
 
@@ -310,8 +305,7 @@ class TestNormalization(unittest.TestCase):
         # single Keypoint instance
         # ----
         before = ia.Keypoint(x=1, y=2)
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, ia.Keypoint)
         assert after.x == 1
         assert after.y == 2
@@ -338,8 +332,10 @@ class TestNormalization(unittest.TestCase):
         # iterable of array
         # ----
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
-            for images in [[np.zeros((1, 1, 3), dtype=np.uint8)],
-                           np.zeros((1, 1, 1, 3), dtype=np.uint8)]:
+            for images in [
+                [np.zeros((1, 1, 3), dtype=np.uint8)],
+                np.zeros((1, 1, 1, 3), dtype=np.uint8),
+            ]:
                 before = np.zeros((1, 1, 2), dtype=dt) + 1
                 after = _norm_and_invert(before, images=images)
                 assert ia.is_np_array(after)
@@ -351,8 +347,7 @@ class TestNormalization(unittest.TestCase):
         # iterable of (x,y)
         # ----
         before = [(1, 2), (3, 4)]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, list)
         assert after == [(1, 2), (3, 4)]
 
@@ -360,8 +355,7 @@ class TestNormalization(unittest.TestCase):
         # iterable of Keypoint
         # ----
         before = [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, list)
         assert len(after) == 2
         assert isinstance(after[0], ia.Keypoint)
@@ -398,13 +392,11 @@ class TestNormalization(unittest.TestCase):
         # ----
         # iterable of iterable of (x,y)
         # ----
-        before = [
-            [(1, 2), (3, 4)],
-            [(5, 6), (7, 8)]
-        ]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8),
-                                         np.zeros((1, 1, 3), dtype=np.uint8)])
+        before = [[(1, 2), (3, 4)], [(5, 6), (7, 8)]]
+        after = _norm_and_invert(
+            before,
+            images=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
+        )
         assert isinstance(after, list)
         assert len(after) == 2
         assert isinstance(after[0], list)
@@ -423,11 +415,12 @@ class TestNormalization(unittest.TestCase):
         # ----
         before = [
             [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)],
-            [ia.Keypoint(x=5, y=6), ia.Keypoint(x=7, y=8)]
+            [ia.Keypoint(x=5, y=6), ia.Keypoint(x=7, y=8)],
         ]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8),
-                                         np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(
+            before,
+            images=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
+        )
         assert isinstance(after, list)
         assert len(after) == 2
         assert isinstance(after[0], list)
@@ -444,9 +437,7 @@ class TestNormalization(unittest.TestCase):
     def test_invert_normalize_bounding_boxes(self):
         def _norm_and_invert(bbs, images):
             return normalization.invert_normalize_bounding_boxes(
-                normalization.normalize_bounding_boxes(
-                    bbs, shapes=images),
-                bbs
+                normalization.normalize_bounding_boxes(bbs, shapes=images), bbs
             )
 
         # ----
@@ -459,8 +450,10 @@ class TestNormalization(unittest.TestCase):
         # array
         # ----
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
-            for images in [[np.zeros((1, 1, 3), dtype=np.uint8)],
-                           np.zeros((1, 1, 1, 3), dtype=np.uint8)]:
+            for images in [
+                [np.zeros((1, 1, 3), dtype=np.uint8)],
+                np.zeros((1, 1, 1, 3), dtype=np.uint8),
+            ]:
                 before = np.zeros((1, 1, 4), dtype=dt) + 1
                 after = _norm_and_invert(before, images=images)
                 assert ia.is_np_array(after)
@@ -472,8 +465,7 @@ class TestNormalization(unittest.TestCase):
         # (x1,y1,x2,y2)
         # ----
         before = (1, 2, 3, 4)
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, tuple)
         assert after == (1, 2, 3, 4)
 
@@ -481,8 +473,7 @@ class TestNormalization(unittest.TestCase):
         # single BoundingBox instance
         # ----
         before = ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, ia.BoundingBox)
         assert after.x1 == 1
         assert after.y1 == 2
@@ -492,9 +483,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         # single BoundingBoxesOnImage instance
         # ----
-        before = ia.BoundingBoxesOnImage(
-                     [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)],
-                     shape=(1, 1, 3))
+        before = ia.BoundingBoxesOnImage([ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)], shape=(1, 1, 3))
         after = _norm_and_invert(before, images=None)
         assert isinstance(after, ia.BoundingBoxesOnImage)
         assert len(after.bounding_boxes) == 1
@@ -515,8 +504,10 @@ class TestNormalization(unittest.TestCase):
         # iterable of array
         # ----
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
-            for images in [[np.zeros((1, 1, 3), dtype=np.uint8)],
-                           np.zeros((1, 1, 1, 3), dtype=np.uint8)]:
+            for images in [
+                [np.zeros((1, 1, 3), dtype=np.uint8)],
+                np.zeros((1, 1, 1, 3), dtype=np.uint8),
+            ]:
                 before = [np.zeros((1, 4), dtype=dt) + 1]
                 after = _norm_and_invert(before, images=images)
                 assert isinstance(after, list)
@@ -530,20 +521,15 @@ class TestNormalization(unittest.TestCase):
         # iterable of (x1,y1,x2,y2)
         # ----
         before = [(1, 2, 3, 4), (5, 6, 7, 8)]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, list)
         assert after == [(1, 2, 3, 4), (5, 6, 7, 8)]
 
         # ----
         # iterable of BoundingBox
         # ----
-        before = [
-            ia.BoundingBox(x1=1, y1=2, x2=3, y2=4),
-            ia.BoundingBox(x1=5, y1=6, x2=7, y2=8)
-        ]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        before = [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4), ia.BoundingBox(x1=5, y1=6, x2=7, y2=8)]
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, list)
         assert len(after) == 2
         assert isinstance(after[0], ia.BoundingBox)
@@ -561,12 +547,8 @@ class TestNormalization(unittest.TestCase):
         # iterable of BoundingBoxesOnImage
         # ----
         before = [
-            ia.BoundingBoxesOnImage(
-                [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)],
-                shape=(1, 1, 3)),
-            ia.BoundingBoxesOnImage(
-                [ia.BoundingBox(x1=5, y1=6, x2=7, y2=8)],
-                shape=(1, 1, 3))
+            ia.BoundingBoxesOnImage([ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)], shape=(1, 1, 3)),
+            ia.BoundingBoxesOnImage([ia.BoundingBox(x1=5, y1=6, x2=7, y2=8)], shape=(1, 1, 3)),
         ]
         after = _norm_and_invert(before, images=None)
         assert isinstance(after, list)
@@ -590,38 +572,31 @@ class TestNormalization(unittest.TestCase):
         # iterable of empty interables
         # ----
         before = [[]]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert after == [[]]
 
         # ----
         # iterable of iterable of (x1,y1,x2,y2)
         # ----
-        before = [
-            [(1, 2, 3, 4)],
-            [(5, 6, 7, 8), (9, 10, 11, 12)]
-        ]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8),
-                                         np.zeros((1, 1, 3), dtype=np.uint8)])
+        before = [[(1, 2, 3, 4)], [(5, 6, 7, 8), (9, 10, 11, 12)]]
+        after = _norm_and_invert(
+            before,
+            images=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
+        )
         assert isinstance(after, list)
-        assert after == [
-            [(1, 2, 3, 4)],
-            [(5, 6, 7, 8), (9, 10, 11, 12)]
-        ]
+        assert after == [[(1, 2, 3, 4)], [(5, 6, 7, 8), (9, 10, 11, 12)]]
 
         # ----
         # iterable of iterable of Keypoint
         # ----
         before = [
-            [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4),
-             ia.BoundingBox(x1=5, y1=6, x2=7, y2=8)],
-            [ia.BoundingBox(x1=9, y1=10, x2=11, y2=12),
-             ia.BoundingBox(x1=13, y1=14, x2=15, y2=16)]
+            [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4), ia.BoundingBox(x1=5, y1=6, x2=7, y2=8)],
+            [ia.BoundingBox(x1=9, y1=10, x2=11, y2=12), ia.BoundingBox(x1=13, y1=14, x2=15, y2=16)],
         ]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8),
-                                         np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(
+            before,
+            images=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
+        )
         assert isinstance(after, list)
         assert isinstance(after[0], list)
         assert isinstance(after[1], list)
@@ -647,9 +622,7 @@ class TestNormalization(unittest.TestCase):
     def test_invert_normalize_polygons(self):
         def _norm_and_invert(polys, images):
             return normalization.invert_normalize_polygons(
-                normalization.normalize_polygons(
-                    polys, shapes=images),
-                polys
+                normalization.normalize_polygons(polys, shapes=images), polys
             )
 
         coords1 = [(0, 0), (10, 0), (10, 10)]
@@ -677,33 +650,29 @@ class TestNormalization(unittest.TestCase):
         # array
         # ----
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
-            for images in [[np.zeros((1, 1, 3), dtype=np.uint8)],
-                           np.zeros((1, 1, 1, 3), dtype=np.uint8)]:
+            for images in [
+                [np.zeros((1, 1, 3), dtype=np.uint8)],
+                np.zeros((1, 1, 1, 3), dtype=np.uint8),
+            ]:
                 before = coords1_arr[np.newaxis, np.newaxis, ...].astype(dt)
                 after = _norm_and_invert(before, images=images)
                 assert ia.is_np_array(after)
                 assert after.shape == (1, 1, 3, 2)
                 assert after.dtype.name == dt.name
-                assert np.allclose(after,
-                                   coords1_arr[np.newaxis, np.newaxis, ...])
+                assert np.allclose(after, coords1_arr[np.newaxis, np.newaxis, ...])
 
-                before = np.tile(
-                    coords1_arr[np.newaxis, np.newaxis, ...].astype(dt),
-                    (1, 5, 1, 1)
-                )
+                before = np.tile(coords1_arr[np.newaxis, np.newaxis, ...].astype(dt), (1, 5, 1, 1))
                 after = _norm_and_invert(before, images=images)
                 assert ia.is_np_array(after)
                 assert after.shape == (1, 5, 3, 2)
                 assert after.dtype.name == dt.name
-                assert np.allclose(after[0],
-                                   coords1_arr[np.newaxis, ...])
+                assert np.allclose(after[0], coords1_arr[np.newaxis, ...])
 
         # ----
         # single Polygon instance
         # ----
         before = ia.Polygon(coords1)
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, ia.Polygon)
         assert after.exterior_almost_equals(coords1)
 
@@ -729,8 +698,10 @@ class TestNormalization(unittest.TestCase):
         # iterable of array
         # ----
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
-            for images in [[np.zeros((1, 1, 3), dtype=np.uint8)],
-                           np.zeros((1, 1, 1, 3), dtype=np.uint8)]:
+            for images in [
+                [np.zeros((1, 1, 3), dtype=np.uint8)],
+                np.zeros((1, 1, 1, 3), dtype=np.uint8),
+            ]:
                 before = [coords1_arr[np.newaxis, ...].astype(dt)]
                 after = _norm_and_invert(before, images=images)
                 assert isinstance(after, list)
@@ -740,10 +711,7 @@ class TestNormalization(unittest.TestCase):
                 assert after[0].dtype.name == dt.name
                 assert np.allclose(after[0], coords1_arr[np.newaxis, ...])
 
-                before = [np.tile(
-                    coords1_arr[np.newaxis, ...].astype(dt),
-                    (5, 1, 1)
-                )]
+                before = [np.tile(coords1_arr[np.newaxis, ...].astype(dt), (5, 1, 1))]
                 after = _norm_and_invert(before, images=images)
                 assert isinstance(after, list)
                 assert len(after) == 1
@@ -756,8 +724,7 @@ class TestNormalization(unittest.TestCase):
         # iterable of (x,y)
         # ----
         before = coords1
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, list)
         assert after == coords1
 
@@ -765,19 +732,21 @@ class TestNormalization(unittest.TestCase):
         # iterable of Keypoint
         # ----
         before = coords1_kps
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, list)
         assert len(after) == len(coords1_kps)
-        assert all([kp_after.x == kp_before.x and kp_after.y == kp_before.y
-                    for kp_after, kp_before in zip(after, coords1_kps)])
+        assert all(
+            [
+                kp_after.x == kp_before.x and kp_after.y == kp_before.y
+                for kp_after, kp_before in zip(after, coords1_kps)
+            ]
+        )
 
         # ----
         # iterable of Polygon
         # ----
         before = [ia.Polygon(coords1), ia.Polygon(coords2)]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, list)
         assert len(after) == 2
         assert after[0].exterior_almost_equals(coords1)
@@ -788,7 +757,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         before = [
             ia.PolygonsOnImage([ia.Polygon(coords1)], shape=(1, 1, 3)),
-            ia.PolygonsOnImage([ia.Polygon(coords2)], shape=(2, 1, 3))
+            ia.PolygonsOnImage([ia.Polygon(coords2)], shape=(2, 1, 3)),
         ]
         after = _norm_and_invert(before, images=None)
         assert isinstance(after, list)
@@ -804,8 +773,7 @@ class TestNormalization(unittest.TestCase):
         # iterable of empty interables
         # ----
         before = [[]]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, list)
         assert after == [[]]
 
@@ -813,8 +781,10 @@ class TestNormalization(unittest.TestCase):
         # iterable of iterable of array
         # ----
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
-            for images in [[np.zeros((1, 1, 3), dtype=np.uint8)],
-                           np.zeros((1, 1, 1, 3), dtype=np.uint8)]:
+            for images in [
+                [np.zeros((1, 1, 3), dtype=np.uint8)],
+                np.zeros((1, 1, 1, 3), dtype=np.uint8),
+            ]:
                 before = [[coords1_arr.astype(dt)]]
                 after = _norm_and_invert(before, images=images)
                 assert isinstance(after, list)
@@ -841,8 +811,7 @@ class TestNormalization(unittest.TestCase):
         # iterable of iterable of (x,y)
         # ----
         before = [coords1, coords2]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, list)
         assert len(after) == 2
         assert after[0] == coords1
@@ -852,27 +821,35 @@ class TestNormalization(unittest.TestCase):
         # iterable of iterable of Keypoint
         # ----
         before = [coords1_kps, coords2_kps]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, list)
         assert len(after) == 2
         assert len(after[0]) == len(coords1_kps)
         assert len(after[1]) == len(coords2_kps)
-        assert all([kp_after.x == kp_before.x and kp_after.y == kp_before.y
-                    for kp_after, kp_before in zip(after[0], coords1_kps)])
-        assert all([kp_after.x == kp_before.x and kp_after.y == kp_before.y
-                    for kp_after, kp_before in zip(after[1], coords2_kps)])
+        assert all(
+            [
+                kp_after.x == kp_before.x and kp_after.y == kp_before.y
+                for kp_after, kp_before in zip(after[0], coords1_kps)
+            ]
+        )
+        assert all(
+            [
+                kp_after.x == kp_before.x and kp_after.y == kp_before.y
+                for kp_after, kp_before in zip(after[1], coords2_kps)
+            ]
+        )
 
         # ----
         # iterable of iterable of Polygon
         # ----
         before = [
             [ia.Polygon(coords1), ia.Polygon(coords2)],
-            [ia.Polygon(coords3), ia.Polygon(coords4)]
+            [ia.Polygon(coords3), ia.Polygon(coords4)],
         ]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8),
-                                         np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(
+            before,
+            images=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
+        )
         assert isinstance(after, list)
         assert isinstance(after[0], list)
         assert isinstance(after[1], list)
@@ -887,8 +864,7 @@ class TestNormalization(unittest.TestCase):
         # iterable of iterable of empty iterable
         # ----
         before = [[[]]]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, list)
         assert after == [[[]]]
 
@@ -896,9 +872,10 @@ class TestNormalization(unittest.TestCase):
         # iterable of iterable of iterable of (x,y)
         # ----
         before = [[coords1, coords2], [coords3, coords4]]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8),
-                                         np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(
+            before,
+            images=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
+        )
         assert isinstance(after, list)
         assert len(after) == 2
         assert len(after[0]) == 2
@@ -912,21 +889,38 @@ class TestNormalization(unittest.TestCase):
         # iterable of iterable of iterable of Keypoint
         # ----
         before = [[coords1_kps, coords2_kps], [coords3_kps, coords4_kps]]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8),
-                                         np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(
+            before,
+            images=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
+        )
         assert isinstance(after, list)
         assert len(after) == 2
         assert len(after[0]) == 2
         assert len(after[1]) == 2
-        assert all([kp_after.x == kp_before.x and kp_after.y == kp_before.y
-                    for kp_after, kp_before in zip(after[0][0], coords1_kps)])
-        assert all([kp_after.x == kp_before.x and kp_after.y == kp_before.y
-                    for kp_after, kp_before in zip(after[0][1], coords2_kps)])
-        assert all([kp_after.x == kp_before.x and kp_after.y == kp_before.y
-                    for kp_after, kp_before in zip(after[1][0], coords3_kps)])
-        assert all([kp_after.x == kp_before.x and kp_after.y == kp_before.y
-                    for kp_after, kp_before in zip(after[1][1], coords4_kps)])
+        assert all(
+            [
+                kp_after.x == kp_before.x and kp_after.y == kp_before.y
+                for kp_after, kp_before in zip(after[0][0], coords1_kps)
+            ]
+        )
+        assert all(
+            [
+                kp_after.x == kp_before.x and kp_after.y == kp_before.y
+                for kp_after, kp_before in zip(after[0][1], coords2_kps)
+            ]
+        )
+        assert all(
+            [
+                kp_after.x == kp_before.x and kp_after.y == kp_before.y
+                for kp_after, kp_before in zip(after[1][0], coords3_kps)
+            ]
+        )
+        assert all(
+            [
+                kp_after.x == kp_before.x and kp_after.y == kp_before.y
+                for kp_after, kp_before in zip(after[1][1], coords4_kps)
+            ]
+        )
 
     # The underlying normalization functions are mostly identical for
     # LineStrings and Polygons, hence we run only a few tests for LineStrings
@@ -934,9 +928,7 @@ class TestNormalization(unittest.TestCase):
     def test_invert_normalize_line_strings(self):
         def _norm_and_invert(line_strings, images):
             return normalization.invert_normalize_line_strings(
-                normalization.normalize_line_strings(
-                    line_strings, shapes=images),
-                line_strings
+                normalization.normalize_line_strings(line_strings, shapes=images), line_strings
             )
 
         coords1 = [(0, 0), (10, 0), (10, 10)]
@@ -956,8 +948,7 @@ class TestNormalization(unittest.TestCase):
         # single LineString instance
         # ----
         before = ia.LineString(coords1)
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(before, images=[np.zeros((1, 1, 3), dtype=np.uint8)])
         assert isinstance(after, ia.LineString)
         assert np.allclose(after.coords, coords1)
 
@@ -976,7 +967,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         before = [
             ia.LineStringsOnImage([ia.LineString(coords1)], shape=(1, 1, 3)),
-            ia.LineStringsOnImage([ia.LineString(coords2)], shape=(2, 1, 3))
+            ia.LineStringsOnImage([ia.LineString(coords2)], shape=(2, 1, 3)),
         ]
         after = _norm_and_invert(before, images=None)
         assert isinstance(after, list)
@@ -992,8 +983,10 @@ class TestNormalization(unittest.TestCase):
         # iterable of iterable of array
         # ----
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
-            for images in [[np.zeros((1, 1, 3), dtype=np.uint8)],
-                           np.zeros((1, 1, 1, 3), dtype=np.uint8)]:
+            for images in [
+                [np.zeros((1, 1, 3), dtype=np.uint8)],
+                np.zeros((1, 1, 1, 3), dtype=np.uint8),
+            ]:
                 before = [[coords1_arr.astype(dt)]]
                 after = _norm_and_invert(before, images=images)
                 assert isinstance(after, list)
@@ -1021,11 +1014,12 @@ class TestNormalization(unittest.TestCase):
         # ----
         before = [
             [ia.LineString(coords1), ia.LineString(coords2)],
-            [ia.LineString(coords3), ia.LineString(coords4)]
+            [ia.LineString(coords3), ia.LineString(coords4)],
         ]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8),
-                                         np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(
+            before,
+            images=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
+        )
         assert isinstance(after, list)
         assert isinstance(after[0], list)
         assert isinstance(after[1], list)
@@ -1040,9 +1034,10 @@ class TestNormalization(unittest.TestCase):
         # iterable of iterable of iterable of (x,y)
         # ----
         before = [[coords1, coords2], [coords3, coords4]]
-        after = _norm_and_invert(before,
-                                 images=[np.zeros((1, 1, 3), dtype=np.uint8),
-                                         np.zeros((1, 1, 3), dtype=np.uint8)])
+        after = _norm_and_invert(
+            before,
+            images=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
+        )
         assert isinstance(after, list)
         assert len(after) == 2
         assert len(after[0]) == 2
@@ -1104,7 +1099,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         heatmaps_norm = normalization.normalize_heatmaps(
             np.zeros((1, 1, 1, 1), dtype=np.float32) + 0.1,
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
         )
         assert isinstance(heatmaps_norm, list)
         assert isinstance(heatmaps_norm[0], ia.HeatmapsOnImage)
@@ -1112,7 +1107,7 @@ class TestNormalization(unittest.TestCase):
 
         heatmaps_norm = normalization.normalize_heatmaps(
             np.zeros((1, 1, 1, 1), dtype=np.float32) + 0.1,
-            shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+            shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
         )
         assert isinstance(heatmaps_norm, list)
         assert isinstance(heatmaps_norm[0], ia.HeatmapsOnImage)
@@ -1122,38 +1117,35 @@ class TestNormalization(unittest.TestCase):
         with self.assertRaises(ValueError):
             _heatmaps_norm = normalization.normalize_heatmaps(
                 np.zeros((2, 1, 1, 1), dtype=np.float32) + 0.1,
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
             )
 
         # --> too few heatmaps
         with self.assertRaises(ValueError):
             _heatmaps_norm = normalization.normalize_heatmaps(
                 np.zeros((1, 1, 1, 1), dtype=np.float32) + 0.1,
-                np.zeros((2, 1, 1, 3), dtype=np.uint8)
+                np.zeros((2, 1, 1, 3), dtype=np.uint8),
             )
 
         # --> wrong channel number
         with self.assertRaises(ValueError):
             _heatmaps_norm = normalization.normalize_heatmaps(
                 np.zeros((1, 1, 1), dtype=np.float32) + 0.1,
-                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
             )
 
         # --> images None
         with self.assertRaises(ValueError):
             _heatmaps_norm = normalization.normalize_heatmaps(
-                np.zeros((1, 1, 1, 1), dtype=np.float32) + 0.1,
-                shapes=None
+                np.zeros((1, 1, 1, 1), dtype=np.float32) + 0.1, shapes=None
             )
 
         # ----
         # single HeatmapsOnImage
         # ----
         heatmaps_norm = normalization.normalize_heatmaps(
-            ia.HeatmapsOnImage(
-                np.zeros((1, 1, 1), dtype=np.float32) + 0.1,
-                shape=(1, 1, 3)),
-            shapes=None
+            ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32) + 0.1, shape=(1, 1, 3)),
+            shapes=None,
         )
         assert isinstance(heatmaps_norm, list)
         assert isinstance(heatmaps_norm[0], ia.HeatmapsOnImage)
@@ -1162,10 +1154,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         # empty iterable
         # ----
-        heatmaps_norm = normalization.normalize_heatmaps(
-            [],
-            shapes=None
-        )
+        heatmaps_norm = normalization.normalize_heatmaps([], shapes=None)
         assert heatmaps_norm is None
 
         # ----
@@ -1173,7 +1162,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         heatmaps_norm = normalization.normalize_heatmaps(
             [np.zeros((1, 1, 1), dtype=np.float32) + 0.1],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
         )
         assert isinstance(heatmaps_norm, list)
         assert isinstance(heatmaps_norm[0], ia.HeatmapsOnImage)
@@ -1181,7 +1170,7 @@ class TestNormalization(unittest.TestCase):
 
         heatmaps_norm = normalization.normalize_heatmaps(
             [np.zeros((1, 1, 1), dtype=np.float32) + 0.1],
-            shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+            shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
         )
         assert isinstance(heatmaps_norm, list)
         assert isinstance(heatmaps_norm[0], ia.HeatmapsOnImage)
@@ -1192,16 +1181,16 @@ class TestNormalization(unittest.TestCase):
             _heatmaps_norm = normalization.normalize_heatmaps(
                 [
                     np.zeros((1, 1, 1), dtype=np.float32) + 0.1,
-                    np.zeros((1, 1, 1), dtype=np.float32) + 0.1
+                    np.zeros((1, 1, 1), dtype=np.float32) + 0.1,
                 ],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
             )
 
         # --> too few heatmaps
         with self.assertRaises(ValueError):
             _heatmaps_norm = normalization.normalize_heatmaps(
                 [np.zeros((1, 1, 1), dtype=np.float32) + 0.1],
-                shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
+                shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8),
             )
 
         # --> images None
@@ -1215,22 +1204,20 @@ class TestNormalization(unittest.TestCase):
         with self.assertRaises(ValueError):
             _heatmaps_norm = normalization.normalize_heatmaps(
                 [np.zeros((1, 1, 1, 1), dtype=np.float32) + 0.1],
-                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
             )
 
         # ----
         # iterable of HeatmapsOnImage
         # ----
         heatmaps_norm = normalization.normalize_heatmaps(
-            [ia.HeatmapsOnImage(
-                np.zeros((1, 1, 1), dtype=np.float32) + 0.1,
-                shape=(1, 1, 3))],
-            shapes=None
+            [ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32) + 0.1, shape=(1, 1, 3))],
+            shapes=None,
         )
         assert isinstance(heatmaps_norm, list)
         assert isinstance(heatmaps_norm[0], ia.HeatmapsOnImage)
         assert np.allclose(heatmaps_norm[0].arr_0to1, 0 + 0.1)
-    
+
     def test_normalize_segmentation_maps(self):
         # ----
         # None
@@ -1246,16 +1233,14 @@ class TestNormalization(unittest.TestCase):
             # np.zeros(shape, dtype=dt) + 1, because the latter one converts
             # dtype bool_ to int64.
             segmaps_norm = normalization.normalize_segmentation_maps(
-                np.full((1, 1, 1, 1), 1, dtype=dt),
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                np.full((1, 1, 1, 1), 1, dtype=dt), shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
             )
             assert isinstance(segmaps_norm, list)
             assert isinstance(segmaps_norm[0], ia.SegmentationMapsOnImage)
             assert np.allclose(segmaps_norm[0].arr[..., 0], 1)
 
             segmaps_norm = normalization.normalize_segmentation_maps(
-                np.full((1, 1, 1, 1), 1, dtype=dt),
-                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                np.full((1, 1, 1, 1), 1, dtype=dt), shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
             )
             assert isinstance(segmaps_norm, list)
             assert isinstance(segmaps_norm[0], ia.SegmentationMapsOnImage)
@@ -1264,32 +1249,27 @@ class TestNormalization(unittest.TestCase):
             # --> segmaps for too many images
             with self.assertRaises(ValueError):
                 _segmaps_norm = normalization.normalize_segmentation_maps(
-                    np.full((2, 1, 1), 1, dtype=dt),
-                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                    np.full((2, 1, 1), 1, dtype=dt), shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
                 )
 
             # --> too few segmaps
             with self.assertRaises(ValueError):
                 _segmaps_norm = normalization.normalize_segmentation_maps(
-                    np.full((1, 1, 1), 1, dtype=dt),
-                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
+                    np.full((1, 1, 1), 1, dtype=dt), shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
                 )
 
             # --> images None
             with self.assertRaises(ValueError):
                 _segmaps_norm = normalization.normalize_segmentation_maps(
-                    np.full((1, 1, 1), 1, dtype=dt),
-                    shapes=None
+                    np.full((1, 1, 1), 1, dtype=dt), shapes=None
                 )
 
         # ----
         # single SegmentationMapsOnImage
         # ----
         segmaps_norm = normalization.normalize_segmentation_maps(
-            ia.SegmentationMapsOnImage(
-                np.full((1, 1, 1), 1, dtype=np.int32),
-                shape=(1, 1, 3)),
-            shapes=None
+            ia.SegmentationMapsOnImage(np.full((1, 1, 1), 1, dtype=np.int32), shape=(1, 1, 3)),
+            shapes=None,
         )
         assert isinstance(segmaps_norm, list)
         assert isinstance(segmaps_norm[0], ia.SegmentationMapsOnImage)
@@ -1298,9 +1278,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         # empty iterable
         # ----
-        segmaps_norm = normalization.normalize_segmentation_maps(
-            [], shapes=None
-        )
+        segmaps_norm = normalization.normalize_segmentation_maps([], shapes=None)
         assert segmaps_norm is None
 
         # ----
@@ -1308,16 +1286,14 @@ class TestNormalization(unittest.TestCase):
         # ----
         for dt in [np.dtype("int32"), np.dtype("uint16"), np.dtype(bool)]:
             segmaps_norm = normalization.normalize_segmentation_maps(
-                [np.full((1, 1, 1), 1, dtype=dt)],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                [np.full((1, 1, 1), 1, dtype=dt)], shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
             )
             assert isinstance(segmaps_norm, list)
             assert isinstance(segmaps_norm[0], ia.SegmentationMapsOnImage)
             assert np.allclose(segmaps_norm[0].arr[..., 0], 1)
 
             segmaps_norm = normalization.normalize_segmentation_maps(
-                [np.full((1, 1, 1), 1, dtype=dt)],
-                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                [np.full((1, 1, 1), 1, dtype=dt)], shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
             )
             assert isinstance(segmaps_norm, list)
             assert isinstance(segmaps_norm[0], ia.SegmentationMapsOnImage)
@@ -1326,42 +1302,36 @@ class TestNormalization(unittest.TestCase):
             # --> segmaps for too many images
             with self.assertRaises(ValueError):
                 _segmaps_norm = normalization.normalize_segmentation_maps(
-                    [
-                        np.full((1, 1, 1), 1, dtype=np.int32),
-                        np.full((1, 1, 1), 1, dtype=np.int32)
-                    ],
-                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                    [np.full((1, 1, 1), 1, dtype=np.int32), np.full((1, 1, 1), 1, dtype=np.int32)],
+                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
                 )
 
             # --> too few segmaps
             with self.assertRaises(ValueError):
                 _segmaps_norm = normalization.normalize_segmentation_maps(
                     [np.full((1, 1, 1), 1, dtype=np.int32)],
-                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
+                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8),
                 )
 
             # --> images None
             with self.assertRaises(ValueError):
                 _segmaps_norm = normalization.normalize_segmentation_maps(
-                    [np.full((1, 1, 1), 1, dtype=np.int32)],
-                    shapes=None
+                    [np.full((1, 1, 1), 1, dtype=np.int32)], shapes=None
                 )
 
             # --> wrong number of dimensions
             with self.assertRaises(ValueError):
                 _segmaps_norm = normalization.normalize_segmentation_maps(
                     [np.full((1, 1, 1, 1), 1, dtype=np.int32)],
-                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
                 )
 
         # ----
         # iterable of SegmentationMapsOnImage
         # ----
         segmaps_norm = normalization.normalize_segmentation_maps(
-            [ia.SegmentationMapsOnImage(
-                np.full((1, 1, 1), 1, dtype=np.int32),
-                shape=(1, 1, 3))],
-            shapes=None
+            [ia.SegmentationMapsOnImage(np.full((1, 1, 1), 1, dtype=np.int32), shape=(1, 1, 3))],
+            shapes=None,
         )
         assert isinstance(segmaps_norm, list)
         assert isinstance(segmaps_norm[0], ia.SegmentationMapsOnImage)
@@ -1371,22 +1341,22 @@ class TestNormalization(unittest.TestCase):
         def _assert_single_image_expected(inputs):
             # --> images None
             with self.assertRaises(ValueError):
-                _keypoints_norm = normalization.normalize_keypoints(
-                    inputs, None)
+                _keypoints_norm = normalization.normalize_keypoints(inputs, None)
 
             # --> too many images
             with self.assertRaises(ValueError):
                 _keypoints_norm = normalization.normalize_keypoints(
-                    inputs,
-                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
+                    inputs, shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
                 )
 
             # --> too many images
             with self.assertRaises(ValueError):
                 _keypoints_norm = normalization.normalize_keypoints(
                     inputs,
-                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                            np.zeros((1, 1, 3), dtype=np.uint8)]
+                    shapes=[
+                        np.zeros((1, 1, 3), dtype=np.uint8),
+                        np.zeros((1, 1, 3), dtype=np.uint8),
+                    ],
                 )
 
         # ----
@@ -1400,8 +1370,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
             keypoints_norm = normalization.normalize_keypoints(
-                np.zeros((1, 1, 2), dtype=dt) + 1,
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                np.zeros((1, 1, 2), dtype=dt) + 1, shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
             )
             assert isinstance(keypoints_norm, list)
             assert isinstance(keypoints_norm[0], ia.KeypointsOnImage)
@@ -1409,8 +1378,7 @@ class TestNormalization(unittest.TestCase):
             assert np.allclose(keypoints_norm[0].to_xy_array(), 1)
 
             keypoints_norm = normalization.normalize_keypoints(
-                np.zeros((1, 5, 2), dtype=dt) + 1,
-                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                np.zeros((1, 5, 2), dtype=dt) + 1, shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
             )
             assert isinstance(keypoints_norm, list)
             assert isinstance(keypoints_norm[0], ia.KeypointsOnImage)
@@ -1420,22 +1388,20 @@ class TestNormalization(unittest.TestCase):
             # --> keypoints for too many images
             with self.assertRaises(ValueError):
                 _keypoints_norm = normalization.normalize_keypoints(
-                    np.zeros((2, 1, 2), dtype=dt) + 1,
-                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                    np.zeros((2, 1, 2), dtype=dt) + 1, shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
                 )
 
             # --> too few keypoints
             with self.assertRaises(ValueError):
                 _keypoints_norm = normalization.normalize_keypoints(
-                    np.zeros((1, 1, 2), dtype=dt) + 1,
-                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
+                    np.zeros((1, 1, 2), dtype=dt) + 1, shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
                 )
 
             # --> wrong keypoints shape
             with self.assertRaises(ValueError):
                 _keypoints_norm = normalization.normalize_keypoints(
                     np.zeros((1, 1, 100), dtype=dt) + 1,
-                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
                 )
 
             _assert_single_image_expected(np.zeros((1, 1, 2), dtype=dt) + 1)
@@ -1444,8 +1410,7 @@ class TestNormalization(unittest.TestCase):
         # (x,y)
         # ----
         keypoints_norm = normalization.normalize_keypoints(
-            (1, 2),
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            (1, 2), shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert isinstance(keypoints_norm, list)
         assert isinstance(keypoints_norm[0], ia.KeypointsOnImage)
@@ -1459,8 +1424,7 @@ class TestNormalization(unittest.TestCase):
         # single Keypoint instance
         # ----
         keypoints_norm = normalization.normalize_keypoints(
-            ia.Keypoint(x=1, y=2),
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            ia.Keypoint(x=1, y=2), shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert isinstance(keypoints_norm, list)
         assert isinstance(keypoints_norm[0], ia.KeypointsOnImage)
@@ -1474,8 +1438,7 @@ class TestNormalization(unittest.TestCase):
         # single KeypointsOnImage instance
         # ----
         keypoints_norm = normalization.normalize_keypoints(
-            ia.KeypointsOnImage([ia.Keypoint(x=1, y=2)], shape=(1, 1, 3)),
-            shapes=None
+            ia.KeypointsOnImage([ia.Keypoint(x=1, y=2)], shape=(1, 1, 3)), shapes=None
         )
         assert isinstance(keypoints_norm, list)
         assert isinstance(keypoints_norm[0], ia.KeypointsOnImage)
@@ -1486,9 +1449,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         # empty iterable
         # ----
-        keypoints_norm = normalization.normalize_keypoints(
-            [], shapes=None
-        )
+        keypoints_norm = normalization.normalize_keypoints([], shapes=None)
         assert keypoints_norm is None
 
         # ----
@@ -1496,8 +1457,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
             keypoints_norm = normalization.normalize_keypoints(
-                [np.zeros((1, 2), dtype=dt) + 1],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                [np.zeros((1, 2), dtype=dt) + 1], shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
             )
             assert isinstance(keypoints_norm, list)
             assert isinstance(keypoints_norm[0], ia.KeypointsOnImage)
@@ -1505,8 +1465,7 @@ class TestNormalization(unittest.TestCase):
             assert np.allclose(keypoints_norm[0].to_xy_array(), 1)
 
             keypoints_norm = normalization.normalize_keypoints(
-                [np.zeros((5, 2), dtype=dt) + 1],
-                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                [np.zeros((5, 2), dtype=dt) + 1], shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
             )
             assert isinstance(keypoints_norm, list)
             assert isinstance(keypoints_norm[0], ia.KeypointsOnImage)
@@ -1516,40 +1475,34 @@ class TestNormalization(unittest.TestCase):
             # --> keypoints for too many images
             with self.assertRaises(ValueError):
                 _keypoints_norm = normalization.normalize_keypoints(
-                    [
-                        np.zeros((1, 2), dtype=dt) + 1,
-                        np.zeros((1, 2), dtype=dt) + 1
-                    ],
-                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                    [np.zeros((1, 2), dtype=dt) + 1, np.zeros((1, 2), dtype=dt) + 1],
+                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
                 )
 
             # --> too few keypoints
             with self.assertRaises(ValueError):
                 _keypoints_norm = normalization.normalize_keypoints(
-                    [np.zeros((1, 2), dtype=dt) + 1],
-                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
+                    [np.zeros((1, 2), dtype=dt) + 1], shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
                 )
 
             # --> images None
             with self.assertRaises(ValueError):
                 _keypoints_norm = normalization.normalize_keypoints(
-                    [np.zeros((1, 2), dtype=dt) + 1],
-                    shapes=None
+                    [np.zeros((1, 2), dtype=dt) + 1], shapes=None
                 )
 
             # --> wrong shape
             with self.assertRaises(ValueError):
                 _keypoints_norm = normalization.normalize_keypoints(
                     [np.zeros((1, 100), dtype=dt) + 1],
-                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
                 )
 
         # ----
         # iterable of (x,y)
         # ----
         keypoints_norm = normalization.normalize_keypoints(
-            [(1, 2), (3, 4)],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            [(1, 2), (3, 4)], shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert isinstance(keypoints_norm, list)
         assert isinstance(keypoints_norm[0], ia.KeypointsOnImage)
@@ -1563,8 +1516,7 @@ class TestNormalization(unittest.TestCase):
         with self.assertRaises(ValueError):
             _keypoints_norm = normalization.normalize_keypoints(
                 [(1, 2)],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
             )
 
         # ----
@@ -1572,7 +1524,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         keypoints_norm = normalization.normalize_keypoints(
             [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
         )
         assert isinstance(keypoints_norm, list)
         assert isinstance(keypoints_norm[0], ia.KeypointsOnImage)
@@ -1586,8 +1538,7 @@ class TestNormalization(unittest.TestCase):
         with self.assertRaises(ValueError):
             _keypoints_norm = normalization.normalize_keypoints(
                 [ia.Keypoint(x=1, y=2)],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
             )
 
         # ----
@@ -1598,7 +1549,7 @@ class TestNormalization(unittest.TestCase):
                 ia.KeypointsOnImage([ia.Keypoint(x=1, y=2)], shape=(1, 1, 3)),
                 ia.KeypointsOnImage([ia.Keypoint(x=3, y=4)], shape=(1, 1, 3)),
             ],
-            shapes=None
+            shapes=None,
         )
         assert isinstance(keypoints_norm, list)
 
@@ -1616,8 +1567,7 @@ class TestNormalization(unittest.TestCase):
         # iterable of empty interables
         # ----
         keypoints_norm = normalization.normalize_keypoints(
-            [[]],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            [[]], shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert keypoints_norm is None
 
@@ -1625,12 +1575,8 @@ class TestNormalization(unittest.TestCase):
         # iterable of iterable of (x,y)
         # ----
         keypoints_norm = normalization.normalize_keypoints(
-            [
-                [(1, 2), (3, 4)],
-                [(5, 6), (7, 8)]
-            ],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                    np.zeros((1, 1, 3), dtype=np.uint8)]
+            [[(1, 2), (3, 4)], [(5, 6), (7, 8)]],
+            shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
         )
         assert isinstance(keypoints_norm, list)
         assert isinstance(keypoints_norm[0], ia.KeypointsOnImage)
@@ -1649,23 +1595,18 @@ class TestNormalization(unittest.TestCase):
         # --> images None
         with self.assertRaises(ValueError):
             _keypoints_norm = normalization.normalize_keypoints(
-                [
-                    [(1, 2), (3, 4)],
-                    [(5, 6), (7, 8)]
-                ],
-                shapes=None
+                [[(1, 2), (3, 4)], [(5, 6), (7, 8)]], shapes=None
             )
 
         # --> different number of images
         with self.assertRaises(ValueError):
             _keypoints_norm = normalization.normalize_keypoints(
-                [
-                    [(1, 2), (3, 4)],
-                    [(5, 6), (7, 8)]
+                [[(1, 2), (3, 4)], [(5, 6), (7, 8)]],
+                shapes=[
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
                 ],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
             )
 
         # ----
@@ -1674,10 +1615,9 @@ class TestNormalization(unittest.TestCase):
         keypoints_norm = normalization.normalize_keypoints(
             [
                 [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)],
-                [ia.Keypoint(x=5, y=6), ia.Keypoint(x=7, y=8)]
+                [ia.Keypoint(x=5, y=6), ia.Keypoint(x=7, y=8)],
             ],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                    np.zeros((1, 1, 3), dtype=np.uint8)]
+            shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
         )
         assert isinstance(keypoints_norm, list)
         assert isinstance(keypoints_norm[0], ia.KeypointsOnImage)
@@ -1698,9 +1638,9 @@ class TestNormalization(unittest.TestCase):
             _keypoints_norm = normalization.normalize_keypoints(
                 [
                     [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)],
-                    [ia.Keypoint(x=5, y=6), ia.Keypoint(x=7, y=8)]
+                    [ia.Keypoint(x=5, y=6), ia.Keypoint(x=7, y=8)],
                 ],
-                shapes=None
+                shapes=None,
             )
 
         # --> different number of images
@@ -1708,35 +1648,35 @@ class TestNormalization(unittest.TestCase):
             _keypoints_norm = normalization.normalize_keypoints(
                 [
                     [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)],
-                    [ia.Keypoint(x=5, y=6), ia.Keypoint(x=7, y=8)]
+                    [ia.Keypoint(x=5, y=6), ia.Keypoint(x=7, y=8)],
                 ],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                ],
             )
 
     def test_normalize_bounding_boxes(self):
         def _assert_single_image_expected(inputs):
             # --> images None
             with self.assertRaises(ValueError):
+                _bbs_norm = normalization.normalize_bounding_boxes(inputs, shapes=None)
+
+            # --> too many images
+            with self.assertRaises(ValueError):
                 _bbs_norm = normalization.normalize_bounding_boxes(
-                    inputs,
-                    shapes=None
+                    inputs, shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
                 )
 
             # --> too many images
             with self.assertRaises(ValueError):
                 _bbs_norm = normalization.normalize_bounding_boxes(
                     inputs,
-                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
-                )
-
-            # --> too many images
-            with self.assertRaises(ValueError):
-                _bbs_norm = normalization.normalize_bounding_boxes(
-                    inputs,
-                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                            np.zeros((1, 1, 3), dtype=np.uint8)]
+                    shapes=[
+                        np.zeros((1, 1, 3), dtype=np.uint8),
+                        np.zeros((1, 1, 3), dtype=np.uint8),
+                    ],
                 )
 
         # ----
@@ -1750,8 +1690,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
             bbs_norm = normalization.normalize_bounding_boxes(
-                np.zeros((1, 1, 4), dtype=dt) + 1,
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                np.zeros((1, 1, 4), dtype=dt) + 1, shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
             )
             assert isinstance(bbs_norm, list)
             assert isinstance(bbs_norm[0], ia.BoundingBoxesOnImage)
@@ -1759,8 +1698,7 @@ class TestNormalization(unittest.TestCase):
             assert np.allclose(bbs_norm[0].to_xyxy_array(), 1)
 
             bbs_norm = normalization.normalize_bounding_boxes(
-                np.zeros((1, 5, 4), dtype=dt) + 1,
-                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                np.zeros((1, 5, 4), dtype=dt) + 1, shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
             )
             assert isinstance(bbs_norm, list)
             assert isinstance(bbs_norm[0], ia.BoundingBoxesOnImage)
@@ -1770,22 +1708,20 @@ class TestNormalization(unittest.TestCase):
             # --> bounding boxes for too many images
             with self.assertRaises(ValueError):
                 _bbs_norm = normalization.normalize_bounding_boxes(
-                    np.zeros((2, 1, 4), dtype=dt) + 1,
-                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                    np.zeros((2, 1, 4), dtype=dt) + 1, shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
                 )
 
             # --> too few bounding boxes
             with self.assertRaises(ValueError):
                 _bbs_norm = normalization.normalize_bounding_boxes(
-                    np.zeros((1, 1, 4), dtype=dt) + 1,
-                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
+                    np.zeros((1, 1, 4), dtype=dt) + 1, shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
                 )
 
             # --> wrong keypoints shape
             with self.assertRaises(ValueError):
                 _bbs_norm = normalization.normalize_bounding_boxes(
                     np.zeros((1, 1, 100), dtype=dt) + 1,
-                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
                 )
 
             _assert_single_image_expected(np.zeros((1, 1, 4), dtype=dt) + 1)
@@ -1794,8 +1730,7 @@ class TestNormalization(unittest.TestCase):
         # (x1,y1,x2,y2)
         # ----
         bbs_norm = normalization.normalize_bounding_boxes(
-            (1, 2, 3, 4),
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            (1, 2, 3, 4), shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert isinstance(bbs_norm, list)
         assert isinstance(bbs_norm[0], ia.BoundingBoxesOnImage)
@@ -1811,8 +1746,7 @@ class TestNormalization(unittest.TestCase):
         # single BoundingBox instance
         # ----
         bbs_norm = normalization.normalize_bounding_boxes(
-            ia.BoundingBox(x1=1, y1=2, x2=3, y2=4),
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            ia.BoundingBox(x1=1, y1=2, x2=3, y2=4), shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert isinstance(bbs_norm, list)
         assert isinstance(bbs_norm[0], ia.BoundingBoxesOnImage)
@@ -1828,10 +1762,8 @@ class TestNormalization(unittest.TestCase):
         # single BoundingBoxesOnImage instance
         # ----
         bbs_norm = normalization.normalize_bounding_boxes(
-            ia.BoundingBoxesOnImage(
-                [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)],
-                shape=(1, 1, 3)),
-            shapes=None
+            ia.BoundingBoxesOnImage([ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)], shape=(1, 1, 3)),
+            shapes=None,
         )
         assert isinstance(bbs_norm, list)
         assert isinstance(bbs_norm[0], ia.BoundingBoxesOnImage)
@@ -1852,8 +1784,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
             bbs_norm = normalization.normalize_bounding_boxes(
-                [np.zeros((1, 4), dtype=dt) + 1],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                [np.zeros((1, 4), dtype=dt) + 1], shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
             )
             assert isinstance(bbs_norm, list)
             assert isinstance(bbs_norm[0], ia.BoundingBoxesOnImage)
@@ -1861,8 +1792,7 @@ class TestNormalization(unittest.TestCase):
             assert np.allclose(bbs_norm[0].to_xyxy_array(), 1)
 
             bbs_norm = normalization.normalize_bounding_boxes(
-                [np.zeros((5, 4), dtype=dt) + 1],
-                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                [np.zeros((5, 4), dtype=dt) + 1], shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
             )
             assert isinstance(bbs_norm, list)
             assert isinstance(bbs_norm[0], ia.BoundingBoxesOnImage)
@@ -1872,40 +1802,34 @@ class TestNormalization(unittest.TestCase):
             # --> bounding boxes for too many images
             with self.assertRaises(ValueError):
                 _bbs_norm = normalization.normalize_bounding_boxes(
-                    [
-                        np.zeros((1, 4), dtype=dt) + 1,
-                        np.zeros((1, 4), dtype=dt) + 1
-                    ],
-                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                    [np.zeros((1, 4), dtype=dt) + 1, np.zeros((1, 4), dtype=dt) + 1],
+                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
                 )
 
             # --> too few bounding boxes
             with self.assertRaises(ValueError):
                 _bbs_norm = normalization.normalize_bounding_boxes(
-                    [np.zeros((1, 4), dtype=dt) + 1],
-                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
+                    [np.zeros((1, 4), dtype=dt) + 1], shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
                 )
 
             # --> images None
             with self.assertRaises(ValueError):
                 _bbs_norm = normalization.normalize_bounding_boxes(
-                    [np.zeros((1, 4), dtype=dt) + 1],
-                    shapes=None
+                    [np.zeros((1, 4), dtype=dt) + 1], shapes=None
                 )
 
             # --> wrong shape
             with self.assertRaises(ValueError):
                 _bbs_norm = normalization.normalize_bounding_boxes(
                     [np.zeros((1, 100), dtype=dt) + 1],
-                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
                 )
 
         # ----
         # iterable of (x1,y1,x2,y2)
         # ----
         bbs_norm = normalization.normalize_bounding_boxes(
-            [(1, 2, 3, 4), (5, 6, 7, 8)],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            [(1, 2, 3, 4), (5, 6, 7, 8)], shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert isinstance(bbs_norm, list)
         assert isinstance(bbs_norm[0], ia.BoundingBoxesOnImage)
@@ -1923,19 +1847,15 @@ class TestNormalization(unittest.TestCase):
         with self.assertRaises(ValueError):
             _bbs_norm = normalization.normalize_bounding_boxes(
                 [(1, 2, 3, 4)],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
             )
 
         # ----
         # iterable of BoundingBox
         # ----
         bbs_norm = normalization.normalize_bounding_boxes(
-            [
-                ia.BoundingBox(x1=1, y1=2, x2=3, y2=4),
-                ia.BoundingBox(x1=5, y1=6, x2=7, y2=8)
-            ],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4), ia.BoundingBox(x1=5, y1=6, x2=7, y2=8)],
+            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
         )
         assert isinstance(bbs_norm, list)
         assert isinstance(bbs_norm[0], ia.BoundingBoxesOnImage)
@@ -1953,8 +1873,7 @@ class TestNormalization(unittest.TestCase):
         with self.assertRaises(ValueError):
             _bbs_norm = normalization.normalize_bounding_boxes(
                 [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
             )
 
         # ----
@@ -1962,14 +1881,10 @@ class TestNormalization(unittest.TestCase):
         # ----
         bbs_norm = normalization.normalize_bounding_boxes(
             [
-                ia.BoundingBoxesOnImage(
-                    [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)],
-                    shape=(1, 1, 3)),
-                ia.BoundingBoxesOnImage(
-                    [ia.BoundingBox(x1=5, y1=6, x2=7, y2=8)],
-                    shape=(1, 1, 3))
+                ia.BoundingBoxesOnImage([ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)], shape=(1, 1, 3)),
+                ia.BoundingBoxesOnImage([ia.BoundingBox(x1=5, y1=6, x2=7, y2=8)], shape=(1, 1, 3)),
             ],
-            shapes=None
+            shapes=None,
         )
         assert isinstance(bbs_norm, list)
 
@@ -1991,8 +1906,7 @@ class TestNormalization(unittest.TestCase):
         # iterable of empty interables
         # ----
         bbs_norm = normalization.normalize_bounding_boxes(
-            [[]],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            [[]], shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert bbs_norm is None
 
@@ -2000,12 +1914,8 @@ class TestNormalization(unittest.TestCase):
         # iterable of iterable of (x1,y1,x2,y2)
         # ----
         bbs_norm = normalization.normalize_bounding_boxes(
-            [
-                [(1, 2, 3, 4)],
-                [(5, 6, 7, 8), (9, 10, 11, 12)]
-            ],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                    np.zeros((1, 1, 3), dtype=np.uint8)]
+            [[(1, 2, 3, 4)], [(5, 6, 7, 8), (9, 10, 11, 12)]],
+            shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
         )
         assert isinstance(bbs_norm, list)
         assert isinstance(bbs_norm[0], ia.BoundingBoxesOnImage)
@@ -2029,23 +1939,18 @@ class TestNormalization(unittest.TestCase):
         # --> images None
         with self.assertRaises(ValueError):
             _bbs_norm = normalization.normalize_bounding_boxes(
-                [
-                    [(1, 2, 3, 4), (3, 4, 5, 6)],
-                    [(5, 6, 7, 8), (7, 8, 9, 10)]
-                ],
-                shapes=None
+                [[(1, 2, 3, 4), (3, 4, 5, 6)], [(5, 6, 7, 8), (7, 8, 9, 10)]], shapes=None
             )
 
         # --> different number of images
         with self.assertRaises(ValueError):
             _bbs_norm = normalization.normalize_bounding_boxes(
+                [[(1, 2, 3, 4)], [(5, 6, 7, 8)]],
                 [
-                    [(1, 2, 3, 4)],
-                    [(5, 6, 7, 8)]
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
                 ],
-                [np.zeros((1, 1, 3), dtype=np.uint8),
-                 np.zeros((1, 1, 3), dtype=np.uint8),
-                 np.zeros((1, 1, 3), dtype=np.uint8)]
             )
 
         # ----
@@ -2053,13 +1958,13 @@ class TestNormalization(unittest.TestCase):
         # ----
         bbs_norm = normalization.normalize_bounding_boxes(
             [
-                [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4),
-                 ia.BoundingBox(x1=5, y1=6, x2=7, y2=8)],
-                [ia.BoundingBox(x1=9, y1=10, x2=11, y2=12),
-                 ia.BoundingBox(x1=13, y1=14, x2=15, y2=16)]
+                [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4), ia.BoundingBox(x1=5, y1=6, x2=7, y2=8)],
+                [
+                    ia.BoundingBox(x1=9, y1=10, x2=11, y2=12),
+                    ia.BoundingBox(x1=13, y1=14, x2=15, y2=16),
+                ],
             ],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                    np.zeros((1, 1, 3), dtype=np.uint8)]
+            shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
         )
         assert isinstance(bbs_norm, list)
         assert isinstance(bbs_norm[0], ia.BoundingBoxesOnImage)
@@ -2087,47 +1992,58 @@ class TestNormalization(unittest.TestCase):
         with self.assertRaises(ValueError):
             _bbs_norm = normalization.normalize_bounding_boxes(
                 [
-                    [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4),
-                     ia.BoundingBox(x1=5, y1=6, x2=7, y2=8)],
-                    [ia.BoundingBox(x1=9, y1=10, x2=11, y2=12),
-                     ia.BoundingBox(x1=13, y1=14, x2=15, y2=16)]
+                    [
+                        ia.BoundingBox(x1=1, y1=2, x2=3, y2=4),
+                        ia.BoundingBox(x1=5, y1=6, x2=7, y2=8),
+                    ],
+                    [
+                        ia.BoundingBox(x1=9, y1=10, x2=11, y2=12),
+                        ia.BoundingBox(x1=13, y1=14, x2=15, y2=16),
+                    ],
                 ],
-                shapes=None
+                shapes=None,
             )
 
         # --> different number of images
         with self.assertRaises(ValueError):
             _bbs_norm = normalization.normalize_bounding_boxes(
                 [
-                    [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4),
-                     ia.BoundingBox(x1=5, y1=6, x2=7, y2=8)],
-                    [ia.BoundingBox(x1=9, y1=10, x2=11, y2=12),
-                     ia.BoundingBox(x1=13, y1=14, x2=15, y2=16)]
+                    [
+                        ia.BoundingBox(x1=1, y1=2, x2=3, y2=4),
+                        ia.BoundingBox(x1=5, y1=6, x2=7, y2=8),
+                    ],
+                    [
+                        ia.BoundingBox(x1=9, y1=10, x2=11, y2=12),
+                        ia.BoundingBox(x1=13, y1=14, x2=15, y2=16),
+                    ],
                 ],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                ],
             )
-    
+
     def test_normalize_polygons(self):
         def _assert_single_image_expected(inputs):
             # --> images None
             with self.assertRaises(ValueError):
+                _polygons_norm = normalization.normalize_polygons(inputs, shapes=None)
+
+            # --> too many images
+            with self.assertRaises(ValueError):
                 _polygons_norm = normalization.normalize_polygons(
-                    inputs, shapes=None)
+                    inputs, shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
+                )
 
             # --> too many images
             with self.assertRaises(ValueError):
                 _polygons_norm = normalization.normalize_polygons(
                     inputs,
-                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8))
-
-            # --> too many images
-            with self.assertRaises(ValueError):
-                _polygons_norm = normalization.normalize_polygons(
-                    inputs,
-                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                            np.zeros((1, 1, 3), dtype=np.uint8)]
+                    shapes=[
+                        np.zeros((1, 1, 3), dtype=np.uint8),
+                        np.zeros((1, 1, 3), dtype=np.uint8),
+                    ],
                 )
 
         coords1 = [(0, 0), (10, 0), (10, 10)]
@@ -2157,66 +2073,50 @@ class TestNormalization(unittest.TestCase):
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
             polygons_norm = normalization.normalize_polygons(
                 coords1_arr[np.newaxis, np.newaxis, ...].astype(dt),
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
             )
             assert isinstance(polygons_norm, list)
             assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
             assert len(polygons_norm[0].polygons) == 1
-            assert np.allclose(polygons_norm[0].polygons[0].exterior,
-                               coords1_arr)
+            assert np.allclose(polygons_norm[0].polygons[0].exterior, coords1_arr)
 
             polygons_norm = normalization.normalize_polygons(
-                np.tile(
-                    coords1_arr[np.newaxis, np.newaxis, ...].astype(dt),
-                    (1, 5, 1, 1)
-                ),
-                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                np.tile(coords1_arr[np.newaxis, np.newaxis, ...].astype(dt), (1, 5, 1, 1)),
+                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
             )
             assert isinstance(polygons_norm, list)
             assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
             assert len(polygons_norm[0].polygons) == 5
-            assert np.allclose(polygons_norm[0].polygons[0].exterior,
-                               coords1_arr)
+            assert np.allclose(polygons_norm[0].polygons[0].exterior, coords1_arr)
 
             # --> polygons for too many images
             with self.assertRaises(ValueError):
                 _polygons_norm = normalization.normalize_polygons(
-                    np.tile(
-                        coords1_arr[np.newaxis, np.newaxis, ...].astype(dt),
-                        (2, 1, 1, 1)
-                    ),
-                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                    np.tile(coords1_arr[np.newaxis, np.newaxis, ...].astype(dt), (2, 1, 1, 1)),
+                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
                 )
 
             # --> too few polygons
             with self.assertRaises(ValueError):
                 _polygons_norm = normalization.normalize_polygons(
-                    np.tile(
-                        coords1_arr[np.newaxis, np.newaxis, ...].astype(dt),
-                        (1, 1, 1, 1)
-                    ),
-                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
+                    np.tile(coords1_arr[np.newaxis, np.newaxis, ...].astype(dt), (1, 1, 1, 1)),
+                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8),
                 )
 
             # --> wrong polygons shape
             with self.assertRaises(ValueError):
                 _polygons_norm = normalization.normalize_polygons(
-                    np.tile(
-                        coords1_arr[np.newaxis, np.newaxis, ...].astype(dt),
-                        (1, 1, 1, 10)
-                    ),
-                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                    np.tile(coords1_arr[np.newaxis, np.newaxis, ...].astype(dt), (1, 1, 1, 10)),
+                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
                 )
 
-            _assert_single_image_expected(
-                coords1_arr[np.newaxis, np.newaxis, ...].astype(dt))
+            _assert_single_image_expected(coords1_arr[np.newaxis, np.newaxis, ...].astype(dt))
 
         # ----
         # single Polygon instance
         # ----
         polygons_norm = normalization.normalize_polygons(
-            ia.Polygon(coords1),
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            ia.Polygon(coords1), shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert isinstance(polygons_norm, list)
         assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
@@ -2229,8 +2129,7 @@ class TestNormalization(unittest.TestCase):
         # single PolygonsOnImage instance
         # ----
         polygons_norm = normalization.normalize_polygons(
-            ia.PolygonsOnImage([ia.Polygon(coords1)], shape=(1, 1, 3)),
-            shapes=None
+            ia.PolygonsOnImage([ia.Polygon(coords1)], shape=(1, 1, 3)), shapes=None
         )
         assert isinstance(polygons_norm, list)
         assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
@@ -2240,9 +2139,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         # empty iterable
         # ----
-        polygons_norm = normalization.normalize_polygons(
-            [], shapes=None
-        )
+        polygons_norm = normalization.normalize_polygons([], shapes=None)
         assert polygons_norm is None
 
         # ----
@@ -2251,62 +2148,53 @@ class TestNormalization(unittest.TestCase):
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
             polygons_norm = normalization.normalize_polygons(
                 [coords1_arr[np.newaxis, ...].astype(dt)],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
             )
             assert isinstance(polygons_norm, list)
             assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
             assert len(polygons_norm[0].polygons) == 1
-            assert np.allclose(polygons_norm[0].polygons[0].exterior,
-                               coords1_arr)
+            assert np.allclose(polygons_norm[0].polygons[0].exterior, coords1_arr)
 
             polygons_norm = normalization.normalize_polygons(
-                [np.tile(
-                    coords1_arr[np.newaxis, ...].astype(dt),
-                    (5, 1, 1)
-                )],
-                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                [np.tile(coords1_arr[np.newaxis, ...].astype(dt), (5, 1, 1))],
+                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
             )
             assert isinstance(polygons_norm, list)
             assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
             assert len(polygons_norm[0].polygons) == 5
-            assert np.allclose(polygons_norm[0].polygons[0].exterior,
-                               coords1_arr)
+            assert np.allclose(polygons_norm[0].polygons[0].exterior, coords1_arr)
 
             # --> polygons for too many images
             with self.assertRaises(ValueError):
                 _polygons_norm = normalization.normalize_polygons(
-                    [coords1_arr[np.newaxis, ...].astype(dt),
-                     coords2_arr[np.newaxis, ...].astype(dt)],
-                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                    [
+                        coords1_arr[np.newaxis, ...].astype(dt),
+                        coords2_arr[np.newaxis, ...].astype(dt),
+                    ],
+                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
                 )
 
             # --> too few polygons
             with self.assertRaises(ValueError):
                 _polygons_norm = normalization.normalize_polygons(
                     [coords1_arr[np.newaxis, ...].astype(dt)],
-                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
+                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8),
                 )
 
             # --> wrong polygons shape
             with self.assertRaises(ValueError):
                 _polygons_norm = normalization.normalize_polygons(
-                    [np.tile(
-                        coords1_arr[np.newaxis, ...].astype(dt),
-                        (1, 1, 10)
-                    )],
-                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                    [np.tile(coords1_arr[np.newaxis, ...].astype(dt), (1, 1, 10))],
+                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
                 )
 
-            _assert_single_image_expected(
-                [coords1_arr[np.newaxis, ...].astype(dt)]
-            )
+            _assert_single_image_expected([coords1_arr[np.newaxis, ...].astype(dt)])
 
         # ----
         # iterable of (x,y)
         # ----
         polygons_norm = normalization.normalize_polygons(
-            coords1,
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            coords1, shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert isinstance(polygons_norm, list)
         assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
@@ -2317,16 +2205,14 @@ class TestNormalization(unittest.TestCase):
         with self.assertRaises(ValueError):
             _polygons_norm = normalization.normalize_polygons(
                 coords1,
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
             )
 
         # ----
         # iterable of Keypoint
         # ----
         polygons_norm = normalization.normalize_polygons(
-            coords1_kps,
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            coords1_kps, shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert isinstance(polygons_norm, list)
         assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
@@ -2337,16 +2223,14 @@ class TestNormalization(unittest.TestCase):
         with self.assertRaises(ValueError):
             _polygons_norm = normalization.normalize_polygons(
                 coords1_kps,
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
             )
 
         # ----
         # iterable of Polygon
         # ----
         polygons_norm = normalization.normalize_polygons(
-            [ia.Polygon(coords1), ia.Polygon(coords2)],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            [ia.Polygon(coords1), ia.Polygon(coords2)], shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert isinstance(polygons_norm, list)
         assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
@@ -2358,8 +2242,7 @@ class TestNormalization(unittest.TestCase):
         with self.assertRaises(ValueError):
             _polygons_norm = normalization.normalize_polygons(
                 [ia.Polygon(coords1)],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
             )
 
         # ----
@@ -2368,9 +2251,9 @@ class TestNormalization(unittest.TestCase):
         polygons_norm = normalization.normalize_polygons(
             [
                 ia.PolygonsOnImage([ia.Polygon(coords1)], shape=(1, 1, 3)),
-                ia.PolygonsOnImage([ia.Polygon(coords2)], shape=(1, 1, 3))
+                ia.PolygonsOnImage([ia.Polygon(coords2)], shape=(1, 1, 3)),
             ],
-            shapes=None
+            shapes=None,
         )
         assert isinstance(polygons_norm, list)
 
@@ -2386,8 +2269,7 @@ class TestNormalization(unittest.TestCase):
         # iterable of empty iterables
         # ----
         polygons_norm = normalization.normalize_polygons(
-            [[]],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            [[]], shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert polygons_norm is None
 
@@ -2396,62 +2278,49 @@ class TestNormalization(unittest.TestCase):
         # ----
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
             polygons_norm = normalization.normalize_polygons(
-                [[coords1_arr.astype(dt)]],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                [[coords1_arr.astype(dt)]], shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
             )
             assert isinstance(polygons_norm, list)
             assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
             assert len(polygons_norm[0].polygons) == 1
-            assert np.allclose(polygons_norm[0].polygons[0].exterior,
-                               coords1_arr)
+            assert np.allclose(polygons_norm[0].polygons[0].exterior, coords1_arr)
 
             polygons_norm = normalization.normalize_polygons(
-                [[
-                    np.copy(coords1_arr).astype(dt) for _ in range(5)
-                ]],
-                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                [[np.copy(coords1_arr).astype(dt) for _ in range(5)]],
+                shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
             )
             assert isinstance(polygons_norm, list)
             assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
             assert len(polygons_norm[0].polygons) == 5
-            assert np.allclose(polygons_norm[0].polygons[0].exterior,
-                               coords1_arr)
+            assert np.allclose(polygons_norm[0].polygons[0].exterior, coords1_arr)
 
             # --> polygons for too many images
             with self.assertRaises(ValueError):
                 _polygons_norm = normalization.normalize_polygons(
-                    [[coords1_arr.astype(dt)],
-                     [coords2_arr.astype(dt)]],
-                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                    [[coords1_arr.astype(dt)], [coords2_arr.astype(dt)]],
+                    shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
                 )
 
             # --> too few polygons
             with self.assertRaises(ValueError):
                 _polygons_norm = normalization.normalize_polygons(
-                    [[coords1_arr.astype(dt)]],
-                    shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
+                    [[coords1_arr.astype(dt)]], shapes=np.zeros((2, 1, 1, 3), dtype=np.uint8)
                 )
 
             # --> wrong polygons shape
             with self.assertRaises(ValueError):
                 _polygons_norm = normalization.normalize_polygons(
-                    [[np.tile(
-                        coords1_arr.astype(dt),
-                        (1, 1, 10)
-                    )]],
-                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8)
+                    [[np.tile(coords1_arr.astype(dt), (1, 1, 10))]],
+                    shapes=np.zeros((1, 1, 1, 3), dtype=np.uint8),
                 )
 
-            _assert_single_image_expected(
-                [[coords1_arr.astype(dt)]]
-            )
+            _assert_single_image_expected([[coords1_arr.astype(dt)]])
 
         # ----
         # iterable of iterable of (x,y)
         # ----
         polygons_norm = normalization.normalize_polygons(
-            [coords1, coords2],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            [coords1, coords2], shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert isinstance(polygons_norm, list)
         assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
@@ -2461,26 +2330,24 @@ class TestNormalization(unittest.TestCase):
 
         # --> images None
         with self.assertRaises(ValueError):
-            _polygons_norm = normalization.normalize_polygons(
-                [coords1, coords2],
-                shapes=None
-            )
+            _polygons_norm = normalization.normalize_polygons([coords1, coords2], shapes=None)
 
         # --> different number of images
         with self.assertRaises(ValueError):
             _polygons_norm = normalization.normalize_polygons(
                 [coords1, coords2],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                ],
             )
 
         # ----
         # iterable of iterable of Keypoint
         # ----
         polygons_norm = normalization.normalize_polygons(
-            [coords1_kps, coords2_kps],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            [coords1_kps, coords2_kps], shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert isinstance(polygons_norm, list)
         assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
@@ -2491,17 +2358,18 @@ class TestNormalization(unittest.TestCase):
         # --> images None
         with self.assertRaises(ValueError):
             _polygons_norm = normalization.normalize_polygons(
-                [coords1_kps, coords2_kps],
-                shapes=None
+                [coords1_kps, coords2_kps], shapes=None
             )
 
         # --> different number of images
         with self.assertRaises(ValueError):
             _polygons_norm = normalization.normalize_polygons(
                 [coords1_kps, coords2_kps],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                ],
             )
 
         # ----
@@ -2510,10 +2378,9 @@ class TestNormalization(unittest.TestCase):
         polygons_norm = normalization.normalize_polygons(
             [
                 [ia.Polygon(coords1), ia.Polygon(coords2)],
-                [ia.Polygon(coords3), ia.Polygon(coords4)]
+                [ia.Polygon(coords3), ia.Polygon(coords4)],
             ],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                    np.zeros((1, 1, 3), dtype=np.uint8)]
+            shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
         )
         assert isinstance(polygons_norm, list)
         assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
@@ -2532,9 +2399,9 @@ class TestNormalization(unittest.TestCase):
             _polygons_norm = normalization.normalize_polygons(
                 [
                     [ia.Polygon(coords1), ia.Polygon(coords2)],
-                    [ia.Polygon(coords3), ia.Polygon(coords4)]
+                    [ia.Polygon(coords3), ia.Polygon(coords4)],
                 ],
-                shapes=None
+                shapes=None,
             )
 
         # --> different number of images
@@ -2542,19 +2409,20 @@ class TestNormalization(unittest.TestCase):
             _polygons_norm = normalization.normalize_polygons(
                 [
                     [ia.Polygon(coords1), ia.Polygon(coords2)],
-                    [ia.Polygon(coords3), ia.Polygon(coords4)]
+                    [ia.Polygon(coords3), ia.Polygon(coords4)],
                 ],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                ],
             )
 
         # ----
         # iterable of iterable of empty iterable
         # ----
         polygons_norm = normalization.normalize_polygons(
-            [[[]]],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            [[[]]], shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert polygons_norm is None
 
@@ -2563,8 +2431,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         polygons_norm = normalization.normalize_polygons(
             [[coords1, coords2], [coords3, coords4]],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                    np.zeros((1, 1, 3), dtype=np.uint8)]
+            shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
         )
         assert isinstance(polygons_norm, list)
         assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
@@ -2579,18 +2446,17 @@ class TestNormalization(unittest.TestCase):
 
         # --> images None
         with self.assertRaises(ValueError):
-            _polygons_norm = normalization.normalize_polygons(
-                [[coords1, coords2]],
-                shapes=None
-            )
+            _polygons_norm = normalization.normalize_polygons([[coords1, coords2]], shapes=None)
 
         # --> different number of images
         with self.assertRaises(ValueError):
             _polygons_norm = normalization.normalize_polygons(
                 [[coords1, coords2], [coords3]],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                ],
             )
 
         # ----
@@ -2598,8 +2464,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         polygons_norm = normalization.normalize_polygons(
             [[coords1_kps, coords2_kps], [coords3_kps, coords4_kps]],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                    np.zeros((1, 1, 3), dtype=np.uint8)]
+            shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
         )
         assert isinstance(polygons_norm, list)
         assert isinstance(polygons_norm[0], ia.PolygonsOnImage)
@@ -2615,17 +2480,18 @@ class TestNormalization(unittest.TestCase):
         # --> images None
         with self.assertRaises(ValueError):
             _polygons_norm = normalization.normalize_polygons(
-                [[coords1_kps, coords2_kps]],
-                shapes=None
+                [[coords1_kps, coords2_kps]], shapes=None
             )
 
         # --> different number of images
         with self.assertRaises(ValueError):
             _polygons_norm = normalization.normalize_polygons(
                 [[coords1_kps, coords2_kps], [coords3_kps]],
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8),
-                        np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                    np.zeros((1, 1, 3), dtype=np.uint8),
+                ],
             )
 
     # essentially already tested via polygons, as they are based on the
@@ -2650,7 +2516,7 @@ class TestNormalization(unittest.TestCase):
         for dt in [np.dtype("float32"), np.dtype("int16"), np.dtype("uint16")]:
             lss_norm = normalization.normalize_line_strings(
                 coords1_arr[np.newaxis, np.newaxis, ...].astype(dt),
-                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+                shapes=[np.zeros((1, 1, 3), dtype=np.uint8)],
             )
             assert isinstance(lss_norm, list)
             assert isinstance(lss_norm[0], ia.LineStringsOnImage)
@@ -2661,8 +2527,7 @@ class TestNormalization(unittest.TestCase):
         # single LineString instance
         # ----
         lss_norm = normalization.normalize_line_strings(
-            ia.LineString(coords1),
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
+            ia.LineString(coords1), shapes=[np.zeros((1, 1, 3), dtype=np.uint8)]
         )
         assert isinstance(lss_norm, list)
         assert isinstance(lss_norm[0], ia.LineStringsOnImage)
@@ -2673,8 +2538,7 @@ class TestNormalization(unittest.TestCase):
         # single LineStringOnImage instance
         # ----
         lss_norm = normalization.normalize_line_strings(
-            ia.LineStringsOnImage([ia.LineString(coords1)], shape=(1, 1, 3)),
-            shapes=None
+            ia.LineStringsOnImage([ia.LineString(coords1)], shape=(1, 1, 3)), shapes=None
         )
         assert isinstance(lss_norm, list)
         assert isinstance(lss_norm[0], ia.LineStringsOnImage)
@@ -2684,9 +2548,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         # empty iterable
         # ----
-        lss_norm = normalization.normalize_line_strings(
-            [], shapes=None
-        )
+        lss_norm = normalization.normalize_line_strings([], shapes=None)
         assert lss_norm is None
 
         # ----
@@ -2694,12 +2556,10 @@ class TestNormalization(unittest.TestCase):
         # ----
         lss_norm = normalization.normalize_line_strings(
             [
-                ia.LineStringsOnImage(
-                    [ia.LineString(coords1)], shape=(1, 1, 3)),
-                ia.LineStringsOnImage(
-                    [ia.LineString(coords2)], shape=(1, 1, 3))
+                ia.LineStringsOnImage([ia.LineString(coords1)], shape=(1, 1, 3)),
+                ia.LineStringsOnImage([ia.LineString(coords2)], shape=(1, 1, 3)),
             ],
-            shapes=None
+            shapes=None,
         )
         assert isinstance(lss_norm, list)
 
@@ -2717,10 +2577,9 @@ class TestNormalization(unittest.TestCase):
         lss_norm = normalization.normalize_line_strings(
             [
                 [ia.LineString(coords1), ia.LineString(coords2)],
-                [ia.LineString(coords3), ia.LineString(coords4)]
+                [ia.LineString(coords3), ia.LineString(coords4)],
             ],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                    np.zeros((1, 1, 3), dtype=np.uint8)]
+            shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
         )
         assert isinstance(lss_norm, list)
         assert isinstance(lss_norm[0], ia.LineStringsOnImage)
@@ -2739,8 +2598,7 @@ class TestNormalization(unittest.TestCase):
         # ----
         lss_norm = normalization.normalize_line_strings(
             [[coords1, coords2], [coords3, coords4]],
-            shapes=[np.zeros((1, 1, 3), dtype=np.uint8),
-                    np.zeros((1, 1, 3), dtype=np.uint8)]
+            shapes=[np.zeros((1, 1, 3), dtype=np.uint8), np.zeros((1, 1, 3), dtype=np.uint8)],
         )
         assert isinstance(lss_norm, list)
         assert isinstance(lss_norm[0], ia.LineStringsOnImage)
@@ -2811,17 +2669,14 @@ class TestNormalization(unittest.TestCase):
         assert len(observed[2]) == 1
 
         # list of array
-        observed = normalization.find_first_nonempty([
-            np.zeros((4, 4, 3)), np.zeros((5, 5, 3))])
+        observed = normalization.find_first_nonempty([np.zeros((4, 4, 3)), np.zeros((5, 5, 3))])
         assert ia.is_np_array(observed[0])
         assert observed[0].shape == (4, 4, 3)
         assert observed[1] is True
         assert len(observed[2]) == 1
 
         # list of list of array
-        observed = normalization.find_first_nonempty(
-            [[np.zeros((4, 4, 3))], [np.zeros((5, 5, 3))]]
-        )
+        observed = normalization.find_first_nonempty([[np.zeros((4, 4, 3))], [np.zeros((5, 5, 3))]])
         assert ia.is_np_array(observed[0])
         assert observed[0].shape == (4, 4, 3)
         assert observed[1] is True
@@ -2829,13 +2684,7 @@ class TestNormalization(unittest.TestCase):
 
         # list of tuple of array
         observed = normalization.find_first_nonempty(
-            [
-                (
-                    np.zeros((4, 4, 3)), np.zeros((5, 5, 3))
-                ), (
-                    np.zeros((6, 6, 3)), np.zeros((7, 7, 3))
-                )
-            ]
+            [(np.zeros((4, 4, 3)), np.zeros((5, 5, 3))), (np.zeros((6, 6, 3)), np.zeros((7, 7, 3)))]
         )
         assert ia.is_np_array(observed[0])
         assert observed[0].shape == (4, 4, 3)
@@ -2843,79 +2692,80 @@ class TestNormalization(unittest.TestCase):
         assert len(observed[2]) == 2
 
     def test__nonempty_info_to_type_str(self):
-        ntype = normalization._nonempty_info_to_type_str(
-            None, True, [])
+        ntype = normalization._nonempty_info_to_type_str(None, True, [])
         assert ntype == "None"
 
-        ntype = normalization._nonempty_info_to_type_str(
-            None, False, [])
+        ntype = normalization._nonempty_info_to_type_str(None, False, [])
         assert ntype == "iterable[empty]"
 
-        ntype = normalization._nonempty_info_to_type_str(
-            None, False, [[]])
+        ntype = normalization._nonempty_info_to_type_str(None, False, [[]])
         assert ntype == "iterable-iterable[empty]"
 
-        ntype = normalization._nonempty_info_to_type_str(
-            None, False, [[], []])
+        ntype = normalization._nonempty_info_to_type_str(None, False, [[], []])
         assert ntype == "iterable-iterable-iterable[empty]"
 
-        ntype = normalization._nonempty_info_to_type_str(
-            None, False, [tuple(), []])
+        ntype = normalization._nonempty_info_to_type_str(None, False, [tuple(), []])
         assert ntype == "iterable-iterable-iterable[empty]"
 
-        ntype = normalization._nonempty_info_to_type_str(
-            1, True, [tuple([1, 2])])
+        ntype = normalization._nonempty_info_to_type_str(1, True, [tuple([1, 2])])
         assert ntype == "tuple[number,size=2]"
 
-        ntype = normalization._nonempty_info_to_type_str(
-            1, True, [[], tuple([1, 2])])
+        ntype = normalization._nonempty_info_to_type_str(1, True, [[], tuple([1, 2])])
         assert ntype == "iterable-tuple[number,size=2]"
 
-        ntype = normalization._nonempty_info_to_type_str(
-            1, True, [tuple([1, 2, 3, 4])])
+        ntype = normalization._nonempty_info_to_type_str(1, True, [tuple([1, 2, 3, 4])])
         assert ntype == "tuple[number,size=4]"
 
-        ntype = normalization._nonempty_info_to_type_str(
-            1, True, [[], tuple([1, 2, 3, 4])])
+        ntype = normalization._nonempty_info_to_type_str(1, True, [[], tuple([1, 2, 3, 4])])
         assert ntype == "iterable-tuple[number,size=4]"
 
         with self.assertRaises(AssertionError):
-            ntype = normalization._nonempty_info_to_type_str(
-                1, True, [tuple([1, 2, 3])])
+            ntype = normalization._nonempty_info_to_type_str(1, True, [tuple([1, 2, 3])])
             assert ntype == "tuple[number,size=4]"
 
         ntype = normalization._nonempty_info_to_type_str(
-            np.zeros((4, 4, 3), dtype=np.uint8), True, [])
+            np.zeros((4, 4, 3), dtype=np.uint8), True, []
+        )
         assert ntype == "array[uint]"
 
         ntype = normalization._nonempty_info_to_type_str(
-            np.zeros((4, 4, 3), dtype=np.float32), True, [])
+            np.zeros((4, 4, 3), dtype=np.float32), True, []
+        )
         assert ntype == "array[float]"
 
         ntype = normalization._nonempty_info_to_type_str(
-            np.zeros((4, 4, 3), dtype=np.int32), True, [])
+            np.zeros((4, 4, 3), dtype=np.int32), True, []
+        )
         assert ntype == "array[int]"
 
-        ntype = normalization._nonempty_info_to_type_str(
-            np.zeros((4, 4, 3), dtype=bool), True, [])
+        ntype = normalization._nonempty_info_to_type_str(np.zeros((4, 4, 3), dtype=bool), True, [])
         assert ntype == "array[bool]"
 
         ntype = normalization._nonempty_info_to_type_str(
-            np.zeros((4, 4, 3), dtype=np.dtype("complex")), True, [])
+            np.zeros((4, 4, 3), dtype=np.dtype("complex")), True, []
+        )
         assert ntype == "array[c]"
 
         ntype = normalization._nonempty_info_to_type_str(
-            np.zeros((4, 4, 3), dtype=np.uint8), True, [[]])
+            np.zeros((4, 4, 3), dtype=np.uint8), True, [[]]
+        )
         assert ntype == "iterable-array[uint]"
 
         ntype = normalization._nonempty_info_to_type_str(
-            np.zeros((4, 4, 3), dtype=np.uint8), True, [[], []])
+            np.zeros((4, 4, 3), dtype=np.uint8), True, [[], []]
+        )
         assert ntype == "iterable-iterable-array[uint]"
 
-        cls_names = ["Keypoint", "KeypointsOnImage",
-                     "BoundingBox", "BoundingBoxesOnImage",
-                     "Polygon", "PolygonsOnImage",
-                     "HeatmapsOnImage", "SegmentationMapsOnImage"]
+        cls_names = [
+            "Keypoint",
+            "KeypointsOnImage",
+            "BoundingBox",
+            "BoundingBoxesOnImage",
+            "Polygon",
+            "PolygonsOnImage",
+            "HeatmapsOnImage",
+            "SegmentationMapsOnImage",
+        ]
         clss = [
             ia.Keypoint(x=1, y=1),
             ia.KeypointsOnImage([], shape=(1, 1, 3)),
@@ -2923,51 +2773,40 @@ class TestNormalization(unittest.TestCase):
             ia.BoundingBoxesOnImage([], shape=(1, 1, 3)),
             ia.Polygon([(1, 1), (1, 2), (2, 2)]),
             ia.PolygonsOnImage([], shape=(1,)),
-            ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32),
-                               shape=(1, 1, 3)),
-            ia.SegmentationMapsOnImage(np.zeros((1, 1, 1), dtype=np.int32),
-                                       shape=(1, 1, 3))
+            ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32), shape=(1, 1, 3)),
+            ia.SegmentationMapsOnImage(np.zeros((1, 1, 1), dtype=np.int32), shape=(1, 1, 3)),
         ]
         for cls_name, cls in zip(cls_names, clss):
-            ntype = normalization._nonempty_info_to_type_str(
-                cls, True, [])
+            ntype = normalization._nonempty_info_to_type_str(cls, True, [])
             assert ntype == cls_name
 
-            ntype = normalization._nonempty_info_to_type_str(
-                cls, True, [[]])
+            ntype = normalization._nonempty_info_to_type_str(cls, True, [[]])
             assert ntype == f"iterable-{cls_name}"
 
-            ntype = normalization._nonempty_info_to_type_str(
-                cls, True, [[], tuple()])
+            ntype = normalization._nonempty_info_to_type_str(cls, True, [[], tuple()])
             assert ntype == f"iterable-iterable-{cls_name}"
 
     def test_estimate_heatmaps_norm_type(self):
         ntype = normalization.estimate_heatmaps_norm_type(None)
         assert ntype == "None"
 
-        ntype = normalization.estimate_heatmaps_norm_type(
-            np.zeros((1, 1, 1, 1), dtype=np.float32))
+        ntype = normalization.estimate_heatmaps_norm_type(np.zeros((1, 1, 1, 1), dtype=np.float32))
         assert ntype == "array[float]"
 
         ntype = normalization.estimate_heatmaps_norm_type(
-            ia.HeatmapsOnImage(
-                np.zeros((1, 1, 1), dtype=np.float32),
-                shape=(1, 1, 1)
-            )
+            ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32), shape=(1, 1, 1))
         )
         assert ntype == "HeatmapsOnImage"
 
         ntype = normalization.estimate_heatmaps_norm_type([])
         assert ntype == "iterable[empty]"
 
-        ntype = normalization.estimate_heatmaps_norm_type(
-            [np.zeros((1, 1, 1), dtype=np.float32)])
+        ntype = normalization.estimate_heatmaps_norm_type([np.zeros((1, 1, 1), dtype=np.float32)])
         assert ntype == "iterable-array[float]"
 
-        ntype = normalization.estimate_heatmaps_norm_type([
-            ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32),
-                               shape=(1, 1, 1))
-        ])
+        ntype = normalization.estimate_heatmaps_norm_type(
+            [ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32), shape=(1, 1, 1))]
+        )
         assert ntype == "iterable-HeatmapsOnImage"
 
         # --
@@ -2980,8 +2819,7 @@ class TestNormalization(unittest.TestCase):
             _ntype = normalization.estimate_heatmaps_norm_type("foo")
 
         with self.assertRaises(AssertionError):
-            _ntype = normalization.estimate_heatmaps_norm_type(
-                np.zeros((1, 1, 1), dtype=np.int32))
+            _ntype = normalization.estimate_heatmaps_norm_type(np.zeros((1, 1, 1), dtype=np.int32))
 
         with self.assertRaises(AssertionError):
             _ntype = normalization.estimate_heatmaps_norm_type([1])
@@ -2989,47 +2827,40 @@ class TestNormalization(unittest.TestCase):
         # wrong class
         with self.assertRaises(AssertionError):
             _ntype = normalization.estimate_heatmaps_norm_type(
-                ia.KeypointsOnImage([], shape=(1, 1, 1)))
+                ia.KeypointsOnImage([], shape=(1, 1, 1))
+            )
 
         with self.assertRaises(AssertionError):
             _ntype = normalization.estimate_heatmaps_norm_type([[]])
 
         # list of list of Heatmaps, only list of Heatmaps is max
         with self.assertRaises(AssertionError):
-            _ntype = normalization.estimate_heatmaps_norm_type([
-                [ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32),
-                                    shape=(1, 1, 1))]
-            ])
+            _ntype = normalization.estimate_heatmaps_norm_type(
+                [[ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32), shape=(1, 1, 1))]]
+            )
 
     def test_estimate_segmaps_norm_type(self):
         ntype = normalization.estimate_segmaps_norm_type(None)
         assert ntype == "None"
 
-        for name, dt in zip(["int", "uint", "bool"],
-                            [np.int32, np.uint16, bool]):
-            ntype = normalization.estimate_segmaps_norm_type(
-                np.zeros((1, 1, 1, 1), dtype=dt))
+        for name, dt in zip(["int", "uint", "bool"], [np.int32, np.uint16, bool]):
+            ntype = normalization.estimate_segmaps_norm_type(np.zeros((1, 1, 1, 1), dtype=dt))
             assert ntype == f"array[{name}]"
 
         ntype = normalization.estimate_segmaps_norm_type(
-            ia.SegmentationMapsOnImage(
-                np.zeros((1, 1, 1), dtype=np.int32),
-                shape=(1, 1, 1)
-            )
+            ia.SegmentationMapsOnImage(np.zeros((1, 1, 1), dtype=np.int32), shape=(1, 1, 1))
         )
         assert ntype == "SegmentationMapsOnImage"
 
         ntype = normalization.estimate_segmaps_norm_type([])
         assert ntype == "iterable[empty]"
 
-        ntype = normalization.estimate_segmaps_norm_type(
-            [np.zeros((1, 1, 1), dtype=np.int32)])
+        ntype = normalization.estimate_segmaps_norm_type([np.zeros((1, 1, 1), dtype=np.int32)])
         assert ntype == "iterable-array[int]"
 
-        ntype = normalization.estimate_segmaps_norm_type([
-            ia.SegmentationMapsOnImage(np.zeros((1, 1, 1), dtype=np.int32),
-                                       shape=(1, 1, 1))
-        ])
+        ntype = normalization.estimate_segmaps_norm_type(
+            [ia.SegmentationMapsOnImage(np.zeros((1, 1, 1), dtype=np.int32), shape=(1, 1, 1))]
+        )
         assert ntype == "iterable-SegmentationMapsOnImage"
 
         # --
@@ -3047,58 +2878,59 @@ class TestNormalization(unittest.TestCase):
         # wrong class
         with self.assertRaises(AssertionError):
             _ntype = normalization.estimate_segmaps_norm_type(
-                ia.KeypointsOnImage([], shape=(1, 1, 1)))
+                ia.KeypointsOnImage([], shape=(1, 1, 1))
+            )
 
         with self.assertRaises(AssertionError):
             _ntype = normalization.estimate_segmaps_norm_type([[]])
 
         # list of list of SegMap, only list of SegMap is max
         with self.assertRaises(AssertionError):
-            _ntype = normalization.estimate_segmaps_norm_type([
-                [ia.SegmentationMapsOnImage(
-                    np.zeros((1, 1, 1, 1), dtype=np.int32),
-                    shape=(1, 1, 1))]
-            ])
+            _ntype = normalization.estimate_segmaps_norm_type(
+                [
+                    [
+                        ia.SegmentationMapsOnImage(
+                            np.zeros((1, 1, 1, 1), dtype=np.int32), shape=(1, 1, 1)
+                        )
+                    ]
+                ]
+            )
 
     def test_estimate_keypoints_norm_type(self):
         ntype = normalization.estimate_keypoints_norm_type(None)
         assert ntype == "None"
 
-        for name, dt in zip(["float", "int", "uint"],
-                            [np.float32, np.int32, np.uint16]):
-            ntype = normalization.estimate_keypoints_norm_type(
-                np.zeros((1, 5, 2), dtype=dt))
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+            ntype = normalization.estimate_keypoints_norm_type(np.zeros((1, 5, 2), dtype=dt))
             assert ntype == f"array[{name}]"
 
         ntype = normalization.estimate_keypoints_norm_type((1, 2))
         assert ntype == "tuple[number,size=2]"
 
-        ntype = normalization.estimate_keypoints_norm_type(
-            ia.Keypoint(x=1, y=2))
+        ntype = normalization.estimate_keypoints_norm_type(ia.Keypoint(x=1, y=2))
         assert ntype == "Keypoint"
 
         ntype = normalization.estimate_keypoints_norm_type(
-            ia.KeypointsOnImage([ia.Keypoint(x=1, y=2)], shape=(1, 1, 3)))
+            ia.KeypointsOnImage([ia.Keypoint(x=1, y=2)], shape=(1, 1, 3))
+        )
         assert ntype == "KeypointsOnImage"
 
         ntype = normalization.estimate_keypoints_norm_type([])
         assert ntype == "iterable[empty]"
 
-        for name, dt in zip(["float", "int", "uint"],
-                            [np.float32, np.int32, np.uint16]):
-            ntype = normalization.estimate_keypoints_norm_type(
-                [np.zeros((5, 2), dtype=dt)])
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+            ntype = normalization.estimate_keypoints_norm_type([np.zeros((5, 2), dtype=dt)])
             assert ntype == f"iterable-array[{name}]"
 
         ntype = normalization.estimate_keypoints_norm_type([(1, 2)])
         assert ntype == "iterable-tuple[number,size=2]"
 
-        ntype = normalization.estimate_keypoints_norm_type(
-            [ia.Keypoint(x=1, y=2)])
+        ntype = normalization.estimate_keypoints_norm_type([ia.Keypoint(x=1, y=2)])
         assert ntype == "iterable-Keypoint"
 
-        ntype = normalization.estimate_keypoints_norm_type([
-            ia.KeypointsOnImage([ia.Keypoint(x=1, y=2)], shape=(1, 1, 3))])
+        ntype = normalization.estimate_keypoints_norm_type(
+            [ia.KeypointsOnImage([ia.Keypoint(x=1, y=2)], shape=(1, 1, 3))]
+        )
         assert ntype == "iterable-KeypointsOnImage"
 
         ntype = normalization.estimate_keypoints_norm_type([[]])
@@ -3107,8 +2939,7 @@ class TestNormalization(unittest.TestCase):
         ntype = normalization.estimate_keypoints_norm_type([[(1, 2)]])
         assert ntype == "iterable-iterable-tuple[number,size=2]"
 
-        ntype = normalization.estimate_keypoints_norm_type(
-            [[ia.Keypoint(x=1, y=2)]])
+        ntype = normalization.estimate_keypoints_norm_type([[ia.Keypoint(x=1, y=2)]])
         assert ntype == "iterable-iterable-Keypoint"
 
         # --
@@ -3126,8 +2957,8 @@ class TestNormalization(unittest.TestCase):
         # wrong class
         with self.assertRaises(AssertionError):
             _ntype = normalization.estimate_keypoints_norm_type(
-                ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32),
-                                   shape=(1, 1, 1)))
+                ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32), shape=(1, 1, 1))
+            )
 
         with self.assertRaises(AssertionError):
             _ntype = normalization.estimate_keypoints_norm_type([[[]]])
@@ -3135,61 +2966,58 @@ class TestNormalization(unittest.TestCase):
         # list of list of list of keypoints,
         # only list of list of keypoints is max
         with self.assertRaises(AssertionError):
-            _ntype = normalization.estimate_keypoints_norm_type(
-                [[[ia.Keypoint(x=1, y=2)]]])
+            _ntype = normalization.estimate_keypoints_norm_type([[[ia.Keypoint(x=1, y=2)]]])
 
     def test_estimate_bounding_boxes_norm_type(self):
         ntype = normalization.estimate_bounding_boxes_norm_type(None)
         assert ntype == "None"
 
-        for name, dt in zip(["float", "int", "uint"],
-                            [np.float32, np.int32, np.uint16]):
-            ntype = normalization.estimate_bounding_boxes_norm_type(
-                np.zeros((1, 5, 4), dtype=dt))
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+            ntype = normalization.estimate_bounding_boxes_norm_type(np.zeros((1, 5, 4), dtype=dt))
             assert ntype == f"array[{name}]"
 
         ntype = normalization.estimate_bounding_boxes_norm_type((1, 2, 3, 4))
         assert ntype == "tuple[number,size=4]"
 
         ntype = normalization.estimate_bounding_boxes_norm_type(
-            ia.BoundingBox(x1=1, y1=2, x2=3, y2=4))
+            ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)
+        )
         assert ntype == "BoundingBox"
 
         ntype = normalization.estimate_bounding_boxes_norm_type(
-            ia.BoundingBoxesOnImage(
-                [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)], shape=(1, 1, 3)))
+            ia.BoundingBoxesOnImage([ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)], shape=(1, 1, 3))
+        )
         assert ntype == "BoundingBoxesOnImage"
 
         ntype = normalization.estimate_bounding_boxes_norm_type([])
         assert ntype == "iterable[empty]"
 
-        for name, dt in zip(["float", "int", "uint"],
-                            [np.float32, np.int32, np.uint16]):
-            ntype = normalization.estimate_bounding_boxes_norm_type(
-                [np.zeros((5, 4), dtype=dt)])
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+            ntype = normalization.estimate_bounding_boxes_norm_type([np.zeros((5, 4), dtype=dt)])
             assert ntype == f"iterable-array[{name}]"
 
         ntype = normalization.estimate_bounding_boxes_norm_type([(1, 2, 3, 4)])
         assert ntype == "iterable-tuple[number,size=4]"
 
-        ntype = normalization.estimate_bounding_boxes_norm_type([
-            ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)])
+        ntype = normalization.estimate_bounding_boxes_norm_type(
+            [ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)]
+        )
         assert ntype == "iterable-BoundingBox"
 
-        ntype = normalization.estimate_bounding_boxes_norm_type([
-            ia.BoundingBoxesOnImage([ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)],
-                                    shape=(1, 1, 3))])
+        ntype = normalization.estimate_bounding_boxes_norm_type(
+            [ia.BoundingBoxesOnImage([ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)], shape=(1, 1, 3))]
+        )
         assert ntype == "iterable-BoundingBoxesOnImage"
 
         ntype = normalization.estimate_bounding_boxes_norm_type([[]])
         assert ntype == "iterable-iterable[empty]"
 
-        ntype = normalization.estimate_bounding_boxes_norm_type(
-            [[(1, 2, 3, 4)]])
+        ntype = normalization.estimate_bounding_boxes_norm_type([[(1, 2, 3, 4)]])
         assert ntype == "iterable-iterable-tuple[number,size=4]"
 
         ntype = normalization.estimate_bounding_boxes_norm_type(
-            [[ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)]])
+            [[ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)]]
+        )
         assert ntype == "iterable-iterable-BoundingBox"
 
         # --
@@ -3207,9 +3035,7 @@ class TestNormalization(unittest.TestCase):
         # wrong class
         with self.assertRaises(AssertionError):
             _ntype = normalization.estimate_bounding_boxes_norm_type(
-                ia.HeatmapsOnImage(
-                    np.zeros((1, 1, 1), dtype=np.float32),
-                    shape=(1, 1, 1))
+                ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32), shape=(1, 1, 1))
             )
 
         with self.assertRaises(AssertionError):
@@ -3218,8 +3044,9 @@ class TestNormalization(unittest.TestCase):
         # list of list of list of bounding boxes,
         # only list of list of bounding boxes is max
         with self.assertRaises(AssertionError):
-            _ntype = normalization.estimate_bounding_boxes_norm_type([[[
-                ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)]]])
+            _ntype = normalization.estimate_bounding_boxes_norm_type(
+                [[[ia.BoundingBox(x1=1, y1=2, x2=3, y2=4)]]]
+            )
 
     def test_estimate_polygons_norm_type(self):
         points = [(0, 0), (10, 0), (10, 10)]
@@ -3227,32 +3054,23 @@ class TestNormalization(unittest.TestCase):
         ntype = normalization.estimate_polygons_norm_type(None)
         assert ntype == "None"
 
-        for name, dt in zip(["float", "int", "uint"],
-                            [np.float32, np.int32, np.uint16]):
-            ntype = normalization.estimate_polygons_norm_type(
-                np.zeros((1, 2, 5, 2), dtype=dt)
-            )
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+            ntype = normalization.estimate_polygons_norm_type(np.zeros((1, 2, 5, 2), dtype=dt))
             assert ntype == f"array[{name}]"
 
-        ntype = normalization.estimate_polygons_norm_type(
-            ia.Polygon(points)
-        )
+        ntype = normalization.estimate_polygons_norm_type(ia.Polygon(points))
         assert ntype == "Polygon"
 
         ntype = normalization.estimate_polygons_norm_type(
-            ia.PolygonsOnImage(
-                [ia.Polygon(points)], shape=(1, 1, 3))
+            ia.PolygonsOnImage([ia.Polygon(points)], shape=(1, 1, 3))
         )
         assert ntype == "PolygonsOnImage"
 
         ntype = normalization.estimate_polygons_norm_type([])
         assert ntype == "iterable[empty]"
 
-        for name, dt in zip(["float", "int", "uint"],
-                            [np.float32, np.int32, np.uint16]):
-            ntype = normalization.estimate_polygons_norm_type(
-                [np.zeros((5, 4), dtype=dt)]
-            )
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+            ntype = normalization.estimate_polygons_norm_type([np.zeros((5, 4), dtype=dt)])
             assert ntype == f"iterable-array[{name}]"
 
         ntype = normalization.estimate_polygons_norm_type(points)
@@ -3267,32 +3085,26 @@ class TestNormalization(unittest.TestCase):
         assert ntype == "iterable-Polygon"
 
         ntype = normalization.estimate_polygons_norm_type(
-            [ia.PolygonsOnImage([ia.Polygon(points)],
-                                shape=(1, 1, 3))]
+            [ia.PolygonsOnImage([ia.Polygon(points)], shape=(1, 1, 3))]
         )
         assert ntype == "iterable-PolygonsOnImage"
 
         ntype = normalization.estimate_polygons_norm_type([[]])
         assert ntype == "iterable-iterable[empty]"
 
-        for name, dt in zip(["float", "int", "uint"],
-                            [np.float32, np.int32, np.uint16]):
-            ntype = normalization.estimate_polygons_norm_type(
-                [[np.zeros((5, 4), dtype=dt)]]
-            )
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+            ntype = normalization.estimate_polygons_norm_type([[np.zeros((5, 4), dtype=dt)]])
             assert ntype == f"iterable-iterable-array[{name}]"
 
         ntype = normalization.estimate_polygons_norm_type([points])
         assert ntype == "iterable-iterable-tuple[number,size=2]"
 
-        ntype = normalization.estimate_polygons_norm_type([[
-            ia.Keypoint(x=x, y=y) for x, y in points
-        ]])
+        ntype = normalization.estimate_polygons_norm_type(
+            [[ia.Keypoint(x=x, y=y) for x, y in points]]
+        )
         assert ntype == "iterable-iterable-Keypoint"
 
-        ntype = normalization.estimate_polygons_norm_type(
-            [[ia.Polygon(points)]]
-        )
+        ntype = normalization.estimate_polygons_norm_type([[ia.Polygon(points)]])
         assert ntype == "iterable-iterable-Polygon"
 
         ntype = normalization.estimate_polygons_norm_type([[[]]])
@@ -3321,9 +3133,7 @@ class TestNormalization(unittest.TestCase):
         # wrong class
         with self.assertRaises(AssertionError):
             _ntype = normalization.estimate_polygons_norm_type(
-                ia.HeatmapsOnImage(
-                    np.zeros((1, 1, 1), dtype=np.float32),
-                    shape=(1, 1, 1))
+                ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32), shape=(1, 1, 1))
             )
 
         with self.assertRaises(AssertionError):
@@ -3332,42 +3142,31 @@ class TestNormalization(unittest.TestCase):
         # list of list of list of polygons,
         # only list of list of polygons is max
         with self.assertRaises(AssertionError):
-            _ntype = normalization.estimate_polygons_norm_type([[[
-                ia.Polygon(points)]]]
-            )
-    
+            _ntype = normalization.estimate_polygons_norm_type([[[ia.Polygon(points)]]])
+
     def test_estimate_line_strings_norm_type(self):
         points = [(0, 0), (10, 0), (10, 10)]
 
         ntype = normalization.estimate_line_strings_norm_type(None)
         assert ntype == "None"
 
-        for name, dt in zip(["float", "int", "uint"],
-                            [np.float32, np.int32, np.uint16]):
-            ntype = normalization.estimate_line_strings_norm_type(
-                np.zeros((1, 2, 5, 2), dtype=dt)
-            )
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+            ntype = normalization.estimate_line_strings_norm_type(np.zeros((1, 2, 5, 2), dtype=dt))
             assert ntype == f"array[{name}]"
 
-        ntype = normalization.estimate_line_strings_norm_type(
-            ia.LineString(points)
-        )
+        ntype = normalization.estimate_line_strings_norm_type(ia.LineString(points))
         assert ntype == "LineString"
 
         ntype = normalization.estimate_line_strings_norm_type(
-            ia.LineStringsOnImage(
-                [ia.LineString(points)], shape=(1, 1, 3))
+            ia.LineStringsOnImage([ia.LineString(points)], shape=(1, 1, 3))
         )
         assert ntype == "LineStringsOnImage"
 
         ntype = normalization.estimate_line_strings_norm_type([])
         assert ntype == "iterable[empty]"
 
-        for name, dt in zip(["float", "int", "uint"],
-                            [np.float32, np.int32, np.uint16]):
-            ntype = normalization.estimate_line_strings_norm_type(
-                [np.zeros((5, 4), dtype=dt)]
-            )
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+            ntype = normalization.estimate_line_strings_norm_type([np.zeros((5, 4), dtype=dt)])
             assert ntype == f"iterable-array[{name}]"
 
         ntype = normalization.estimate_line_strings_norm_type(points)
@@ -3378,37 +3177,30 @@ class TestNormalization(unittest.TestCase):
         )
         assert ntype == "iterable-Keypoint"
 
-        ntype = normalization.estimate_line_strings_norm_type(
-            [ia.LineString(points)])
+        ntype = normalization.estimate_line_strings_norm_type([ia.LineString(points)])
         assert ntype == "iterable-LineString"
 
         ntype = normalization.estimate_line_strings_norm_type(
-            [ia.LineStringsOnImage([ia.LineString(points)],
-                                   shape=(1, 1, 3))]
+            [ia.LineStringsOnImage([ia.LineString(points)], shape=(1, 1, 3))]
         )
         assert ntype == "iterable-LineStringsOnImage"
 
         ntype = normalization.estimate_line_strings_norm_type([[]])
         assert ntype == "iterable-iterable[empty]"
 
-        for name, dt in zip(["float", "int", "uint"],
-                            [np.float32, np.int32, np.uint16]):
-            ntype = normalization.estimate_line_strings_norm_type(
-                [[np.zeros((5, 4), dtype=dt)]]
-            )
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+            ntype = normalization.estimate_line_strings_norm_type([[np.zeros((5, 4), dtype=dt)]])
             assert ntype == f"iterable-iterable-array[{name}]"
 
         ntype = normalization.estimate_line_strings_norm_type([points])
         assert ntype == "iterable-iterable-tuple[number,size=2]"
 
-        ntype = normalization.estimate_line_strings_norm_type([[
-            ia.Keypoint(x=x, y=y) for x, y in points
-        ]])
+        ntype = normalization.estimate_line_strings_norm_type(
+            [[ia.Keypoint(x=x, y=y) for x, y in points]]
+        )
         assert ntype == "iterable-iterable-Keypoint"
 
-        ntype = normalization.estimate_line_strings_norm_type(
-            [[ia.LineString(points)]]
-        )
+        ntype = normalization.estimate_line_strings_norm_type([[ia.LineString(points)]])
         assert ntype == "iterable-iterable-LineString"
 
         ntype = normalization.estimate_line_strings_norm_type([[[]]])
@@ -3437,9 +3229,7 @@ class TestNormalization(unittest.TestCase):
         # wrong class
         with self.assertRaises(AssertionError):
             _ntype = normalization.estimate_line_strings_norm_type(
-                ia.HeatmapsOnImage(
-                    np.zeros((1, 1, 1), dtype=np.float32),
-                    shape=(1, 1, 1))
+                ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32), shape=(1, 1, 1))
             )
 
         with self.assertRaises(AssertionError):
@@ -3448,6 +3238,4 @@ class TestNormalization(unittest.TestCase):
         # list of list of list of LineStrings,
         # only list of list of LineStrings is max
         with self.assertRaises(AssertionError):
-            _ntype = normalization.estimate_line_strings_norm_type([[[
-                ia.LineString(points)]]]
-            )
+            _ntype = normalization.estimate_line_strings_norm_type([[[ia.LineString(points)]]])

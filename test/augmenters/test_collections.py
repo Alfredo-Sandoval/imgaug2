@@ -1,4 +1,3 @@
-
 import unittest
 from unittest import mock
 
@@ -21,11 +20,7 @@ class TestRandAugment(unittest.TestCase):
         mock_initial.return_value = []
 
         img = np.zeros((1, 1, 3), dtype=np.uint8)
-        expected = {
-            0: [0],
-            1: [1, 2, 4],
-            2: [1+1, 1+2, 1+4, 2+2, 2+4, 4+4]
-        }
+        expected = {0: [0], 1: [1, 2, 4], 2: [1 + 1, 1 + 2, 1 + 4, 2 + 2, 2 + 4, 4 + 4]}
 
         for n in [0, 1, 2]:
             with self.subTest(n=n):

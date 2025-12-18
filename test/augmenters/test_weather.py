@@ -1,4 +1,3 @@
-
 import unittest
 from unittest import mock
 
@@ -30,8 +29,8 @@ class TestFastSnowyLandscape(unittest.TestCase):
     def test___init__(self):
         # check parameters
         aug = iaa.FastSnowyLandscape(
-            lightness_threshold=[100, 200],
-            lightness_multiplier=[1.0, 4.0])
+            lightness_threshold=[100, 200], lightness_multiplier=[1.0, 4.0]
+        )
         assert is_parameter_instance(aug.lightness_threshold, iap.Choice)
         assert len(aug.lightness_threshold.a) == 2
         assert aug.lightness_threshold.a[0] == 100
@@ -44,12 +43,10 @@ class TestFastSnowyLandscape(unittest.TestCase):
 
     def test_basic_functionality(self):
         # basic functionality test
-        aug = iaa.FastSnowyLandscape(
-            lightness_threshold=100,
-            lightness_multiplier=2.0)
-        image = np.arange(0, 6*6*3).reshape((6, 6, 3)).astype(np.uint8)
+        aug = iaa.FastSnowyLandscape(lightness_threshold=100, lightness_multiplier=2.0)
+        image = np.arange(0, 6 * 6 * 3).reshape((6, 6, 3)).astype(np.uint8)
         image_hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
-        mask = (image_hls[..., 1] < 100)
+        mask = image_hls[..., 1] < 100
         expected = np.copy(image_hls).astype(np.float32)
         expected[..., 1][mask] *= 2.0
         expected = np.clip(np.round(expected), 0, 255).astype(np.uint8)
@@ -59,20 +56,20 @@ class TestFastSnowyLandscape(unittest.TestCase):
 
     def test_vary_lightness_threshold(self):
         # test when varying lightness_threshold between images
-        image = np.arange(0, 6*6*3).reshape((6, 6, 3)).astype(np.uint8)
+        image = np.arange(0, 6 * 6 * 3).reshape((6, 6, 3)).astype(np.uint8)
         image_hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
 
         aug = iaa.FastSnowyLandscape(
-            lightness_threshold=_TwoValueParam(75, 125),
-            lightness_multiplier=2.0)
+            lightness_threshold=_TwoValueParam(75, 125), lightness_multiplier=2.0
+        )
 
-        mask = (image_hls[..., 1] < 75)
+        mask = image_hls[..., 1] < 75
         expected1 = np.copy(image_hls).astype(np.float64)
         expected1[..., 1][mask] *= 2.0
         expected1 = np.clip(np.round(expected1), 0, 255).astype(np.uint8)
         expected1 = cv2.cvtColor(expected1, cv2.COLOR_HLS2RGB)
 
-        mask = (image_hls[..., 1] < 125)
+        mask = image_hls[..., 1] < 125
         expected2 = np.copy(image_hls).astype(np.float64)
         expected2[..., 1][mask] *= 2.0
         expected2 = np.clip(np.round(expected2), 0, 255).astype(np.uint8)
@@ -87,20 +84,20 @@ class TestFastSnowyLandscape(unittest.TestCase):
 
     def test_vary_lightness_multiplier(self):
         # test when varying lightness_multiplier between images
-        image = np.arange(0, 6*6*3).reshape((6, 6, 3)).astype(np.uint8)
+        image = np.arange(0, 6 * 6 * 3).reshape((6, 6, 3)).astype(np.uint8)
         image_hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
 
         aug = iaa.FastSnowyLandscape(
-            lightness_threshold=100,
-            lightness_multiplier=_TwoValueParam(1.5, 2.0))
+            lightness_threshold=100, lightness_multiplier=_TwoValueParam(1.5, 2.0)
+        )
 
-        mask = (image_hls[..., 1] < 100)
+        mask = image_hls[..., 1] < 100
         expected1 = np.copy(image_hls).astype(np.float64)
         expected1[..., 1][mask] *= 1.5
         expected1 = np.clip(np.round(expected1), 0, 255).astype(np.uint8)
         expected1 = cv2.cvtColor(expected1, cv2.COLOR_HLS2RGB)
 
-        mask = (image_hls[..., 1] < 100)
+        mask = image_hls[..., 1] < 100
         expected2 = np.copy(image_hls).astype(np.float64)
         expected2[..., 1][mask] *= 2.0
         expected2 = np.clip(np.round(expected2), 0, 255).astype(np.uint8)
@@ -116,12 +113,11 @@ class TestFastSnowyLandscape(unittest.TestCase):
     def test_from_colorspace(self):
         # test BGR colorspace
         aug = iaa.FastSnowyLandscape(
-            lightness_threshold=100,
-            lightness_multiplier=2.0,
-            from_colorspace="BGR")
-        image = np.arange(0, 6*6*3).reshape((6, 6, 3)).astype(np.uint8)
+            lightness_threshold=100, lightness_multiplier=2.0, from_colorspace="BGR"
+        )
+        image = np.arange(0, 6 * 6 * 3).reshape((6, 6, 3)).astype(np.uint8)
         image_hls = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)
-        mask = (image_hls[..., 1] < 100)
+        mask = image_hls[..., 1] < 100
         expected = np.copy(image_hls).astype(np.float32)
         expected[..., 1][mask] *= 2.0
         expected = np.clip(np.round(expected), 0, 255).astype(np.uint8)
@@ -130,17 +126,12 @@ class TestFastSnowyLandscape(unittest.TestCase):
         assert np.array_equal(observed, expected)
 
     def test_zero_sized_axes(self):
-        shapes = [
-            (0, 0, 3),
-            (0, 1, 3),
-            (1, 0, 3)
-        ]
+        shapes = [(0, 0, 3), (0, 1, 3), (1, 0, 3)]
 
         for shape in shapes:
             with self.subTest(shape=shape):
                 image = np.zeros(shape, dtype=np.uint8)
-                aug = iaa.FastSnowyLandscape(100, 1.5,
-                                             from_colorspace="RGB")
+                aug = iaa.FastSnowyLandscape(100, 1.5, from_colorspace="RGB")
 
                 image_aug = aug(image=image)
 
@@ -148,9 +139,9 @@ class TestFastSnowyLandscape(unittest.TestCase):
                 assert image_aug.shape == shape
 
     def test_pickleable(self):
-        aug = iaa.FastSnowyLandscape(lightness_threshold=(50, 150),
-                                     lightness_multiplier=(1.0, 3.0),
-                                     seed=1)
+        aug = iaa.FastSnowyLandscape(
+            lightness_threshold=(50, 150), lightness_multiplier=(1.0, 3.0), seed=1
+        )
         runtest_pickleable_uint8_img(aug)
 
 
@@ -189,15 +180,7 @@ class TestClouds(unittest.TestCase):
         self._test_very_roughly(None)
 
     def test_zero_sized_axes(self):
-        shapes = [
-            (0, 0),
-            (0, 1),
-            (1, 0),
-            (0, 1, 0),
-            (1, 0, 0),
-            (0, 1, 1),
-            (1, 0, 1)
-        ]
+        shapes = [(0, 0), (0, 1), (1, 0), (0, 1, 0), (1, 0, 0), (0, 1, 1), (1, 0, 1)]
 
         for shape in shapes:
             with self.subTest(shape=shape):
@@ -210,12 +193,7 @@ class TestClouds(unittest.TestCase):
                 assert image_aug.shape == shape
 
     def test_unusual_channel_numbers(self):
-        shapes = [
-            (1, 1, 4),
-            (1, 1, 5),
-            (1, 1, 512),
-            (1, 1, 513)
-        ]
+        shapes = [(1, 1, 4), (1, 1, 5), (1, 1, 512), (1, 1, 513)]
 
         for shape in shapes:
             with self.subTest(shape=shape):
@@ -268,15 +246,7 @@ class TestFog(unittest.TestCase):
         self._test_very_roughly(None)
 
     def test_zero_sized_axes(self):
-        shapes = [
-            (0, 0),
-            (0, 1),
-            (1, 0),
-            (0, 1, 0),
-            (1, 0, 0),
-            (0, 1, 1),
-            (1, 0, 1)
-        ]
+        shapes = [(0, 0), (0, 1), (1, 0), (0, 1, 0), (1, 0, 0), (0, 1, 1), (1, 0, 1)]
 
         for shape in shapes:
             with self.subTest(shape=shape):
@@ -289,12 +259,7 @@ class TestFog(unittest.TestCase):
                 assert image_aug.shape == shape
 
     def test_unusual_channel_numbers(self):
-        shapes = [
-            (1, 1, 4),
-            (1, 1, 5),
-            (1, 1, 512),
-            (1, 1, 513)
-        ]
+        shapes = [(1, 1, 4), (1, 1, 5), (1, 1, 512), (1, 1, 513)]
 
         for shape in shapes:
             with self.subTest(shape=shape):
@@ -338,31 +303,28 @@ class TestSnowflakes(unittest.TestCase):
             assert np.sum(np.abs(grad_y)) > 5 * img.shape[0]
 
         # test density
-        imgs_aug_undense = iaa.Snowflakes(
-            density=0.001,
-            density_uniformity=0.99).augment_images([img] * 5)
-        imgs_aug_dense = iaa.Snowflakes(
-            density=0.1,
-            density_uniformity=0.99).augment_images([img] * 5)
-        assert (
-            np.average(imgs_aug_undense)
-            < np.average(imgs_aug_dense)
+        imgs_aug_undense = iaa.Snowflakes(density=0.001, density_uniformity=0.99).augment_images(
+            [img] * 5
         )
+        imgs_aug_dense = iaa.Snowflakes(density=0.1, density_uniformity=0.99).augment_images(
+            [img] * 5
+        )
+        assert np.average(imgs_aug_undense) < np.average(imgs_aug_dense)
 
         # test density_uniformity
-        imgs_aug_ununiform = iaa.Snowflakes(
-            density=0.4,
-            density_uniformity=0.1).augment_images([img] * 30)
-        imgs_aug_uniform = iaa.Snowflakes(
-            density=0.4,
-            density_uniformity=0.9).augment_images([img] * 30)
+        imgs_aug_ununiform = iaa.Snowflakes(density=0.4, density_uniformity=0.1).augment_images(
+            [img] * 30
+        )
+        imgs_aug_uniform = iaa.Snowflakes(density=0.4, density_uniformity=0.9).augment_images(
+            [img] * 30
+        )
 
-        ununiform_uniformity = np.average([
-            self._measure_uniformity(img_aug)
-            for img_aug in imgs_aug_ununiform])
-        uniform_uniformity = np.average([
-            self._measure_uniformity(img_aug)
-            for img_aug in imgs_aug_uniform])
+        ununiform_uniformity = np.average(
+            [self._measure_uniformity(img_aug) for img_aug in imgs_aug_ununiform]
+        )
+        uniform_uniformity = np.average(
+            [self._measure_uniformity(img_aug) for img_aug in imgs_aug_uniform]
+        )
 
         assert ununiform_uniformity < uniform_uniformity
 
@@ -376,11 +338,7 @@ class TestSnowflakes(unittest.TestCase):
         self._test_very_roughly(None)
 
     def test_zero_sized_axes(self):
-        shapes = [
-            (0, 0, 3),
-            (0, 1, 3),
-            (1, 0, 3)
-        ]
+        shapes = [(0, 0, 3), (0, 1, 3), (1, 0, 3)]
 
         for shape in shapes:
             with self.subTest(shape=shape):
@@ -398,7 +356,7 @@ class TestSnowflakes(unittest.TestCase):
 
     @classmethod
     def _measure_uniformity(cls, image, patch_size=5, n_patches=50):
-        pshalf = (patch_size-1) // 2
+        pshalf = (patch_size - 1) // 2
         image_f32 = image.astype(np.float32)
         grad_x = image_f32[:, 1:] - image_f32[:, :-1]
         grad_y = image_f32[1:, :] - image_f32[:-1, :]
@@ -407,14 +365,10 @@ class TestSnowflakes(unittest.TestCase):
         points_x = np.random.randint(0, image.shape[0], size=(n_patches,))
         stds = []
         for y, x in zip(points_y, points_x):
-            bb = ia.BoundingBox(
-                x1=x-pshalf,
-                y1=y-pshalf,
-                x2=x+pshalf,
-                y2=y+pshalf)
+            bb = ia.BoundingBox(x1=x - pshalf, y1=y - pshalf, x2=x + pshalf, y2=y + pshalf)
             patch = bb.extract_from_image(grad)
             stds.append(np.std(patch))
-        return 1 / (1+np.std(stds))
+        return 1 / (1 + np.std(stds))
 
 
 class TestSnowflakesLayer(unittest.TestCase):
@@ -427,14 +381,14 @@ class TestSnowflakesLayer(unittest.TestCase):
         # snowflakes_size lead to more downscaling. Hence, values close to 1.0
         # incur risk that the image is downscaled to (0, 0) or similar values.
         aug = iaa.SnowflakesLayer(
-                density=0.95,
-                density_uniformity=0.5,
-                flake_size=1.0,
-                flake_size_uniformity=0.5,
-                angle=0.0,
-                speed=0.5,
-                blur_sigma_fraction=0.001
-            )
+            density=0.95,
+            density_uniformity=0.5,
+            flake_size=1.0,
+            flake_size_uniformity=0.5,
+            angle=0.0,
+            speed=0.5,
+            blur_sigma_fraction=0.001,
+        )
 
         nb_seen = 0
         for _ in np.arange(50):
@@ -484,11 +438,7 @@ class TestRain(unittest.TestCase):
         self._test_very_roughly(None)
 
     def test_zero_sized_axes(self):
-        shapes = [
-            (0, 0, 3),
-            (0, 1, 3),
-            (1, 0, 3)
-        ]
+        shapes = [(0, 0, 3), (0, 1, 3), (1, 0, 3)]
 
         for shape in shapes:
             with self.subTest(shape=shape):

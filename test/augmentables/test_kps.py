@@ -1,4 +1,3 @@
-
 import unittest
 from unittest import mock
 
@@ -205,8 +204,8 @@ class TestKeypoint(unittest.TestCase):
         kp = ia.Keypoint(x=0, y=0)
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
         image_kp = kp.draw_on_image(
-            image, color=(0, 255, 0), alpha=1, size=1, copy=True,
-            raise_if_out_of_image=False)
+            image, color=(0, 255, 0), alpha=1, size=1, copy=True, raise_if_out_of_image=False
+        )
         assert np.all(image_kp[0, 0, :] == [0, 255, 0])
         assert np.all(image_kp[1:, :, :] == 10)
         assert np.all(image_kp[:, 1:, :] == 10)
@@ -215,8 +214,8 @@ class TestKeypoint(unittest.TestCase):
         kp = ia.Keypoint(x=4, y=4)
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
         image_kp = kp.draw_on_image(
-            image, color=(0, 255, 0), alpha=1, size=1, copy=True,
-            raise_if_out_of_image=False)
+            image, color=(0, 255, 0), alpha=1, size=1, copy=True, raise_if_out_of_image=False
+        )
         assert np.all(image_kp[4, 4, :] == [0, 255, 0])
         assert np.all(image_kp[:4, :, :] == 10)
         assert np.all(image_kp[:, :4, :] == 10)
@@ -225,8 +224,8 @@ class TestKeypoint(unittest.TestCase):
         kp = ia.Keypoint(x=0, y=0)
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
         image_kp = kp.draw_on_image(
-            image, color=(0, 255, 0), alpha=1, size=5, copy=True,
-            raise_if_out_of_image=False)
+            image, color=(0, 255, 0), alpha=1, size=5, copy=True, raise_if_out_of_image=False
+        )
         assert np.all(image_kp[:3, :3, :] == [0, 255, 0])
         assert np.all(image_kp[3:, :, :] == 10)
         assert np.all(image_kp[:, 3:, :] == 10)
@@ -235,8 +234,8 @@ class TestKeypoint(unittest.TestCase):
         kp = ia.Keypoint(x=0, y=0)
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
         image_kp = kp.draw_on_image(
-            image, color=(0, 200, 0), alpha=0.5, size=1, copy=True,
-            raise_if_out_of_image=False)
+            image, color=(0, 200, 0), alpha=0.5, size=1, copy=True, raise_if_out_of_image=False
+        )
         assert np.all(image_kp[0, 0, :] == [0 + 5, 100 + 5, 0 + 5])
         assert np.all(image_kp[1:, :, :] == 10)
         assert np.all(image_kp[:, 1:, :] == 10)
@@ -245,8 +244,8 @@ class TestKeypoint(unittest.TestCase):
         kp = ia.Keypoint(x=4, y=4)
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
         image_kp = kp.draw_on_image(
-            image, color=(0, 255, 0), alpha=1, size=5, copy=True,
-            raise_if_out_of_image=False)
+            image, color=(0, 255, 0), alpha=1, size=5, copy=True, raise_if_out_of_image=False
+        )
         assert np.all(image_kp[2:, 2:, :] == [0, 255, 0])
         assert np.all(image_kp[:2, :, :] == 10)
         assert np.all(image_kp[:, :2, :] == 10)
@@ -255,8 +254,8 @@ class TestKeypoint(unittest.TestCase):
         kp = ia.Keypoint(x=5, y=5)
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
         image_kp = kp.draw_on_image(
-            image, color=(0, 255, 0), alpha=1, size=5, copy=True,
-            raise_if_out_of_image=False)
+            image, color=(0, 255, 0), alpha=1, size=5, copy=True, raise_if_out_of_image=False
+        )
         assert np.all(image_kp[3:, 3:, :] == [0, 255, 0])
         assert np.all(image_kp[:3, :, :] == 10)
         assert np.all(image_kp[:, :3, :] == 10)
@@ -265,51 +264,44 @@ class TestKeypoint(unittest.TestCase):
         kp = ia.Keypoint(x=-1, y=-1)
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
         image_kp = kp.draw_on_image(
-            image, color=(0, 255, 0), alpha=1, size=5, copy=True,
-            raise_if_out_of_image=False)
+            image, color=(0, 255, 0), alpha=1, size=5, copy=True, raise_if_out_of_image=False
+        )
         assert np.all(image_kp[:2, :2, :] == [0, 255, 0])
         assert np.all(image_kp[2:, :, :] == 10)
         assert np.all(image_kp[:, 2:, :] == 10)
 
     def test_generate_similar_points_manhattan_0_steps_list(self):
         kp = ia.Keypoint(y=4, x=5)
-        kps_manhatten = kp.generate_similar_points_manhattan(
-            0, 1.0, return_array=False)
+        kps_manhatten = kp.generate_similar_points_manhattan(0, 1.0, return_array=False)
         assert len(kps_manhatten) == 1
         assert kps_manhatten[0].y == 4
         assert kps_manhatten[0].x == 5
 
     def test_generate_similar_points_manhattan_1_step_list(self):
         kp = ia.Keypoint(y=4, x=5)
-        kps_manhatten = kp.generate_similar_points_manhattan(
-            1, 1.0, return_array=False)
+        kps_manhatten = kp.generate_similar_points_manhattan(1, 1.0, return_array=False)
         assert len(kps_manhatten) == 5
         expected = [(4, 5), (3, 5), (4, 6), (5, 5), (4, 4)]
         for y, x in expected:
-            assert any([
-                np.allclose(
-                    [y, x],
-                    [kp_manhatten.y, kp_manhatten.x]
-                )
-                for kp_manhatten
-                in kps_manhatten
-            ])
+            assert any(
+                [
+                    np.allclose([y, x], [kp_manhatten.y, kp_manhatten.x])
+                    for kp_manhatten in kps_manhatten
+                ]
+            )
 
     def test_generate_similar_points_manhattan_1_step_array(self):
         kp = ia.Keypoint(y=4, x=5)
-        kps_manhatten = kp.generate_similar_points_manhattan(
-            1, 1.0, return_array=True)
+        kps_manhatten = kp.generate_similar_points_manhattan(1, 1.0, return_array=True)
         assert kps_manhatten.shape == (5, 2)
         expected = [(4, 5), (3, 5), (4, 6), (5, 5), (4, 4)]
         for y, x in expected:
-            assert any([
-                np.allclose(
-                    [y, x],
-                    [kp_manhatten_y, kp_manhatten_x]
-                )
-                for kp_manhatten_x, kp_manhatten_y
-                in kps_manhatten
-            ])
+            assert any(
+                [
+                    np.allclose([y, x], [kp_manhatten_y, kp_manhatten_x])
+                    for kp_manhatten_x, kp_manhatten_y in kps_manhatten
+                ]
+            )
 
     def test_coords_almost_equals(self):
         kp1 = ia.Keypoint(x=1, y=1.5)
@@ -321,7 +313,7 @@ class TestKeypoint(unittest.TestCase):
 
     def test_coords_almost_equals__unequal(self):
         kp1 = ia.Keypoint(x=1, y=1.5)
-        kp2 = ia.Keypoint(x=1, y=1.5+10.0)
+        kp2 = ia.Keypoint(x=1, y=1.5 + 10.0)
 
         equal = kp1.coords_almost_equals(kp2)
 
@@ -329,7 +321,7 @@ class TestKeypoint(unittest.TestCase):
 
     def test_coords_almost_equals__distance_below_threshold(self):
         kp1 = ia.Keypoint(x=1, y=1.5)
-        kp2 = ia.Keypoint(x=1, y=1.5+1e-2)
+        kp2 = ia.Keypoint(x=1, y=1.5 + 1e-2)
 
         equal = kp1.coords_almost_equals(kp2, max_distance=1e-1)
 
@@ -337,7 +329,7 @@ class TestKeypoint(unittest.TestCase):
 
     def test_coords_almost_equals__distance_exceeds_threshold(self):
         kp1 = ia.Keypoint(x=1, y=1.5)
-        kp2 = ia.Keypoint(x=1, y=1.5+1e-2)
+        kp2 = ia.Keypoint(x=1, y=1.5 + 1e-2)
 
         equal = kp1.coords_almost_equals(kp2, max_distance=1e-3)
 
@@ -353,7 +345,7 @@ class TestKeypoint(unittest.TestCase):
 
     def test_coords_almost_equals__array_unequal(self):
         kp1 = ia.Keypoint(x=1, y=1.5)
-        kp2 = np.float32([1, 1.5+1.0])
+        kp2 = np.float32([1, 1.5 + 1.0])
 
         equal = kp1.coords_almost_equals(kp2)
 
@@ -369,7 +361,7 @@ class TestKeypoint(unittest.TestCase):
 
     def test_coords_almost_equals__tuple_unequal(self):
         kp1 = ia.Keypoint(x=1, y=1.5)
-        kp2 = (1, 1.5+1.0)
+        kp2 = (1, 1.5 + 1.0)
 
         equal = kp1.coords_almost_equals(kp2)
 
@@ -388,19 +380,11 @@ class TestKeypoint(unittest.TestCase):
 
     def test_string_conversion_ints(self):
         kp = ia.Keypoint(y=1, x=2)
-        assert (
-            kp.__repr__()
-            == kp.__str__()
-            == "Keypoint(x=2.00000000, y=1.00000000)"
-        )
+        assert kp.__repr__() == kp.__str__() == "Keypoint(x=2.00000000, y=1.00000000)"
 
     def test_string_conversion_floats(self):
         kp = ia.Keypoint(y=1.2, x=2.7)
-        assert (
-            kp.__repr__()
-            == kp.__str__()
-            == "Keypoint(x=2.70000000, y=1.20000000)"
-        )
+        assert kp.__repr__() == kp.__str__() == "Keypoint(x=2.70000000, y=1.20000000)"
 
 
 class TestKeypointsOnImage_items_setter(unittest.TestCase):
@@ -408,11 +392,9 @@ class TestKeypointsOnImage_items_setter(unittest.TestCase):
         kps = [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)]
         kpsoi = ia.KeypointsOnImage(keypoints=[], shape=(10, 20, 3))
         kpsoi.items = kps
-        assert np.all([
-            kp_i.x == kp_j.x and kp_i.y == kp_j.y
-            for kp_i, kp_j
-            in zip(kpsoi.keypoints, kps)
-        ])
+        assert np.all(
+            [kp_i.x == kp_j.x and kp_i.y == kp_j.y for kp_i, kp_j in zip(kpsoi.keypoints, kps)]
+        )
 
 
 class TestKeypointsOnImage_on_(unittest.TestCase):
@@ -429,11 +411,12 @@ class TestKeypointsOnImage_on_(unittest.TestCase):
 
         kpi2 = self._func(kpi, (10, 20, 3))
 
-        assert np.all([
-            kp_i.x == kp_j.x and kp_i.y == kp_j.y
-            for kp_i, kp_j
-            in zip(kpi.keypoints, kpi2.keypoints)
-        ])
+        assert np.all(
+            [
+                kp_i.x == kp_j.x and kp_i.y == kp_j.y
+                for kp_i, kp_j in zip(kpi.keypoints, kpi2.keypoints)
+            ]
+        )
         assert kpi2.shape == (10, 20, 3)
 
     def test_wider_image(self):
@@ -604,10 +587,7 @@ class TestKeypointsOnImage(unittest.TestCase):
         image = np.zeros((10, 20, 3), dtype=np.uint8)
         kps = [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)]
         with assertWarns(self, ia.DeprecationWarning):
-            kpi = ia.KeypointsOnImage(
-                keypoints=kps,
-                shape=image
-            )
+            kpi = ia.KeypointsOnImage(keypoints=kps, shape=image)
         assert kpi.shape == (10, 20, 3)
 
     def test_draw_on_image(self):
@@ -615,13 +595,13 @@ class TestKeypointsOnImage(unittest.TestCase):
         kpi = ia.KeypointsOnImage(keypoints=kps, shape=(5, 5, 3))
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
 
-        kps_mask = np.zeros(image.shape[0:2], dtype=np.bool)
+        kps_mask = np.zeros(image.shape[0:2], dtype=bool)
         kps_mask[2, 1] = 1
         kps_mask[4, 3] = 1
 
         image_kps = kpi.draw_on_image(
-            image, color=[0, 255, 0], size=1, copy=True,
-            raise_if_out_of_image=False)
+            image, color=[0, 255, 0], size=1, copy=True, raise_if_out_of_image=False
+        )
 
         assert np.all(image_kps[kps_mask] == [0, 255, 0])
         assert np.all(image_kps[~kps_mask] == [10, 10, 10])
@@ -631,17 +611,15 @@ class TestKeypointsOnImage(unittest.TestCase):
         kpi = ia.KeypointsOnImage(keypoints=kps, shape=(5, 5, 3))
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
 
-        kps_mask = np.zeros(image.shape[0:2], dtype=np.bool)
+        kps_mask = np.zeros(image.shape[0:2], dtype=bool)
         kps_mask[2, 1] = 1
         kps_mask[4, 3] = 1
 
         image_kps = kpi.draw_on_image(
-            image, color=[0, 255, 0], alpha=0.5, size=1, copy=True,
-            raise_if_out_of_image=False)
+            image, color=[0, 255, 0], alpha=0.5, size=1, copy=True, raise_if_out_of_image=False
+        )
 
-        bg_plus_color_at_alpha = [int(0.5*10+0),
-                                  int(0.5*10+0.5*255),
-                                  int(10*0.5+0)]
+        bg_plus_color_at_alpha = [int(0.5 * 10 + 0), int(0.5 * 10 + 0.5 * 255), int(10 * 0.5 + 0)]
         assert np.all(image_kps[kps_mask] == bg_plus_color_at_alpha)
         assert np.all(image_kps[~kps_mask] == [10, 10, 10])
 
@@ -650,16 +628,16 @@ class TestKeypointsOnImage(unittest.TestCase):
         kpi = ia.KeypointsOnImage(keypoints=kps, shape=(5, 5, 3))
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
 
-        kps_mask = np.zeros(image.shape[0:2], dtype=np.bool)
+        kps_mask = np.zeros(image.shape[0:2], dtype=bool)
         kps_mask[2, 1] = 1
         kps_mask[4, 3] = 1
 
         image_kps = kpi.draw_on_image(
-            image, color=[0, 255, 0], size=3, copy=True,
-            raise_if_out_of_image=False)
+            image, color=[0, 255, 0], size=3, copy=True, raise_if_out_of_image=False
+        )
         kps_mask_size3 = np.copy(kps_mask)
-        kps_mask_size3[2-1:2+1+1, 1-1:1+1+1] = 1
-        kps_mask_size3[4-1:4+1+1, 3-1:3+1+1] = 1
+        kps_mask_size3[2 - 1 : 2 + 1 + 1, 1 - 1 : 1 + 1 + 1] = 1
+        kps_mask_size3[4 - 1 : 4 + 1 + 1, 3 - 1 : 3 + 1 + 1] = 1
 
         assert np.all(image_kps[kps_mask_size3] == [0, 255, 0])
         assert np.all(image_kps[~kps_mask_size3] == [10, 10, 10])
@@ -669,13 +647,13 @@ class TestKeypointsOnImage(unittest.TestCase):
         kpi = ia.KeypointsOnImage(keypoints=kps, shape=(5, 5, 3))
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
 
-        kps_mask = np.zeros(image.shape[0:2], dtype=np.bool)
+        kps_mask = np.zeros(image.shape[0:2], dtype=bool)
         kps_mask[2, 1] = 1
         kps_mask[4, 3] = 1
 
         image_kps = kpi.draw_on_image(
-            image, color=[0, 0, 255], size=1, copy=True,
-            raise_if_out_of_image=False)
+            image, color=[0, 0, 255], size=1, copy=True, raise_if_out_of_image=False
+        )
 
         assert np.all(image_kps[kps_mask] == [0, 0, 255])
         assert np.all(image_kps[~kps_mask] == [10, 10, 10])
@@ -685,13 +663,13 @@ class TestKeypointsOnImage(unittest.TestCase):
         kpi = ia.KeypointsOnImage(keypoints=kps, shape=(5, 5, 3))
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
 
-        kps_mask = np.zeros(image.shape[0:2], dtype=np.bool)
+        kps_mask = np.zeros(image.shape[0:2], dtype=bool)
         kps_mask[2, 1] = 1
         kps_mask[4, 3] = 1
 
         image_kps = kpi.draw_on_image(
-            image, color=255, size=1, copy=True,
-            raise_if_out_of_image=False)
+            image, color=255, size=1, copy=True, raise_if_out_of_image=False
+        )
 
         assert np.all(image_kps[kps_mask] == [255, 255, 255])
         assert np.all(image_kps[~kps_mask] == [10, 10, 10])
@@ -701,14 +679,14 @@ class TestKeypointsOnImage(unittest.TestCase):
         kpi = ia.KeypointsOnImage(keypoints=kps, shape=(5, 5, 3))
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
 
-        kps_mask = np.zeros(image.shape[0:2], dtype=np.bool)
+        kps_mask = np.zeros(image.shape[0:2], dtype=bool)
         kps_mask[2, 1] = 1
         kps_mask[4, 3] = 1
 
         image2 = np.copy(image)
         image_kps = kpi.draw_on_image(
-            image2, color=[0, 255, 0], size=1, copy=False,
-            raise_if_out_of_image=False)
+            image2, color=[0, 255, 0], size=1, copy=False, raise_if_out_of_image=False
+        )
 
         assert np.all(image2 == image_kps)
         assert np.all(image_kps[kps_mask] == [0, 255, 0])
@@ -718,71 +696,61 @@ class TestKeypointsOnImage(unittest.TestCase):
 
     def test_draw_on_image_keypoint_is_outside_of_image(self):
         kps = [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)]
-        kpi = ia.KeypointsOnImage(
-            keypoints=kps + [ia.Keypoint(x=100, y=100)],
-            shape=(5, 5, 3)
-        )
+        kpi = ia.KeypointsOnImage(keypoints=kps + [ia.Keypoint(x=100, y=100)], shape=(5, 5, 3))
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
 
-        kps_mask = np.zeros(image.shape[0:2], dtype=np.bool)
+        kps_mask = np.zeros(image.shape[0:2], dtype=bool)
         kps_mask[2, 1] = 1
         kps_mask[4, 3] = 1
 
         image_kps = kpi.draw_on_image(
-            image, color=[0, 255, 0], size=1, copy=True,
-            raise_if_out_of_image=False)
+            image, color=[0, 255, 0], size=1, copy=True, raise_if_out_of_image=False
+        )
 
         assert np.all(image_kps[kps_mask] == [0, 255, 0])
         assert np.all(image_kps[~kps_mask] == [10, 10, 10])
 
     def test_draw_on_image_keypoint_is_outside_of_image_and_raise_true(self):
         kps = [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)]
-        kpi = ia.KeypointsOnImage(
-            keypoints=kps + [ia.Keypoint(x=100, y=100)],
-            shape=(5, 5, 3)
-        )
+        kpi = ia.KeypointsOnImage(keypoints=kps + [ia.Keypoint(x=100, y=100)], shape=(5, 5, 3))
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
 
         with self.assertRaises(Exception) as context:
             _ = kpi.draw_on_image(
-                image, color=[0, 255, 0], size=1, copy=True,
-                raise_if_out_of_image=True)
+                image, color=[0, 255, 0], size=1, copy=True, raise_if_out_of_image=True
+            )
 
         assert "Cannot draw keypoint" in str(context.exception)
 
     def test_draw_on_image_one_kp_at_bottom_right_corner(self):
         kps = [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)]
-        kpi = ia.KeypointsOnImage(
-            keypoints=kps + [ia.Keypoint(x=5, y=5)],
-            shape=(5, 5, 3))
+        kpi = ia.KeypointsOnImage(keypoints=kps + [ia.Keypoint(x=5, y=5)], shape=(5, 5, 3))
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
 
-        kps_mask = np.zeros(image.shape[0:2], dtype=np.bool)
+        kps_mask = np.zeros(image.shape[0:2], dtype=bool)
         kps_mask[2, 1] = 1
         kps_mask[4, 3] = 1
 
         image_kps = kpi.draw_on_image(
-            image, color=[0, 255, 0], size=1, copy=True,
-            raise_if_out_of_image=False)
+            image, color=[0, 255, 0], size=1, copy=True, raise_if_out_of_image=False
+        )
 
         assert np.all(image_kps[kps_mask] == [0, 255, 0])
         assert np.all(image_kps[~kps_mask] == [10, 10, 10])
 
     def test_draw_on_image_one_kp_at_bottom_right_corner_and_raise_true(self):
         kps = [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)]
-        kpi = ia.KeypointsOnImage(
-            keypoints=kps + [ia.Keypoint(x=5, y=5)],
-            shape=(5, 5, 3))
+        kpi = ia.KeypointsOnImage(keypoints=kps + [ia.Keypoint(x=5, y=5)], shape=(5, 5, 3))
         image = np.zeros((5, 5, 3), dtype=np.uint8) + 10
 
-        kps_mask = np.zeros(image.shape[0:2], dtype=np.bool)
+        kps_mask = np.zeros(image.shape[0:2], dtype=bool)
         kps_mask[2, 1] = 1
         kps_mask[4, 3] = 1
 
         with self.assertRaises(Exception) as context:
             _ = kpi.draw_on_image(
-                image, color=[0, 255, 0], size=1, copy=True,
-                raise_if_out_of_image=True)
+                image, color=[0, 255, 0], size=1, copy=True, raise_if_out_of_image=True
+            )
 
         assert "Cannot draw keypoint" in str(context.exception)
 
@@ -832,17 +800,11 @@ class TestKeypointsOnImage(unittest.TestCase):
 
         observed = kpi.to_xy_array()
 
-        expected = np.float32([
-            [1, 2],
-            [3, 4]
-        ])
+        expected = np.float32([[1, 2], [3, 4]])
         assert np.allclose(observed, expected)
 
     def test_from_xy_array(self):
-        arr = np.float32([
-            [1, 2],
-            [3, 4]
-        ])
+        arr = np.float32([[1, 2], [3, 4]])
 
         kpi = ia.KeypointsOnImage.from_xy_array(arr, shape=(5, 5, 3))
 
@@ -869,8 +831,7 @@ class TestKeypointsOnImage(unittest.TestCase):
 
     def test_fill_from_xy_array___array_with_two_coords(self):
         xy = np.array([(0, 0), (1, 2)], dtype=np.float32)
-        kps = ia.KeypointsOnImage([ia.Keypoint(10, 20), ia.Keypoint(30, 40)],
-                                  shape=(2, 2, 3))
+        kps = ia.KeypointsOnImage([ia.Keypoint(10, 20), ia.Keypoint(30, 40)], shape=(2, 2, 3))
 
         kps = kps.fill_from_xy_array_(xy)
 
@@ -882,8 +843,7 @@ class TestKeypointsOnImage(unittest.TestCase):
 
     def test_fill_from_xy_array___list_with_two_coords(self):
         xy = [(0, 0), (1, 2)]
-        kps = ia.KeypointsOnImage([ia.Keypoint(10, 20), ia.Keypoint(30, 40)],
-                                  shape=(2, 2, 3))
+        kps = ia.KeypointsOnImage([ia.Keypoint(10, 20), ia.Keypoint(30, 40)], shape=(2, 2, 3))
 
         kps = kps.fill_from_xy_array_(xy)
 
@@ -899,7 +859,7 @@ class TestKeypointsOnImage(unittest.TestCase):
 
         image = kpi.to_keypoint_image(size=1)
 
-        kps_mask = np.zeros((5, 5, 2), dtype=np.bool)
+        kps_mask = np.zeros((5, 5, 2), dtype=bool)
         kps_mask[2, 1, 0] = 1
         kps_mask[4, 3, 1] = 1
         assert np.all(image[kps_mask] == 255)
@@ -911,9 +871,9 @@ class TestKeypointsOnImage(unittest.TestCase):
 
         image = kpi.to_keypoint_image(size=3)
 
-        kps_mask = np.zeros((5, 5, 2), dtype=np.bool)
-        kps_mask[2-1:2+1+1, 1-1:1+1+1, 0] = 1
-        kps_mask[4-1:4+1+1, 3-1:3+1+1, 1] = 1
+        kps_mask = np.zeros((5, 5, 2), dtype=bool)
+        kps_mask[2 - 1 : 2 + 1 + 1, 1 - 1 : 1 + 1 + 1, 0] = 1
+        kps_mask[4 - 1 : 4 + 1 + 1, 3 - 1 : 3 + 1 + 1, 1] = 1
         assert np.all(image[kps_mask] >= 128)
         assert np.all(image[~kps_mask] == 0)
 
@@ -922,8 +882,7 @@ class TestKeypointsOnImage(unittest.TestCase):
         kps_image[2, 1, 0] = 255
         kps_image[4, 3, 1] = 255
 
-        kpi2 = ia.KeypointsOnImage.from_keypoint_image(
-            kps_image, nb_channels=3)
+        kpi2 = ia.KeypointsOnImage.from_keypoint_image(kps_image, nb_channels=3)
 
         assert kpi2.shape == (5, 5, 3)
         assert len(kpi2.keypoints) == 2
@@ -938,10 +897,8 @@ class TestKeypointsOnImage(unittest.TestCase):
         kps_image[4, 3, 1] = 10
 
         kpi2 = ia.KeypointsOnImage.from_keypoint_image(
-            kps_image,
-            if_not_found_coords={"x": -1, "y": -2},
-            threshold=20,
-            nb_channels=3)
+            kps_image, if_not_found_coords={"x": -1, "y": -2}, threshold=20, nb_channels=3
+        )
 
         assert kpi2.shape == (5, 5, 3)
         assert len(kpi2.keypoints) == 2
@@ -956,10 +913,8 @@ class TestKeypointsOnImage(unittest.TestCase):
         kps_image[4, 3, 1] = 10
 
         kpi2 = ia.KeypointsOnImage.from_keypoint_image(
-            kps_image,
-            if_not_found_coords=(-1, -2),
-            threshold=20,
-            nb_channels=3)
+            kps_image, if_not_found_coords=(-1, -2), threshold=20, nb_channels=3
+        )
 
         assert kpi2.shape == (5, 5, 3)
         assert len(kpi2.keypoints) == 2
@@ -974,10 +929,8 @@ class TestKeypointsOnImage(unittest.TestCase):
         kps_image[4, 3, 1] = 10
 
         kpi2 = ia.KeypointsOnImage.from_keypoint_image(
-            kps_image,
-            if_not_found_coords=None,
-            threshold=20,
-            nb_channels=3)
+            kps_image, if_not_found_coords=None, threshold=20, nb_channels=3
+        )
 
         assert kpi2.shape == (5, 5, 3)
         assert len(kpi2.keypoints) == 1
@@ -991,39 +944,25 @@ class TestKeypointsOnImage(unittest.TestCase):
 
         with self.assertRaises(Exception) as context:
             _ = ia.KeypointsOnImage.from_keypoint_image(
-                kps_image,
-                if_not_found_coords="exception-please",
-                threshold=20,
-                nb_channels=3)
+                kps_image, if_not_found_coords="exception-please", threshold=20, nb_channels=3
+            )
 
         assert "Expected if_not_found_coords to be" in str(context.exception)
 
     @classmethod
     def _get_single_keypoint_distance_map(cls):
         # distance map for one keypoint at (x=2, y=3) on (5, 5, 3) image
-        distance_map_xx = np.float32([
-            [0, 1, 2, 3, 4],
-            [0, 1, 2, 3, 4],
-            [0, 1, 2, 3, 4],
-            [0, 1, 2, 3, 4],
-            [0, 1, 2, 3, 4]
-        ])
-        distance_map_yy = np.float32([
-            [0, 0, 0, 0, 0],
-            [1, 1, 1, 1, 1],
-            [2, 2, 2, 2, 2],
-            [3, 3, 3, 3, 3],
-            [4, 4, 4, 4, 4]
-        ])
-        distance_map = np.sqrt(
-            (distance_map_xx - 2)**2
-            + (distance_map_yy - 3)**2)
+        distance_map_xx = np.float32(
+            [[0, 1, 2, 3, 4], [0, 1, 2, 3, 4], [0, 1, 2, 3, 4], [0, 1, 2, 3, 4], [0, 1, 2, 3, 4]]
+        )
+        distance_map_yy = np.float32(
+            [[0, 0, 0, 0, 0], [1, 1, 1, 1, 1], [2, 2, 2, 2, 2], [3, 3, 3, 3, 3], [4, 4, 4, 4, 4]]
+        )
+        distance_map = np.sqrt((distance_map_xx - 2) ** 2 + (distance_map_yy - 3) ** 2)
         return distance_map[..., np.newaxis]
 
     def test_to_distance_maps(self):
-        kpi = ia.KeypointsOnImage(
-            keypoints=[ia.Keypoint(x=2, y=3)],
-            shape=(5, 5, 3))
+        kpi = ia.KeypointsOnImage(keypoints=[ia.Keypoint(x=2, y=3)], shape=(5, 5, 3))
 
         distance_map = kpi.to_distance_maps()
 
@@ -1032,14 +971,12 @@ class TestKeypointsOnImage(unittest.TestCase):
         assert np.allclose(distance_map, expected)
 
     def test_to_distance_maps_inverted(self):
-        kpi = ia.KeypointsOnImage(
-            keypoints=[ia.Keypoint(x=2, y=3)],
-            shape=(5, 5, 3))
+        kpi = ia.KeypointsOnImage(keypoints=[ia.Keypoint(x=2, y=3)], shape=(5, 5, 3))
 
         distance_map = kpi.to_distance_maps(inverted=True)
 
         expected = self._get_single_keypoint_distance_map()
-        expected_inv = np.divide(np.ones_like(expected), expected+1)
+        expected_inv = np.divide(np.ones_like(expected), expected + 1)
         assert distance_map.shape == (5, 5, 1)
         assert np.allclose(distance_map, expected_inv)
 
@@ -1056,19 +993,23 @@ class TestKeypointsOnImage(unittest.TestCase):
         #     [B, 2, 2, 2]
         #     [2, 2, X, 2]
         #
-        distance_map_x = np.float32([
-            [(0-1)**2, (1-1)**2, (2-1)**2, (3-1)**2],
-            [(0-1)**2, (1-1)**2, (2-1)**2, (3-1)**2],
-            [(0-1)**2, (1-2)**2, (2-2)**2, (3-2)**2],
-            [(0-2)**2, (1-2)**2, (2-2)**2, (3-2)**2],
-        ])
+        distance_map_x = np.float32(
+            [
+                [(0 - 1) ** 2, (1 - 1) ** 2, (2 - 1) ** 2, (3 - 1) ** 2],
+                [(0 - 1) ** 2, (1 - 1) ** 2, (2 - 1) ** 2, (3 - 1) ** 2],
+                [(0 - 1) ** 2, (1 - 2) ** 2, (2 - 2) ** 2, (3 - 2) ** 2],
+                [(0 - 2) ** 2, (1 - 2) ** 2, (2 - 2) ** 2, (3 - 2) ** 2],
+            ]
+        )
 
-        distance_map_y = np.float32([
-            [(0-0)**2, (0-0)**2, (0-0)**2, (0-0)**2],
-            [(1-0)**2, (1-0)**2, (1-0)**2, (1-0)**2],
-            [(2-0)**2, (2-3)**2, (2-3)**2, (2-3)**2],
-            [(3-3)**2, (3-3)**2, (3-3)**2, (3-3)**2],
-        ])
+        distance_map_y = np.float32(
+            [
+                [(0 - 0) ** 2, (0 - 0) ** 2, (0 - 0) ** 2, (0 - 0) ** 2],
+                [(1 - 0) ** 2, (1 - 0) ** 2, (1 - 0) ** 2, (1 - 0) ** 2],
+                [(2 - 0) ** 2, (2 - 3) ** 2, (2 - 3) ** 2, (2 - 3) ** 2],
+                [(3 - 3) ** 2, (3 - 3) ** 2, (3 - 3) ** 2, (3 - 3) ** 2],
+            ]
+        )
 
         distance_map = np.sqrt(distance_map_x + distance_map_y)
         return distance_map
@@ -1078,8 +1019,8 @@ class TestKeypointsOnImage(unittest.TestCase):
         #      the distance maps, one per keypoint, considering the function
         #      returns one distance map per keypoint
         kpi = ia.KeypointsOnImage(
-            keypoints=[ia.Keypoint(x=2, y=3), ia.Keypoint(x=1, y=0)],
-            shape=(4, 4, 3))
+            keypoints=[ia.Keypoint(x=2, y=3), ia.Keypoint(x=1, y=0)], shape=(4, 4, 3)
+        )
 
         distance_map = kpi.to_distance_maps()
 
@@ -1088,33 +1029,26 @@ class TestKeypointsOnImage(unittest.TestCase):
 
     def test_to_distance_maps_two_keypoints_inverted(self):
         kpi = ia.KeypointsOnImage(
-            keypoints=[ia.Keypoint(x=2, y=3), ia.Keypoint(x=1, y=0)],
-            shape=(4, 4, 3))
+            keypoints=[ia.Keypoint(x=2, y=3), ia.Keypoint(x=1, y=0)], shape=(4, 4, 3)
+        )
 
         distance_map_inv = kpi.to_distance_maps(inverted=True)
 
         expected = self._get_two_points_keypoint_distance_map()
-        expected_inv = np.divide(np.ones_like(expected), expected+1)
+        expected_inv = np.divide(np.ones_like(expected), expected + 1)
         assert np.allclose(np.max(distance_map_inv, axis=2), expected_inv)
 
     @classmethod
     def _get_distance_maps_for_from_dmap_tests(cls):
-        distance_map1 = np.float32([
-            [2, 2, 2, 2, 2],
-            [2, 1, 1, 1, 2],
-            [2, 1, 0, 1, 2],
-            [2, 1, 1, 1, 2]
-        ])
-        distance_map2 = np.float32([
-            [4, 3, 2, 2, 2],
-            [4, 3, 2, 1, 1],
-            [4, 3, 2, 1, 0.1],
-            [4, 3, 2, 1, 1]
-        ])
-        distance_maps = np.concatenate([
-            distance_map1[..., np.newaxis],
-            distance_map2[..., np.newaxis]
-        ], axis=2)
+        distance_map1 = np.float32(
+            [[2, 2, 2, 2, 2], [2, 1, 1, 1, 2], [2, 1, 0, 1, 2], [2, 1, 1, 1, 2]]
+        )
+        distance_map2 = np.float32(
+            [[4, 3, 2, 2, 2], [4, 3, 2, 1, 1], [4, 3, 2, 1, 0.1], [4, 3, 2, 1, 1]]
+        )
+        distance_maps = np.concatenate(
+            [distance_map1[..., np.newaxis], distance_map2[..., np.newaxis]], axis=2
+        )
         return distance_maps
 
     def test_from_distance_maps(self):
@@ -1132,8 +1066,7 @@ class TestKeypointsOnImage(unittest.TestCase):
     def test_from_distance_maps_nb_channels_4(self):
         distance_maps = self._get_distance_maps_for_from_dmap_tests()
 
-        kpi = ia.KeypointsOnImage.from_distance_maps(distance_maps,
-                                                     nb_channels=4)
+        kpi = ia.KeypointsOnImage.from_distance_maps(distance_maps, nb_channels=4)
 
         assert len(kpi.keypoints) == 2
         assert kpi.keypoints[0].x == 2
@@ -1144,12 +1077,9 @@ class TestKeypointsOnImage(unittest.TestCase):
 
     def test_from_distance_maps_inverted(self):
         distance_maps = self._get_distance_maps_for_from_dmap_tests()
-        distance_maps_inv = np.divide(
-            np.ones_like(distance_maps),
-            distance_maps+1)
+        distance_maps_inv = np.divide(np.ones_like(distance_maps), distance_maps + 1)
 
-        kpi = ia.KeypointsOnImage.from_distance_maps(distance_maps_inv,
-                                                     inverted=True)
+        kpi = ia.KeypointsOnImage.from_distance_maps(distance_maps_inv, inverted=True)
 
         assert len(kpi.keypoints) == 2
         assert kpi.keypoints[0].x == 2
@@ -1162,7 +1092,8 @@ class TestKeypointsOnImage(unittest.TestCase):
         distance_maps = self._get_distance_maps_for_from_dmap_tests()
 
         kpi = ia.KeypointsOnImage.from_distance_maps(
-            distance_maps, if_not_found_coords=(1, 1), threshold=0.09)
+            distance_maps, if_not_found_coords=(1, 1), threshold=0.09
+        )
 
         assert len(kpi.keypoints) == 2
         assert kpi.keypoints[0].x == 2
@@ -1175,9 +1106,8 @@ class TestKeypointsOnImage(unittest.TestCase):
         distance_maps = self._get_distance_maps_for_from_dmap_tests()
 
         kpi = ia.KeypointsOnImage.from_distance_maps(
-            distance_maps,
-            if_not_found_coords={"x": 1, "y": 2},
-            threshold=0.09)
+            distance_maps, if_not_found_coords={"x": 1, "y": 2}, threshold=0.09
+        )
 
         assert len(kpi.keypoints) == 2
         assert kpi.keypoints[0].x == 2
@@ -1190,9 +1120,8 @@ class TestKeypointsOnImage(unittest.TestCase):
         distance_maps = self._get_distance_maps_for_from_dmap_tests()
 
         kpi = ia.KeypointsOnImage.from_distance_maps(
-            distance_maps,
-            if_not_found_coords=None,
-            threshold=0.09)
+            distance_maps, if_not_found_coords=None, threshold=0.09
+        )
 
         assert len(kpi.keypoints) == 1
         assert kpi.keypoints[0].x == 2
@@ -1204,15 +1133,13 @@ class TestKeypointsOnImage(unittest.TestCase):
 
         with self.assertRaises(Exception) as context:
             _ = ia.KeypointsOnImage.from_distance_maps(
-                distance_maps,
-                if_not_found_coords=False,
-                threshold=0.09)
+                distance_maps, if_not_found_coords=False, threshold=0.09
+            )
 
         assert "Expected if_not_found_coords to be" in str(context.exception)
 
     def test_to_keypoints_on_image(self):
-        kps = ia.KeypointsOnImage([ia.Keypoint(0, 0), ia.Keypoint(1, 2)],
-                                  shape=(1, 2, 3))
+        kps = ia.KeypointsOnImage([ia.Keypoint(0, 0), ia.Keypoint(1, 2)], shape=(1, 2, 3))
         kps.deepcopy = mock.MagicMock()
         kps.deepcopy.return_value = "foo"
 
@@ -1222,10 +1149,8 @@ class TestKeypointsOnImage(unittest.TestCase):
         assert kps_cp == "foo"
 
     def test_invert_to_keypoints_on_image_(self):
-        kps1 = ia.KeypointsOnImage([ia.Keypoint(0, 0), ia.Keypoint(1, 2)],
-                                   shape=(2, 3, 4))
-        kps2 = ia.KeypointsOnImage([ia.Keypoint(10, 10), ia.Keypoint(11, 12)],
-                                   shape=(3, 4, 5))
+        kps1 = ia.KeypointsOnImage([ia.Keypoint(0, 0), ia.Keypoint(1, 2)], shape=(2, 3, 4))
+        kps2 = ia.KeypointsOnImage([ia.Keypoint(10, 10), ia.Keypoint(11, 12)], shape=(3, 4, 5))
 
         kps3 = kps1.invert_to_keypoints_on_image_(kps2)
 
@@ -1271,10 +1196,10 @@ class TestKeypointsOnImage(unittest.TestCase):
         kp2 = ia.Keypoint(x=3, y=4)
         kpsoi = ia.KeypointsOnImage([kp1, kp2], shape=(40, 50, 3))
 
-        kpsoi_copy = kpsoi.copy(shape=(40+1, 50+1, 3))
+        kpsoi_copy = kpsoi.copy(shape=(40 + 1, 50 + 1, 3))
 
         assert kpsoi_copy is not kpsoi
-        assert kpsoi_copy.shape == (40+1, 50+1, 3)
+        assert kpsoi_copy.shape == (40 + 1, 50 + 1, 3)
         assert kpsoi_copy.keypoints == [kp1, kp2]
 
     def test_deepcopy(self):
@@ -1312,19 +1237,16 @@ class TestKeypointsOnImage(unittest.TestCase):
         kp2 = ia.Keypoint(x=3, y=4)
         kpsoi = ia.KeypointsOnImage([kp1, kp2], shape=(40, 50, 3))
 
-        kpsoi_copy = kpsoi.deepcopy(shape=(40+1, 50+1, 3))
+        kpsoi_copy = kpsoi.deepcopy(shape=(40 + 1, 50 + 1, 3))
 
         assert kpsoi_copy is not kpsoi
-        assert kpsoi_copy.shape == (40+1, 50+1, 3)
+        assert kpsoi_copy.shape == (40 + 1, 50 + 1, 3)
         assert len(kpsoi_copy.keypoints) == 2
         assert kpsoi_copy.keypoints[0].coords_almost_equals(kp1)
         assert kpsoi_copy.keypoints[1].coords_almost_equals(kp2)
 
     def test___getitem__(self):
-        cbas = [
-            ia.Keypoint(x=1, y=2),
-            ia.Keypoint(x=2, y=3)
-        ]
+        cbas = [ia.Keypoint(x=1, y=2), ia.Keypoint(x=2, y=3)]
         cbasoi = ia.KeypointsOnImage(cbas, shape=(3, 4, 3))
 
         assert cbasoi[0] is cbas[0]
@@ -1332,8 +1254,7 @@ class TestKeypointsOnImage(unittest.TestCase):
         assert cbasoi[0:2] == cbas
 
     def test___iter__(self):
-        cbas = [ia.Keypoint(x=1, y=2),
-                ia.Keypoint(x=3, y=4)]
+        cbas = [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)]
         cbasoi = ia.KeypointsOnImage(cbas, shape=(40, 50, 3))
 
         for i, cba in enumerate(cbasoi):
@@ -1347,8 +1268,7 @@ class TestKeypointsOnImage(unittest.TestCase):
         assert i == 0
 
     def test___len__(self):
-        cbas = [ia.Keypoint(x=1, y=2),
-                ia.Keypoint(x=3, y=4)]
+        cbas = [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)]
         cbasoi = ia.KeypointsOnImage(cbas, shape=(40, 50, 3))
         assert len(cbasoi) == 2
 
@@ -1362,8 +1282,4 @@ class TestKeypointsOnImage(unittest.TestCase):
             "], shape=(5, 5, 3)"
             ")"
         )
-        assert (
-            kpi.__repr__()
-            == kpi.__str__()
-            == expected
-        )
+        assert kpi.__repr__() == kpi.__str__() == expected

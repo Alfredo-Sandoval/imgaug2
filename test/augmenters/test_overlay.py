@@ -1,4 +1,3 @@
-
 import unittest
 import warnings
 from unittest import mock
@@ -20,10 +19,7 @@ class Test_blend_alpha(unittest.TestCase):
             _ = overlay.blend_alpha(image_fg, image_bg, alpha)
 
         assert len(caught_warnings) == 1
-        assert (
-            "imgaug2.augmenters.blend.blend_alpha"
-            in str(caught_warnings[-1].message)
-        )
+        assert "imgaug2.augmenters.blend.blend_alpha" in str(caught_warnings[-1].message)
 
 
 class TestAlpha(unittest.TestCase):
@@ -36,10 +32,7 @@ class TestAlpha(unittest.TestCase):
             _ = overlay.Alpha(factor, children_fg)
 
         assert len(caught_warnings) == 2
-        assert (
-            "imgaug2.augmenters.blend.BlendAlpha"
-            in str(caught_warnings[0].message)
-        )
+        assert "imgaug2.augmenters.blend.BlendAlpha" in str(caught_warnings[0].message)
 
 
 class TestAlphaElementwise(unittest.TestCase):
@@ -52,10 +45,7 @@ class TestAlphaElementwise(unittest.TestCase):
             _ = overlay.AlphaElementwise(factor, children_fg)
 
         assert len(caught_warnings) == 2
-        assert (
-            "imgaug2.augmenters.blend.BlendAlphaElementwise"
-            in str(caught_warnings[0].message)
-        )
+        assert "imgaug2.augmenters.blend.BlendAlphaElementwise" in str(caught_warnings[0].message)
 
 
 class TestSimplexNoiseAlpha(unittest.TestCase):
@@ -67,10 +57,7 @@ class TestSimplexNoiseAlpha(unittest.TestCase):
             _ = overlay.SimplexNoiseAlpha(children_fg)
 
         assert len(caught_warnings) == 2
-        assert (
-            "imgaug2.augmenters.blend.BlendAlphaSimplexNoise"
-            in str(caught_warnings[0].message)
-        )
+        assert "imgaug2.augmenters.blend.BlendAlphaSimplexNoise" in str(caught_warnings[0].message)
 
 
 class TestFrequencyNoiseAlpha(unittest.TestCase):
@@ -82,7 +69,6 @@ class TestFrequencyNoiseAlpha(unittest.TestCase):
             _ = overlay.FrequencyNoiseAlpha(first=children_fg)
 
         assert len(caught_warnings) == 2
-        assert (
-            "imgaug2.augmenters.blend.BlendAlphaFrequencyNoise"
-            in str(caught_warnings[0].message)
+        assert "imgaug2.augmenters.blend.BlendAlphaFrequencyNoise" in str(
+            caught_warnings[0].message
         )
