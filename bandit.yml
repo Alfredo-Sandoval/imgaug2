@@ -1,5 +1,0 @@
-skips: [
-  'B101',
-  'B403'   # "Consider possible security implications associated with pickle
-           #  module."
-]
