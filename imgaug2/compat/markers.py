@@ -31,14 +31,16 @@ from __future__ import annotations
 
 import functools
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
+from typing import Callable, ParamSpec, Protocol, TypeVar, overload
 
-if TYPE_CHECKING:
-    from typing import ParamSpec
+P = ParamSpec("P")
+R = TypeVar("R")
 
-    P = ParamSpec("P")
 
-F = TypeVar("F", bound=Callable[..., Any])
+class _NamedCallable(Protocol[P, R]):
+    __name__: str
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
 
 
 class FunctionMarker:
@@ -72,13 +74,13 @@ class FunctionMarker:
 
 
 def _apply_marker(
-    func: F,
+    func: _NamedCallable[P, R],
     origin: str,
     version: str | None,
     deprecated: bool,
     replacement: str | None,
     notes: str | None,
-) -> F:
+) -> Callable[P, R]:
     """Apply marker metadata to a function."""
     marker = FunctionMarker(
         origin=origin,
@@ -89,13 +91,13 @@ def _apply_marker(
     )
 
     # Store marker as function attribute
-    func.__imgaug2_marker__ = marker  # type: ignore[attr-defined]
+    setattr(func, "__imgaug2_marker__", marker)
 
     # Add deprecation warning if needed
     if deprecated:
 
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             msg = f"{func.__name__} is deprecated."
             if replacement:
                 msg += f" Use {replacement} instead."
@@ -104,8 +106,8 @@ def _apply_marker(
             warnings.warn(msg, DeprecationWarning, stacklevel=2)
             return func(*args, **kwargs)
 
-        wrapper.__imgaug2_marker__ = marker  # type: ignore[attr-defined]
-        return wrapper  # type: ignore[return-value]
+        setattr(wrapper, "__imgaug2_marker__", marker)
+        return wrapper
 
     return func
 
@@ -114,7 +116,7 @@ def _apply_marker(
 
 
 @overload
-def legacy(func: F) -> F: ...
+def legacy(func: Callable[P, R]) -> Callable[P, R]: ...
 
 
 @overload
@@ -124,17 +126,17 @@ def legacy(
     deprecated: bool = False,
     replacement: str | None = None,
     notes: str | None = None,
-) -> Callable[[F], F]: ...
+) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
 
 
 def legacy(
-    func: F | None = None,
+    func: Callable[P, R] | None = None,
     *,
     version: str | None = None,
     deprecated: bool = False,
     replacement: str | None = None,
     notes: str | None = None,
-) -> F | Callable[[F], F]:
+) -> Callable[P, R] | Callable[[Callable[P, R]], Callable[P, R]]:
     """Mark a function as legacy (from original imgaug).
 
     Can be used with or without arguments:
@@ -161,7 +163,7 @@ def legacy(
         return _apply_marker(func, "legacy", version, deprecated, replacement, notes)
 
     # Called with arguments: @legacy(...)
-    def decorator(fn: F) -> F:
+    def decorator(fn: Callable[P, R]) -> Callable[P, R]:
         return _apply_marker(fn, "legacy", version, deprecated, replacement, notes)
 
     return decorator
@@ -171,7 +173,7 @@ def legacy(
 
 
 @overload
-def new(func: F) -> F: ...
+def new(func: Callable[P, R]) -> Callable[P, R]: ...
 
 
 @overload
@@ -179,15 +181,15 @@ def new(
     *,
     version: str | None = None,
     notes: str | None = None,
-) -> Callable[[F], F]: ...
+) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
 
 
 def new(
-    func: F | None = None,
+    func: Callable[P, R] | None = None,
     *,
     version: str | None = None,
     notes: str | None = None,
-) -> F | Callable[[F], F]:
+) -> Callable[P, R] | Callable[[Callable[P, R]], Callable[P, R]]:
     """Mark a function as new (added in imgaug2).
 
     Can be used with or without arguments:
@@ -210,7 +212,7 @@ def new(
         return _apply_marker(func, "new", version, False, None, notes)
 
     # Called with arguments: @new(...)
-    def decorator(fn: F) -> F:
+    def decorator(fn: Callable[P, R]) -> Callable[P, R]:
         return _apply_marker(fn, "new", version, False, None, notes)
 
     return decorator
@@ -219,18 +221,18 @@ def new(
 # --- Utility functions ---
 
 
-def get_marker(func: Callable[..., Any]) -> FunctionMarker | None:
+def get_marker(func: Callable[..., object]) -> FunctionMarker | None:
     """Get the marker for a function, if any."""
     return getattr(func, "__imgaug2_marker__", None)
 
 
-def is_legacy(func: Callable[..., Any]) -> bool:
+def is_legacy(func: Callable[..., object]) -> bool:
     """Check if a function is marked as legacy."""
     marker = get_marker(func)
     return marker is not None and marker.origin == "legacy"
 
 
-def is_new(func: Callable[..., Any]) -> bool:
+def is_new(func: Callable[..., object]) -> bool:
     """Check if a function is marked as new."""
     marker = get_marker(func)
     return marker is not None and marker.origin == "new"

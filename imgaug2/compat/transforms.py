@@ -10,8 +10,6 @@ Each compat transform:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Iterable
-
 import numpy as np
 
 import imgaug2.augmenters as iaa
@@ -33,13 +31,13 @@ def _maybe_tuple(val: float | tuple[float, float]) -> tuple[float, float]:
     return float(val), float(val)
 
 
-def _to_affine_mode(border_mode: Any) -> str:
+def _to_affine_mode(border_mode: str | int) -> str:
     # imgaug2.Affine expects a "mode" string (see docs in geometric.Affine).
     if isinstance(border_mode, str):
         return border_mode
 
     try:
-        import cv2  # type: ignore
+        import cv2
     except Exception as exc:  # pragma: no cover
         raise ValueError("border_mode must be a string when cv2 is unavailable") from exc
 
