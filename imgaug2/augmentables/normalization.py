@@ -175,7 +175,10 @@ def normalize_heatmaps(inputs, shapes=None):
     if ntype == "array[float]":
         _assert_single_array_ndim(inputs, 4, "(N,H,W,C)", "HeatmapsOnImage")
         _assert_exactly_n_shapes_partial(n=len(inputs))
-        return [HeatmapsOnImage(attr_i, shape=shape_i) for attr_i, shape_i in zip(inputs, shapes)]
+        return [
+            HeatmapsOnImage(attr_i.astype(np.float32, copy=False), shape=shape_i)
+            for attr_i, shape_i in zip(inputs, shapes)
+        ]
     if ntype == "HeatmapsOnImage":
         return [inputs]
     if ntype == "iterable[empty]":
@@ -183,7 +186,10 @@ def normalize_heatmaps(inputs, shapes=None):
     if ntype == "iterable-array[float]":
         _assert_many_arrays_ndim(inputs, 3, "(H,W,C)", "HeatmapsOnImage")
         _assert_exactly_n_shapes_partial(n=len(inputs))
-        return [HeatmapsOnImage(attr_i, shape=shape_i) for attr_i, shape_i in zip(inputs, shapes)]
+        return [
+            HeatmapsOnImage(attr_i.astype(np.float32, copy=False), shape=shape_i)
+            for attr_i, shape_i in zip(inputs, shapes)
+        ]
     assert ntype == "iterable-HeatmapsOnImage", f"Got unknown normalization type '{ntype}'."
     return inputs  # len allowed to differ from len of images
 

@@ -1,4 +1,5 @@
 """Classes to represent heatmaps, i.e. float arrays of ``[0.0, 1.0]``."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -51,15 +52,11 @@ class HeatmapsOnImage(IAugmentable):
             f"than 0, got shape {arr.shape}."
         )
         assert arr.dtype.name in ["float32"], (
-            "Heatmap input array expected to be of dtype float32, "
-            f"got dtype {arr.dtype}."
+            f"Heatmap input array expected to be of dtype float32, got dtype {arr.dtype}."
         )
-        assert arr.ndim in [2, 3], (
-            f"Heatmap input array must be 2d or 3d, got shape {arr.shape}."
-        )
+        assert arr.ndim in [2, 3], f"Heatmap input array must be 2d or 3d, got shape {arr.shape}."
         assert len(shape) in [2, 3], (
-            "Argument 'shape' in HeatmapsOnImage expected to be 2d or 3d, "
-            f"got shape {shape}."
+            f"Argument 'shape' in HeatmapsOnImage expected to be 2d or 3d, got shape {shape}."
         )
         assert min_value < max_value, (
             "Expected min_value to be lower than max_value, "
@@ -163,9 +160,7 @@ class HeatmapsOnImage(IAugmentable):
             heatmap_c = heatmaps_uint8[..., c : c + 1]
 
             if size is not None:
-                heatmap_c_rs = ia.imresize_single_image(
-                    heatmap_c, size, interpolation="nearest"
-                )
+                heatmap_c_rs = ia.imresize_single_image(heatmap_c, size, interpolation="nearest")
             else:
                 heatmap_c_rs = heatmap_c
             heatmap_c_rs = np.squeeze(heatmap_c_rs).astype(np.float32) / 255.0
@@ -235,9 +230,7 @@ class HeatmapsOnImage(IAugmentable):
         )
 
         if resize == "image":
-            image = ia.imresize_single_image(
-                image, self.arr_0to1.shape[0:2], interpolation="cubic"
-            )
+            image = ia.imresize_single_image(image, self.arr_0to1.shape[0:2], interpolation="cubic")
 
         heatmaps_drawn = self.draw(
             size=image.shape[0:2] if resize == "heatmaps" else None, cmap=cmap
@@ -546,9 +539,7 @@ class HeatmapsOnImage(IAugmentable):
 
         """
         arr_0to1 = arr_uint8.astype(np.float32) / 255.0
-        return HeatmapsOnImage.from_0to1(
-            arr_0to1, shape, min_value=min_value, max_value=max_value
-        )
+        return HeatmapsOnImage.from_0to1(arr_0to1, shape, min_value=min_value, max_value=max_value)
 
     @staticmethod
     def from_0to1(arr_0to1, shape, min_value=0.0, max_value=1.0):

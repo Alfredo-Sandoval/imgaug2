@@ -1,4 +1,5 @@
 """Classes to represent keypoints, i.e. points given as xy-coordinates."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -401,14 +402,13 @@ class Keypoint:
             if alpha == 1:
                 image[y1_clipped:y2_clipped, x1_clipped:x2_clipped] = color
             else:
-                image[y1_clipped:y2_clipped, x1_clipped:x2_clipped] = (
-                    1 - alpha
-                ) * image[y1_clipped:y2_clipped, x1_clipped:x2_clipped] + alpha_color
+                image[y1_clipped:y2_clipped, x1_clipped:x2_clipped] = (1 - alpha) * image[
+                    y1_clipped:y2_clipped, x1_clipped:x2_clipped
+                ] + alpha_color
         else:
             if raise_if_out_of_image:
                 raise Exception(
-                    f"Cannot draw keypoint x={y:.8f}, y={x:.8f} on image with "
-                    f"shape {image.shape}."
+                    f"Cannot draw keypoint x={y:.8f}, y={x:.8f} on image with shape {image.shape}."
                 )
 
         if image.dtype.name != input_dtype.name:
@@ -417,9 +417,7 @@ class Keypoint:
             image = image.astype(input_dtype, copy=False)
         return image
 
-    def generate_similar_points_manhattan(
-        self, nb_steps, step_size, return_array=False
-    ):
+    def generate_similar_points_manhattan(self, nb_steps, step_size, return_array=False):
         """Generate nearby points based on manhattan distance.
 
         To generate the first neighbouring points, a distance of ``S`` (step
@@ -1103,9 +1101,7 @@ class KeypointsOnImage(IAugmentable):
         """
         height, width = self.shape[0:2]
         image = np.zeros((height, width, len(self.keypoints)), dtype=np.uint8)
-        assert size % 2 != 0, (
-            "Expected 'size' to have an odd value, got %d instead." % (size,)
-        )
+        assert size % 2 != 0, "Expected 'size' to have an odd value, got %d instead." % (size,)
         sizeh = max(0, (size - 1) // 2)
         for i, keypoint in enumerate(self.keypoints):
             # TODO for float values spread activation over several cells
@@ -1406,8 +1402,9 @@ class KeypointsOnImage(IAugmentable):
 
         """
         nb_points_exp = len(self.keypoints)
-        assert len(kpsoi.keypoints) == nb_points_exp, (
-            "Expected %d coordinates, got %d." % (nb_points_exp, len(kpsoi.keypoints))
+        assert len(kpsoi.keypoints) == nb_points_exp, "Expected %d coordinates, got %d." % (
+            nb_points_exp,
+            len(kpsoi.keypoints),
         )
 
         for kp_target, kp_source in zip(self.keypoints, kpsoi.keypoints):

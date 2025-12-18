@@ -1,4 +1,5 @@
 """Classes representing batches of normalized or unnormalized data."""
+
 from __future__ import annotations
 
 import collections
@@ -21,9 +22,7 @@ _AUGMENTABLE_NAMES = [
     "line_strings",
 ]
 
-_AugmentableColumn = collections.namedtuple(
-    "_AugmentableColumn", ["name", "value", "attr_name"]
-)
+_AugmentableColumn = collections.namedtuple("_AugmentableColumn", ["name", "value", "attr_name"])
 
 
 def _get_column_names(batch, postfix):
@@ -220,9 +219,7 @@ class UnnormalizedBatch:
                 self.segmentation_maps_unaug, shapes
             ),
             keypoints=nlib.normalize_keypoints(self.keypoints_unaug, shapes),
-            bounding_boxes=nlib.normalize_bounding_boxes(
-                self.bounding_boxes_unaug, shapes
-            ),
+            bounding_boxes=nlib.normalize_bounding_boxes(self.bounding_boxes_unaug, shapes),
             polygons=nlib.normalize_polygons(self.polygons_unaug, shapes),
             line_strings=nlib.normalize_line_strings(self.line_strings_unaug, shapes),
             data=self.data,
@@ -253,9 +250,7 @@ class UnnormalizedBatch:
             converted to unnormalized form.
 
         """
-        self.images_aug = nlib.invert_normalize_images(
-            batch_aug_norm.images_aug, self.images_unaug
-        )
+        self.images_aug = nlib.invert_normalize_images(batch_aug_norm.images_aug, self.images_unaug)
         self.heatmaps_aug = nlib.invert_normalize_heatmaps(
             batch_aug_norm.heatmaps_aug, self.heatmaps_unaug
         )
@@ -625,13 +620,9 @@ class Batch:
         batch = Batch(
             images=_copy_optional(self.images_unaug, images_unaug),
             heatmaps=_copy_optional(self.heatmaps_unaug, heatmaps_unaug),
-            segmentation_maps=_copy_optional(
-                self.segmentation_maps_unaug, segmentation_maps_unaug
-            ),
+            segmentation_maps=_copy_optional(self.segmentation_maps_unaug, segmentation_maps_unaug),
             keypoints=_copy_optional(self.keypoints_unaug, keypoints_unaug),
-            bounding_boxes=_copy_optional(
-                self.bounding_boxes_unaug, bounding_boxes_unaug
-            ),
+            bounding_boxes=_copy_optional(self.bounding_boxes_unaug, bounding_boxes_unaug),
             polygons=_copy_optional(self.polygons_unaug, polygons_unaug),
             line_strings=_copy_optional(self.line_strings_unaug, line_strings_unaug),
             data=utils.deepcopy_fast(self.data),
@@ -642,9 +633,7 @@ class Batch:
             self.segmentation_maps_aug, segmentation_maps_aug
         )
         batch.keypoints_aug = _copy_optional(self.keypoints_aug, keypoints_aug)
-        batch.bounding_boxes_aug = _copy_optional(
-            self.bounding_boxes_aug, bounding_boxes_aug
-        )
+        batch.bounding_boxes_aug = _copy_optional(self.bounding_boxes_aug, bounding_boxes_aug)
         batch.polygons_aug = _copy_optional(self.polygons_aug, polygons_aug)
         batch.line_strings_aug = _copy_optional(self.line_strings_aug, line_strings_aug)
 
@@ -917,12 +906,9 @@ class _BatchInAugmentation:
                         shapes = {column.shape[1:], column_sub.shape[1:]}
                         dtypes = {column.dtype.name, column_sub.dtype.name}
                     else:
-                        shapes = set(
-                            [column.shape[1:]] + [image.shape for image in column_sub]
-                        )
+                        shapes = set([column.shape[1:]] + [image.shape for image in column_sub])
                         dtypes = set(
-                            [column.dtype.name]
-                            + [image.dtype.name for image in column_sub]
+                            [column.dtype.name] + [image.dtype.name for image in column_sub]
                         )
 
                     if len(shapes) == 1 and len(dtypes) == 1:

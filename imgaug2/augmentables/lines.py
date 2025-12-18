@@ -1,4 +1,5 @@
 """Classes representing lines."""
+
 from __future__ import annotations
 
 import copy as copylib
@@ -250,14 +251,12 @@ class LineString:
                 other = shapely.geometry.LineString(other.coords)
         elif isinstance(other, tuple):
             assert len(other) == 2, (
-                "Expected tuple 'other' to contain exactly two entries, "
-                "got %d." % (len(other),)
+                "Expected tuple 'other' to contain exactly two entries, got %d." % (len(other),)
             )
             other = shapely.geometry.Point(other)
         else:
             raise ValueError(
-                "Expected Keypoint or LineString or tuple (x,y), "
-                f"got type {type(other)}."
+                f"Expected Keypoint or LineString or tuple (x,y), got type {type(other)}."
             )
 
         return [shapely.geometry.Point(point).distance(other) for point in self.coords]
@@ -743,14 +742,10 @@ class LineString:
             Shifted line string.
 
         """
-        x, y = _normalize_shift_args(
-            x, y, top=top, right=right, bottom=bottom, left=left
-        )
+        x, y = _normalize_shift_args(x, y, top=top, right=right, bottom=bottom, left=left)
         return self.deepcopy().shift_(x=x, y=y)
 
-    def draw_mask(
-        self, image_shape, size_lines=1, size_points=0, raise_if_out_of_image=False
-    ):
+    def draw_mask(self, image_shape, size_lines=1, size_points=0, raise_if_out_of_image=False):
         """Draw this line segment as a binary image mask.
 
         Parameters
@@ -823,9 +818,9 @@ class LineString:
             drawn line string. All values are in the interval ``[0.0, 1.0]``.
 
         """
-        assert len(image_shape) == 2 or (
-            len(image_shape) == 3 and image_shape[-1] == 1
-        ), f"Expected (H,W) or (H,W,1) as image_shape, got {image_shape}."
+        assert len(image_shape) == 2 or (len(image_shape) == 3 and image_shape[-1] == 1), (
+            f"Expected (H,W) or (H,W,1) as image_shape, got {image_shape}."
+        )
 
         arr = self.draw_lines_on_image(
             np.zeros(image_shape, dtype=np.uint8),
@@ -867,9 +862,9 @@ class LineString:
             interval ``[0.0, 1.0]``.
 
         """
-        assert len(image_shape) == 2 or (
-            len(image_shape) == 3 and image_shape[-1] == 1
-        ), f"Expected (H,W) or (H,W,1) as image_shape, got {image_shape}."
+        assert len(image_shape) == 2 or (len(image_shape) == 3 and image_shape[-1] == 1), (
+            f"Expected (H,W) or (H,W,1) as image_shape, got {image_shape}."
+        )
 
         arr = self.draw_points_on_image(
             np.zeros(image_shape, dtype=np.uint8),
@@ -1003,16 +998,13 @@ class LineString:
             image_was_empty = True
             image = np.zeros(image, dtype=np.uint8)
         assert image.ndim in [2, 3], (
-            "Expected image or shape of form (H,W) or (H,W,C), "
-            f"got shape {image.shape}."
+            f"Expected image or shape of form (H,W) or (H,W,C), got shape {image.shape}."
         )
 
         if len(self.coords) <= 1 or alpha < 0 + 1e-4 or size < 1:
             return np.copy(image)
 
-        if raise_if_out_of_image and self.is_out_of_image(
-            image, partly=False, fully=True
-        ):
+        if raise_if_out_of_image and self.is_out_of_image(image, partly=False, fully=True):
             raise Exception(
                 f"Cannot draw line string '{self.__str__()}' on image with shape {image.shape}, because "
                 "it would be out of bounds."
@@ -1237,9 +1229,7 @@ class LineString:
         _assert_not_none("size", size)
 
         color_lines = color_lines if color_lines is not None else np.float32(color)
-        color_points = (
-            color_points if color_points is not None else np.float32(color) * 0.5
-        )
+        color_points = color_points if color_points is not None else np.float32(color) * 0.5
 
         alpha_lines = alpha_lines if alpha_lines is not None else np.float32(alpha)
         alpha_points = alpha_points if alpha_points is not None else np.float32(alpha)
@@ -1330,9 +1320,7 @@ class LineString:
         """
         from imgaug2.augmentables.bbs import BoundingBox
 
-        assert image.ndim in [2, 3], (
-            f"Expected image of shape (H,W,[C]), got shape {image.shape}."
-        )
+        assert image.ndim in [2, 3], f"Expected image of shape (H,W,[C]), got shape {image.shape}."
 
         if len(self.coords) == 0 or size <= 0:
             if prevent_zero_size:
@@ -1782,7 +1770,9 @@ class LineStringsOnImage(IAugmentable):
             f"Expected 'line_strings' to be an iterable, got type '{type(line_strings)}'."
         )
         assert all([isinstance(v, LineString) for v in line_strings]), (
-            "Expected iterable of LineString, got types: {}.".format(", ".join([str(type(v)) for v in line_strings]))
+            "Expected iterable of LineString, got types: {}.".format(
+                ", ".join([str(type(v)) for v in line_strings])
+            )
         )
         self.line_strings = line_strings
         self.shape = _handle_on_image_shape(shape, self)
@@ -1926,9 +1916,7 @@ class LineStringsOnImage(IAugmentable):
         """
         import imgaug2.dtypes as iadt
 
-        return [
-            iadt.restore_dtypes_(np.copy(ls.coords), dtype) for ls in self.line_strings
-        ]
+        return [iadt.restore_dtypes_(np.copy(ls.coords), dtype) for ls in self.line_strings]
 
     def draw_on_image(
         self,
@@ -2254,9 +2242,7 @@ class LineStringsOnImage(IAugmentable):
             Shifted line strings.
 
         """
-        x, y = _normalize_shift_args(
-            x, y, top=top, right=right, bottom=bottom, left=left
-        )
+        x, y = _normalize_shift_args(x, y, top=top, right=right, bottom=bottom, left=left)
         return self.deepcopy().shift_(x=x, y=y)
 
     def to_xy_array(self):
@@ -2375,8 +2361,9 @@ class LineStringsOnImage(IAugmentable):
         lss = self.line_strings
         coordss = [ls.coords for ls in lss]
         nb_points_exp = sum([len(coords) for coords in coordss])
-        assert len(kpsoi.keypoints) == nb_points_exp, (
-            "Expected %d coordinates, got %d." % (nb_points_exp, len(kpsoi.keypoints))
+        assert len(kpsoi.keypoints) == nb_points_exp, "Expected %d coordinates, got %d." % (
+            nb_points_exp,
+            len(kpsoi.keypoints),
         )
 
         xy_arr = kpsoi.to_xy_array()
@@ -2502,9 +2489,9 @@ class LineStringsOnImage(IAugmentable):
 
 def _is_point_on_line(line_start, line_end, point, eps=1e-4):
     dist_s2e = np.linalg.norm(np.float32(line_start) - np.float32(line_end))
-    dist_s2p2e = np.linalg.norm(
-        np.float32(line_start) - np.float32(point)
-    ) + np.linalg.norm(np.float32(point) - np.float32(line_end))
+    dist_s2p2e = np.linalg.norm(np.float32(line_start) - np.float32(point)) + np.linalg.norm(
+        np.float32(point) - np.float32(line_end)
+    )
     return -eps < (dist_s2p2e - dist_s2e) < eps
 
 
@@ -2532,8 +2519,7 @@ def _convert_var_to_shapely_geometry(var):
         geom = shapely.geometry.Point(var[0], var[1])
     elif isinstance(var, list):
         assert len(var) > 0, (
-            "Expected list to contain at least one coordinate, "
-            "got %d coordinates." % (len(var),)
+            "Expected list to contain at least one coordinate, got %d coordinates." % (len(var),)
         )
         if isinstance(var[0], tuple):
             geom = shapely.geometry.LineString(var)
@@ -2544,13 +2530,14 @@ def _convert_var_to_shapely_geometry(var):
         else:
             raise ValueError(
                 "Could not convert list-input to shapely geometry. Invalid "
-                "datatype. List elements had datatypes: {}.".format(", ".join([str(type(v)) for v in var]))
+                "datatype. List elements had datatypes: {}.".format(
+                    ", ".join([str(type(v)) for v in var])
+                )
             )
     elif isinstance(var, LineString):
         geom = shapely.geometry.LineString(var.coords)
     else:
         raise ValueError(
-            "Could not convert input to shapely geometry. Invalid datatype. "
-            f"Got: {type(var)}"
+            f"Could not convert input to shapely geometry. Invalid datatype. Got: {type(var)}"
         )
     return geom

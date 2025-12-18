@@ -1,4 +1,5 @@
 """Combination of all augmentable classes and related functions."""
+
 from __future__ import annotations
 
 from . import (

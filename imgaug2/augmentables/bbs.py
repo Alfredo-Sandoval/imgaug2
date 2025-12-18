@@ -1,7 +1,10 @@
 """Classes representing bounding boxes."""
+
 from __future__ import annotations
 
+from collections.abc import Iterator, Sequence
 import copy
+from typing import TYPE_CHECKING, Protocol, TypeVar
 
 import numpy as np
 import skimage.draw
@@ -16,6 +19,19 @@ from imgaug2.augmentables.utils import (
     normalize_imglike_shape,
     project_coords,
 )
+
+if TYPE_CHECKING:
+    from imgaug2.augmentables.kps import Keypoint, KeypointsOnImage
+    from imgaug2.augmentables.polys import Polygon, PolygonsOnImage
+
+
+class _HasXY(Protocol):
+    x: float
+    y: float
+
+
+_TDefault = TypeVar("_TDefault")
+ShapeLike = tuple[int, ...] | np.ndarray
 
 
 # TODO functions: square(), to_aspect_ratio(), contains_point()
@@ -48,7 +64,9 @@ class BoundingBox:
 
     """
 
-    def __init__(self, x1, y1, x2, y2, label=None):
+    def __init__(
+        self, x1: float, y1: float, x2: float, y2: float, label: str | None = None
+    ) -> None:
         """Create a new BoundingBox instance."""
         if x1 > x2:
             x2, x1 = x1, x2
@@ -62,7 +80,7 @@ class BoundingBox:
         self.label = label
 
     @property
-    def coords(self):
+    def coords(self) -> np.ndarray:
         """Get the top-left and bottom-right coordinates as one array.
 
         Added in 0.4.0.
@@ -80,7 +98,7 @@ class BoundingBox:
         return arr
 
     @property
-    def x1_int(self):
+    def x1_int(self) -> int:
         """Get the x-coordinate of the top left corner as an integer.
 
         Returns
@@ -95,7 +113,7 @@ class BoundingBox:
         return int(np.round(self.x1))
 
     @property
-    def y1_int(self):
+    def y1_int(self) -> int:
         """Get the y-coordinate of the top left corner as an integer.
 
         Returns
@@ -110,7 +128,7 @@ class BoundingBox:
         return int(np.round(self.y1))
 
     @property
-    def x2_int(self):
+    def x2_int(self) -> int:
         """Get the x-coordinate of the bottom left corner as an integer.
 
         Returns
@@ -125,7 +143,7 @@ class BoundingBox:
         return int(np.round(self.x2))
 
     @property
-    def y2_int(self):
+    def y2_int(self) -> int:
         """Get the y-coordinate of the bottom left corner as an integer.
 
         Returns
@@ -140,7 +158,7 @@ class BoundingBox:
         return int(np.round(self.y2))
 
     @property
-    def height(self):
+    def height(self) -> float:
         """Estimate the height of the bounding box.
 
         Returns
@@ -152,7 +170,7 @@ class BoundingBox:
         return self.y2 - self.y1
 
     @property
-    def width(self):
+    def width(self) -> float:
         """Estimate the width of the bounding box.
 
         Returns
@@ -164,7 +182,7 @@ class BoundingBox:
         return self.x2 - self.x1
 
     @property
-    def center_x(self):
+    def center_x(self) -> float:
         """Estimate the x-coordinate of the center point of the bounding box.
 
         Returns
@@ -176,7 +194,7 @@ class BoundingBox:
         return self.x1 + self.width / 2
 
     @property
-    def center_y(self):
+    def center_y(self) -> float:
         """Estimate the y-coordinate of the center point of the bounding box.
 
         Returns
@@ -188,7 +206,7 @@ class BoundingBox:
         return self.y1 + self.height / 2
 
     @property
-    def area(self):
+    def area(self) -> float:
         """Estimate the area of the bounding box.
 
         Returns
@@ -200,7 +218,7 @@ class BoundingBox:
         return self.height * self.width
 
     # TODO add test for tuple of number
-    def contains(self, other):
+    def contains(self, other: tuple[float, float] | _HasXY) -> bool:
         """Estimate whether the bounding box contains a given point.
 
         Parameters
@@ -221,7 +239,7 @@ class BoundingBox:
             x, y = other.x, other.y
         return self.x1 <= x <= self.x2 and self.y1 <= y <= self.y2
 
-    def project_(self, from_shape, to_shape):
+    def project_(self, from_shape: ShapeLike, to_shape: ShapeLike) -> BoundingBox:
         """Project the bounding box onto a differently shaped image in-place.
 
         E.g. if the bounding box is on its original image at
@@ -256,7 +274,7 @@ class BoundingBox:
         return self
 
     # TODO add tests for ndarray inputs
-    def project(self, from_shape, to_shape):
+    def project(self, from_shape: ShapeLike, to_shape: ShapeLike) -> BoundingBox:
         """Project the bounding box onto a differently shaped image.
 
         E.g. if the bounding box is on its original image at
@@ -284,7 +302,14 @@ class BoundingBox:
         """
         return self.deepcopy().project_(from_shape, to_shape)
 
-    def extend_(self, all_sides=0, top=0, right=0, bottom=0, left=0):
+    def extend_(
+        self,
+        all_sides: float = 0,
+        top: float = 0,
+        right: float = 0,
+        bottom: float = 0,
+        left: float = 0,
+    ) -> BoundingBox:
         """Extend the size of the bounding box along its sides in-place.
 
         Added in 0.4.0.
@@ -324,7 +349,14 @@ class BoundingBox:
         self.y2 = self.y2 + all_sides + bottom
         return self
 
-    def extend(self, all_sides=0, top=0, right=0, bottom=0, left=0):
+    def extend(
+        self,
+        all_sides: float = 0,
+        top: float = 0,
+        right: float = 0,
+        bottom: float = 0,
+        left: float = 0,
+    ) -> BoundingBox:
         """Extend the size of the bounding box along its sides.
 
         Parameters
@@ -357,7 +389,9 @@ class BoundingBox:
         """
         return self.deepcopy().extend_(all_sides, top, right, bottom, left)
 
-    def intersection(self, other, default=None):
+    def intersection(
+        self, other: BoundingBox, default: _TDefault | None = None
+    ) -> BoundingBox | _TDefault | None:
         """Compute the intersection BB between this BB and another BB.
 
         Note that in extreme cases, the intersection can be a single point.
@@ -389,7 +423,7 @@ class BoundingBox:
             return default
         return BoundingBox(x1=x1_i, y1=y1_i, x2=x2_i, y2=y2_i)
 
-    def union(self, other):
+    def union(self, other: BoundingBox) -> BoundingBox:
         """Compute the union BB between this BB and another BB.
 
         This is equivalent to drawing a bounding box around all corner points
@@ -413,7 +447,7 @@ class BoundingBox:
             y2=max(self.y2, other.y2),
         )
 
-    def iou(self, other):
+    def iou(self, other: BoundingBox) -> float:
         """Compute the IoU between this bounding box and another one.
 
         IoU is the intersection over union, defined as::
@@ -439,7 +473,7 @@ class BoundingBox:
         area_union = self.area + other.area - inters.area
         return inters.area / area_union if area_union > 0 else 0.0
 
-    def compute_out_of_image_area(self, image):
+    def compute_out_of_image_area(self, image: ShapeLike) -> float:
         """Compute the area of the BB that is outside of the image plane.
 
         Added in 0.4.0.
@@ -466,7 +500,7 @@ class BoundingBox:
         area = self.area
         return area if inter is None else area - inter.area
 
-    def compute_out_of_image_fraction(self, image):
+    def compute_out_of_image_fraction(self, image: ShapeLike) -> float:
         """Compute fraction of BB area outside of the image plane.
 
         This estimates ``f = A_ooi / A``, where ``A_ooi`` is the area of the
@@ -503,7 +537,7 @@ class BoundingBox:
             return 1.0 if is_outside else 0.0
         return self.compute_out_of_image_area(image) / area
 
-    def is_fully_within_image(self, image):
+    def is_fully_within_image(self, image: ShapeLike) -> bool:
         """Estimate whether the bounding box is fully inside the image area.
 
         Parameters
@@ -525,7 +559,7 @@ class BoundingBox:
         height, width = shape[0:2]
         return self.x1 >= 0 and self.x2 < width and self.y1 >= 0 and self.y2 < height
 
-    def is_partly_within_image(self, image):
+    def is_partly_within_image(self, image: ShapeLike) -> bool:
         """Estimate whether the BB is at least partially inside the image area.
 
         Parameters
@@ -550,7 +584,7 @@ class BoundingBox:
         img_bb = BoundingBox(x1=0, x2=width - eps, y1=0, y2=height - eps)
         return self.intersection(img_bb) is not None
 
-    def is_out_of_image(self, image, fully=True, partly=False):
+    def is_out_of_image(self, image: ShapeLike, fully: bool = True, partly: bool = False) -> bool:
         """Estimate whether the BB is partially/fully outside of the image area.
 
         Parameters
@@ -587,11 +621,11 @@ class BoundingBox:
         alt_func="BoundingBox.clip_out_of_image()",
         comment="clip_out_of_image() has the exactly same interface.",
     )
-    def cut_out_of_image(self, *args, **kwargs):
+    def cut_out_of_image(self, *args: object, **kwargs: object) -> BoundingBox:
         """Clip off all parts of the BB box that are outside of the image."""
         return self.clip_out_of_image(*args, **kwargs)
 
-    def clip_out_of_image_(self, image):
+    def clip_out_of_image_(self, image: ShapeLike) -> BoundingBox:
         """Clip off parts of the BB box that are outside of the image in-place.
 
         Added in 0.4.0.
@@ -625,7 +659,7 @@ class BoundingBox:
 
         return self
 
-    def clip_out_of_image(self, image):
+    def clip_out_of_image(self, image: ShapeLike) -> BoundingBox:
         """Clip off all parts of the BB box that are outside of the image.
 
         Parameters
@@ -644,7 +678,7 @@ class BoundingBox:
         """
         return self.deepcopy().clip_out_of_image_(image)
 
-    def shift_(self, x=0, y=0):
+    def shift_(self, x: float = 0, y: float = 0) -> BoundingBox:
         """Move this bounding box along the x/y-axis in-place.
 
         The origin ``(0, 0)`` is at the top left of the image.
@@ -674,7 +708,15 @@ class BoundingBox:
         self.y2 += y
         return self
 
-    def shift(self, x=0, y=0, top=None, right=None, bottom=None, left=None):
+    def shift(
+        self,
+        x: float = 0,
+        y: float = 0,
+        top: float | None = None,
+        right: float | None = None,
+        bottom: float | None = None,
+        left: float | None = None,
+    ) -> BoundingBox:
         """Move this bounding box along the x/y-axis.
 
         The origin ``(0, 0)`` is at the top left of the image.
@@ -716,24 +758,22 @@ class BoundingBox:
 
         """
         # pylint: disable=redefined-outer-name
-        x, y = _normalize_shift_args(
-            x, y, top=top, right=right, bottom=bottom, left=left
-        )
+        x, y = _normalize_shift_args(x, y, top=top, right=right, bottom=bottom, left=left)
         return self.deepcopy().shift_(x, y)
 
     def draw_label_on_image(
         self,
-        image,
-        color=(0, 255, 0),
-        color_text=None,
-        color_bg=None,
-        alpha=1.0,
-        size=1,
-        size_text=20,
-        height=30,
-        copy=True,
-        raise_if_out_of_image=False,
-    ):
+        image: np.ndarray,
+        color: Sequence[int] | np.ndarray | None = (0, 255, 0),
+        color_text: Sequence[int] | np.ndarray | None = None,
+        color_bg: Sequence[int] | np.ndarray | None = None,
+        alpha: float = 1.0,
+        size: int = 1,
+        size_text: int = 20,
+        height: int = 30,
+        copy: bool = True,
+        raise_if_out_of_image: bool = False,
+    ) -> np.ndarray:
         """Draw a box showing the BB's label.
 
         The box is placed right above the BB's rectangle.
@@ -805,14 +845,14 @@ class BoundingBox:
 
     def draw_box_on_image(
         self,
-        image,
-        color=(0, 255, 0),
-        alpha=1.0,
-        size=1,
-        copy=True,
-        raise_if_out_of_image=False,
-        thickness=None,
-    ):
+        image: np.ndarray,
+        color: Sequence[int] | np.ndarray = (0, 255, 0),
+        alpha: float = 1.0,
+        size: int = 1,
+        copy: bool = True,
+        raise_if_out_of_image: bool = False,
+        thickness: int | None = None,
+    ) -> np.ndarray:
         """Draw the rectangle of the bounding box on an image.
 
         This method does not draw the label.
@@ -910,14 +950,14 @@ class BoundingBox:
     # TODO add explicit test for zero-sized BBs (worked when tested by hand)
     def draw_on_image(
         self,
-        image,
-        color=(0, 255, 0),
-        alpha=1.0,
-        size=1,
-        copy=True,
-        raise_if_out_of_image=False,
-        thickness=None,
-    ):
+        image: np.ndarray,
+        color: Sequence[int] | np.ndarray = (0, 255, 0),
+        alpha: float = 1.0,
+        size: int = 1,
+        copy: bool = True,
+        raise_if_out_of_image: bool = False,
+        thickness: int | None = None,
+    ) -> np.ndarray:
         """Draw the bounding box on an image.
 
         This will automatically also draw the label, unless it is ``None``.
@@ -985,7 +1025,13 @@ class BoundingBox:
         return image_drawn
 
     # TODO add tests for pad and pad_max
-    def extract_from_image(self, image, pad=True, pad_max=None, prevent_zero_size=True):
+    def extract_from_image(
+        self,
+        image: np.ndarray,
+        pad: bool = True,
+        pad_max: int | None = None,
+        prevent_zero_size: bool = True,
+    ) -> np.ndarray:
         """Extract the image pixels within the bounding box.
 
         This function will zero-pad the image if the bounding box is
@@ -1091,9 +1137,7 @@ class BoundingBox:
                 )
             return image[y1:y2, x1:x2]
         else:
-            within_image = (
-                (0, 0, 0, 0) <= (x1, y1, x2, y2) < (width, height, width, height)
-            )
+            within_image = (0, 0, 0, 0) <= (x1, y1, x2, y2) < (width, height, width, height)
             out_height, out_width = (y2 - y1), (x2 - x1)
             nonzero_height = out_height > 0
             nonzero_width = out_width > 0
@@ -1112,7 +1156,7 @@ class BoundingBox:
     # TODO also add to_heatmap
     # TODO add this to BoundingBoxesOnImage
     # TODO add label to keypoints?
-    def to_keypoints(self):
+    def to_keypoints(self) -> list[Keypoint]:
         """Convert the BB's corners to keypoints (clockwise, from top left).
 
         Returns
@@ -1131,7 +1175,7 @@ class BoundingBox:
             Keypoint(x=self.x1, y=self.y2),
         ]
 
-    def to_polygon(self):
+    def to_polygon(self) -> Polygon:
         """Convert this bounding box to a polygon covering the same area.
 
         Added in 0.4.0.
@@ -1156,7 +1200,11 @@ class BoundingBox:
         )
 
     # TODO also introduce similar area_almost_equals()
-    def coords_almost_equals(self, other, max_distance=1e-4):
+    def coords_almost_equals(
+        self,
+        other: BoundingBox | np.ndarray | Sequence[float] | Sequence[Sequence[float]],
+        max_distance: float = 1e-4,
+    ) -> bool:
         """Estimate if this and another BB have almost identical coordinates.
 
         Added in 0.4.0.
@@ -1200,7 +1248,7 @@ class BoundingBox:
 
         return np.allclose(coords_a.flat, coords_b, atol=max_distance, rtol=0)
 
-    def almost_equals(self, other, max_distance=1e-4):
+    def almost_equals(self, other: BoundingBox, max_distance: float = 1e-4) -> bool:
         """Compare this and another BB's label and coordinates.
 
         This is the same as
@@ -1231,7 +1279,9 @@ class BoundingBox:
         return self.coords_almost_equals(other, max_distance=max_distance)
 
     @classmethod
-    def from_point_soup(cls, xy):
+    def from_point_soup(
+        cls, xy: np.ndarray | Sequence[float] | Sequence[Sequence[float]]
+    ) -> BoundingBox:
         """Convert a ``(2P,) or (P,2) ndarray`` to a BB instance.
 
         This is the inverse of
@@ -1272,7 +1322,14 @@ class BoundingBox:
 
         return cls(x1=x1, y1=y1, x2=x2, y2=y2)
 
-    def copy(self, x1=None, y1=None, x2=None, y2=None, label=None):
+    def copy(
+        self,
+        x1: float | None = None,
+        y1: float | None = None,
+        x2: float | None = None,
+        y2: float | None = None,
+        label: str | None = None,
+    ) -> BoundingBox:
         """Create a shallow copy of this BoundingBox instance.
 
         Parameters
@@ -1311,7 +1368,14 @@ class BoundingBox:
             label=copy.deepcopy(self.label) if label is None else label,
         )
 
-    def deepcopy(self, x1=None, y1=None, x2=None, y2=None, label=None):
+    def deepcopy(
+        self,
+        x1: float | None = None,
+        y1: float | None = None,
+        x2: float | None = None,
+        y2: float | None = None,
+        label: str | None = None,
+    ) -> BoundingBox:
         """
         Create a deep copy of the BoundingBox object.
 
@@ -1347,7 +1411,7 @@ class BoundingBox:
         #      the deepcopy from copy()
         return self.copy(x1=x1, y1=y1, x2=x2, y2=y2, label=label)
 
-    def __getitem__(self, indices):
+    def __getitem__(self, indices: object) -> np.ndarray | np.floating:
         """Get the coordinate(s) with given indices.
 
         Added in 0.4.0.
@@ -1360,7 +1424,7 @@ class BoundingBox:
         """
         return self.coords[indices]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[np.ndarray]:
         """Iterate over the coordinates of this instance.
 
         Added in 0.4.0.
@@ -1373,10 +1437,10 @@ class BoundingBox:
         """
         return iter(self.coords)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"BoundingBox(x1={self.x1:.4f}, y1={self.y1:.4f}, x2={self.x2:.4f}, y2={self.y2:.4f}, label={self.label})"
 
 
@@ -1407,7 +1471,7 @@ class BoundingBoxesOnImage(IAugmentable):
 
     """
 
-    def __init__(self, bounding_boxes, shape):
+    def __init__(self, bounding_boxes: list[BoundingBox], shape: ShapeLike) -> None:
         self.bounding_boxes = bounding_boxes
         self.shape = _handle_on_image_shape(shape, self)
 
@@ -1479,7 +1543,7 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return len(self.bounding_boxes) == 0
 
-    def on_(self, image):
+    def on_(self, image: ShapeLike) -> BoundingBoxesOnImage:
         """Project BBs from one image (shape) to a another one in-place.
 
         Added in 0.4.0.
@@ -1509,7 +1573,7 @@ class BoundingBoxesOnImage(IAugmentable):
         self.shape = on_shape
         return self
 
-    def on(self, image):
+    def on(self, image: ShapeLike) -> BoundingBoxesOnImage:
         """Project bounding boxes from one image (shape) to a another one.
 
         Parameters
@@ -1529,7 +1593,9 @@ class BoundingBoxesOnImage(IAugmentable):
         return self.deepcopy().on_(image)
 
     @classmethod
-    def from_xyxy_array(cls, xyxy, shape):
+    def from_xyxy_array(
+        cls, xyxy: np.ndarray | Sequence[Sequence[float]], shape: ShapeLike
+    ) -> BoundingBoxesOnImage:
         """Convert an ``(N, 4) or (N, 2, 2) ndarray`` to a BBsOI instance.
 
         This is the inverse of
@@ -1571,7 +1637,9 @@ class BoundingBoxesOnImage(IAugmentable):
         return cls(boxes, shape)
 
     @classmethod
-    def from_point_soups(cls, xy, shape):
+    def from_point_soups(
+        cls, xy: np.ndarray | Sequence[Sequence[float]] | Sequence[Sequence[Sequence[float]]], shape: ShapeLike
+    ) -> BoundingBoxesOnImage:
         """Convert an ``(N, 2P) or (N, P, 2) ndarray`` to a BBsOI instance.
 
         Added in 0.4.0.
@@ -1606,7 +1674,9 @@ class BoundingBoxesOnImage(IAugmentable):
 
         return cls(boxes, shape)
 
-    def to_xyxy_array(self, dtype=np.float32):
+    def to_xyxy_array(
+        self, dtype: np.dtype[np.generic] | type[np.generic] = np.float32
+    ) -> np.ndarray:
         """Convert the ``BoundingBoxesOnImage`` object to an ``(N,4) ndarray``.
 
         This is the inverse of
@@ -1632,7 +1702,7 @@ class BoundingBoxesOnImage(IAugmentable):
 
         return xyxy_array.astype(dtype)
 
-    def to_xy_array(self):
+    def to_xy_array(self) -> np.ndarray:
         """Convert the ``BoundingBoxesOnImage`` object to an ``(N,2) ndarray``.
 
         Added in 0.4.0.
@@ -1646,7 +1716,7 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return self.to_xyxy_array().reshape((-1, 2))
 
-    def fill_from_xyxy_array_(self, xyxy):
+    def fill_from_xyxy_array_(self, xyxy: np.ndarray | Sequence[Sequence[float]]) -> BoundingBoxesOnImage:
         """Modify the BB coordinates of this instance in-place.
 
         .. note::
@@ -1697,7 +1767,7 @@ class BoundingBoxesOnImage(IAugmentable):
 
         return self
 
-    def fill_from_xy_array_(self, xy):
+    def fill_from_xy_array_(self, xy: np.ndarray | Sequence[Sequence[float]]) -> BoundingBoxesOnImage:
         """Modify the BB coordinates of this instance in-place.
 
         See
@@ -1783,7 +1853,7 @@ class BoundingBoxesOnImage(IAugmentable):
 
         return image
 
-    def remove_out_of_image_(self, fully=True, partly=False):
+    def remove_out_of_image_(self, fully: bool = True, partly: bool = False) -> BoundingBoxesOnImage:
         """Remove in-place all BBs that are fully/partially outside of the image.
 
         Added in 0.4.0.
@@ -1813,7 +1883,7 @@ class BoundingBoxesOnImage(IAugmentable):
         ]
         return self
 
-    def remove_out_of_image(self, fully=True, partly=False):
+    def remove_out_of_image(self, fully: bool = True, partly: bool = False) -> BoundingBoxesOnImage:
         """Remove all BBs that are fully/partially outside of the image.
 
         Parameters
@@ -1835,7 +1905,7 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return self.copy().remove_out_of_image_(fully=fully, partly=partly)
 
-    def remove_out_of_image_fraction_(self, fraction):
+    def remove_out_of_image_fraction_(self, fraction: float) -> BoundingBoxesOnImage:
         """Remove in-place all BBs with an OOI fraction of at least `fraction`.
 
         'OOI' is the abbreviation for 'out of image'.
@@ -1860,7 +1930,7 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return _remove_out_of_image_fraction_(self, fraction)
 
-    def remove_out_of_image_fraction(self, fraction):
+    def remove_out_of_image_fraction(self, fraction: float) -> BoundingBoxesOnImage:
         """Remove all BBs with an out of image fraction of at least `fraction`.
 
         Added in 0.4.0.
@@ -1886,11 +1956,11 @@ class BoundingBoxesOnImage(IAugmentable):
         alt_func="BoundingBoxesOnImage.clip_out_of_image()",
         comment="clip_out_of_image() has the exactly same interface.",
     )
-    def cut_out_of_image(self):
+    def cut_out_of_image(self) -> BoundingBoxesOnImage:
         """Clip off all parts from all BBs that are outside of the image."""
         return self.clip_out_of_image()
 
-    def clip_out_of_image_(self):
+    def clip_out_of_image_(self) -> BoundingBoxesOnImage:
         """
         Clip off in-place all parts from all BBs that are outside of the image.
 
@@ -1913,7 +1983,7 @@ class BoundingBoxesOnImage(IAugmentable):
 
         return self
 
-    def clip_out_of_image(self):
+    def clip_out_of_image(self) -> BoundingBoxesOnImage:
         """Clip off all parts from all BBs that are outside of the image.
 
         Returns
@@ -1924,7 +1994,7 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return self.deepcopy().clip_out_of_image_()
 
-    def shift_(self, x=0, y=0):
+    def shift_(self, x: float = 0, y: float = 0) -> BoundingBoxesOnImage:
         """Move all BBs along the x/y-axis in-place.
 
         The origin ``(0, 0)`` is at the top left of the image.
@@ -1952,7 +2022,15 @@ class BoundingBoxesOnImage(IAugmentable):
             self.bounding_boxes[i] = bb.shift_(x=x, y=y)
         return self
 
-    def shift(self, x=0, y=0, top=None, right=None, bottom=None, left=None):
+    def shift(
+        self,
+        x: float = 0,
+        y: float = 0,
+        top: float | None = None,
+        right: float | None = None,
+        bottom: float | None = None,
+        left: float | None = None,
+    ) -> BoundingBoxesOnImage:
         """Move all BBs along the x/y-axis.
 
         The origin ``(0, 0)`` is at the top left of the image.
@@ -1993,12 +2071,10 @@ class BoundingBoxesOnImage(IAugmentable):
             Shifted bounding boxes.
 
         """
-        x, y = _normalize_shift_args(
-            x, y, top=top, right=right, bottom=bottom, left=left
-        )
+        x, y = _normalize_shift_args(x, y, top=top, right=right, bottom=bottom, left=left)
         return self.deepcopy().shift_(x=x, y=y)
 
-    def to_keypoints_on_image(self):
+    def to_keypoints_on_image(self) -> KeypointsOnImage:
         """Convert the bounding boxes to one ``KeypointsOnImage`` instance.
 
         Added in 0.4.0.
@@ -2022,7 +2098,7 @@ class BoundingBoxesOnImage(IAugmentable):
 
         return KeypointsOnImage.from_xy_array(arr.reshape((-1, 2)), shape=self.shape)
 
-    def invert_to_keypoints_on_image_(self, kpsoi):
+    def invert_to_keypoints_on_image_(self, kpsoi: KeypointsOnImage) -> BoundingBoxesOnImage:
         """Invert the output of ``to_keypoints_on_image()`` in-place.
 
         This function writes in-place into this ``BoundingBoxesOnImage``
@@ -2067,7 +2143,7 @@ class BoundingBoxesOnImage(IAugmentable):
         self.shape = kpsoi.shape
         return self
 
-    def to_polygons_on_image(self):
+    def to_polygons_on_image(self) -> PolygonsOnImage:
         """Convert the bounding boxes to one ``PolygonsOnImage`` instance.
 
         Added in 0.4.0.
@@ -2084,7 +2160,9 @@ class BoundingBoxesOnImage(IAugmentable):
         polygons = [bb.to_polygon() for bb in self.bounding_boxes]
         return PolygonsOnImage(polygons, shape=self.shape)
 
-    def copy(self, bounding_boxes=None, shape=None):
+    def copy(
+        self, bounding_boxes: list[BoundingBox] | None = None, shape: tuple[int, ...] | None = None
+    ) -> BoundingBoxesOnImage:
         """Create a shallow copy of the ``BoundingBoxesOnImage`` instance.
 
         Parameters
@@ -2111,7 +2189,9 @@ class BoundingBoxesOnImage(IAugmentable):
 
         return BoundingBoxesOnImage(bounding_boxes, shape)
 
-    def deepcopy(self, bounding_boxes=None, shape=None):
+    def deepcopy(
+        self, bounding_boxes: list[BoundingBox] | None = None, shape: tuple[int, ...] | None = None
+    ) -> BoundingBoxesOnImage:
         """Create a deep copy of the ``BoundingBoxesOnImage`` object.
 
         Parameters
@@ -2139,7 +2219,7 @@ class BoundingBoxesOnImage(IAugmentable):
 
         return BoundingBoxesOnImage(bounding_boxes, shape)
 
-    def __getitem__(self, indices):
+    def __getitem__(self, indices: int | slice) -> BoundingBox | list[BoundingBox]:
         """Get the bounding box(es) with given indices.
 
         Added in 0.4.0.
@@ -2152,7 +2232,7 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return self.bounding_boxes[indices]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[BoundingBox]:
         """Iterate over the bounding boxes in this container.
 
         Added in 0.4.0.
@@ -2167,7 +2247,7 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return iter(self.bounding_boxes)
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Get the number of items in this instance.
 
         Added in 0.4.0.
@@ -2180,10 +2260,10 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return len(self.items)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"BoundingBoxesOnImage({str(self.bounding_boxes)}, shape={self.shape})"
 
 
@@ -2255,8 +2335,7 @@ class _LabelOnImageDrawer:
             color_bg = np.uint8(color_bg)
         else:
             assert color is not None, (
-                "Expected `color` to be set when `color_bg` is not set, "
-                "but it was None."
+                "Expected `color` to be set when `color_bg` is not set, but it was None."
             )
             color_bg = color
 

@@ -1,29 +1,71 @@
 """Utility functions used in augmentable modules."""
+
 from __future__ import annotations
 
 import copy as copylib
+from collections.abc import Sequence
+from typing import Protocol, TypeVar, cast, overload
 
 import numpy as np
 
 import imgaug2.imgaug as ia
 
+Shape = tuple[int, ...]
+ImgLikeShape = tuple[int, int] | tuple[int, int, int]
+Number = float | int
+Point2D = tuple[Number, Number]
+Point2DList = Sequence[Point2D]
+
+
+_TCBAOI = TypeVar("_TCBAOI", bound="_SupportsOutOfImageFractionFiltering")
+
+
+class _SupportsComputeOutOfImageFraction(Protocol):
+    def compute_out_of_image_fraction(self, shape: Shape) -> float: ...
+
+
+class _SupportsOutOfImageFractionFiltering(Protocol):
+    items: list[_SupportsComputeOutOfImageFraction]
+    shape: Shape
+
+
+_TCbToKps = TypeVar("_TCbToKps", bound="_SupportsToKeypointsOnImage")
+_TCbInvert = TypeVar("_TCbInvert", bound="_SupportsInvertToKeypointsOnImage")
+
+
+class _SupportsToKeypointsOnImage(Protocol):
+    def to_keypoints_on_image(self) -> object: ...
+
+
+class _SupportsInvertToKeypointsOnImage(Protocol):
+    def invert_to_keypoints_on_image_(self: _TCbInvert, kpsoi: object) -> _TCbInvert: ...
+
 
 # TODO add tests
-def copy_augmentables(augmentables):
+def copy_augmentables(augmentables: object) -> object:
+    from imgaug2.mlx._core import is_mlx_array
+
     if ia.is_np_array(augmentables):
         return np.copy(augmentables)
+    if is_mlx_array(augmentables):
+        # MLX arrays are immutable, so copying is unnecessary.
+        return augmentables
 
     result = []
     for augmentable in augmentables:
         if ia.is_np_array(augmentable):
             result.append(np.copy(augmentable))
+        elif is_mlx_array(augmentable):
+            result.append(augmentable)
         else:
             result.append(augmentable.deepcopy())
     return result
 
 
 # Added in 0.4.0.
-def deepcopy_fast(obj):
+def deepcopy_fast(obj: object) -> object:
+    from imgaug2.mlx._core import is_mlx_array
+
     if obj is None:
         return None
     if ia.is_single_number(obj) or ia.is_string(obj):
@@ -34,13 +76,15 @@ def deepcopy_fast(obj):
         return tuple([deepcopy_fast(el) for el in obj])
     if ia.is_np_array(obj):
         return np.copy(obj)
+    if is_mlx_array(obj):
+        return obj
     if hasattr(obj, "deepcopy"):
         return obj.deepcopy()
     return copylib.deepcopy(obj)
 
 
 # Added in 0.5.0.
-def _handle_on_image_shape(shape, obj):
+def _handle_on_image_shape(shape: Shape | np.ndarray, obj: object) -> Shape:
     if hasattr(shape, "shape"):
         ia.warn_deprecated(
             "Providing a numpy array for parameter `shape` in "
@@ -58,7 +102,7 @@ def _handle_on_image_shape(shape, obj):
     return shape
 
 
-def normalize_shape(shape):
+def normalize_shape(shape: Shape | np.ndarray) -> Shape:
     """Normalize a shape ``tuple`` or ``array`` to a shape ``tuple``.
 
     Parameters
@@ -73,13 +117,12 @@ def normalize_shape(shape):
 
     """
     if isinstance(shape, tuple):
-        return shape
-    assert ia.is_np_array(shape), (
-        f"Expected tuple of ints or array, got {type(shape)}.")
+        return cast(Shape, shape)
+    assert ia.is_np_array(shape), f"Expected tuple of ints or array, got {type(shape)}."
     return shape.shape
 
 
-def normalize_imglike_shape(shape):
+def normalize_imglike_shape(shape: ImgLikeShape | np.ndarray) -> ImgLikeShape:
     """Normalize a shape tuple or image-like ``array`` to a shape tuple.
 
     Added in 0.5.0.
@@ -98,18 +141,19 @@ def normalize_imglike_shape(shape):
 
     """
     if isinstance(shape, tuple):
-        return shape
-    assert ia.is_np_array(shape), (
-        f"Expected tuple of ints or array, got {type(shape)}.")
+        return cast(ImgLikeShape, shape)
+    assert ia.is_np_array(shape), f"Expected tuple of ints or array, got {type(shape)}."
     shape = shape.shape
     assert len(shape) in [2, 3], (
         "Expected image array to be 2-dimensional or 3-dimensional, got "
-        "%d-dimensional input of shape %s." % (len(shape), shape)
+        f"{len(shape)}-dimensional input of shape {shape}."
     )
     return shape
 
 
-def project_coords_(coords, from_shape, to_shape):
+def project_coords_(
+    coords: np.ndarray | Point2DList, from_shape: Shape | np.ndarray, to_shape: Shape | np.ndarray
+) -> np.ndarray:
     """Project coordinates from one image shape to another in-place.
 
     This performs a relative projection, e.g. a point at ``60%`` of the old
@@ -139,21 +183,23 @@ def project_coords_(coords, from_shape, to_shape):
     """
     from_shape = normalize_shape(from_shape)
     to_shape = normalize_shape(to_shape)
+
+    if ia.is_np_array(coords) and coords.dtype.kind == "f":
+        coords_proj = np.copy(coords)
+    else:
+        coords_proj = np.array(coords, dtype=np.float32)
+
     if from_shape[0:2] == to_shape[0:2]:
-        return coords
+        return coords_proj
 
     from_height, from_width = from_shape[0:2]
     to_height, to_width = to_shape[0:2]
 
-    no_zeros_in_shapes = (
-        all([v > 0 for v in [from_height, from_width, to_height, to_width]]))
+    no_zeros_in_shapes = all([v > 0 for v in [from_height, from_width, to_height, to_width]])
     assert no_zeros_in_shapes, (
         "Expected from_shape and to_shape to not contain zeros. Got shapes "
-        f"{from_shape} (from_shape) and {to_shape} (to_shape).")
-
-    coords_proj = coords
-    if not ia.is_np_array(coords) or coords.dtype.kind != "f":
-        coords_proj = np.array(coords).astype(np.float32)
+        f"{from_shape} (from_shape) and {to_shape} (to_shape)."
+    )
 
     coords_proj[:, 0] = (coords_proj[:, 0] / from_width) * to_width
     coords_proj[:, 1] = (coords_proj[:, 1] / from_height) * to_height
@@ -161,7 +207,9 @@ def project_coords_(coords, from_shape, to_shape):
     return coords_proj
 
 
-def project_coords(coords, from_shape, to_shape):
+def project_coords(
+    coords: np.ndarray | Point2DList, from_shape: Shape | np.ndarray, to_shape: Shape | np.ndarray
+) -> np.ndarray:
     """Project coordinates from one image shape to another.
 
     This performs a relative projection, e.g. a point at ``60%`` of the old
@@ -193,7 +241,9 @@ def project_coords(coords, from_shape, to_shape):
 
 
 # TODO does that include point_b in the result?
-def interpolate_point_pair(point_a, point_b, nb_steps):
+def interpolate_point_pair(
+    point_a: Point2D, point_b: Point2D, nb_steps: int
+) -> list[tuple[float, float]]:
     """Interpolate ``N`` points on a line segment.
 
     Parameters
@@ -220,13 +270,10 @@ def interpolate_point_pair(point_a, point_b, nb_steps):
     x2, y2 = point_b
     vec = np.float32([x2 - x1, y2 - y1])
     step_size = vec / (1 + nb_steps)
-    return [
-        (x1 + (i + 1) * step_size[0], y1 + (i + 1) * step_size[1])
-        for i
-        in range(nb_steps)]
+    return [(x1 + (i + 1) * step_size[0], y1 + (i + 1) * step_size[1]) for i in range(nb_steps)]
 
 
-def interpolate_points(points, nb_steps, closed=True):
+def interpolate_points(points: Point2DList, nb_steps: int, closed: bool = True) -> Point2DList:
     """Interpolate ``N`` on each line segment in a line string.
 
     Parameters
@@ -256,11 +303,8 @@ def interpolate_points(points, nb_steps, closed=True):
     if closed:
         points = list(points) + [points[0]]
     points_interp = []
-    for point_a, point_b in zip(points[:-1], points[1:]):
-        points_interp.extend(
-            [point_a]
-            + interpolate_point_pair(point_a, point_b, nb_steps)
-        )
+    for point_a, point_b in zip(points[:-1], points[1:], strict=True):
+        points_interp.extend([point_a] + interpolate_point_pair(point_a, point_b, nb_steps))
     if not closed:
         points_interp.append(points[-1])
     # close does not have to be reverted here, as last point is not included
@@ -268,7 +312,9 @@ def interpolate_points(points, nb_steps, closed=True):
     return points_interp
 
 
-def interpolate_points_by_max_distance(points, max_distance, closed=True):
+def interpolate_points_by_max_distance(
+    points: Point2DList, max_distance: float, closed: bool = True
+) -> Point2DList:
     """Interpolate points with distance ``d`` on a line string.
 
     For a list of points ``A, B, C``, if the distance between ``A`` and ``B``
@@ -299,27 +345,30 @@ def interpolate_points_by_max_distance(points, max_distance, closed=True):
         returned.
 
     """
-    assert max_distance > 0, (
-        f"Expected max_distance to have a value >0, got {max_distance:.8f}.")
+    assert max_distance > 0, f"Expected max_distance to have a value >0, got {max_distance:.8f}."
     if len(points) <= 1:
         return points
     if closed:
         points = list(points) + [points[0]]
     points_interp = []
-    for point_a, point_b in zip(points[:-1], points[1:]):
-        dist = np.sqrt(
-            (point_a[0] - point_b[0]) ** 2
-            + (point_a[1] - point_b[1]) ** 2)
+    for point_a, point_b in zip(points[:-1], points[1:], strict=True):
+        dist = np.sqrt((point_a[0] - point_b[0]) ** 2 + (point_a[1] - point_b[1]) ** 2)
         nb_steps = int((dist / max_distance) - 1)
-        points_interp.extend(
-            [point_a]
-            + interpolate_point_pair(point_a, point_b, nb_steps))
+        points_interp.extend([point_a] + interpolate_point_pair(point_a, point_b, nb_steps))
     if not closed:
         points_interp.append(points[-1])
     return points_interp
 
 
-def convert_cbaois_to_kpsois(cbaois):
+@overload
+def convert_cbaois_to_kpsois(cbaois: _TCbToKps) -> object: ...
+
+
+@overload
+def convert_cbaois_to_kpsois(cbaois: list[_TCbToKps]) -> list[object]: ...
+
+
+def convert_cbaois_to_kpsois(cbaois: _TCbToKps | list[_TCbToKps]) -> object | list[object]:
     """Convert coordinate-based augmentables to KeypointsOnImage instances.
 
     Added in 0.4.0.
@@ -345,7 +394,19 @@ def convert_cbaois_to_kpsois(cbaois):
     return kpsois
 
 
-def invert_convert_cbaois_to_kpsois_(cbaois, kpsois):
+@overload
+def invert_convert_cbaois_to_kpsois_(cbaois: _TCbInvert, kpsois: object) -> _TCbInvert: ...
+
+
+@overload
+def invert_convert_cbaois_to_kpsois_(
+    cbaois: list[_TCbInvert], kpsois: list[object]
+) -> list[_TCbInvert]: ...
+
+
+def invert_convert_cbaois_to_kpsois_(
+    cbaois: _TCbInvert | list[_TCbInvert], kpsois: object | list[object]
+) -> _TCbInvert | list[_TCbInvert]:
     """Invert the output of :func:`convert_to_cbaois_to_kpsois` in-place.
 
     This function writes in-place into `cbaois`.
@@ -372,11 +433,12 @@ def invert_convert_cbaois_to_kpsois_(cbaois, kpsois):
     if not isinstance(cbaois, list):
         assert not isinstance(kpsois, list), (
             "Expected non-list for `kpsois` when `cbaois` is non-list. "
-            f"Got type {type(kpsois.__name__)}.",)
+            f"Got type {type(kpsois).__name__}.",
+        )
         return cbaois.invert_to_keypoints_on_image_(kpsois)
 
     result = []
-    for cbaoi, kpsoi in zip(cbaois, kpsois):
+    for cbaoi, kpsoi in zip(cbaois, kpsois, strict=True):
         cbaoi_recovered = cbaoi.invert_to_keypoints_on_image_(kpsoi)
         result.append(cbaoi_recovered)
 
@@ -384,22 +446,30 @@ def invert_convert_cbaois_to_kpsois_(cbaois, kpsois):
 
 
 # Added in 0.4.0.
-def _remove_out_of_image_fraction_(cbaoi, fraction):
+def _remove_out_of_image_fraction_(cbaoi: _TCBAOI, fraction: float) -> _TCBAOI:
     cbaoi.items = [
-        item for item in cbaoi.items
-        if item.compute_out_of_image_fraction(cbaoi.shape) < fraction]
+        item for item in cbaoi.items if item.compute_out_of_image_fraction(cbaoi.shape) < fraction
+    ]
     return cbaoi
 
 
 # Added in 0.4.0.
-def _normalize_shift_args(x, y, top=None, right=None, bottom=None, left=None):
+def _normalize_shift_args(
+    x: float,
+    y: float,
+    top: float | None = None,
+    right: float | None = None,
+    bottom: float | None = None,
+    left: float | None = None,
+) -> tuple[float, float]:
     """Normalize ``shift()`` arguments to x, y and handle deprecated args."""
     if any([v is not None for v in [top, right, bottom, left]]):
         ia.warn_deprecated(
             f"Got one of the arguments `top` ({top}), `right` ({right}), "
             f"`bottom` ({bottom}), `left` ({left}) in a shift() call. "
             "These are deprecated. Use `x` and `y` instead.",
-            stacklevel=3)
+            stacklevel=3,
+        )
         top = top if top is not None else 0
         right = right if right is not None else 0
         bottom = bottom if bottom is not None else 0

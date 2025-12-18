@@ -3,6 +3,7 @@
 E.g. masks, semantic or instance segmentation maps.
 
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -151,10 +152,8 @@ class SegmentationMapsOnImage(IAugmentable):
                 arr = arr[..., np.newaxis]
         else:
             raise Exception(
-                
-                    "Input was expected to be an array of dtype 'bool', 'int' "
-                    f"or 'uint'. Got dtype '{arr.dtype.name}'."
-                
+                "Input was expected to be an array of dtype 'bool', 'int' "
+                f"or 'uint'. Got dtype '{arr.dtype.name}'."
             )
 
         if arr.dtype.name != "int32":
@@ -325,12 +324,10 @@ class SegmentationMapsOnImage(IAugmentable):
             )
 
         assert image.ndim == 3, (
-            "Expected to draw on 3-dimensional image, got image with %d "
-            "dimensions." % (image.ndim,)
+            "Expected to draw on 3-dimensional image, got image with %d dimensions." % (image.ndim,)
         )
         assert image.shape[2] == 3, (
-            "Expected to draw on RGB image, got image with %d channels "
-            "instead." % (image.shape[2],)
+            "Expected to draw on RGB image, got image with %d channels instead." % (image.shape[2],)
         )
         assert image.dtype.name == "uint8", (
             f"Expected to get image with dtype uint8, got dtype {image.dtype.name}."
@@ -339,20 +336,13 @@ class SegmentationMapsOnImage(IAugmentable):
             f"Expected 'alpha' to be in interval [0.0, 1.0], got {alpha:.4f}."
         )
         assert resize in ["segmentation_map", "image"], (
-            'Expected \'resize\' to be "segmentation_map" or "image", got '
-            f"{resize}."
+            f'Expected \'resize\' to be "segmentation_map" or "image", got {resize}.'
         )
 
-        colors = (
-            colors
-            if colors is not None
-            else SegmentationMapsOnImage.DEFAULT_SEGMENT_COLORS
-        )
+        colors = colors if colors is not None else SegmentationMapsOnImage.DEFAULT_SEGMENT_COLORS
 
         if resize == "image":
-            image = ia.imresize_single_image(
-                image, self.arr.shape[0:2], interpolation="cubic"
-            )
+            image = ia.imresize_single_image(image, self.arr.shape[0:2], interpolation="cubic")
 
         segmaps_drawn = []
         arr_channelwise = np.dsplit(self.arr, self.arr.shape[2])
@@ -446,9 +436,7 @@ class SegmentationMapsOnImage(IAugmentable):
         )
         return self.deepcopy(arr=arr_padded)
 
-    def pad_to_aspect_ratio(
-        self, aspect_ratio, mode="constant", cval=0, return_pad_amounts=False
-    ):
+    def pad_to_aspect_ratio(self, aspect_ratio, mode="constant", cval=0, return_pad_amounts=False):
         """Pad the segmentation maps until they match a target aspect ratio.
 
         Depending on which dimension is smaller (height or width), only the
@@ -533,9 +521,7 @@ class SegmentationMapsOnImage(IAugmentable):
             Resized segmentation map object.
 
         """
-        arr_resized = ia.imresize_single_image(
-            self.arr, sizes, interpolation=interpolation
-        )
+        arr_resized = ia.imresize_single_image(self.arr, sizes, interpolation=interpolation)
         return self.deepcopy(arr_resized)
 
     # TODO how best to handle changes to _input_was due to changed 'arr'?

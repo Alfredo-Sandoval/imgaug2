@@ -1,4 +1,5 @@
 """Classes dealing with polygons."""
+
 from __future__ import annotations
 
 import collections
@@ -126,9 +127,7 @@ class Polygon:
                 # for empty lists, make sure that the shape is (0, 2) and
                 # not (0,) as that is also expected when the input is a numpy
                 # array
-                self.exterior = np.zeros((0, 2), dtype=np.float32).view(
-                    _PolygonExteriorFloat32
-                )
+                self.exterior = np.zeros((0, 2), dtype=np.float32).view(_PolygonExteriorFloat32)
             elif isinstance(exterior[0], Keypoint):
                 # list of Keypoint
                 self.exterior = np.float32([[point.x, point.y] for point in exterior]).view(
@@ -137,9 +136,9 @@ class Polygon:
             else:
                 # list of tuples (x, y)
                 # TODO just np.float32(exterior) here?
-                self.exterior = np.float32(
-                    [[point[0], point[1]] for point in exterior]
-                ).view(_PolygonExteriorFloat32)
+                self.exterior = np.float32([[point[0], point[1]] for point in exterior]).view(
+                    _PolygonExteriorFloat32
+                )
         else:
             assert ia.is_np_array(exterior), (
                 "Expected exterior to be a list of tuples (x, y) or "
@@ -392,8 +391,7 @@ class Polygon:
 
         """
         assert len(self.exterior) > 0, (
-            "Cannot find the closest point on a polygon which's exterior "
-            "contains no points."
+            "Cannot find the closest point on a polygon which's exterior contains no points."
         )
         distances = []
         for x2, y2 in self.exterior:
@@ -625,9 +623,7 @@ class Polygon:
             shapely.geometry.MultiPoint,
         )
         if isinstance(multipoly_inter_shapely, shapely.geometry.Polygon):
-            multipoly_inter_shapely = shapely.geometry.MultiPolygon(
-                [multipoly_inter_shapely]
-            )
+            multipoly_inter_shapely = shapely.geometry.MultiPolygon([multipoly_inter_shapely])
         elif isinstance(multipoly_inter_shapely, shapely.geometry.MultiPolygon):
             # we got a multipolygon from shapely, no need to change anything
             # anymore
@@ -664,9 +660,7 @@ class Polygon:
             best_idx = None
             best_dist = None
             for x, y in self.exterior:
-                point_idx, dist = polygon.find_closest_point_index(
-                    x=x, y=y, return_distance=True
-                )
+                point_idx, dist = polygon.find_closest_point_index(x=x, y=y, return_distance=True)
                 if best_idx is None or dist < best_dist:
                     best_idx = point_idx
                     best_dist = dist
@@ -745,9 +739,7 @@ class Polygon:
             Shifted polygon.
 
         """
-        x, y = _normalize_shift_args(
-            x, y, top=top, right=right, bottom=bottom, left=left
-        )
+        x, y = _normalize_shift_args(x, y, top=top, right=right, bottom=bottom, left=left)
         return self.deepcopy().shift_(x=x, y=y)
 
     # TODO separate this into draw_face_on_image() and draw_border_on_image()
@@ -894,10 +886,7 @@ class Polygon:
             alpha_face = 1
 
         if raise_if_out_of_image and self.is_out_of_image(image):
-            raise Exception(
-                f"Cannot draw polygon {str(self)} on image with "
-                f"shape {image.shape}."
-            )
+            raise Exception(f"Cannot draw polygon {str(self)} on image with shape {image.shape}.")
 
         # TODO np.clip to image plane if is_fully_within_image(), similar to
         #      how it is done for bounding boxes
@@ -994,14 +983,11 @@ class Polygon:
             partially/fully outside of the image.
 
         """
-        assert image.ndim in [2, 3], (
-            f"Expected image of shape (H,W,[C]), got shape {image.shape}."
-        )
+        assert image.ndim in [2, 3], f"Expected image of shape (H,W,[C]), got shape {image.shape}."
 
         if len(self.exterior) <= 2:
             raise Exception(
-                "Polygon must be made up of at least 3 points to "
-                "extract its area from an image."
+                "Polygon must be made up of at least 3 points to extract its area from an image."
             )
 
         bb = self.to_bounding_box()
@@ -1030,9 +1016,7 @@ class Polygon:
 
         return bb_area * mask
 
-    def change_first_point_by_coords(
-        self, x, y, max_distance=1e-4, raise_if_too_far_away=True
-    ):
+    def change_first_point_by_coords(self, x, y, max_distance=1e-4, raise_if_too_far_away=True):
         """
         Reorder exterior points so that the point closest to given x/y is first.
 
@@ -1066,13 +1050,9 @@ class Polygon:
 
         """
         if len(self.exterior) == 0:
-            raise Exception(
-                "Cannot reorder polygon points, because it contains no points."
-            )
+            raise Exception("Cannot reorder polygon points, because it contains no points.")
 
-        closest_idx, closest_dist = self.find_closest_point_index(
-            x=x, y=y, return_distance=True
-        )
+        closest_idx, closest_dist = self.find_closest_point_index(x=x, y=y, return_distance=True)
         if max_distance is not None and closest_dist > max_distance:
             if not raise_if_too_far_away:
                 return self.deepcopy()
@@ -1179,9 +1159,7 @@ class Polygon:
         # load shapely lazily, which makes the dependency more optional
         import shapely.geometry
 
-        return shapely.geometry.Polygon(
-            [(point[0], point[1]) for point in self.exterior]
-        )
+        return shapely.geometry.Polygon([(point[0], point[1]) for point in self.exterior])
 
     def to_shapely_line_string(self, closed=False, interpolate=0):
         """Convert this polygon to a ``Shapely`` ``LineString`` object.
@@ -1301,8 +1279,7 @@ class Polygon:
         # polygon_shapely.exterior can be None if the polygon was
         # instantiated without points
         has_no_exterior = (
-            polygon_shapely.exterior is None
-            or len(polygon_shapely.exterior.coords) == 0
+            polygon_shapely.exterior is None or len(polygon_shapely.exterior.coords) == 0
         )
         if has_no_exterior:
             return Polygon([], label=label)
@@ -1505,9 +1482,7 @@ class Polygon:
         return self.__str__()
 
     def __str__(self):
-        points_str = ", ".join(
-            [f"(x={point[0]:.3f}, y={point[1]:.3f})" for point in self.exterior]
-        )
+        points_str = ", ".join([f"(x={point[0]:.3f}, y={point[1]:.3f})" for point in self.exterior])
         return "Polygon([%s] (%d points), label=%s)" % (
             points_str,
             len(self.exterior),
@@ -1974,9 +1949,7 @@ class PolygonsOnImage(IAugmentable):
             Shifted polygons.
 
         """
-        x, y = _normalize_shift_args(
-            x, y, top=top, right=right, bottom=bottom, left=left
-        )
+        x, y = _normalize_shift_args(x, y, top=top, right=right, bottom=bottom, left=left)
         return self.deepcopy().shift_(x=x, y=y)
 
     def subdivide_(self, points_per_edge):
@@ -2138,8 +2111,9 @@ class PolygonsOnImage(IAugmentable):
         polys = self.polygons
         exteriors = [poly.exterior for poly in polys]
         nb_points_exp = sum([len(exterior) for exterior in exteriors])
-        assert len(kpsoi.keypoints) == nb_points_exp, (
-            "Expected %d coordinates, got %d." % (nb_points_exp, len(kpsoi.keypoints))
+        assert len(kpsoi.keypoints) == nb_points_exp, "Expected %d coordinates, got %d." % (
+            nb_points_exp,
+            len(kpsoi.keypoints),
         )
 
         xy_arr = kpsoi.to_xy_array()
@@ -2341,9 +2315,7 @@ class _ConcavePolygonRecoverer:
 
     def recover_from(self, new_exterior, old_polygon, random_state=0):
         assert isinstance(new_exterior, list) or (
-            ia.is_np_array(new_exterior)
-            and new_exterior.ndim == 2
-            and new_exterior.shape[1] == 2
+            ia.is_np_array(new_exterior) and new_exterior.ndim == 2 and new_exterior.shape[1] == 2
         ), f"Expected exterior as list or (N,2) ndarray, got type {type(new_exterior)}."
         assert len(new_exterior) >= 3, (
             "Cannot recover a concave polygon from less than three points."
@@ -2379,17 +2351,11 @@ class _ConcavePolygonRecoverer:
             )
 
         # integrate new points into exterior
-        new_exterior_inter = self._insert_intersection_points(
-            new_exterior, segment_add_points
-        )
+        new_exterior_inter = self._insert_intersection_points(new_exterior, segment_add_points)
 
         # find best fit polygon, starting from convext polygon
-        new_exterior_concave_ids = self._fit_best_valid_polygon(
-            new_exterior_inter, rss[2]
-        )
-        new_exterior_concave = [
-            new_exterior_inter[idx] for idx in new_exterior_concave_ids
-        ]
+        new_exterior_concave_ids = self._fit_best_valid_polygon(new_exterior_inter, rss[2])
+        new_exterior_concave = [new_exterior_inter[idx] for idx in new_exterior_concave_ids]
 
         # TODO return new_exterior_concave here instead of polygon, leave it to
         #      caller to decide what to do with it
@@ -2427,7 +2393,9 @@ class _ConcavePolygonRecoverer:
                 for point, noise_i in zip(exterior, noise)
             ]
             noise_strength = noise_strength * 10
-            assert noise_strength > 0, f"Expected noise strength to be >0, got {noise_strength:.4f}."
+            assert noise_strength > 0, (
+                f"Expected noise strength to be >0, got {noise_strength:.4f}."
+            )
         return exterior
 
     @classmethod
@@ -2448,12 +2416,8 @@ class _ConcavePolygonRecoverer:
             for i, point in enumerate(exterior_with_duplicates):
                 # we use 10/x here to be a bit more lenient, the precise
                 # distance test is further below
-                x = int(
-                    np.round(point[0] * ((1 / 10) / self.threshold_duplicate_points))
-                )
-                y = int(
-                    np.round(point[1] * ((1 / 10) / self.threshold_duplicate_points))
-                )
+                x = int(np.round(point[0] * ((1 / 10) / self.threshold_duplicate_points)))
+                y = int(np.round(point[1] * ((1 / 10) / self.threshold_duplicate_points)))
                 for direction0 in [-1, 0, 1]:
                     for direction1 in [-1, 0, 1]:
                         points_map[(x + direction0, y + direction1)].append(i)
@@ -2473,9 +2437,7 @@ class _ConcavePolygonRecoverer:
                         if duplicates[p1_idx]:
                             continue
 
-                        dist = np.sqrt(
-                            (point0[0] - point1[0]) ** 2 + (point0[1] - point1[1]) ** 2
-                        )
+                        dist = np.sqrt((point0[0] - point1[0]) ** 2 + (point0[1] - point1[1]) ** 2)
                         if dist < self.threshold_duplicate_points:
                             duplicates[p1_idx] = True
 
@@ -2517,14 +2479,10 @@ class _ConcavePolygonRecoverer:
         points_matrix[:, 0:2] = points
         points_matrix[0:-1, 2:4] = points_matrix[1:, 0:2]
         points_matrix[-1, 2:4] = points_matrix[0, 0:2]
-        distances = np.linalg.norm(
-            points_matrix[:, 0:2] - points_matrix[:, 2:4], axis=1
-        )
+        distances = np.linalg.norm(points_matrix[:, 0:2] - points_matrix[:, 2:4], axis=1)
         return np.sum(distances)
 
-    def _generate_intersection_points(
-        self, exterior, one_point_per_intersection=True, decimals=4
-    ):
+    def _generate_intersection_points(self, exterior, one_point_per_intersection=True, decimals=4):
         # pylint: disable=broad-except
         largest_value = np.max(np.abs(np.array(exterior, dtype=np.float32)))
         too_large_values = largest_value > self.limit_coords_values_for_inter_search
@@ -2536,20 +2494,19 @@ class _ConcavePolygonRecoverer:
                 "and is -- due to the extreme distortion -- likely pointless "
                 "anyways (i.e. the polygon is already broken beyond repair). "
                 "Try using weaker augmentation parameters to avoid such "
-                "large coordinate values."
-                % (self.limit_coords_values_for_inter_search,)
+                "large coordinate values." % (self.limit_coords_values_for_inter_search,)
             )
             return [[] for _ in range(len(exterior))]
 
         if ia.is_np_array(exterior):
             exterior = list(exterior)
         assert isinstance(exterior, list), (
-            "Expected 'exterior' to be a list or a ndarray. "
-            f"Got type {type(exterior)}."
+            f"Expected 'exterior' to be a list or a ndarray. Got type {type(exterior)}."
         )
         assert all([len(point) == 2 for point in exterior]), (
-            "Expected 'exterior' to contain (x,y) coordinate pairs. "
-            "Got lengths {}.".format(", ".join([str(len(point)) for point in exterior]))
+            "Expected 'exterior' to contain (x,y) coordinate pairs. Got lengths {}.".format(
+                ", ".join([str(len(point)) for point in exterior])
+            )
         )
         if len(exterior) <= 0:
             return []
@@ -2611,9 +2568,7 @@ class _ConcavePolygonRecoverer:
                     dist_p1p0 = np.linalg.norm(seg_p1 - np.array(seg_inter_p0))
                     diff = min(dist_p0p0 + dist_p1p1, dist_p0p1 + dist_p1p0)
                     diffs.append(diff)
-                    dists.append(
-                        np.linalg.norm((seg_p0[0] - point[0], seg_p0[1] - point[1]))
-                    )
+                    dists.append(np.linalg.norm((seg_p0[0] - point[0], seg_p0[1] - point[1])))
 
                 min_diff = np.min(diffs)
                 if min_diff < self.max_segment_difference:
@@ -2725,9 +2680,7 @@ class _ConcavePolygonRecoverer:
             )
             den = np.sqrt(y_diff**2 + x_diff**2)
             if den == 0:
-                return np.sqrt(
-                    (point[0] - line_start[0]) ** 2 + (point[1] - line_start[1]) ** 2
-                )
+                return np.sqrt((point[0] - line_start[0]) ** 2 + (point[1] - line_start[1]) ** 2)
             return num / den
 
         poly = Polygon(points)
@@ -2758,9 +2711,7 @@ class _ConcavePolygonRecoverer:
             #      distances, where the points are sampled on the edges (not
             #      edge vertices themselves). Maybe something based on drawing
             #      the perimeter on images or based on distance maps.
-            point_kept_idx_to_pos = {
-                point_idx: i for i, point_idx in enumerate(points_kept)
-            }
+            point_kept_idx_to_pos = {point_idx: i for i, point_idx in enumerate(points_kept)}
 
             # generate all possible combinations from <points_kept> and
             # <points_left>
@@ -2797,18 +2748,14 @@ class _ConcavePolygonRecoverer:
             )
             if do_limit:
                 random_state.shuffle(candidate_rows)
-                candidate_rows = candidate_rows[
-                    0 : self.fit_n_candidates_before_sort_max
-                ]
+                candidate_rows = candidate_rows[0 : self.fit_n_candidates_before_sort_max]
 
             for row in candidate_rows:
                 point_left_idx = row[0]
                 point_kept_idx = row[1]
                 in_points_kept_pos = point_kept_idx_to_pos[point_kept_idx]
                 segment_start_idx = point_kept_idx
-                segment_end_idx = points_kept[
-                    (in_points_kept_pos + 1) % len(points_kept)
-                ]
+                segment_end_idx = points_kept[(in_points_kept_pos + 1) % len(points_kept)]
                 segment_start = points[segment_start_idx]
                 segment_end = points[segment_end_idx]
                 if iteration == 0:
@@ -2846,24 +2793,16 @@ class _ConcavePolygonRecoverer:
                 point_kept_idx = candidates[candidate_idx][1]
                 if (point_left_idx, point_kept_idx) not in done:
                     in_points_kept_idx = [
-                        i
-                        for i, point_idx in enumerate(points_kept)
-                        if point_idx == point_kept_idx
+                        i for i, point_idx in enumerate(points_kept) if point_idx == point_kept_idx
                     ][0]
                     points_kept_hypothesis = points_kept[:]
-                    points_kept_hypothesis.insert(
-                        in_points_kept_idx + 1, point_left_idx
-                    )
-                    poly_hypothesis = Polygon(
-                        [points[idx] for idx in points_kept_hypothesis]
-                    )
+                    points_kept_hypothesis.insert(in_points_kept_idx + 1, point_left_idx)
+                    poly_hypothesis = Polygon([points[idx] for idx in points_kept_hypothesis])
                     if poly_hypothesis.is_valid:
                         is_valid = True
                         points_kept = points_kept_hypothesis
                         points_left = [
-                            point_idx
-                            for point_idx in points_left
-                            if point_idx != point_left_idx
+                            point_idx for point_idx in points_left if point_idx != point_left_idx
                         ]
                         n_changes += 1
                         if n_changes >= self.fit_n_changes_max:
@@ -2902,8 +2841,9 @@ class MultiPolygon:
     def __init__(self, geoms):
         """Create a new MultiPolygon instance."""
         assert len(geoms) == 0 or all([isinstance(el, Polygon) for el in geoms]), (
-            "Expected 'geoms' to a list of Polygon instances. "
-            "Got types {}.".format(", ".join([str(el) for el in geoms]))
+            "Expected 'geoms' to a list of Polygon instances. Got types {}.".format(
+                ", ".join([str(el) for el in geoms])
+            )
         )
         self.geoms = geoms
 
@@ -2938,9 +2878,7 @@ class MultiPolygon:
         if isinstance(geometry, shapely.geometry.Polygon):
             return MultiPolygon([Polygon.from_shapely(geometry, label=label)])
         if isinstance(geometry, shapely.geometry.collection.GeometryCollection):
-            assert all(
-                [isinstance(poly, shapely.geometry.Polygon) for poly in geometry.geoms]
-            ), (
+            assert all([isinstance(poly, shapely.geometry.Polygon) for poly in geometry.geoms]), (
                 "Expected the geometry collection to only contain shapely "
                 "polygons. Got types {}.".format(", ".join([str(type(v)) for v in geometry.geoms]))
             )
