@@ -1,7 +1,6 @@
 """Helper functions to validate input data and produce error messages."""
 from __future__ import annotations
 
-
 import imgaug2.imgaug as ia
 
 
@@ -73,15 +72,11 @@ def assert_is_iterable_of(iterable_var, classes):
             else classes.__name__)
         if not ia.is_iterable(iterable_var):
             raise AssertionError(
-                "Expected an iterable of the following types: %s. "
-                "Got instead a single instance of: %s." % (
-                    expected_types_str,
-                    type(iterable_var).__name__)
+                f"Expected an iterable of the following types: {expected_types_str}. "
+                f"Got instead a single instance of: {type(iterable_var).__name__}."
             )
 
         raise AssertionError(
-            "Expected an iterable of the following types: %s. "
-            "Got an iterable of types: %s." % (
-                expected_types_str,
-                convert_iterable_to_string_of_types(iterable_var))
+            f"Expected an iterable of the following types: {expected_types_str}. "
+            f"Got an iterable of types: {convert_iterable_to_string_of_types(iterable_var)}."
         )

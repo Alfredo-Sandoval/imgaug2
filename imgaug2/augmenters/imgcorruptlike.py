@@ -69,18 +69,17 @@ Added in 0.4.0.
 """
 from __future__ import annotations
 
-
 import warnings
 
 import numpy as np
 import skimage.filters
 
-import imgaug2.imgaug as ia
-from imgaug2.imgaug import _numbajit
 import imgaug2.dtypes as iadt
-import imgaug2.random as iarandom
+import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
+import imgaug2.random as iarandom
 from imgaug2.augmenters import meta
+from imgaug2.imgaug import _numbajit
 
 # TODO add optional dependency
 
@@ -170,13 +169,12 @@ def _call_imgcorrupt_func(fname, seed, convert_to_pil, *args, **kwargs):
     assert height >= 32 and width >= 32, (
         "Expected the provided image to have a width and height of at least "
         "32 pixels, as that is the lower limit that the wrapped "
-        "imagecorruptions functions use. Got shape %s." % (image.shape,))
+        f"imagecorruptions functions use. Got shape {image.shape}.")
 
     ndim = image.ndim
     assert ndim == 2 or (ndim == 3 and (image.shape[2] in [1, 3])), (
         "Expected input image to have shape (height, width) or "
-        "(height, width, 1) or (height, width, 3). Got shape %s." % (
-            image.shape,))
+        f"(height, width, 1) or (height, width, 3). Got shape {image.shape}.")
 
     if ndim == 2:
         image = image[..., np.newaxis]
@@ -247,7 +245,7 @@ def get_corruption_names(subset="common"):
         raise ImportError(_MISSING_PACKAGE_ERROR_MSG)
 
     cnames = imagecorruptions.get_corruption_names(subset)
-    funcs = [globals()["apply_%s" % (cname,)] for cname in cnames]
+    funcs = [globals()[f"apply_{cname}"] for cname in cnames]
 
     return cnames, funcs
 
@@ -2177,8 +2175,8 @@ class ElasticTransform(_ImgcorruptAugmenterBase):
         cols = batch.get_column_names()
         assert len(cols) == 0 or (len(cols) == 1 and "images" in cols), (
             "imgcorruptlike.ElasticTransform can currently only process image "
-            "data. Got a batch containing: %s. Use "
+            "data. Got a batch containing: {}. Use "
             "imgaug2.augmenters.geometric.ElasticTransformation for "
-            "batches containing non-image data." % (", ".join(cols),))
+            "batches containing non-image data.".format(", ".join(cols)))
         return super()._augment_batch_(
             batch, random_state, parents, hooks)

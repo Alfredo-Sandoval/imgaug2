@@ -1,17 +1,16 @@
 
-import warnings
 import itertools
 import unittest
+import warnings
 from unittest import mock
 
-import numpy as np
-
 import cv2
+import numpy as np
 
 import imgaug2 as ia
 from imgaug2 import augmenters as iaa
-from imgaug2 import parameters as iap
 from imgaug2 import dtypes as iadt
+from imgaug2 import parameters as iap
 from imgaug2 import random as iarandom
 from imgaug2.testutils import keypoints_equal, reseed, runtest_pickleable_uint8_img
 
@@ -961,7 +960,7 @@ class TestGaussianBlur(unittest.TestCase):
 
 class TestAverageBlur(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        super(TestAverageBlur, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         base_img = np.zeros((11, 11, 1), dtype=np.uint8)
         base_img[5, 5, 0] = 200
@@ -1344,7 +1343,7 @@ class TestAverageBlur(unittest.TestCase):
 
 class TestMedianBlur(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        super(TestMedianBlur, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         base_img = np.zeros((11, 11, 1), dtype=np.uint8)
         base_img[3:8, 3:8, 0] = 1

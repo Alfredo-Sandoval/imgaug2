@@ -7,22 +7,21 @@ List of augmenters:
 Added in 0.4.0.
 
 """
+
 from __future__ import annotations
 
-
-from abc import ABCMeta, abstractmethod, abstractproperty
-
-import os
 import collections
+from pathlib import Path
+from abc import ABCMeta, abstractmethod
 
-import numpy as np
 import imageio
+import numpy as np
 
-import imgaug2.imgaug as ia
 import imgaug2.dtypes as iadt
+import imgaug2.imgaug as ia
+from imgaug2.augmenters import blend as blendlib
 from imgaug2.augmenters import meta
 from imgaug2.augmenters import size as sizelib
-from imgaug2.augmenters import blend as blendlib
 
 _COLOR_PINK = (255, 192, 203)
 _COLOR_GRID_BACKGROUND = _COLOR_PINK
@@ -68,10 +67,9 @@ def _resizepad_to_size(image, size, cval):
     pad_bottom = int(np.ceil(pad_y / 2))
     pad_left = int(np.floor(pad_x / 2))
 
-    image_rs_pad = sizelib.pad(image_rs,
-                               top=pad_top, right=pad_right,
-                               bottom=pad_bottom, left=pad_left,
-                               cval=cval)
+    image_rs_pad = sizelib.pad(
+        image_rs, top=pad_top, right=pad_right, bottom=pad_bottom, left=pad_left, cval=cval
+    )
 
     paddings = (pad_top, pad_right, pad_bottom, pad_left)
     return image_rs_pad, (height_im_rs, width_im_rs), paddings
@@ -87,7 +85,8 @@ class _IDebugGridCell(metaclass=ABCMeta):
 
     """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def min_width(self):
         """Minimum width in pixels that the cell requires.
 
@@ -95,7 +94,8 @@ class _IDebugGridCell(metaclass=ABCMeta):
 
         """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def min_height(self):
         """Minimum height in pixels that the cell requires.
 
@@ -151,10 +151,15 @@ class _DebugGridBorderCell(_IDebugGridCell):
     # Added in 0.4.0.
     def draw(self, height, width):
         content = self.child.draw(height, width)
-        content = sizelib.pad(content,
-                              top=self.size, right=self.size,
-                              bottom=self.size, left=self.size,
-                              mode="constant", cval=self.color)
+        content = sizelib.pad(
+            content,
+            top=self.size,
+            right=self.size,
+            bottom=self.size,
+            left=self.size,
+            mode="constant",
+            cval=self.color,
+        )
         return content
 
 
@@ -185,8 +190,7 @@ class _DebugGridTextCell(_IDebugGridCell):
     # Added in 0.4.0.
     def draw(self, height, width):
         image = np.full((height, width, 3), 255, dtype=np.uint8)
-        image = ia.draw_text(image, 0, 0, self.text, color=(0, 0, 0),
-                             size=12)
+        image = ia.draw_text(image, 0, 0, self.text, color=(0, 0, 0), size=12)
         return image
 
 
@@ -224,27 +228,30 @@ class _DebugGridImageCell(_IDebugGridCell):
             image = image.astype(np.float64) / max_value
         elif kind == "i":
             min_value, _, max_value = iadt.get_value_range_of_dtype(image.dtype)
-            dynamic_range = (max_value - min_value)
+            dynamic_range = max_value - min_value
             image = (min_value + image.astype(np.float64)) / dynamic_range
 
         if image.dtype.kind == "f":
             image = (np.clip(image, 0, 1.0) * 255).astype(np.uint8)
 
         image_rsp, size_rs, paddings = _resizepad_to_size(
-            image, (height, width), cval=_COLOR_GRID_BACKGROUND)
+            image, (height, width), cval=_COLOR_GRID_BACKGROUND
+        )
 
         blend = image_rsp
         if self.overlay is not None:
-            overlay_rs = self._resize_overlay(self.overlay,
-                                              image.shape[0:2])
+            overlay_rs = self._resize_overlay(self.overlay, image.shape[0:2])
             overlay_rsp = self._resize_overlay(overlay_rs, size_rs)
-            overlay_rsp = sizelib.pad(overlay_rsp,
-                                      top=paddings[0], right=paddings[1],
-                                      bottom=paddings[2], left=paddings[3],
-                                      cval=_COLOR_GRID_BACKGROUND)
+            overlay_rsp = sizelib.pad(
+                overlay_rsp,
+                top=paddings[0],
+                right=paddings[1],
+                bottom=paddings[2],
+                left=paddings[3],
+                cval=_COLOR_GRID_BACKGROUND,
+            )
 
-            blend = blendlib.blend_alpha(overlay_rsp, image_rsp,
-                                         alpha=self.overlay_alpha)
+            blend = blendlib.blend_alpha(overlay_rsp, image_rsp, alpha=self.overlay_alpha)
 
         return blend
 
@@ -283,7 +290,8 @@ class _DebugGridCBAsOICell(_IDebugGridCell):
     # Added in 0.4.0.
     def draw(self, height, width):
         image_rsp, size_rs, paddings = _resizepad_to_size(
-            self.image, (height, width), cval=_COLOR_GRID_BACKGROUND)
+            self.image, (height, width), cval=_COLOR_GRID_BACKGROUND
+        )
 
         cbasoi = self.cbasoi.deepcopy()
         cbasoi = cbasoi.on_(size_rs)
@@ -337,9 +345,9 @@ class _DebugGridColumn:
 
         """
         width = self.max_cell_width
-        return np.vstack([cell.draw(height=height, width=width)
-                          for cell, height
-                          in zip(self.cells, heights)])
+        return np.vstack(
+            [cell.draw(height=height, width=width) for cell, height in zip(self.cells, heights)]
+        )
 
 
 class _DebugGrid:
@@ -369,8 +377,7 @@ class _DebugGrid:
         for column in self.columns:
             heights = [cell.min_height for cell in column.cells]
             rowwise_heights = np.maximum(rowwise_heights, heights)
-        return np.hstack([column.draw(heights=rowwise_heights)
-                          for column in self.columns])
+        return np.hstack([column.draw(heights=rowwise_heights) for column in self.columns])
 
 
 # TODO image subtitles
@@ -378,9 +385,15 @@ class _DebugGrid:
 # TODO main process id, process id
 # TODO warning if map aspect ratio is different from image aspect ratio
 # TODO error if non-image shapes differ from image shapes
-def draw_debug_image(images, heatmaps=None, segmentation_maps=None,
-                     keypoints=None, bounding_boxes=None, polygons=None,
-                     line_strings=None):
+def draw_debug_image(
+    images,
+    heatmaps=None,
+    segmentation_maps=None,
+    keypoints=None,
+    bounding_boxes=None,
+    polygons=None,
+    line_strings=None,
+):
     """Generate a debug image grid of a single batch and various datatypes.
 
     Added in 0.4.0.
@@ -478,28 +491,26 @@ def draw_debug_image(images, heatmaps=None, segmentation_maps=None,
         columns.append(_create_cbasois_column(keypoints, images, "Keypoints"))
 
     if bounding_boxes is not None:
-        columns.append(_create_cbasois_column(bounding_boxes, images,
-                                              "Bounding Boxes"))
+        columns.append(_create_cbasois_column(bounding_boxes, images, "Bounding Boxes"))
 
     if polygons is not None:
         columns.append(_create_cbasois_column(polygons, images, "Polygons"))
 
     if line_strings is not None:
-        columns.append(_create_cbasois_column(line_strings, images,
-                                              "Line Strings"))
+        columns.append(_create_cbasois_column(line_strings, images, "Line Strings"))
 
     result = _DebugGrid(columns)
     result = result.draw()
-    result = sizelib.pad(result, top=1, right=1, bottom=1, left=1,
-                         mode="constant", cval=_COLOR_GRID_BACKGROUND)
+    result = sizelib.pad(
+        result, top=1, right=1, bottom=1, left=1, mode="constant", cval=_COLOR_GRID_BACKGROUND
+    )
     return result
 
 
 # Added in 0.4.0.
 def _add_borders(cells):
     """Add a border (cell) around a cell."""
-    return [_DebugGridBorderCell(1, _COLOR_GRID_BACKGROUND, cell)
-            for cell in cells]
+    return [_DebugGridBorderCell(1, _COLOR_GRID_BACKGROUND, cell) for cell in cells]
 
 
 # Added in 0.4.0.
@@ -514,14 +525,7 @@ def _create_images_column(images):
     cells = [_DebugGridImageCell(image) for image in images]
     images_descr = _generate_images_description(images)
     column = _DebugGridColumn(
-        _add_borders(
-            _add_text_cell(
-                "Images",
-                _add_text_cell(
-                    images_descr,
-                    cells)
-            )
-        )
+        _add_borders(_add_text_cell("Images", _add_text_cell(images_descr, cells)))
     )
     return column
 
@@ -529,14 +533,12 @@ def _create_images_column(images):
 # Added in 0.4.0.
 def _create_heatmaps_columns(heatmaps, images):
     """Create columns for heatmap data."""
-    nb_map_channels = max([heatmap.arr_0to1.shape[2]
-                           for heatmap in heatmaps])
+    nb_map_channels = max([heatmap.arr_0to1.shape[2] for heatmap in heatmaps])
     columns = [[] for _ in np.arange(nb_map_channels)]
     for image, heatmap in zip(images, heatmaps):
         heatmap_drawn = heatmap.draw()
         for c, heatmap_drawn_c in enumerate(heatmap_drawn):
-            columns[c].append(
-                _DebugGridImageCell(image, overlay=heatmap_drawn_c))
+            columns[c].append(_DebugGridImageCell(image, overlay=heatmap_drawn_c))
 
     columns = [
         _DebugGridColumn(
@@ -545,10 +547,10 @@ def _create_heatmaps_columns(heatmaps, images):
                     "Heatmaps",
                     _add_text_cell(
                         _generate_heatmaps_description(
-                            heatmaps,
-                            channel_idx=c,
-                            show_details=(c == 0)),
-                        cells)
+                            heatmaps, channel_idx=c, show_details=(c == 0)
+                        ),
+                        cells,
+                    ),
                 )
             )
         )
@@ -560,16 +562,14 @@ def _create_heatmaps_columns(heatmaps, images):
 # Added in 0.4.0.
 def _create_segmap_columns(segmentation_maps, images):
     """Create columns for segmentation map data."""
-    nb_map_channels = max([segmap.arr.shape[2]
-                           for segmap in segmentation_maps])
+    nb_map_channels = max([segmap.arr.shape[2] for segmap in segmentation_maps])
     columns = [[] for _ in np.arange(nb_map_channels)]
     for image, segmap in zip(images, segmentation_maps):
         # TODO this currently draws the background in black, hence the
         #      resulting blended image is dark at class id 0
         segmap_drawn = segmap.draw()
         for c, segmap_drawn_c in enumerate(segmap_drawn):
-            columns[c].append(
-                _DebugGridImageCell(image, overlay=segmap_drawn_c))
+            columns[c].append(_DebugGridImageCell(image, overlay=segmap_drawn_c))
 
     columns = [
         _DebugGridColumn(
@@ -578,11 +578,10 @@ def _create_segmap_columns(segmentation_maps, images):
                     "SegMaps",
                     _add_text_cell(
                         _generate_segmaps_description(
-                            segmentation_maps,
-                            channel_idx=c,
-                            show_details=(c == 0)),
-                        cells
-                    )
+                            segmentation_maps, channel_idx=c, show_details=(c == 0)
+                        ),
+                        cells,
+                    ),
                 )
             )
         )
@@ -595,17 +594,10 @@ def _create_segmap_columns(segmentation_maps, images):
 # Added in 0.4.0.
 def _create_cbasois_column(cbasois, images, column_name):
     """Create a column for coordinate-based augmentables."""
-    cells = [_DebugGridCBAsOICell(cbasoi, image)
-             for cbasoi, image
-             in zip(cbasois, images)]
+    cells = [_DebugGridCBAsOICell(cbasoi, image) for cbasoi, image in zip(cbasois, images)]
     descr = _generate_cbasois_description(cbasois, images)
     column = _DebugGridColumn(
-        _add_borders(
-            _add_text_cell(
-                column_name,
-                _add_text_cell(descr, cells)
-            )
-        )
+        _add_borders(_add_text_cell(column_name, _add_text_cell(descr, cells)))
     )
     return column
 
@@ -614,57 +606,46 @@ def _create_cbasois_column(cbasois, images, column_name):
 def _generate_images_description(images):
     """Generate description for image columns."""
     if ia.is_np_array(images):
-        shapes_str = "array, shape %11s" % (str(images.shape),)
-        dtypes_str = "dtype %8s" % (images.dtype.name,)
+        shapes_str = f"array, shape {str(images.shape):>11}"
+        dtypes_str = f"dtype {images.dtype.name:>8}"
         if len(images) == 0:
             value_range_str = ""
         elif images.dtype.kind in ["u", "i", "b"]:
-            value_range_str = "value range: %3d to %3d" % (
-                np.min(images), np.max(images))
+            value_range_str = f"value range: {np.min(images):3d} to {np.max(images):3d}"
         else:
-            value_range_str = "value range: %7.4f to %7.4f" % (
-                np.min(images), np.max(images))
+            value_range_str = f"value range: {np.min(images):7.4f} to {np.max(images):7.4f}"
     else:
         stats = _ListOfArraysStats(images)
 
         if stats.empty:
             shapes_str = ""
         elif stats.all_same_shape:
-            shapes_str = (
-                "list of %3d arrays\n"
-                "all shape %11s"
-            ) % (len(images), stats.shapes[0],)
+            shapes_str = f"list of {len(images):3d} arrays\nall shape {str(stats.shapes[0]):>11}"
         else:
             shapes_str = (
-                "list of %3d arrays\n"
+                f"list of {len(images):3d} arrays\n"
                 "varying shapes\n"
-                "smallest image: %11s\n"
-                "largest image: %11s\n"
-                "height: %3d to %3d\n"
-                "width: %3d to %3d\n"
-                "channels: %1s to %1s"
-            ) % (len(images),
-                 stats.smallest_shape, stats.largest_shape,
-                 stats.height_min, stats.height_max,
-                 stats.width_min, stats.width_max,
-                 stats.get_channels_min("None"),
-                 stats.get_channels_max("None"))
+                f"smallest image: {str(stats.smallest_shape):>11}\n"
+                f"largest image: {str(stats.largest_shape):>11}\n"
+                f"height: {stats.height_min:3d} to {stats.height_max:3d}\n"
+                f"width: {stats.width_min:3d} to {stats.width_max:3d}\n"
+                f"channels: {stats.get_channels_min('None'):>1} to {stats.get_channels_max('None'):>1}"
+            )
 
         if stats.empty:
             dtypes_str = ""
         elif stats.all_same_dtype:
-            dtypes_str = "all dtype %8s" % (stats.dtypes[0],)
+            dtypes_str = f"all dtype {str(stats.dtypes[0]):>8}"
         else:
-            dtypes_str = "dtypes: %s" % (", ".join(stats.unique_dtype_names),)
+            dtypes_str = "dtypes: {}".format(", ".join(stats.unique_dtype_names))
 
         if stats.empty:
             value_range_str = ""
         else:
-            value_range_str = "value range: %3d to %3d"
-            if not stats.all_dtypes_intlike:
-                value_range_str = "value range: %6.4f to %6.4f"
-            value_range_str = value_range_str % (stats.value_min,
-                                                 stats.value_max)
+            if stats.all_dtypes_intlike:
+                value_range_str = f"value range: {stats.value_min:3d} to {stats.value_max:3d}"
+            else:
+                value_range_str = f"value range: {stats.value_min:6.4f} to {stats.value_max:6.4f}"
 
     strs = [shapes_str, dtypes_str, value_range_str]
     return _join_description_strs(strs)
@@ -681,10 +662,9 @@ def _generate_segmaps_description(segmaps, channel_idx, show_details):
     arrs_channel = [segmap.arr[:, :, channel_idx] for segmap in segmaps]
     stats_channel = _ListOfArraysStats(arrs_channel)
     value_range_str = (
-        "value range: %3d to %3d\n"
-        "number of unique classes: %2d"
-    ) % (stats_channel.value_min, stats_channel.value_max,
-         stats_channel.nb_unique_values)
+        f"value range: {stats_channel.value_min:3d} to {stats_channel.value_max:3d}\n"
+        f"number of unique classes: {stats_channel.nb_unique_values:2d}"
+    )
 
     return _join_description_strs(strs + [value_range_str])
 
@@ -700,9 +680,9 @@ def _generate_heatmaps_description(heatmaps, channel_idx, show_details):
     arrs_channel = [heatmap.arr_0to1[:, :, channel_idx] for heatmap in heatmaps]
     stats_channel = _ListOfArraysStats(arrs_channel)
     value_range_str = (
-        "value range: %6.4f to %6.4f\n"
+        f"value range: {stats_channel.value_min:6.4f} to {stats_channel.value_max:6.4f}\n"
         "    (internal, max is [0.0, 1.0])"
-    ) % (stats_channel.value_min, stats_channel.value_max)
+    )
 
     return _join_description_strs(strs + [value_range_str])
 
@@ -719,8 +699,7 @@ def _generate_sm_hm_description(augmentables, channel_idx, show_details):
     stats = _ListOfArraysStats(arrs)
 
     if stats.get_channels_max(-1) > -1:
-        channel_str = "Channel %1d of %1d" % (channel_idx+1,
-                                              stats.get_channels_max(-1))
+        channel_str = f"Channel {channel_idx + 1:1d} of {stats.get_channels_max(-1):1d}"
     else:
         channel_str = ""
 
@@ -728,24 +707,18 @@ def _generate_sm_hm_description(augmentables, channel_idx, show_details):
         shapes_str = ""
     elif stats.all_same_shape:
         shapes_str = (
-            "items for %3d images\n"
-            "all arrays of shape %11s"
-        ) % (len(augmentables), stats.shapes[0],)
+            f"items for {len(augmentables):3d} images\nall arrays of shape {str(stats.shapes[0]):>11}"
+        )
     else:
         shapes_str = (
-            "items for %3d images\n"
+            f"items for {len(augmentables):3d} images\n"
             "varying array shapes\n"
-            "smallest: %11s\n"
-            "largest: %11s\n"
-            "height: %3d to %3d\n"
-            "width: %3d to %3d\n"
-            "channels: %1s to %1s"
-        ) % (len(augmentables),
-             stats.smallest_shape, stats.largest_shape,
-             stats.height_min, stats.height_max,
-             stats.width_min, stats.width_max,
-             stats.get_channels_min("None"),
-             stats.get_channels_max("None"))
+            f"smallest: {str(stats.smallest_shape):>11}\n"
+            f"largest: {str(stats.largest_shape):>11}\n"
+            f"height: {stats.height_min:3d} to {stats.height_max:3d}\n"
+            f"width: {stats.width_min:3d} to {stats.width_max:3d}\n"
+            f"channels: {stats.get_channels_min('None'):>1} to {stats.get_channels_max('None'):>1}"
+        )
 
     if not show_details:
         on_shapes_str = ""
@@ -758,40 +731,38 @@ def _generate_sm_hm_description(augmentables, channel_idx, show_details):
 # Added in 0.4.0.
 def _generate_cbasois_description(cbasois, images):
     """Generate description for coordinate-based augmentable columns."""
-    images_str = "items for %d images" % (len(cbasois),)
+    images_str = f"items for {len(cbasois)} images"
 
     nb_items_lst = [len(cbasoi.items) for cbasoi in cbasois]
     nb_items_lst = nb_items_lst if len(cbasois) > 0 else [-1]
     nb_items = sum(nb_items_lst)
     items_str = (
-        "fewest items on image: %3d\n"
-        "most items on image: %3d\n"
-        "total items: %6d"
-    ) % (min(nb_items_lst), max(nb_items_lst), nb_items)
+        f"fewest items on image: {min(nb_items_lst):3d}\n"
+        f"most items on image: {max(nb_items_lst):3d}\n"
+        f"total items: {nb_items:6d}"
+    )
 
-    areas = [
-        cba.area if hasattr(cba, "area") else -1
-        for cbasoi in cbasois
-        for cba in cbasoi.items]
+    areas = [cba.area if hasattr(cba, "area") else -1 for cbasoi in cbasois for cba in cbasoi.items]
     areas = areas if len(cbasois) > 0 else [-1]
-    areas_str = (
-        "smallest area: %7.4f\n"
-        "largest area: %7.4f"
-    ) % (min(areas), max(areas))
+    areas_str = f"smallest area: {min(areas):7.4f}\nlargest area: {max(areas):7.4f}"
 
-    labels = list(ia.flatten([item.label if hasattr(item, "label") else None
-                              for cbasoi in cbasois
-                              for item in cbasoi.items]))
+    labels = list(
+        ia.flatten(
+            [
+                item.label if hasattr(item, "label") else None
+                for cbasoi in cbasois
+                for item in cbasoi.items
+            ]
+        )
+    )
     labels_ctr = collections.Counter(labels)
     labels_most_common = []
     for label, count in labels_ctr.most_common(10):
-        labels_most_common.append("\n    - %s (%3d, %6.2f%%)" % (
-            label, count, count/nb_items * 100))
+        labels_most_common.append(f"\n    - {label} ({count:3d}, {count / nb_items * 100:6.2f}%)")
     labels_str = (
-        "unique labels: %2d\n"
-        "most common labels:"
-        "%s"
-    ) % (len(labels_ctr.keys()), "".join(labels_most_common))
+        f"unique labels: {len(labels_ctr.keys()):2d}\n"
+        f"most common labels:{''.join(labels_most_common)}"
+    )
 
     coords_ooi = []
     dists = []
@@ -801,44 +772,41 @@ def _generate_cbasois_description(cbasois, images):
             coords = cba.coords
             for coord in coords:
                 x, y = coord
-                dist = (x - w/2)**2 + (y - h/2) ** 2
+                dist = (x - w / 2) ** 2 + (y - h / 2) ** 2
                 coords_ooi.append(not (0 <= x < w and 0 <= y < h))
                 dists.append(((x, y), dist))
 
     # use x_ and y_ because otherwise we get a 'redefines x' error in pylint
-    coords_extreme = [(x_, y_)
-                      for (x_, y_), _
-                      in sorted(dists, key=lambda t: t[1])]
+    coords_extreme = [(x_, y_) for (x_, y_), _ in sorted(dists, key=lambda t: t[1])]
 
     nb_ooi = sum(coords_ooi)
     ooi_str = (
-        "coords out of image: %d (%6.2f%%)\n"
-        "most extreme coord: (%5.1f, %5.1f)"
+        f"coords out of image: {nb_ooi} ({nb_ooi / len(coords_ooi) * 100:6.2f}%)\n"
+        f"most extreme coord: ({coords_extreme[-1][0]:5.1f}, {coords_extreme[-1][1]:5.1f})"
         # TODO "items anyhow out of image: %d (%.2f%%)\n"
         # TODO "items fully out of image: %d (%.2f%%)\n"
-    ) % (nb_ooi, nb_ooi / len(coords_ooi) * 100,
-         coords_extreme[-1][0], coords_extreme[-1][1])
+    )
 
     on_shapes_str = _generate_on_image_shapes_descr(cbasois)
 
-    return _join_description_strs([images_str, items_str, areas_str,
-                                   labels_str, ooi_str, on_shapes_str])
+    return _join_description_strs(
+        [images_str, items_str, areas_str, labels_str, ooi_str, on_shapes_str]
+    )
 
 
 # Added in 0.4.0.
 def _generate_on_image_shapes_descr(augmentables):
     """Generate text block for non-image data describing their image shapes."""
     on_shapes = [augmentable.shape for augmentable in augmentables]
-    stats_imgs = _ListOfArraysStats([np.empty(on_shape)
-                                     for on_shape in on_shapes])
+    stats_imgs = _ListOfArraysStats([np.empty(on_shape) for on_shape in on_shapes])
     if stats_imgs.all_same_shape:
-        on_shapes_str = "all on image shape %11s" % (stats_imgs.shapes[0],)
+        on_shapes_str = f"all on image shape {str(stats_imgs.shapes[0]):>11}"
     else:
         on_shapes_str = (
             "on varying image shapes\n"
-            "smallest image: %11s\n"
-            "largest image: %11s"
-        ) % (stats_imgs.smallest_shape, stats_imgs.largest_shape)
+            f"smallest image: {str(stats_imgs.smallest_shape):>11}\n"
+            f"largest image: {str(stats_imgs.largest_shape):>11}"
+        )
     return on_shapes_str
 
 
@@ -875,8 +843,7 @@ class _ListOfArraysStats:
     @property
     def arrays_by_area(self):
         arrays_by_area = [
-            arr for arr, _
-            in sorted(zip(self.arrays, self.areas), key=lambda t: t[1])
+            arr for arr, _ in sorted(zip(self.arrays, self.areas), key=lambda t: t[1])
         ]
         return arrays_by_area
 
@@ -1064,8 +1031,7 @@ class _FolderImageDestination(_IImageDestination):
     """A destination which saves images to a directory."""
 
     # Added in 0.4.0.
-    def __init__(self, folder_path,
-                 filename_pattern="batch_{batch_id:06d}.png"):
+    def __init__(self, folder_path, filename_pattern="batch_{batch_id:06d}.png"):
         super().__init__()
         self.folder_path = folder_path
         self.filename_pattern = filename_pattern
@@ -1075,9 +1041,9 @@ class _FolderImageDestination(_IImageDestination):
     # Added in 0.4.0.
     def on_batch(self, batch):
         self._batch_id += 1
-        self._filepath = os.path.join(
-            self.folder_path,
-            self.filename_pattern.format(batch_id=self._batch_id))
+        self._filepath = str(
+            Path(self.folder_path) / self.filename_pattern.format(batch_id=self._batch_id)
+        )
 
     # Added in 0.4.0.
     def receive(self, image):
@@ -1123,7 +1089,7 @@ class _EveryNBatchesSchedule(_IBatchwiseSchedule):
     # Added in 0.4.0.
     def on_batch(self, batch):
         self._batch_id += 1
-        signal = (self._batch_id % self.interval == 0)
+        signal = self._batch_id % self.interval == 0
         return signal
 
 
@@ -1161,12 +1127,18 @@ class _SaveDebugImage(meta.Augmenter):
     """
 
     # Added in 0.4.0.
-    def __init__(self, destination, schedule,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        destination,
+        schedule,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
         self.destination = destination
         self.schedule = schedule
 
@@ -1183,7 +1155,8 @@ class _SaveDebugImage(meta.Augmenter):
                 keypoints=batch.keypoints,
                 bounding_boxes=batch.bounding_boxes,
                 polygons=batch.polygons,
-                line_strings=batch.line_strings)
+                line_strings=batch.line_strings,
+            )
 
             self.destination.receive(image)
 
@@ -1247,23 +1220,35 @@ class SaveDebugImageEveryNBatches(_SaveDebugImage):
     """
 
     # Added in 0.4.0.
-    def __init__(self, destination, interval,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        destination,
+        interval,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         schedule = _EveryNBatchesSchedule(interval)
         if not isinstance(destination, _IImageDestination):
-            assert os.path.isdir(destination), (
+            assert Path(destination).is_dir(), (
                 "Expected 'destination' to be a string path to an existing "
-                "directory. Got path '%s'." % (destination,))
-            destination = _MultiDestination([
-                _FolderImageDestination(destination),
-                _FolderImageDestination(destination,
-                                        filename_pattern="batch_latest.png")
-            ])
+                f"directory. Got path '{destination}'."
+            )
+            destination = _MultiDestination(
+                [
+                    _FolderImageDestination(destination),
+                    _FolderImageDestination(destination, filename_pattern="batch_latest.png"),
+                ]
+            )
         super().__init__(
-            destination=destination, schedule=schedule,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            destination=destination,
+            schedule=schedule,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
     # Added in 0.4.0.
     def get_parameters(self):
@@ -1273,5 +1258,5 @@ class SaveDebugImageEveryNBatches(_SaveDebugImage):
             dests[0].filename_pattern,
             dests[1].folder_path,
             dests[1].filename_pattern,
-            self.schedule.interval
+            self.schedule.interval,
         ]

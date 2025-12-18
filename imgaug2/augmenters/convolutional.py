@@ -14,16 +14,15 @@ For MotionBlur, see ``blur.py``.
 """
 from __future__ import annotations
 
-
 import itertools
 
-import numpy as np
 import cv2
+import numpy as np
 
-import imgaug2.imgaug as ia
-from imgaug2.augmenters import meta
-import imgaug2.parameters as iap
 import imgaug2.dtypes as iadt
+import imgaug2.imgaug as ia
+import imgaug2.parameters as iap
+from imgaug2.augmenters import meta
 
 
 def convolve(image, kernel):
@@ -127,13 +126,13 @@ def convolve_(image, kernel):
     if ia.is_np_array(kernel):
         assert kernel.ndim == 2, (
             "Expected kernel to be either a list of (H,W) arrays or a "
-            "single (H,W) array, got array of shape %s." % (kernel.shape,)
+            f"single (H,W) array, got array of shape {kernel.shape}."
         )
         matrices = [kernel]
     else:
         assert isinstance(kernel, list), (
             "Expected kernel to be either a list of (H,W) arrays or a "
-            "single (H,W) array, got type %s." % (type(kernel).__name__,)
+            f"single (H,W) array, got type {type(kernel).__name__}."
         )
         assert len(kernel) == nb_channels, (
             "Kernel was given as a list. Expected that list to contain as "
@@ -273,8 +272,7 @@ class Convolve(meta.Augmenter):
         else:
             raise Exception(
                 "Expected float, int, tuple/list with 2 entries or "
-                "StochasticParameter. Got %s." % (
-                    type(matrix),))
+                f"StochasticParameter. Got {type(matrix)}.")
 
     # Added in 0.4.0.
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -403,7 +401,7 @@ class _SharpeningMatrixGenerator:
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
             "Expected 'alpha' to be in the interval [0.0, 1.0], "
-            "got %.4f." % (alpha_sample,))
+            f"got {alpha_sample:.4f}.")
         lightness_sample = self.lightness.draw_sample(random_state=random_state)
         matrix_nochange = np.array([
             [0, 0, 0],
@@ -514,7 +512,7 @@ class _EmbossMatrixGenerator:
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
             "Expected 'alpha' to be in the interval [0.0, 1.0], "
-            "got %.4f." % (alpha_sample,))
+            f"got {alpha_sample:.4f}.")
         strength_sample = self.strength.draw_sample(random_state=random_state)
         matrix_nochange = np.array([
             [0, 0, 0],
@@ -607,7 +605,7 @@ class _EdgeDetectMatrixGenerator:
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
             "Expected 'alpha' to be in the interval [0.0, 1.0], "
-            "got %.4f." % (alpha_sample,))
+            f"got {alpha_sample:.4f}.")
         matrix_nochange = np.array([
             [0, 0, 0],
             [0, 1, 0],
@@ -745,7 +743,7 @@ class _DirectedEdgeDetectMatrixGenerator:
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
             "Expected 'alpha' to be in the interval [0.0, 1.0], "
-            "got %.4f." % (alpha_sample,))
+            f"got {alpha_sample:.4f}.")
         direction_sample = self.direction.draw_sample(random_state=random_state)
 
         deg = int(direction_sample * 360) % 360

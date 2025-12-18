@@ -9,15 +9,11 @@ Added in 0.4.0.
 """
 from __future__ import annotations
 
-
 import numpy as np
 
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
-from imgaug2.augmenters import meta
-from imgaug2.augmenters import arithmetic
-from imgaug2.augmenters import flip
-from imgaug2.augmenters import pillike
+from imgaug2.augmenters import arithmetic, flip, meta, pillike
 from imgaug2.augmenters import size as sizelib
 
 

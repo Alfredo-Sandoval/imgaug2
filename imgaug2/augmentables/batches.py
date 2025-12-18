@@ -1,8 +1,6 @@
 """Classes representing batches of normalized or unnormalized data."""
 from __future__ import annotations
 
-
-
 import collections
 
 import numpy as np

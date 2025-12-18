@@ -1,24 +1,22 @@
 """Classes representing lines."""
 from __future__ import annotations
 
-
-
 import copy as copylib
 
+import cv2
 import numpy as np
 import skimage.draw
 import skimage.measure
-import cv2
 
 import imgaug2.imgaug as ia
 from imgaug2.augmentables.base import IAugmentable
 from imgaug2.augmentables.utils import (
+    _handle_on_image_shape,
+    _normalize_shift_args,
+    _remove_out_of_image_fraction_,
+    interpolate_points,
     normalize_imglike_shape,
     project_coords_,
-    interpolate_points,
-    _remove_out_of_image_fraction_,
-    _normalize_shift_args,
-    _handle_on_image_shape,
 )
 
 
@@ -57,15 +55,15 @@ class LineString:
             coords = np.zeros((0, 2), dtype=np.float32)
         else:
             assert ia.is_iterable(coords), (
-                "Expected 'coords' to be an iterable, got type %s." % (type(coords),)
+                f"Expected 'coords' to be an iterable, got type {type(coords)}."
             )
             assert all([len(coords_i) == 2 for coords_i in coords]), (
-                "Expected 'coords' to contain (x,y) tuples, got %s." % (str(coords),)
+                f"Expected 'coords' to contain (x,y) tuples, got {str(coords)}."
             )
             coords = np.float32(coords)
 
         assert coords.ndim == 2 and coords.shape[-1] == 2, (
-            "Expected 'coords' to have shape (N, 2), got shape %s." % (coords.shape,)
+            f"Expected 'coords' to have shape (N, 2), got shape {coords.shape}."
         )
 
         self.coords = coords
@@ -238,6 +236,7 @@ class LineString:
 
         """
         import shapely.geometry
+
         from imgaug2.augmentables.kps import Keypoint
 
         if isinstance(other, Keypoint):
@@ -258,7 +257,7 @@ class LineString:
         else:
             raise ValueError(
                 "Expected Keypoint or LineString or tuple (x,y), "
-                "got type %s." % (type(other),)
+                f"got type {type(other)}."
             )
 
         return [shapely.geometry.Point(point).distance(other) for point in self.coords]
@@ -661,7 +660,7 @@ class LineString:
                     assert isinstance(inter, shapely.geometry.point.Point), (
                         "Expected to find shapely.geometry.point.Point or "
                         "shapely.geometry.linestring.LineString intersection, "
-                        "actually found %s." % (type(inter),)
+                        f"actually found {type(inter)}."
                     )
                     intersections_points.append((inter.x, inter.y))
 
@@ -826,7 +825,7 @@ class LineString:
         """
         assert len(image_shape) == 2 or (
             len(image_shape) == 3 and image_shape[-1] == 1
-        ), "Expected (H,W) or (H,W,1) as image_shape, got %s." % (image_shape,)
+        ), f"Expected (H,W) or (H,W,1) as image_shape, got {image_shape}."
 
         arr = self.draw_lines_on_image(
             np.zeros(image_shape, dtype=np.uint8),
@@ -870,7 +869,7 @@ class LineString:
         """
         assert len(image_shape) == 2 or (
             len(image_shape) == 3 and image_shape[-1] == 1
-        ), "Expected (H,W) or (H,W,1) as image_shape, got %s." % (image_shape,)
+        ), f"Expected (H,W) or (H,W,1) as image_shape, got {image_shape}."
 
         arr = self.draw_points_on_image(
             np.zeros(image_shape, dtype=np.uint8),
@@ -1005,7 +1004,7 @@ class LineString:
             image = np.zeros(image, dtype=np.uint8)
         assert image.ndim in [2, 3], (
             "Expected image or shape of form (H,W) or (H,W,C), "
-            "got shape %s." % (image.shape,)
+            f"got shape {image.shape}."
         )
 
         if len(self.coords) <= 1 or alpha < 0 + 1e-4 or size < 1:
@@ -1015,14 +1014,14 @@ class LineString:
             image, partly=False, fully=True
         ):
             raise Exception(
-                "Cannot draw line string '%s' on image with shape %s, because "
-                "it would be out of bounds." % (self.__str__(), image.shape)
+                f"Cannot draw line string '{self.__str__()}' on image with shape {image.shape}, because "
+                "it would be out of bounds."
             )
 
         if image.ndim == 2:
             assert ia.is_single_number(color), (
                 "Got a 2D image. Expected then 'color' to be a single number, "
-                "but got %s." % (str(color),)
+                f"but got {str(color)}."
             )
             color = [color]
         elif image.ndim == 3 and ia.is_single_number(color):
@@ -1230,11 +1229,7 @@ class LineString:
 
         def _assert_not_none(arg_name, arg_value):
             assert arg_value is not None, (
-                "Expected '%s' to not be None, got type %s."
-                % (
-                    arg_name,
-                    type(arg_value),
-                )
+                f"Expected '{arg_name}' to not be None, got type {type(arg_value)}."
             )
 
         _assert_not_none("color", color)
@@ -1336,7 +1331,7 @@ class LineString:
         from imgaug2.augmentables.bbs import BoundingBox
 
         assert image.ndim in [2, 3], (
-            "Expected image of shape (H,W,[C]), got shape %s." % (image.shape,)
+            f"Expected image of shape (H,W,[C]), got shape {image.shape}."
         )
 
         if len(self.coords) == 0 or size <= 0:
@@ -1737,8 +1732,8 @@ class LineString:
         return self.__str__()
 
     def __str__(self):
-        points_str = ", ".join(["(%.2f, %.2f)" % (x, y) for x, y in self.coords])
-        return "LineString([%s], label=%s)" % (points_str, self.label)
+        points_str = ", ".join([f"({x:.2f}, {y:.2f})" for x, y in self.coords])
+        return f"LineString([{points_str}], label={self.label})"
 
 
 # TODO
@@ -1784,12 +1779,10 @@ class LineStringsOnImage(IAugmentable):
 
     def __init__(self, line_strings, shape):
         assert ia.is_iterable(line_strings), (
-            "Expected 'line_strings' to be an iterable, got type '%s'."
-            % (type(line_strings),)
+            f"Expected 'line_strings' to be an iterable, got type '{type(line_strings)}'."
         )
         assert all([isinstance(v, LineString) for v in line_strings]), (
-            "Expected iterable of LineString, got types: %s."
-            % (", ".join([str(type(v)) for v in line_strings]))
+            "Expected iterable of LineString, got types: {}.".format(", ".join([str(type(v)) for v in line_strings]))
         )
         self.line_strings = line_strings
         self.shape = _handle_on_image_shape(shape, self)
@@ -2310,7 +2303,7 @@ class LineStringsOnImage(IAugmentable):
 
         # note that np.array([]) is (0,), not (0, 2)
         assert xy.shape[0] == 0 or (xy.ndim == 2 and xy.shape[-1] == 2), (  # pylint: disable=unsubscriptable-object
-            "Expected input array to have shape (N,2), got shape %s." % (xy.shape,)
+            f"Expected input array to have shape (N,2), got shape {xy.shape}."
         )
 
         counter = 0
@@ -2504,7 +2497,7 @@ class LineStringsOnImage(IAugmentable):
         return self.__str__()
 
     def __str__(self):
-        return "LineStringsOnImage(%s, shape=%s)" % (str(self.line_strings), self.shape)
+        return f"LineStringsOnImage({str(self.line_strings)}, shape={self.shape})"
 
 
 def _is_point_on_line(line_start, line_end, point, eps=1e-4):
@@ -2525,8 +2518,7 @@ def _flatten_shapely_collection(collection):
             for subitem in _flatten_shapely_collection(item.geoms):
                 # MultiPoint.geoms actually returns a GeometrySequence
                 if isinstance(subitem, shapely.geometry.base.GeometrySequence):
-                    for subsubel in subitem:
-                        yield subsubel
+                    yield from subitem
                 else:
                     yield _flatten_shapely_collection(subitem)
         else:
@@ -2552,14 +2544,13 @@ def _convert_var_to_shapely_geometry(var):
         else:
             raise ValueError(
                 "Could not convert list-input to shapely geometry. Invalid "
-                "datatype. List elements had datatypes: %s."
-                % (", ".join([str(type(v)) for v in var]),)
+                "datatype. List elements had datatypes: {}.".format(", ".join([str(type(v)) for v in var]))
             )
     elif isinstance(var, LineString):
         geom = shapely.geometry.LineString(var.coords)
     else:
         raise ValueError(
             "Could not convert input to shapely geometry. Invalid datatype. "
-            "Got: %s" % (type(var),)
+            f"Got: {type(var)}"
         )
     return geom

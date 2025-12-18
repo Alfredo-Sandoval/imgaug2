@@ -1,18 +1,18 @@
 
 import time
-import warnings
 import unittest
+import warnings
 from unittest import mock
 
 import matplotlib
+
 matplotlib.use('Agg')  # fix execution of tests involving matplotlib on travis
+import cv2
 import numpy as np
 
-import cv2
-
 import imgaug2 as ia
-from imgaug2 import dtypes as iadt
 import imgaug2.random as iarandom
+from imgaug2 import dtypes as iadt
 from imgaug2.testutils import assertWarns
 
 # TODO clean up this file
@@ -59,7 +59,7 @@ def main():
     test_classes_and_functions_marked_deprecated()
 
     time_end = time.time()
-    print("<%s> Finished without errors in %.4fs." % (__file__, time_end - time_start,))
+    print(f"<{__file__}> Finished without errors in {time_end - time_start:.4f}s.")
 
 
 def test_is_np_array():

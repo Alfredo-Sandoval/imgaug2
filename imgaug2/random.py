@@ -40,11 +40,9 @@ automatically fall back to :class:`numpy.random.RandomState` in numpy <=1.16.
 """
 from __future__ import annotations
 
-
 import copy as copylib
 
 import numpy as np
-
 
 # Check if numpy is version 1.17 or later. In that version, the new random
 # number interface was added.
@@ -360,9 +358,9 @@ class RNG:
 
         """
         assert isinstance(other, RNG), (
-            "Expected 'other' to be an RNG, got type %s. "
+            f"Expected 'other' to be an RNG, got type {type(other)}. "
             "Use imgaug2.random.is_generator_equal_to() to compare "
-            "numpy generators or RandomStates." % (type(other),))
+            "numpy generators or RandomStates.")
         return is_generator_equal_to(self.generator, other.generator)
 
     def advance_(self):
@@ -676,8 +674,8 @@ class RNG:
         if out is not None:
             assert out.dtype.name == result.dtype.name, (
                 "Expected out array to have the same dtype as "
-                "standard_exponential()'s result array. Got %s (out) and "
-                "%s (result) instead." % (out.dtype.name, result.dtype.name))
+                f"standard_exponential()'s result array. Got {out.dtype.name} (out) and "
+                f"{result.dtype.name} (result) instead.")
             out[...] = result
         return result
 
@@ -698,8 +696,8 @@ class RNG:
         if out is not None:
             assert out.dtype.name == result.dtype.name, (
                 "Expected out array to have the same dtype as "
-                "standard_gamma()'s result array. Got %s (out) and "
-                "%s (result) instead." % (out.dtype.name, result.dtype.name))
+                f"standard_gamma()'s result array. Got {out.dtype.name} (out) and "
+                f"{result.dtype.name} (result) instead.")
             out[...] = result
         return result
 
@@ -719,8 +717,8 @@ class RNG:
         if out is not None:
             assert out.dtype.name == result.dtype.name, (
                 "Expected out array to have the same dtype as "
-                "standard_normal()'s result array. Got %s (out) and "
-                "%s (result) instead." % (out.dtype.name, result.dtype.name))
+                f"standard_normal()'s result array. Got {out.dtype.name} (out) and "
+                f"{result.dtype.name} (result) instead.")
             out[...] = result
         return result
 
@@ -1449,16 +1447,16 @@ def is_generator_equal_to(generator, other_generator):
 def _is_generator_equal_to_np117(generator, other_generator):
     assert generator.__class__ is other_generator.__class__, (
         "Expected both rngs to have the same class, "
-        "got types '%s' and '%s'." % (type(generator), type(other_generator)))
+        f"got types '{type(generator)}' and '{type(other_generator)}'.")
 
     state1 = get_generator_state(generator)
     state2 = get_generator_state(other_generator)
     assert state1["bit_generator"] == "SFC64", (
         "Can currently only compare the states of numpy.random.SFC64 bit "
-        "generators, got %s." % (state1["bit_generator"],))
+        "generators, got {}.".format(state1["bit_generator"]))
     assert state2["bit_generator"] == "SFC64", (
         "Can currently only compare the states of numpy.random.SFC64 bit "
-        "generators, got %s." % (state2["bit_generator"],))
+        "generators, got {}.".format(state2["bit_generator"]))
 
     if state1["has_uint32"] != state2["has_uint32"]:
         return False
@@ -1593,8 +1591,8 @@ def polyfill_random(generator, size, dtype="float32", out=None):
         if out is not None:
             assert out.dtype.name == result.dtype.name, (
                 "Expected out array to have the same dtype as "
-                "random_sample()'s result array. Got %s (out) and %s (result) "
-                "instead." % (out.dtype.name, result.dtype.name))
+                f"random_sample()'s result array. Got {out.dtype.name} (out) and {result.dtype.name} (result) "
+                "instead.")
             out[...] = result
         return result
     return generator.random(size=size, dtype=dtype, out=out)

@@ -5,14 +5,14 @@ from unittest import mock
 
 import numpy as np
 import PIL.Image
-import PIL.ImageOps
 import PIL.ImageEnhance
 import PIL.ImageFilter
+import PIL.ImageOps
 
 import imgaug2 as ia
 from imgaug2 import augmenters as iaa
 from imgaug2 import random as iarandom
-from imgaug2.testutils import reseed, runtest_pickleable_uint8_img, assertWarns
+from imgaug2.testutils import assertWarns, reseed, runtest_pickleable_uint8_img
 
 
 def _test_shape_hw(func):

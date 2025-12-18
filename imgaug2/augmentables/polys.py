@@ -1,10 +1,8 @@
 """Classes dealing with polygons."""
 from __future__ import annotations
 
-
-
-import traceback
 import collections
+import traceback
 
 import numpy as np
 import scipy.spatial.distance
@@ -15,12 +13,12 @@ import imgaug2.imgaug as ia
 import imgaug2.random as iarandom
 from imgaug2.augmentables.base import IAugmentable
 from imgaug2.augmentables.utils import (
-    normalize_imglike_shape,
-    interpolate_points,
-    _remove_out_of_image_fraction_,
-    project_coords_,
-    _normalize_shift_args,
     _handle_on_image_shape,
+    _normalize_shift_args,
+    _remove_out_of_image_fraction_,
+    interpolate_points,
+    normalize_imglike_shape,
+    project_coords_,
 )
 
 
@@ -78,6 +76,22 @@ def recover_psois_(psois, psois_orig, recoverer, random_state):
 # TODO add functions: simplify() (eg via shapely.ops.simplify()),
 # extend(all_sides=0, top=0, right=0, bottom=0, left=0),
 # intersection(other, default=None), union(other), iou(other), to_heatmap, to_mask
+#
+# Polygon coordinates are stored as float32 for backward compatibility and
+# performance. Under NumPy>=2, comparisons between Python floats and np.float32
+# values can implicitly cast the Python float down to float32, which may break
+# strict tolerance checks. Some callers iterate over `poly.exterior` and then
+# compare against Python floats, so we keep the dtype float32 but make iteration
+# yield float64 values.
+class _PolygonExteriorFloat32(np.ndarray):
+    def __array_finalize__(self, obj):
+        pass
+
+    def __iter__(self):
+        for row in super().__iter__():
+            yield np.asarray(row, dtype=np.float64)
+
+
 class Polygon:
     """Class representing polygons.
 
@@ -112,25 +126,31 @@ class Polygon:
                 # for empty lists, make sure that the shape is (0, 2) and
                 # not (0,) as that is also expected when the input is a numpy
                 # array
-                self.exterior = np.zeros((0, 2), dtype=np.float32)
+                self.exterior = np.zeros((0, 2), dtype=np.float32).view(
+                    _PolygonExteriorFloat32
+                )
             elif isinstance(exterior[0], Keypoint):
                 # list of Keypoint
-                self.exterior = np.float32([[point.x, point.y] for point in exterior])
+                self.exterior = np.float32([[point.x, point.y] for point in exterior]).view(
+                    _PolygonExteriorFloat32
+                )
             else:
                 # list of tuples (x, y)
                 # TODO just np.float32(exterior) here?
-                self.exterior = np.float32([[point[0], point[1]] for point in exterior])
+                self.exterior = np.float32(
+                    [[point[0], point[1]] for point in exterior]
+                ).view(_PolygonExteriorFloat32)
         else:
             assert ia.is_np_array(exterior), (
                 "Expected exterior to be a list of tuples (x, y) or "
-                "an (N, 2) array, got type %s" % (exterior,)
+                f"an (N, 2) array, got type {exterior}"
             )
             assert exterior.ndim == 2 and exterior.shape[1] == 2, (
                 "Expected exterior to be a list of tuples (x, y) or "
-                "an (N, 2) array, got an array of shape %s" % (exterior.shape,)
+                f"an (N, 2) array, got an array of shape {exterior.shape}"
             )
             # TODO deal with int inputs here?
-            self.exterior = np.float32(exterior)
+            self.exterior = np.float32(exterior).view(_PolygonExteriorFloat32)
 
         # Remove last point if it is essentially the same as the first
         # point (polygons are always assumed to be closed anyways). This also
@@ -310,7 +330,9 @@ class Polygon:
             The object may have been modified in-place.
 
         """
-        self.exterior = project_coords_(self.coords, from_shape, to_shape)
+        self.exterior = np.asarray(
+            project_coords_(self.coords, from_shape, to_shape), dtype=np.float32
+        ).view(_PolygonExteriorFloat32)
         return self
 
     def project(self, from_shape, to_shape):
@@ -832,11 +854,7 @@ class Polygon:
         # pylint: disable=invalid-name
         def _assert_not_none(arg_name, arg_value):
             assert arg_value is not None, (
-                "Expected '%s' to not be None, got type %s."
-                % (
-                    arg_name,
-                    type(arg_value),
-                )
+                f"Expected '{arg_name}' to not be None, got type {type(arg_value)}."
             )
 
         def _default_to(var, default):
@@ -864,7 +882,7 @@ class Polygon:
         if image.ndim == 2:
             assert ia.is_single_number(color_face), (
                 "Got a 2D image. Expected then 'color_face' to be a single "
-                "number, but got %s." % (str(color_face),)
+                f"number, but got {str(color_face)}."
             )
             color_face = [color_face]
         elif image.ndim == 3 and ia.is_single_number(color_face):
@@ -877,8 +895,8 @@ class Polygon:
 
         if raise_if_out_of_image and self.is_out_of_image(image):
             raise Exception(
-                "Cannot draw polygon %s on image with "
-                "shape %s." % (str(self), image.shape)
+                f"Cannot draw polygon {str(self)} on image with "
+                f"shape {image.shape}."
             )
 
         # TODO np.clip to image plane if is_fully_within_image(), similar to
@@ -892,20 +910,43 @@ class Polygon:
         #      remove the boundary coordinates from the face coordinates after
         #      generating both?
         input_dtype = image.dtype
+        ls_open = self.to_line_string(closed=False)
+        ls_closed = self.to_line_string(closed=True)
+
         result = image.astype(np.float32)
         rr, cc = skimage.draw.polygon(self.yy_int, self.xx_int, shape=image.shape)
         if len(rr) > 0:
+            # Avoid painting the face into pixels that will later be used for
+            # lines. Otherwise, semi-transparent lines blend against the
+            # already blended face (rather than the original image), which is
+            # surprising and breaks backwards-compatible expectations.
+            rr_face, cc_face = rr, cc
+            if alpha_face > 0 and alpha_lines > 0 and size_lines >= 1:
+                # We only need a 2D mask (line coordinates are channel-agnostic).
+                mask_img = ls_closed.draw_lines_on_image(
+                    image.shape[0:2],
+                    color=255,
+                    alpha=1.0,
+                    size=size_lines,
+                    raise_if_out_of_image=raise_if_out_of_image,
+                )
+                line_mask = mask_img > 0
+
+                keep = np.logical_not(line_mask[rr, cc])
+                rr_face = rr[keep]
+                cc_face = cc[keep]
+
+            if len(rr_face) == 0:
+                pass
             if alpha_face == 1:
-                result[rr, cc] = np.float32(color_face)
+                result[rr_face, cc_face] = np.float32(color_face)
             elif alpha_face == 0:
                 pass
             else:
-                result[rr, cc] = (1 - alpha_face) * result[
-                    rr, cc, :
+                result[rr_face, cc_face] = (1 - alpha_face) * result[
+                    rr_face, cc_face, :
                 ] + alpha_face * np.float32(color_face)
 
-        ls_open = self.to_line_string(closed=False)
-        ls_closed = self.to_line_string(closed=True)
         result = ls_closed.draw_lines_on_image(
             result,
             color=color_lines,
@@ -954,7 +995,7 @@ class Polygon:
 
         """
         assert image.ndim in [2, 3], (
-            "Expected image of shape (H,W,[C]), got shape %s." % (image.shape,)
+            f"Expected image of shape (H,W,[C]), got shape {image.shape}."
         )
 
         if len(self.exterior) <= 2:
@@ -975,11 +1016,13 @@ class Polygon:
         height_mask = np.max(yy_mask)
         width_mask = np.max(xx_mask)
 
+        # Use a -0.5 shift to follow the project's top-left fill convention,
+        # i.e. include top/left edges and exclude bottom/right edges.
         rr_face, cc_face = skimage.draw.polygon(
-            yy_mask, xx_mask, shape=(height_mask, width_mask)
+            yy_mask - 0.5, xx_mask - 0.5, shape=(height_mask, width_mask)
         )
 
-        mask = np.zeros((height_mask, width_mask), dtype=np.bool)
+        mask = np.zeros((height_mask, width_mask), dtype=bool)
         mask[rr_face, cc_face] = True
 
         if image.ndim == 3:
@@ -1036,8 +1079,8 @@ class Polygon:
 
             closest_point = self.exterior[closest_idx, :]
             raise Exception(
-                "Closest found point (%.9f, %.9f) exceeds max_distance of "
-                "%.9f exceeded" % (closest_point[0], closest_point[1], closest_dist)
+                f"Closest found point ({closest_point[0]:.9f}, {closest_point[1]:.9f}) exceeds max_distance of "
+                f"{closest_dist:.9f} exceeded"
             )
         return self.change_first_point_by_index(closest_idx)
 
@@ -1099,7 +1142,9 @@ class Polygon:
         ls_sub = ls.subdivide(points_per_edge)
         # [:-1] even works if the polygon contains zero points
         exterior_subdivided = ls_sub.coords[:-1]
-        self.exterior = exterior_subdivided
+        self.exterior = np.asarray(exterior_subdivided, dtype=np.float32).view(
+            _PolygonExteriorFloat32
+        )
         return self
 
     def subdivide(self, points_per_edge):
@@ -1176,7 +1221,11 @@ class Polygon:
         xx = self.xx
         yy = self.yy
         return BoundingBox(
-            x1=min(xx), x2=max(xx), y1=min(yy), y2=max(yy), label=self.label
+            x1=float(np.min(xx)),
+            x2=float(np.max(xx)),
+            y1=float(np.min(yy)),
+            y2=float(np.max(yy)),
+            label=self.label,
         )
 
     def to_keypoints(self):
@@ -1247,7 +1296,7 @@ class Polygon:
 
         assert isinstance(polygon_shapely, shapely.geometry.Polygon), (
             "Expected the input to be a shapely.geometry.Polgon instance. "
-            "Got %s." % (type(polygon_shapely),)
+            f"Got {type(polygon_shapely)}."
         )
         # polygon_shapely.exterior can be None if the polygon was
         # instantiated without points
@@ -1338,7 +1387,7 @@ class Polygon:
         else:
             assert isinstance(other, Polygon), (
                 "Expected 'other' to be a list of coordinates, a coordinate "
-                "array or a single Polygon. Got type %s." % (type(other),)
+                f"array or a single Polygon. Got type {type(other)}."
             )
 
         return self.to_line_string(closed=True).coords_almost_equals(
@@ -1457,7 +1506,7 @@ class Polygon:
 
     def __str__(self):
         points_str = ", ".join(
-            ["(x=%.3f, y=%.3f)" % (point[0], point[1]) for point in self.exterior]
+            [f"(x={point[0]:.3f}, y={point[1]:.3f})" for point in self.exterior]
         )
         return "Polygon([%s] (%d points), label=%s)" % (
             points_str,
@@ -2018,7 +2067,7 @@ class PolygonsOnImage(IAugmentable):
 
         # note that np.array([]) is (0,), not (0, 2)
         assert xy.shape[0] == 0 or (xy.ndim == 2 and xy.shape[-1] == 2), (  # pylint: disable=unsubscriptable-object
-            "Expected input array to have shape (N,2), got shape %s." % (xy.shape,)
+            f"Expected input array to have shape (N,2), got shape {xy.shape}."
         )
 
         counter = 0
@@ -2211,7 +2260,7 @@ class PolygonsOnImage(IAugmentable):
         return self.__str__()
 
     def __str__(self):
-        return "PolygonsOnImage(%s, shape=%s)" % (str(self.polygons), self.shape)
+        return f"PolygonsOnImage({str(self.polygons)}, shape={self.shape})"
 
 
 def _convert_points_to_shapely_line_string(points, closed=False, interpolate=0):
@@ -2295,9 +2344,7 @@ class _ConcavePolygonRecoverer:
             ia.is_np_array(new_exterior)
             and new_exterior.ndim == 2
             and new_exterior.shape[1] == 2
-        ), "Expected exterior as list or (N,2) ndarray, got type %s." % (
-            type(new_exterior),
-        )
+        ), f"Expected exterior as list or (N,2) ndarray, got type {type(new_exterior)}."
         assert len(new_exterior) >= 3, (
             "Cannot recover a concave polygon from less than three points."
         )
@@ -2380,9 +2427,7 @@ class _ConcavePolygonRecoverer:
                 for point, noise_i in zip(exterior, noise)
             ]
             noise_strength = noise_strength * 10
-            assert noise_strength > 0, "Expected noise strength to be >0, got %.4f." % (
-                noise_strength,
-            )
+            assert noise_strength > 0, f"Expected noise strength to be >0, got {noise_strength:.4f}."
         return exterior
 
     @classmethod
@@ -2437,9 +2482,7 @@ class _ConcavePolygonRecoverer:
             return duplicates
 
         noise_strength = self.noise_strength
-        assert noise_strength > 0, "Expected noise strength to be >0, got %.4f." % (
-            noise_strength,
-        )
+        assert noise_strength > 0, f"Expected noise strength to be >0, got {noise_strength:.4f}."
         exterior = exterior[:]
         converged = False
         while not converged:
@@ -2502,11 +2545,11 @@ class _ConcavePolygonRecoverer:
             exterior = list(exterior)
         assert isinstance(exterior, list), (
             "Expected 'exterior' to be a list or a ndarray. "
-            "Got type %s." % (type(exterior),)
+            f"Got type {type(exterior)}."
         )
         assert all([len(point) == 2 for point in exterior]), (
             "Expected 'exterior' to contain (x,y) coordinate pairs. "
-            "Got lengths %s." % (", ".join([str(len(point)) for point in exterior]))
+            "Got lengths {}.".format(", ".join([str(len(point)) for point in exterior]))
         )
         if len(exterior) <= 0:
             return []
@@ -2544,8 +2587,8 @@ class _ConcavePolygonRecoverer:
             # function. For the case that there are more errors, this block
             # will prevent a full crash.
             ia.warn(
-                "Encountered exception %s during polygon repair in segment "
-                "intersection computation. Will skip that step." % (str(exc),)
+                f"Encountered exception {str(exc)} during polygon repair in segment "
+                "intersection computation. Will skip that step."
             )
             traceback.print_exc()
             return [[] for _ in range(len(exterior))]
@@ -2860,7 +2903,7 @@ class MultiPolygon:
         """Create a new MultiPolygon instance."""
         assert len(geoms) == 0 or all([isinstance(el, Polygon) for el in geoms]), (
             "Expected 'geoms' to a list of Polygon instances. "
-            "Got types %s." % (", ".join([str(el) for el in geoms]))
+            "Got types {}.".format(", ".join([str(el) for el in geoms]))
         )
         self.geoms = geoms
 
@@ -2899,15 +2942,14 @@ class MultiPolygon:
                 [isinstance(poly, shapely.geometry.Polygon) for poly in geometry.geoms]
             ), (
                 "Expected the geometry collection to only contain shapely "
-                "polygons. Got types %s."
-                % (", ".join([str(type(v)) for v in geometry.geoms]))
+                "polygons. Got types {}.".format(", ".join([str(type(v)) for v in geometry.geoms]))
             )
             return MultiPolygon(
                 [Polygon.from_shapely(poly, label=label) for poly in geometry.geoms]
             )
 
         raise Exception(
-            "Unknown datatype '%s'. Expected shapely.geometry.Polygon or "
+            f"Unknown datatype '{type(geometry)}'. Expected shapely.geometry.Polygon or "
             "shapely.geometry.MultiPolygon or "
-            "shapely.geometry.collections.GeometryCollection." % (type(geometry),)
+            "shapely.geometry.collections.GeometryCollection."
         )

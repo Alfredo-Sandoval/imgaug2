@@ -1,6 +1,6 @@
 
-import warnings
 import unittest
+import warnings
 from unittest import mock
 
 import numpy as np

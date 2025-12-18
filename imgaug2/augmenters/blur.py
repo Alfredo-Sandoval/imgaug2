@@ -13,17 +13,16 @@ List of augmenters:
 """
 from __future__ import annotations
 
-
+import cv2
 import numpy as np
 from scipy import ndimage
-import cv2
 
-import imgaug2.imgaug as ia
-from imgaug2.imgaug import _normalize_cv2_input_arr_
-from imgaug2.augmenters import meta
-from imgaug2.augmenters import convolutional as iaa_convolutional
-import imgaug2.parameters as iap
 import imgaug2.dtypes as iadt
+import imgaug2.imgaug as ia
+import imgaug2.parameters as iap
+from imgaug2.augmenters import convolutional as iaa_convolutional
+from imgaug2.augmenters import meta
+from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 
 # TODO add border mode, cval
@@ -177,11 +176,10 @@ def blur_gaussian_(image, sigma, ksize=None, backend="auto", eps=1e-3):
             else "scipy")
     elif backend == "cv2":
         assert image.dtype not in dts_not_supported_by_cv2, (
-            "Requested 'cv2' backend, but provided %s input image, which "
+            f"Requested 'cv2' backend, but provided {image.dtype.name} input image, which "
             "cannot be handled by that backend. Choose a different "
             "backend or set backend to 'auto' or use a different "
-            "datatype." % (
-                image.dtype.name,))
+            "datatype.")
     elif backend == "scipy":
         # can handle all dtypes that were allowed in gate_dtypes()
         pass
@@ -268,7 +266,7 @@ def _blur_gaussian_cv2(image, sigma, ksize):
     else:
         assert ia.is_single_integer(ksize), (
             "Expected 'ksize' argument to be a number, "
-            "got %s." % (type(ksize),))
+            f"got {type(ksize)}.")
         ksize = ksize + 1 if ksize % 2 == 0 else ksize
 
     image_warped = image
@@ -492,7 +490,7 @@ def blur_mean_shift_(image, spatial_window_radius, color_window_radius):
 
     assert shape_is_hw or shape_is_hw1 or shape_is_hw3, (
         "Expected (H,W) or (H,W,1) or (H,W,3) image, "
-        "got shape %s." % (image.shape,))
+        f"got shape {image.shape}.")
 
     # opencv method only supports (H,W,3), so we have to tile here for (H,W)
     # and (H,W,1)
@@ -732,7 +730,7 @@ class AverageBlur(meta.Augmenter):
                 else:
                     raise Exception(
                         "k[0] expected to be int or tuple of two ints, "
-                        "got %s" % (type(k[0]),))
+                        f"got {type(k[0])}")
 
                 if ia.is_single_number(k[1]):
                     k_tuple[1] = iap.Deterministic(int(k[1]))
@@ -743,7 +741,7 @@ class AverageBlur(meta.Augmenter):
                 else:
                     raise Exception(
                         "k[1] expected to be int or tuple of two ints, "
-                        "got %s" % (type(k[1]),))
+                        f"got {type(k[1])}")
 
                 self.mode = "two"
                 self.k = k_tuple
@@ -752,7 +750,7 @@ class AverageBlur(meta.Augmenter):
         else:
             raise Exception(
                 "Expected int, tuple/list with 2 entries or "
-                "StochasticParameter. Got %s." % (type(k),))
+                f"StochasticParameter. Got {type(k)}.")
 
         self.k = iap._wrap_leafs_of_param_in_prefetchers(
             self.k, iap._NB_PREFETCH
@@ -1054,8 +1052,7 @@ class BilateralBlur(meta.Augmenter):
         # Make sure that all images have 3 channels
         assert all([image.shape[2] == 3 for image in images]), (
             "BilateralBlur can currently only be applied to images with 3 "
-            "channels. Got channels: %s" % (
-                [image.shape[2] for image in images],))
+            f"channels. Got channels: {[image.shape[2] for image in images]}")
 
         nb_images = len(images)
         rss = random_state.duplicate(3)

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import functools
+import importlib
 import math
 import numbers
-import os
+from pathlib import Path
+
 import sys
 import types
 import typing
@@ -21,10 +23,52 @@ try:
 except ImportError:
     numba = None
 
+if typing.TYPE_CHECKING:
+    # `imgaug2.imgaug` dynamically creates these names (see `MOVED`) to preserve
+    # backwards compatibility. Statically declare them so type checkers (ty) can
+    # resolve imports like `from imgaug2.imgaug import pad`.
+    from typing import Any
+
+    BackgroundAugmenter: Any
+    BatchLoader: Any
+    compute_geometric_median: Any
+    pad: Any
+    pad_to_aspect_ratio: Any
+    pad_to_multiples_of: Any
+    compute_paddings_for_aspect_ratio: Any
+    compute_paddings_to_reach_multiples_of: Any
+    compute_paddings_to_reach_exponents_of: Any
+    quokka: Any
+    quokka_square: Any
+    quokka_heatmap: Any
+    quokka_segmentation_map: Any
+    quokka_keypoints: Any
+    quokka_bounding_boxes: Any
+    quokka_polygons: Any
+
+    Keypoint: Any
+    KeypointsOnImage: Any
+    BoundingBox: Any
+    BoundingBoxesOnImage: Any
+    LineString: Any
+    LineStringsOnImage: Any
+    Polygon: Any
+    PolygonsOnImage: Any
+    MultiPolygon: Any
+    _ConcavePolygonRecoverer: Any
+    HeatmapsOnImage: Any
+    SegmentationMapsOnImage: Any
+    Batch: Any
+
+    _convert_points_to_shapely_line_string: Any
+    _interpolate_point_pair: Any
+    _interpolate_points: Any
+    _interpolate_points_by_max_distance: Any
+
 
 ALL = "ALL"
 
-DEFAULT_FONT_FP = os.path.join(os.path.dirname(os.path.abspath(__file__)), "DejaVuSans.ttf")
+DEFAULT_FONT_FP = str(Path(__file__).parent / "DejaVuSans.ttf")
 
 
 # To check if a dtype instance is among these dtypes, use e.g.
@@ -186,7 +230,9 @@ class deprecated:  # pylint: disable=invalid-name
             arg_names = inspect.getfullargspec(func)[0]
 
             if "self" in arg_names or "cls" in arg_names:
-                main_msg = f"Method ``{args[0].__class__.__name__}.{func.__name__}()`` is deprecated."
+                main_msg = (
+                    f"Method ``{args[0].__class__.__name__}.{func.__name__}()`` is deprecated."
+                )
             else:
                 main_msg = f"Function ``{func.__name__}()`` is deprecated."
 
@@ -211,7 +257,7 @@ class deprecated:  # pylint: disable=invalid-name
 ###############################################################################
 
 
-def is_np_array(val: object) -> bool:
+def is_np_array(val: object) -> typing.TypeGuard[np.ndarray]:
     """Check whether a variable is a numpy array.
 
     Parameters
@@ -372,7 +418,10 @@ def is_integer_array(val: object) -> bool:
         ``True`` if the variable is a numpy integer array. Otherwise ``False``.
 
     """
-    return is_np_array(val) and issubclass(val.dtype.type, np.integer)
+    if not is_np_array(val):
+        return False
+    val = typing.cast(np.ndarray, val)
+    return issubclass(val.dtype.type, np.integer)
 
 
 def is_float_array(val: object) -> bool:
@@ -389,7 +438,10 @@ def is_float_array(val: object) -> bool:
         ``True`` if the variable is a numpy float array. Otherwise ``False``.
 
     """
-    return is_np_array(val) and issubclass(val.dtype.type, np.floating)
+    if not is_np_array(val):
+        return False
+    val = typing.cast(np.ndarray, val)
+    return issubclass(val.dtype.type, np.floating)
 
 
 def is_callable(val: object) -> bool:
@@ -723,7 +775,8 @@ def angle_between_vectors(v1, v2):
     length2 = np.linalg.norm(v2)
     v1_unit = (v1 / length1) if length1 > 0 else np.float32(v1) * 0
     v2_unit = (v2 / length2) if length2 > 0 else np.float32(v2) * 0
-    return np.arccos(np.clip(np.dot(v1_unit, v2_unit), -1.0, 1.0))
+    # Cast to Python float for stable repr across numpy versions.
+    return float(np.arccos(np.clip(np.dot(v1_unit, v2_unit), -1.0, 1.0)))
 
 
 # TODO is this used anywhere?
@@ -986,8 +1039,7 @@ def imresize_many_images(images, sizes=None, interpolation=None):
     # verify that sizes contains only values >0
     if is_single_number(sizes) and sizes <= 0:
         raise ValueError(
-            "If 'sizes' is given as a single number, it is expected to "
-            f"be >= 0, got {sizes:.8f}."
+            f"If 'sizes' is given as a single number, it is expected to be >= 0, got {sizes:.8f}."
         )
 
     # change after the validation to make the above error messages match the
@@ -996,8 +1048,7 @@ def imresize_many_images(images, sizes=None, interpolation=None):
         sizes = (sizes, sizes)
     else:
         assert len(sizes) == 2, (
-            "If 'sizes' is given as a tuple, it is expected be a tuple of two "
-            "entries, got %d entries." % (len(sizes),)
+            f"If 'sizes' is given as a tuple, it is expected be a tuple of two entries, got {len(sizes)} entries."
         )
         assert all([is_single_number(val) and val >= 0 for val in sizes]), (
             "If 'sizes' is given as a tuple, it is expected be a tuple of two "
@@ -1058,7 +1109,9 @@ def imresize_many_images(images, sizes=None, interpolation=None):
 
     inter = interpolation
     assert inter is None or inter in IMRESIZE_VALID_INTERPOLATIONS, (
-        "Expected 'interpolation' to be None or one of {}. Got {}.".format(", ".join([str(valid_ip) for valid_ip in IMRESIZE_VALID_INTERPOLATIONS]), str(inter))
+        "Expected 'interpolation' to be None or one of {}. Got {}.".format(
+            ", ".join([str(valid_ip) for valid_ip in IMRESIZE_VALID_INTERPOLATIONS]), str(inter)
+        )
     )
     if inter is None:
         if height_target > height_image or width_target > width_image:
@@ -1146,8 +1199,8 @@ def _assert_two_or_three_dims(shape):
     if hasattr(shape, "shape"):
         shape = shape.shape
     assert len(shape) in [2, 3], (
-        "Expected image with two or three dimensions, but got %d dimensions "
-        "and shape %s." % (len(shape), shape)
+        f"Expected image with two or three dimensions, but got {len(shape)} dimensions "
+        f"and shape {shape}."
     )
 
 
@@ -1848,25 +1901,31 @@ def draw_grid(images, rows=None, cols=None):
     if is_np_array(images):
         assert images.ndim == 4, (
             "Expected to get an array of four dimensions denoting "
-            "(N, H, W, C), got %d dimensions and shape %s." % (images.ndim, images.shape)
+            f"(N, H, W, C), got {images.ndim} dimensions and shape {images.shape}."
         )
     else:
         assert is_iterable(images), f"Expected to get an iterable of ndarrays, got {type(images)}."
         assert all([is_np_array(image) for image in images]), (
-            "Expected to get an iterable of ndarrays, "
-            "got types {}.".format(", ".join(
+            "Expected to get an iterable of ndarrays, got types {}.".format(
+                ", ".join(
                     [str(type(image)) for image in images],
-                ))
+                )
+            )
         )
         assert all([image.ndim == 3 for image in images]), (
-            "Expected to get images with three dimensions. Got shapes {}.".format(", ".join([str(image.shape) for image in images]))
+            "Expected to get images with three dimensions. Got shapes {}.".format(
+                ", ".join([str(image.shape) for image in images])
+            )
         )
         assert len({image.dtype.name for image in images}) == 1, (
-            "Expected to get images with the same dtypes, got dtypes {}.".format(", ".join([image.dtype.name for image in images]))
+            "Expected to get images with the same dtypes, got dtypes {}.".format(
+                ", ".join([image.dtype.name for image in images])
+            )
         )
         assert len({image.shape[-1] for image in images}) == 1, (
-            "Expected to get images with the same number of channels, "
-            "got shapes {}.".format(", ".join([str(image.shape) for image in images]))
+            "Expected to get images with the same number of channels, got shapes {}.".format(
+                ", ".join([str(image.shape) for image in images])
+            )
         )
 
     cell_height = max([image.shape[0] for image in images])
@@ -1881,8 +1940,8 @@ def draw_grid(images, rows=None, cols=None):
         rows = int(math.ceil(nb_images / cols))
     assert rows * cols >= nb_images, (
         "Expected rows*cols to lead to at least as many cells as there were "
-        "images provided, but got %d rows, %d cols (=%d cells) for %d "
-        "images. " % (rows, cols, rows * cols, nb_images)
+        f"images provided, but got {rows} rows, {cols} cols (={rows * cols} cells) for {nb_images} "
+        "images. "
     )
 
     width = cell_width * cols
@@ -1962,7 +2021,9 @@ def imshow(image, backend=IMSHOW_BACKEND_DEFAULT):
         technical issues.
 
     """
-    assert backend in ["matplotlib", "cv2"], f"Expected backend 'matplotlib' or 'cv2', got {backend}."
+    assert backend in ["matplotlib", "cv2"], (
+        f"Expected backend 'matplotlib' or 'cv2', got {backend}."
+    )
 
     if backend == "cv2":
         image_bgr = image
@@ -1986,7 +2047,9 @@ def imshow(image, backend=IMSHOW_BACKEND_DEFAULT):
         w = max(w, 6)
 
         fig, ax = plt.subplots(figsize=(w, h), dpi=dpi)
-        fig.canvas.set_window_title(f"imgaug2.imshow({image.shape})")
+        manager = getattr(fig.canvas, "manager", None)
+        if manager is not None and hasattr(manager, "set_window_title"):
+            manager.set_window_title(f"imgaug2.imshow({image.shape})")
         # cmap=gray is automatically only activate for grayscale images
         ax.imshow(image, cmap="gray")
         plt.show()
@@ -2104,8 +2167,7 @@ def apply_lut_(image, table):
     # [(256,), (256,), ...] => (256, C)
     if isinstance(table, list):
         assert len(table) == nb_channels, (
-            "Expected to get %d tables (one per channel), got %d instead."
-            % (nb_channels, len(table))
+            f"Expected to get {nb_channels} tables (one per channel), got {len(table)} instead."
         )
         table = np.stack(table, axis=-1)
 
@@ -2117,8 +2179,7 @@ def apply_lut_(image, table):
         "Expected 'table' to be any of the following: "
         "A list of C (256,) arrays, an array of shape (256,), an array of "
         "shape (256, C), an array of shape (1, 256, C). Transformed 'table' "
-        "up to shape %s for image with shape %s (C=%d)."
-        % (table.shape, image_shape_orig, nb_channels)
+        f"up to shape {table.shape} for image with shape {image_shape_orig} (C={nb_channels})."
     )
 
     if nb_channels > 512:
@@ -2324,23 +2385,60 @@ class HooksKeypoints(HooksImages):
 
 
 #####################################################################
-# Create classes/functions that were moved to other files and create
-# DeprecatedWarnings when they are called.
+# Create classes/functions that were moved to other files.
 #####################################################################
 
 
-def _mark_moved_class_or_function(class_name_old, module_name_new, class_name_new):
+def _is_moved_class_name(name):
+    name_stripped = name.lstrip("_")
+    return bool(name_stripped) and name_stripped[0].isupper()
+
+
+class _MovedClassProxyMeta(type):
+    def _resolve_target(cls):
+        target = getattr(cls, "_moved_target", None)
+        if target is None:
+            module = importlib.import_module(cls._moved_module_name_new)
+            target = getattr(module, cls._moved_attr_name_new)
+            cls._moved_target = target
+        return target
+
+    def __call__(cls, *args, **kwargs):
+        return cls._resolve_target()(*args, **kwargs)
+
+    def __instancecheck__(cls, instance):
+        return isinstance(instance, cls._resolve_target())
+
+    def __subclasscheck__(cls, subclass):
+        return issubclass(subclass, cls._resolve_target())
+
+    def __getattr__(cls, item):
+        return getattr(cls._resolve_target(), item)
+
+
+def _mark_moved_class_or_function(name_old, module_name_new, name_new):
     # pylint: disable=redefined-outer-name
-    class_name_new = class_name_new if class_name_new is not None else class_name_old
+    name_new = name_new if name_new is not None else name_old
+
+    if _is_moved_class_name(name_old):
+        def __mro_entries__(cls, bases):
+            return (cls._resolve_target(),)
+
+        return _MovedClassProxyMeta(
+            name_old,
+            (),
+            {
+                "_moved_module_name_new": module_name_new,
+                "_moved_attr_name_new": name_new,
+                "_moved_target": None,
+                "__mro_entries__": __mro_entries__,
+                "__module__": __name__,
+            },
+        )
 
     def _func(*args, **kwargs):
-        import importlib
-
-        warn_deprecated(
-            f"Using imgaug2.imgaug2.{class_name_old} is deprecated. Use {module_name_new}.{class_name_new} instead."
-        )
         module = importlib.import_module(module_name_new)
-        return getattr(module, class_name_new)(*args, **kwargs)
+        return getattr(module, name_new)(*args, **kwargs)
 
     return _func
 
@@ -2350,6 +2448,8 @@ MOVED = [
     ("KeypointsOnImage", "imgaug2.augmentables.kps", None),
     ("BoundingBox", "imgaug2.augmentables.bbs", None),
     ("BoundingBoxesOnImage", "imgaug2.augmentables.bbs", None),
+    ("LineString", "imgaug2.augmentables.lines", None),
+    ("LineStringsOnImage", "imgaug2.augmentables.lines", None),
     ("Polygon", "imgaug2.augmentables.polys", None),
     ("PolygonsOnImage", "imgaug2.augmentables.polys", None),
     ("MultiPolygon", "imgaug2.augmentables.polys", None),

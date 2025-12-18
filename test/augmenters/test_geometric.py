@@ -1,25 +1,30 @@
 
 import itertools
-import warnings
 import unittest
+import warnings
 from unittest import mock
 
-import numpy as np
-
-import skimage.morphology
 import cv2
+import numpy as np
+import skimage.morphology
 
 import imgaug2 as ia
-from imgaug2 import random as iarandom
+import imgaug2.augmenters.geometric as geometriclib
 from imgaug2 import augmenters as iaa
-from imgaug2 import parameters as iap
 from imgaug2 import dtypes as iadt
-from imgaug2.testutils import (
-    array_equal_lists, keypoints_equal, reseed, assert_cbaois_equal,
-    runtest_pickleable_uint8_img, assertWarns, is_parameter_instance)
+from imgaug2 import parameters as iap
+from imgaug2 import random as iarandom
 from imgaug2.augmentables.heatmaps import HeatmapsOnImage
 from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
-import imgaug2.augmenters.geometric as geometriclib
+from imgaug2.testutils import (
+    array_equal_lists,
+    assert_cbaois_equal,
+    assertWarns,
+    is_parameter_instance,
+    keypoints_equal,
+    reseed,
+    runtest_pickleable_uint8_img,
+)
 
 
 def _assert_same_min_max(observed, actual):
@@ -7867,7 +7872,7 @@ class TestElasticTransformation(unittest.TestCase):
 
 class _TwoValueParam(iap.StochasticParameter):
     def __init__(self, v1, v2):
-        super(_TwoValueParam, self).__init__()
+        super().__init__()
         self.v1 = v1
         self.v2 = v2
 
@@ -9523,9 +9528,9 @@ class TestWithPolarWarping(unittest.TestCase):
         expected = (
             "WithPolarWarping("
             "name=WithPolarWarpingTest, "
-            "children=%s, "
+            f"children={str(children)}, "
             "deterministic=False"
-            ")" % (str(children),))
+            ")")
 
         assert aug.__repr__() == expected
         assert aug.__str__() == expected

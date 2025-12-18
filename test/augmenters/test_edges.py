@@ -4,14 +4,18 @@ import pickle
 import unittest
 from unittest import mock
 
-import numpy as np
 import cv2
+import numpy as np
 
 from imgaug2 import augmenters as iaa
 from imgaug2 import parameters as iap
 from imgaug2 import random as iarandom
-from imgaug2.testutils import (reseed, runtest_pickleable_uint8_img,
-                              is_parameter_instance, remove_prefetching)
+from imgaug2.testutils import (
+    is_parameter_instance,
+    remove_prefetching,
+    reseed,
+    runtest_pickleable_uint8_img,
+)
 
 
 class TestRandomColorsBinaryImageColorizer(unittest.TestCase):
@@ -61,7 +65,7 @@ class TestRandomColorsBinaryImageColorizer(unittest.TestCase):
     def test__draw_samples(self):
         class _ListSampler(iap.StochasticParameter):
             def __init__(self, offset):
-                super(_ListSampler, self).__init__()
+                super().__init__()
                 self.offset = offset
                 self.last_random_state = None
 
@@ -486,7 +490,7 @@ class TestCanny(unittest.TestCase):
     def test_augment_images__random_color(self):
         class _Color(iap.StochasticParameter):
             def __init__(self, values):
-                super(_Color, self).__init__()
+                super().__init__()
                 self.values = values
 
             def _draw_samples(self, size, random_state):
@@ -655,13 +659,9 @@ class TestCanny(unittest.TestCase):
             colorizer=colorizer
         )
         observed = aug.__str__()
-        expected = ("Canny(alpha=%s, hysteresis_thresholds=%s, "
-                    "sobel_kernel_size=%s, colorizer=%s, name=UnnamedCanny, "
-                    "deterministic=False)") % (
-                        str(aug.alpha),
-                        str(aug.hysteresis_thresholds),
-                        str(aug.sobel_kernel_size),
-                        colorizer)
+        expected = (f"Canny(alpha={str(aug.alpha)}, hysteresis_thresholds={str(aug.hysteresis_thresholds)}, "
+                    f"sobel_kernel_size={str(aug.sobel_kernel_size)}, colorizer={colorizer}, name=UnnamedCanny, "
+                    "deterministic=False)")
         assert observed == expected
 
     def test___str___tuple_as_hysteresis(self):
@@ -680,14 +680,9 @@ class TestCanny(unittest.TestCase):
             colorizer=colorizer
         )
         observed = aug.__str__()
-        expected = ("Canny(alpha=%s, hysteresis_thresholds=(%s, %s), "
-                    "sobel_kernel_size=%s, colorizer=%s, name=UnnamedCanny, "
-                    "deterministic=False)") % (
-                        str(aug.alpha),
-                        str(aug.hysteresis_thresholds[0]),
-                        str(aug.hysteresis_thresholds[1]),
-                        str(aug.sobel_kernel_size),
-                        colorizer)
+        expected = (f"Canny(alpha={str(aug.alpha)}, hysteresis_thresholds=({str(aug.hysteresis_thresholds[0])}, {str(aug.hysteresis_thresholds[1])}), "
+                    f"sobel_kernel_size={str(aug.sobel_kernel_size)}, colorizer={colorizer}, name=UnnamedCanny, "
+                    "deterministic=False)")
         assert observed == expected
 
     def test_pickleable(self):

@@ -4,19 +4,19 @@ import unittest
 from unittest import mock
 
 import matplotlib
+
 matplotlib.use('Agg')  # fix execution of tests involving matplotlib on travis
 import numpy as np
-
+import scipy
+import scipy.special
 import skimage
 import skimage.data
 import skimage.morphology
-import scipy
-import scipy.special
 
 import imgaug2 as ia
 import imgaug2.random as iarandom
 from imgaug2 import parameters as iap
-from imgaug2.testutils import reseed, is_parameter_instance
+from imgaug2.testutils import is_parameter_instance, reseed
 
 
 def _eps(arr):
@@ -1136,8 +1136,8 @@ class TestAutoPrefetcher(unittest.TestCase):
             "samples=None (dtype None), "
             "index=0, "
             "last_rng_idx=None, "
-            "other_param=%s"
-            ")" % (other_param_str,)
+            f"other_param={other_param_str}"
+            ")"
         )
         assert str(param) == repr(param) == expected
 
@@ -1171,7 +1171,7 @@ class TestBinomial(unittest.TestCase):
 
     def test___init___p_is_zero(self):
         param = iap.Binomial(0)
-        expected = "Binomial(%s)" % (str(param.p),)
+        expected = f"Binomial({str(param.p)})"
         assert "Deterministic(int 0)" in str(param)
         assert (
             param.__str__()
@@ -1181,7 +1181,7 @@ class TestBinomial(unittest.TestCase):
 
     def test___init___p_is_one(self):
         param = iap.Binomial(1.0)
-        expected = "Binomial(%s)" % (str(param.p),)
+        expected = f"Binomial({str(param.p)})"
         assert "Deterministic(float 1.00000000)" in str(param)
         assert (
             param.__str__()
@@ -1447,7 +1447,7 @@ class TestDiscreteUniform(unittest.TestCase):
 
     def test___init__(self):
         param = iap.DiscreteUniform(0, 2)
-        expected = "DiscreteUniform(%s, %s)" % (str(param.a), str(param.b))
+        expected = f"DiscreteUniform({str(param.a)}, {str(param.b)})"
         assert "Deterministic(int 0)" in str(param)
         assert "Deterministic(int 2)" in str(param)
         assert (
@@ -1564,7 +1564,7 @@ class TestPoisson(unittest.TestCase):
 
     def test___init__(self):
         param = iap.Poisson(1)
-        expected = "Poisson(%s)" % (str(param.lam),)
+        expected = f"Poisson({str(param.lam)})"
         assert "Deterministic(int 1)" in str(param)
         assert (
             param.__str__()
@@ -1616,7 +1616,7 @@ class TestNormal(unittest.TestCase):
         assert (
             param.__str__()
             == param.__repr__()
-            == "Normal(loc=%s, scale=%s)" % (str(param.loc), str(param.scale))
+            == f"Normal(loc={str(param.loc)}, scale={str(param.scale)})"
         )
 
     def test_draw_sample(self):
@@ -1695,16 +1695,11 @@ class TestTruncatedNormal(unittest.TestCase):
         param = iap.TruncatedNormal(0, 1)
         expected = (
             "TruncatedNormal("
-            "loc=%s, "
-            "scale=%s, "
-            "low=%s, "
-            "high=%s"
-            ")" % (
-                str(param.loc),
-                str(param.scale),
-                str(param.low),
-                str(param.high)
-            )
+            f"loc={str(param.loc)}, "
+            f"scale={str(param.scale)}, "
+            f"low={str(param.low)}, "
+            f"high={str(param.high)}"
+            ")"
         )
         assert "Deterministic(int 0)" in str(param)
         assert "Deterministic(int 1)" in str(param)
@@ -1720,16 +1715,11 @@ class TestTruncatedNormal(unittest.TestCase):
         param = iap.TruncatedNormal(0, 1, low=-100, high=50.0)
         expected = (
             "TruncatedNormal("
-            "loc=%s, "
-            "scale=%s, "
-            "low=%s, "
-            "high=%s"
-            ")" % (
-                str(param.loc),
-                str(param.scale),
-                str(param.low),
-                str(param.high)
-            )
+            f"loc={str(param.loc)}, "
+            f"scale={str(param.scale)}, "
+            f"low={str(param.low)}, "
+            f"high={str(param.high)}"
+            ")"
         )
         assert "Deterministic(int 0)" in str(param)
         assert "Deterministic(int 1)" in str(param)
@@ -1815,10 +1805,7 @@ class TestLaplace(unittest.TestCase):
 
     def test___init__(self):
         param = iap.Laplace(0, 1)
-        expected = "Laplace(loc=%s, scale=%s)" % (
-            str(param.loc),
-            str(param.scale)
-        )
+        expected = f"Laplace(loc={str(param.loc)}, scale={str(param.scale)})"
         assert "Deterministic(int 0)" in str(param)
         assert "Deterministic(int 1)" in str(param)
         assert (
@@ -1914,7 +1901,7 @@ class TestChiSquare(unittest.TestCase):
 
     def test___init__(self):
         param = iap.ChiSquare(1)
-        expected = "ChiSquare(df=%s)" % (str(param.df),)
+        expected = f"ChiSquare(df={str(param.df)})"
         assert "Deterministic(int 1)" in str(param)
         assert (
             param.__str__()
@@ -2003,7 +1990,7 @@ class TestWeibull(unittest.TestCase):
 
     def test___init__(self):
         param = iap.Weibull(1)
-        expected = "Weibull(a=%s)" % (str(param.a),)
+        expected = f"Weibull(a={str(param.a)})"
         assert "Deterministic(int 1)" in str(param)
         assert (
             param.__str__()
@@ -2120,7 +2107,7 @@ class TestUniform(unittest.TestCase):
 
     def test___init__(self):
         param = iap.Uniform(0, 1.0)
-        expected = "Uniform(%s, %s)" % (str(param.a), str(param.b))
+        expected = f"Uniform({str(param.a)}, {str(param.b)})"
         assert "Deterministic(int 0)" in str(param.a)
         assert "Deterministic(float 1.00000000)" in str(param.b)
         assert (
@@ -2256,7 +2243,7 @@ class TestBeta(unittest.TestCase):
 
     def test___init__(self):
         param = iap.Beta(0.5, 0.5)
-        expected = "Beta(%s, %s)" % (str(param.alpha), str(param.beta))
+        expected = f"Beta({str(param.alpha)}, {str(param.beta)})"
         assert "Deterministic(float 0.50000000)" in str(param)
         assert (
             param.__str__()
@@ -2614,11 +2601,7 @@ class TestFromLowerResolution(unittest.TestCase):
                                         size_percent=1, method="nearest")
 
         expected = (
-            "FromLowerResolution(size_percent=%s, method=%s, other_param=%s)"
-        ) % (
-            str(param.size_percent),
-            str(param.method),
-            str(param.other_param)
+            f"FromLowerResolution(size_percent={str(param.size_percent)}, method={str(param.method)}, other_param={str(param.other_param)})"
         )
         assert "Deterministic(int 1)" in str(param)
         assert "Deterministic(nearest)" in str(param)
@@ -2634,11 +2617,7 @@ class TestFromLowerResolution(unittest.TestCase):
                                         size_px=1, method="nearest")
 
         expected = (
-            "FromLowerResolution(size_px=%s, method=%s, other_param=%s)"
-        ) % (
-            str(param.size_px),
-            str(param.method),
-            str(param.other_param)
+            f"FromLowerResolution(size_px={str(param.size_px)}, method={str(param.method)}, other_param={str(param.other_param)})"
         )
         assert "Deterministic(int 1)" in str(param)
         assert "Deterministic(nearest)" in str(param)
@@ -2909,7 +2888,7 @@ class TestClip(unittest.TestCase):
 
     def test___init__(self):
         param = iap.Clip(iap.Deterministic(0), -1, 1)
-        expected = "Clip(%s, -1.000000, 1.000000)" % (str(param.other_param),)
+        expected = f"Clip({str(param.other_param)}, -1.000000, 1.000000)"
         assert "Deterministic(int 0)" in str(param)
         assert (
             param.__str__()
@@ -3013,7 +2992,7 @@ class TestClip(unittest.TestCase):
         param = iap.Clip(iap.Deterministic(0), None, 1)
 
         sample = param.draw_sample()
-        expected = "Clip(%s, None, 1.000000)" % (str(param.other_param),)
+        expected = f"Clip({str(param.other_param)}, None, 1.000000)"
         assert sample == 0
         assert (
             param.__str__()
@@ -3025,7 +3004,7 @@ class TestClip(unittest.TestCase):
         param = iap.Clip(iap.Deterministic(0), 0, None)
 
         sample = param.draw_sample()
-        expected = "Clip(%s, 0.000000, None)" % (str(param.other_param),)
+        expected = f"Clip({str(param.other_param)}, 0.000000, None)"
         assert sample == 0
         assert (
             param.__str__()
@@ -3037,7 +3016,7 @@ class TestClip(unittest.TestCase):
         param = iap.Clip(iap.Deterministic(0), None, None)
 
         sample = param.draw_sample()
-        expected = "Clip(%s, None, None)" % (str(param.other_param),)
+        expected = f"Clip({str(param.other_param)}, None, None)"
         assert sample == 0
         assert (
             param.__str__()
@@ -3052,7 +3031,7 @@ class TestDiscretize(unittest.TestCase):
 
     def test___init__(self):
         param = iap.Discretize(iap.Deterministic(0))
-        expected = "Discretize(%s, round=True)" % (param.other_param,)
+        expected = f"Discretize({param.other_param}, round=True)"
         assert "Deterministic(int 0)" in str(param.other_param)
         assert (
             param.__str__()
@@ -3133,10 +3112,7 @@ class TestMultiply(unittest.TestCase):
 
     def test___init__(self):
         param = iap.Multiply(iap.Deterministic(0), 1, elementwise=False)
-        expected = "Multiply(%s, %s, False)" % (
-            str(param.other_param),
-            str(param.val)
-        )
+        expected = f"Multiply({str(param.other_param)}, {str(param.val)}, False)"
         assert "Deterministic(int 0)" in str(param.other_param)
         assert "Deterministic(int 1)" in str(param.val)
         assert (
@@ -3281,9 +3257,7 @@ class TestDivide(unittest.TestCase):
 
     def test___init__(self):
         param = iap.Divide(iap.Deterministic(0), 1, elementwise=False)
-        expected = "Divide(%s, %s, False)" % (
-            str(param.other_param), str(param.val)
-        )
+        expected = f"Divide({str(param.other_param)}, {str(param.val)}, False)"
         assert "Deterministic(int 0)" in str(param.other_param)
         assert "Deterministic(int 1)" in str(param.val)
         assert (
@@ -3474,10 +3448,7 @@ class TestAdd(unittest.TestCase):
 
     def test___init__(self):
         param = iap.Add(iap.Deterministic(0), 1, elementwise=False)
-        expected = "Add(%s, %s, False)" % (
-            str(param.other_param),
-            str(param.val)
-        )
+        expected = f"Add({str(param.other_param)}, {str(param.val)}, False)"
         assert "Deterministic(int 0)" in str(param.other_param)
         assert "Deterministic(int 1)" in str(param.val)
         assert (
@@ -3619,10 +3590,7 @@ class TestSubtract(unittest.TestCase):
 
     def test___init__(self):
         param = iap.Subtract(iap.Deterministic(0), 1, elementwise=False)
-        expected = "Subtract(%s, %s, False)" % (
-            str(param.other_param),
-            str(param.val)
-        )
+        expected = f"Subtract({str(param.other_param)}, {str(param.val)}, False)"
         assert "Deterministic(int 0)" in str(param)
         assert "Deterministic(int 1)" in str(param)
         assert (
@@ -3768,10 +3736,7 @@ class TestPower(unittest.TestCase):
 
     def test___init__(self):
         param = iap.Power(iap.Deterministic(0), 1, elementwise=False)
-        expected = "Power(%s, %s, False)" % (
-            str(param.other_param),
-            str(param.val)
-        )
+        expected = f"Power({str(param.other_param)}, {str(param.val)}, False)"
         assert "Deterministic(int 0)" in str(param)
         assert "Deterministic(int 1)" in str(param)
         assert (
@@ -3911,7 +3876,7 @@ class TestAbsolute(unittest.TestCase):
 
     def test___init__(self):
         param = iap.Absolute(iap.Deterministic(0))
-        expected = "Absolute(%s)" % (str(param.other_param),)
+        expected = f"Absolute({str(param.other_param)})"
         assert "Deterministic(int 0)" in str(param)
         assert (
             param.__str__()
@@ -3963,7 +3928,7 @@ class TestRandomSign(unittest.TestCase):
 
     def test___init__(self):
         param = iap.RandomSign(iap.Deterministic(0), 0.5)
-        expected = "RandomSign(%s, 0.50)" % (str(param.other_param),)
+        expected = f"RandomSign({str(param.other_param)}, 0.50)"
         assert "Deterministic(int 0)" in str(param)
         assert (
             param.__str__()
@@ -4034,7 +3999,7 @@ class TestForceSign(unittest.TestCase):
 
     def test___init__(self):
         param = iap.ForceSign(iap.Deterministic(0), True, "invert", 1)
-        expected = "ForceSign(%s, True, invert, 1)" % (str(param.other_param),)
+        expected = f"ForceSign({str(param.other_param)}, True, invert, 1)"
         assert "Deterministic(int 0)" in str(param)
         assert (
             param.__str__()
@@ -4187,11 +4152,7 @@ class TestIterativeNoiseAggregator(unittest.TestCase):
         param = iap.IterativeNoiseAggregator(iap.Deterministic(0),
                                              iterations=(1, 3),
                                              aggregation_method="max")
-        expected = "IterativeNoiseAggregator(%s, %s, %s)" % (
-            str(param.other_param),
-            str(param.iterations),
-            str(param.aggregation_method)
-        )
+        expected = f"IterativeNoiseAggregator({str(param.other_param)}, {str(param.iterations)}, {str(param.aggregation_method)})"
         assert "Deterministic(int 0)" in str(param)
         assert "Deterministic(int 1)" in str(param)
         assert "Deterministic(int 3)" in str(param)
@@ -4394,11 +4355,7 @@ class TestSigmoid(unittest.TestCase):
             mul=1,
             add=0
         )
-        expected = "Sigmoid(%s, %s, %s, 1, 0)" % (
-            str(param.other_param),
-            str(param.threshold),
-            str(param.activated)
-        )
+        expected = f"Sigmoid({str(param.other_param)}, {str(param.threshold)}, {str(param.activated)}, 1, 0)"
         assert "Deterministic(int 0)" in str(param)
         assert "Deterministic(int -10)" in str(param)
         assert "Deterministic(int 1)" in str(param)

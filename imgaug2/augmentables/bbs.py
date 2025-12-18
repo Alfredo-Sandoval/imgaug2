@@ -1,8 +1,6 @@
 """Classes representing bounding boxes."""
 from __future__ import annotations
 
-
-
 import copy
 
 import numpy as np
@@ -12,11 +10,11 @@ import skimage.measure
 import imgaug2.imgaug as ia
 from imgaug2.augmentables.base import IAugmentable
 from imgaug2.augmentables.utils import (
+    _handle_on_image_shape,
+    _normalize_shift_args,
+    _remove_out_of_image_fraction_,
     normalize_imglike_shape,
     project_coords,
-    _remove_out_of_image_fraction_,
-    _normalize_shift_args,
-    _handle_on_image_shape,
 )
 
 
@@ -616,10 +614,8 @@ class BoundingBox:
         shape = normalize_imglike_shape(image)
 
         height, width = shape[0:2]
-        assert height > 0, "Expected image with height>0, got shape %s." % (
-            image.shape,
-        )
-        assert width > 0, "Expected image with width>0, got shape %s." % (image.shape,)
+        assert height > 0, f"Expected image with height>0, got shape {image.shape}."
+        assert width > 0, f"Expected image with width>0, got shape {image.shape}."
 
         eps = np.finfo(np.float32).eps
         self.x1 = np.clip(self.x1, 0, width - eps)
@@ -869,9 +865,8 @@ class BoundingBox:
 
         if raise_if_out_of_image and self.is_out_of_image(image):
             raise Exception(
-                "Cannot draw bounding box x1=%.8f, y1=%.8f, x2=%.8f, y2=%.8f "
-                "on image with shape %s."
-                % (self.x1, self.y1, self.x2, self.y2, image.shape)
+                f"Cannot draw bounding box x1={self.x1:.8f}, y1={self.y1:.8f}, x2={self.x2:.8f}, y2={self.y2:.8f} "
+                f"on image with shape {image.shape}."
             )
 
         result = np.copy(image) if copy else image
@@ -1198,7 +1193,7 @@ class BoundingBox:
             raise ValueError(
                 "Expected 'other' to be an iterable containing two "
                 "(x,y)-coordinate pairs or a BoundingBox. "
-                "Got type %s." % (type(other),)
+                f"Got type {type(other)}."
             )
 
         coords_a = self.coords
@@ -1262,11 +1257,11 @@ class BoundingBox:
 
         assert len(xy) > 0, (
             "Expected to get at least one point to place a bounding box "
-            "around, got shape %s." % (xy.shape,)
+            f"around, got shape {xy.shape}."
         )
 
         assert xy.ndim == 1 or (xy.ndim == 2 and xy.shape[-1] == 2), (
-            "Expected input array of shape (P,) or (P, 2), got shape %s." % (xy.shape,)
+            f"Expected input array of shape (P,) or (P, 2), got shape {xy.shape}."
         )
 
         if xy.ndim == 1:
@@ -1382,13 +1377,7 @@ class BoundingBox:
         return self.__str__()
 
     def __str__(self):
-        return "BoundingBox(x1=%.4f, y1=%.4f, x2=%.4f, y2=%.4f, label=%s)" % (
-            self.x1,
-            self.y1,
-            self.x2,
-            self.y2,
-            self.label,
-        )
+        return f"BoundingBox(x1={self.x1:.4f}, y1={self.y1:.4f}, x2={self.x2:.4f}, y2={self.y2:.4f}, label={self.label})"
 
 
 class BoundingBoxesOnImage(IAugmentable):
@@ -1574,9 +1563,7 @@ class BoundingBoxesOnImage(IAugmentable):
 
         assert (xyxy.ndim == 2 and xyxy.shape[-1] == 4) or (
             xyxy.ndim == 3 and xyxy.shape[1:3] == (2, 2)
-        ), "Expected input array of shape (N, 4) or (N, 2, 2), got shape %s." % (
-            xyxy.shape,
-        )
+        ), f"Expected input array of shape (N, 4) or (N, 2, 2), got shape {xyxy.shape}."
 
         xyxy = xyxy.reshape((-1, 2, 2))
         boxes = [BoundingBox.from_point_soup(row) for row in xyxy]
@@ -1693,7 +1680,7 @@ class BoundingBoxesOnImage(IAugmentable):
 
         # note that np.array([]) is (0,), not (0, 4)
         assert xyxy.shape[0] == 0 or (xyxy.ndim == 2 and xyxy.shape[-1] == 4), (  # pylint: disable=unsubscriptable-object
-            "Expected input array to have shape (N,4), got shape %s." % (xyxy.shape,)
+            f"Expected input array to have shape (N,4), got shape {xyxy.shape}."
         )
 
         assert len(xyxy) == len(self.bounding_boxes), (
@@ -2197,10 +2184,7 @@ class BoundingBoxesOnImage(IAugmentable):
         return self.__str__()
 
     def __str__(self):
-        return "BoundingBoxesOnImage(%s, shape=%s)" % (
-            str(self.bounding_boxes),
-            self.shape,
-        )
+        return f"BoundingBoxesOnImage({str(self.bounding_boxes)}, shape={self.shape})"
 
 
 class _LabelOnImageDrawer:
@@ -2259,15 +2243,8 @@ class _LabelOnImageDrawer:
     def _do_raise_if_out_of_image(cls, image, bounding_box):
         if bounding_box.is_out_of_image(image):
             raise Exception(
-                "Cannot draw bounding box x1=%.8f, y1=%.8f, x2=%.8f, y2=%.8f "
-                "on image with shape %s."
-                % (
-                    bounding_box.x1,
-                    bounding_box.y1,
-                    bounding_box.x2,
-                    bounding_box.y2,
-                    image.shape,
-                )
+                f"Cannot draw bounding box x1={bounding_box.x1:.8f}, y1={bounding_box.y1:.8f}, x2={bounding_box.x2:.8f}, y2={bounding_box.y2:.8f} "
+                f"on image with shape {image.shape}."
             )
 
     def _preprocess_colors(self):

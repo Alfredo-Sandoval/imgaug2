@@ -10,16 +10,14 @@ Added in 0.4.0.
 """
 from __future__ import annotations
 
-
-
-import numpy as np
 import cv2
+import numpy as np
 
-from imgaug2.imgaug import _normalize_cv2_input_arr_
-from imgaug2.augmenters import meta
-from imgaug2.augmenters import color as colorlib
 import imgaug2.dtypes as iadt
 import imgaug2.parameters as iap
+from imgaug2.augmenters import color as colorlib
+from imgaug2.augmenters import meta
+from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 
 def stylize_cartoon(image, blur_ksize=3, segmentation_size=1.0,
@@ -100,7 +98,7 @@ def stylize_cartoon(image, blur_ksize=3, segmentation_size=1.0,
     iadt.allow_only_uint8({image.dtype})
 
     assert image.ndim == 3 and image.shape[2] == 3, (
-        "Expected to get a (H,W,C) image, got shape %s." % (image.shape,))
+        f"Expected to get a (H,W,C) image, got shape {image.shape}.")
 
     blur_ksize = max(int(np.round(blur_ksize)), 1)
     segmentation_size = max(segmentation_size, 0.0)

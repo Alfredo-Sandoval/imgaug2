@@ -7,8 +7,8 @@ import numpy as np
 
 import imgaug2 as ia
 from imgaug2 import augmenters as iaa
-from imgaug2 import random as iarandom
 from imgaug2 import parameters as iap
+from imgaug2 import random as iarandom
 from imgaug2.testutils import runtest_pickleable_uint8_img
 
 try:
@@ -35,7 +35,7 @@ class Test_get_imgcorrupt_subset(unittest.TestCase):
                 assert func_names == func_names_exp
                 for func_name, func in zip(func_names, funcs):
                     assert getattr(
-                        iaa.imgcorruptlike, "apply_%s" % (func_name,)
+                        iaa.imgcorruptlike, f"apply_{func_name}"
                     ) is func
 
     @unittest.skipUnless(SUPPORTS_LIBRARY,
@@ -131,7 +131,7 @@ class _CompareFuncWithImageCorruptions(unittest.TestCase):
                                    severity, seed):
         func_imgaug = getattr(
             iaa.imgcorruptlike,
-            "apply_%s" % (fname,))
+            f"apply_{fname}")
         func_imagecor = functools.partial(corrupt, corruption_name=fname)
 
         with iarandom.temporary_numpy_seed(seed):

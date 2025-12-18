@@ -3,6 +3,7 @@ import unittest
 from unittest import mock
 
 import numpy as np
+
 import imgaug2 as ia
 from imgaug2.testutils import assertWarns
 

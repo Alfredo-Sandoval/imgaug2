@@ -1,33 +1,32 @@
 
 import functools
-import warnings
 import unittest
+import warnings
 from unittest import mock
 
-import numpy as np
 import cv2
-
+import numpy as np
 
 import imgaug2 as ia
+import imgaug2.augmenters.arithmetic as arithmetic_lib
+import imgaug2.augmenters.contrast as contrast_lib
 from imgaug2 import augmenters as iaa
-from imgaug2 import parameters as iap
 from imgaug2 import dtypes as iadt
+from imgaug2 import parameters as iap
 from imgaug2 import random as iarandom
+from imgaug2.augmenters.arithmetic import (
+    _add_elementwise_cv2_to_uint8,
+    _invert_uint8_subtract_,
+    _multiply_elementwise_to_uint8_,
+    _multiply_scalar_to_uint8_cv2_mul_,
+)
 from imgaug2.testutils import (
     array_equal_lists,
+    assertWarns,
+    is_parameter_instance,
     keypoints_equal,
     reseed,
     runtest_pickleable_uint8_img,
-    assertWarns,
-    is_parameter_instance
-)
-import imgaug2.augmenters.arithmetic as arithmetic_lib
-import imgaug2.augmenters.contrast as contrast_lib
-from imgaug2.augmenters.arithmetic import (
-    _add_elementwise_cv2_to_uint8,
-    _multiply_scalar_to_uint8_cv2_mul_,
-    _multiply_elementwise_to_uint8_,
-    _invert_uint8_subtract_
 )
 
 
@@ -6485,7 +6484,7 @@ class TestJpegCompression(unittest.TestCase):
 
         class _TwoValueParam(iap.StochasticParameter):
             def __init__(self, v1, v2):
-                super(_TwoValueParam, self).__init__()
+                super().__init__()
                 self.v1 = v1
                 self.v2 = v2
 

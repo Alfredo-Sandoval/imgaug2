@@ -3,27 +3,28 @@ Some utility functions that are only used for unittests.
 Placing them in test/ directory seems to be against convention, so they are part of the library.
 
 """
+
 from __future__ import annotations
 
-
-import random
 import copy
-import warnings
-import tempfile
-import shutil
-import re
-import sys
-import importlib
 import functools
+import importlib
 import pickle
+import random
+import re
+import shutil
+import sys
+import tempfile
 import unittest.mock as mock
+import warnings
 
 import numpy as np
 
 import imgaug2.imgaug as ia
-import imgaug2.random as iarandom
 import imgaug2.parameters as iap
+import imgaug2.random as iarandom
 from imgaug2.augmentables.kps import KeypointsOnImage
+from imgaug2.augmentables.polys import PolygonsOnImage
 
 
 class ArgCopyingMagicMock(mock.MagicMock):
@@ -39,8 +40,7 @@ class ArgCopyingMagicMock(mock.MagicMock):
     def _mock_call(self, *args, **kwargs):
         args_copy = copy.deepcopy(args)
         kwargs_copy = copy.deepcopy(kwargs)
-        return super()._mock_call(
-            *args_copy, **kwargs_copy)
+        return super()._mock_call(*args_copy, **kwargs_copy)
 
 
 # Added in 0.4.0.
@@ -51,16 +51,14 @@ def assert_cbaois_equal(observed, expected, max_distance=1e-4):
         assert isinstance(expected, list)
         assert len(observed) == len(expected)
         for observed_i, expected_i in zip(observed, expected):
-            assert_cbaois_equal(observed_i, expected_i,
-                                max_distance=max_distance)
+            assert_cbaois_equal(observed_i, expected_i, max_distance=max_distance)
     else:
         assert type(observed) == type(expected)
         assert len(observed.items) == len(expected.items)
         assert observed.shape == expected.shape
         for item_a, item_b in zip(observed.items, expected.items):
-            assert item_a.coords_almost_equals(item_b,
-                                               max_distance=max_distance)
-        if isinstance(expected, ia.PolygonsOnImage):
+            assert item_a.coords_almost_equals(item_b, max_distance=max_distance)
+        if isinstance(expected, PolygonsOnImage):
             for item_obs, item_exp in zip(observed.items, expected.items):
                 if item_exp.is_valid:
                     assert item_obs.is_valid
@@ -76,18 +74,16 @@ def create_random_keypoints(size_images, nb_keypoints_per_img):
         kps = []
         height, width = size_images[1], size_images[2]
         for _ in range(nb_keypoints_per_img):
-            x = np.random.randint(0, width-1)
-            y = np.random.randint(0, height-1)
+            x = np.random.randint(0, width - 1)
+            y = np.random.randint(0, height - 1)
             kps.append(ia.Keypoint(x=x, y=y))
         result.append(ia.KeypointsOnImage(kps, shape=size_images[1:]))
     return result
 
 
 def array_equal_lists(list1, list2):
-    assert isinstance(list1, list), (
-        "Expected list1 to be a list, got type %s." % (type(list1),))
-    assert isinstance(list2, list), (
-        "Expected list2 to be a list, got type %s." % (type(list2),))
+    assert isinstance(list1, list), f"Expected list1 to be a list, got type {type(list1)}."
+    assert isinstance(list2, list), f"Expected list2 to be a list, got type {type(list2)}."
 
     if len(list1) != len(list2):
         return False
@@ -115,12 +111,8 @@ def keypoints_equal(kpsois1, kpsois2, eps=0.001):
             return False
 
         for kp1, kp2 in zip(kps1, kps2):
-            x_equal = (float(kp2.x) - eps
-                       <= float(kp1.x)
-                       <= float(kp2.x) + eps)
-            y_equal = (float(kp2.y) - eps
-                       <= float(kp1.y)
-                       <= float(kp2.y) + eps)
+            x_equal = float(kp2.x) - eps <= float(kp1.x) <= float(kp2.x) + eps
+            y_equal = float(kp2.y) - eps <= float(kp1.y) <= float(kp2.y) + eps
             if not x_equal or not y_equal:
                 return False
 
@@ -165,10 +157,7 @@ def wrap_shift_deprecation(func, *args, **kwargs):
 
         result = func()
 
-        assert (
-            "These are deprecated. Use `x` and `y` instead."
-            in str(caught_warnings[-1].message)
-        )
+        assert "These are deprecated. Use `x` and `y` instead." in str(caught_warnings[-1].message)
 
         return result
 
@@ -252,13 +241,13 @@ class _AssertRaisesBaseContext(_BaseTestCaseContext):
         # pylint: disable=no-member, self-cls-assignment, not-context-manager
         try:
             if not _is_subtype(self.expected, self._base_type):
-                raise TypeError('%s() arg 1 must be %s' %
-                                (name, self._base_type_str))
+                raise TypeError(f'{name}() arg 1 must be {self._base_type_str}')
             if not args:
                 self.msg = kwargs.pop('msg', None)
                 if kwargs:
-                    raise TypeError('%r is an invalid keyword argument for '
-                                    'this function' % (next(iter(kwargs)),))
+                    raise TypeError(
+                        f'{next(iter(kwargs))!r} is an invalid keyword argument for this function'
+                    )
                 return self
 
             callable_obj = args[0]
@@ -273,6 +262,7 @@ class _AssertRaisesBaseContext(_BaseTestCaseContext):
         finally:
             # bpo-23890: manually break a reference cycle
             self = None
+
     # pylint: enable=inconsistent-return-statements
 
 
@@ -318,8 +308,7 @@ class _AssertWarnsContext(_AssertRaisesBaseContext):
                 continue
             if first_matching is None:
                 first_matching = w
-            if (self.expected_regex is not None and
-                    not self.expected_regex.search(str(w))):
+            if self.expected_regex is not None and not self.expected_regex.search(str(w)):
                 continue
             # store warning for later retrieval
             self.warning = w
@@ -328,7 +317,9 @@ class _AssertWarnsContext(_AssertRaisesBaseContext):
             return
         # Now we simply try to choose a helpful failure message
         if first_matching is not None:
-            self._raiseFailure(f'"{self.expected_regex.pattern}" does not match "{str(first_matching)}"')
+            self._raiseFailure(
+                f'"{self.expected_regex.pattern}" does not match "{str(first_matching)}"'
+            )
         if self.obj_name:
             self._raiseFailure(f"{exc_name} not triggered by {self.obj_name}")
         else:
@@ -462,19 +453,16 @@ def ensure_deprecation_warning(expected_text):
         Decorated function.
 
     """
+
     def _wrapper_with_args(func):
         @functools.wraps(func)
         def _wrapper(*args, **kwargs):
             with warnings.catch_warnings(record=True) as caught_warnings:
                 func(*args, **kwargs)
 
-            assert len(caught_warnings) == 1, (
-                "Expected 1 warning, got %d." % (len(caught_warnings),)
-            )
-            assert (
-                expected_text
-                in str(caught_warnings[-1].message)
-            )
+            assert len(caught_warnings) == 1, f"Expected 1 warning, got {len(caught_warnings)}."
+            assert expected_text in str(caught_warnings[-1].message)
 
         return _wrapper
+
     return _wrapper_with_args

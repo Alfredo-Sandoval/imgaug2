@@ -1,18 +1,16 @@
 """Classes to represent keypoints, i.e. points given as xy-coordinates."""
 from __future__ import annotations
 
-
-
 import numpy as np
 import scipy.spatial.distance
 
 import imgaug2.imgaug as ia
 from imgaug2.augmentables.base import IAugmentable
 from imgaug2.augmentables.utils import (
+    _handle_on_image_shape,
+    _remove_out_of_image_fraction_,
     normalize_imglike_shape,
     project_coords,
-    _remove_out_of_image_fraction_,
-    _handle_on_image_shape,
 )
 
 
@@ -362,7 +360,7 @@ class Keypoint:
         if image.ndim == 2:
             assert ia.is_single_number(color), (
                 "Got a 2D image. Expected then 'color' to be a single number, "
-                "but got %s." % (str(color),)
+                f"but got {str(color)}."
             )
         elif image.ndim == 3 and ia.is_single_number(color):
             color = [color] * image.shape[-1]
@@ -409,8 +407,8 @@ class Keypoint:
         else:
             if raise_if_out_of_image:
                 raise Exception(
-                    "Cannot draw keypoint x=%.8f, y=%.8f on image with "
-                    "shape %s." % (y, x, image.shape)
+                    f"Cannot draw keypoint x={y:.8f}, y={x:.8f} on image with "
+                    f"shape {image.shape}."
                 )
 
         if image.dtype.name != input_dtype.name:
@@ -533,7 +531,7 @@ class Keypoint:
             assert isinstance(other, Keypoint), (
                 "Expected 'other' to be an iterable containing one "
                 "(x,y)-coordinate pair or a Keypoint. "
-                "Got type %s." % (type(other),)
+                f"Got type {type(other)}."
             )
             coords_b = other.coords.flat
 
@@ -617,7 +615,7 @@ class Keypoint:
         return self.__str__()
 
     def __str__(self):
-        return "Keypoint(x=%.8f, y=%.8f)" % (self.x, self.y)
+        return f"Keypoint(x={self.x:.8f}, y={self.y:.8f})"
 
 
 class KeypointsOnImage(IAugmentable):
@@ -1028,7 +1026,7 @@ class KeypointsOnImage(IAugmentable):
             return KeypointsOnImage([], shape)
 
         assert xy.ndim == 2 and xy.shape[-1] == 2, (  # pylint: disable=unsubscriptable-object
-            "Expected input array to have shape (N,2), got shape %s." % (xy.shape,)
+            f"Expected input array to have shape (N,2), got shape {xy.shape}."
         )
         keypoints = [Keypoint(x=coord[0], y=coord[1]) for coord in xy]
         return KeypointsOnImage(keypoints, shape)
@@ -1062,7 +1060,7 @@ class KeypointsOnImage(IAugmentable):
 
         # note that np.array([]) is (0,), not (0, 2)
         assert xy.shape[0] == 0 or (xy.ndim == 2 and xy.shape[-1] == 2), (  # pylint: disable=unsubscriptable-object
-            "Expected input array to have shape (N,2), got shape %s." % (xy.shape,)
+            f"Expected input array to have shape (N,2), got shape {xy.shape}."
         )
 
         assert len(xy) == len(self.keypoints), (
@@ -1191,7 +1189,7 @@ class KeypointsOnImage(IAugmentable):
         else:
             raise Exception(
                 "Expected if_not_found_coords to be None or tuple or list "
-                "or dict, got %s." % (type(if_not_found_coords),)
+                f"or dict, got {type(if_not_found_coords)}."
             )
 
         keypoints = []
@@ -1337,7 +1335,7 @@ class KeypointsOnImage(IAugmentable):
         else:
             raise Exception(
                 "Expected if_not_found_coords to be None or tuple or list or "
-                "dict, got %s." % (type(if_not_found_coords),)
+                f"dict, got {type(if_not_found_coords)}."
             )
 
         keypoints = []
@@ -1519,4 +1517,4 @@ class KeypointsOnImage(IAugmentable):
         return self.__str__()
 
     def __str__(self):
-        return "KeypointsOnImage(%s, shape=%s)" % (str(self.keypoints), self.shape)
+        return f"KeypointsOnImage({str(self.keypoints)}, shape={self.shape})"

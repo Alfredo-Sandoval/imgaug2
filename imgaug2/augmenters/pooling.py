@@ -11,15 +11,14 @@ List of augmenters:
 """
 from __future__ import annotations
 
-
-from abc import ABCMeta, abstractmethod
 import functools
+from abc import ABCMeta, abstractmethod
 
 import numpy as np
 
 import imgaug2.imgaug as ia
-from imgaug2.augmenters import meta
 import imgaug2.parameters as iap
+from imgaug2.augmenters import meta
 
 
 def _compute_shape_after_pooling(image_shape, ksize_h, ksize_w):
@@ -85,7 +84,7 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
         samples = self._draw_samples(batch.nb_rows, random_state)
         for column in batch.columns:
             value_aug = getattr(
-                self, "_augment_%s_by_samples" % (column.name,)
+                self, f"_augment_{column.name}_by_samples"
             )(column.value, samples)
             setattr(batch, column.attr_name, value_aug)
         return batch

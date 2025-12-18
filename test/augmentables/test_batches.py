@@ -1,15 +1,14 @@
 
-import warnings
 import unittest
+import warnings
 from unittest import mock
 
 import numpy as np
 
 import imgaug2 as ia
 import imgaug2.augmenters as iaa
-from imgaug2.testutils import reseed
 from imgaug2.augmentables.batches import _BatchInAugmentation
-
+from imgaug2.testutils import reseed
 
 ATTR_NAMES = ["images", "heatmaps", "segmentation_maps", "keypoints",
               "bounding_boxes", "polygons", "line_strings"]
@@ -162,8 +161,8 @@ class TestBatch(unittest.TestCase):
     def test___init___no_arguments(self):
         batch = ia.Batch()
         for attr_name in ATTR_NAMES:
-            assert getattr(batch, "%s_unaug" % (attr_name,)) is None
-            assert getattr(batch, "%s_aug" % (attr_name,)) is None
+            assert getattr(batch, f"{attr_name}_unaug") is None
+            assert getattr(batch, f"{attr_name}_aug") is None
         assert batch.data is None
 
     def test___init___all_arguments_provided(self):
@@ -179,8 +178,8 @@ class TestBatch(unittest.TestCase):
             data=7
         )
         for i, attr_name in enumerate(ATTR_NAMES):
-            assert getattr(batch, "%s_unaug" % (attr_name,)) == i
-            assert getattr(batch, "%s_aug" % (attr_name,)) is None
+            assert getattr(batch, f"{attr_name}_unaug") == i
+            assert getattr(batch, f"{attr_name}_aug") is None
         assert batch.data == 7
 
     def test_warnings_for_deprecated_properties(self):

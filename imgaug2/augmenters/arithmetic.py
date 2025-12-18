@@ -31,20 +31,18 @@ List of augmenters:
 """
 from __future__ import annotations
 
-
 import tempfile
 
+import cv2
 import imageio
 import numpy as np
-import cv2
 
-import imgaug2.imgaug as ia
-from imgaug2.augmenters import meta
-import imgaug2.parameters as iap
 import imgaug2.dtypes as iadt
+import imgaug2.imgaug as ia
+import imgaug2.parameters as iap
 import imgaug2.random as iarandom
+from imgaug2.augmenters import meta
 from imgaug2.imgaug import _normalize_cv2_input_arr_
-
 
 # fill modes for apply_cutout_() and Cutout augmenter
 # contains roughly:
@@ -176,14 +174,19 @@ def _add_scalar_to_uint8_(image, value):
         return cv2.add(image, value, dst=image, dtype=cv2.CV_8U)
 
     input_shape = image.shape
-    image = image.ravel()
+    image_flat = image.ravel()
     values = np.array(value)
     if not is_channelwise:
-        values = np.broadcast_to(values, image.shape)
+        values = np.broadcast_to(values, image_flat.shape)
     else:
-        values = np.tile(values, image.size // len(values))
+        values = np.tile(values, image_flat.size // len(values))
 
-    image_add = cv2.add(image, values, dst=image, dtype=cv2.CV_8U)
+    # OpenCV treats short 1D arrays (length <4) as scalars, which would change
+    # the output shape and break reshaping back to the input image shape.
+    # Converting to column-vectors ensures consistent behavior for all sizes.
+    image_mat = image_flat.reshape((-1, 1))
+    values_mat = np.asarray(values).reshape((-1, 1))
+    image_add = cv2.add(image_mat, values_mat, dst=image_mat, dtype=cv2.CV_8U)
 
     return image_add.reshape(input_shape)
 
@@ -785,9 +788,7 @@ def _multiply_elementwise_to_uint8_(image, multipliers):
     assert image.shape == multipliers.shape, (
         "Expected multipliers to have shape (H,W) or (H,W,1) or (H,W,C) "
         "(H = image height, W = image width, C = image channels). Reached "
-        "shape %s after broadcasting, compared to image shape %s." % (
-            multipliers.shape, image.shape
-        )
+        f"shape {multipliers.shape} after broadcasting, compared to image shape {image.shape}."
     )
 
     # views seem to be fine here
@@ -977,9 +978,8 @@ def cutout_(image, x1, y1, x2, y2,
 
     if x2 > x1 and y2 > y1:
         assert fill_mode in _CUTOUT_FILL_MODES, (
-            "Expected one of the following fill modes: %s. "
-            "Got: %s." % (
-                str(list(_CUTOUT_FILL_MODES.keys())), fill_mode))
+            f"Expected one of the following fill modes: {str(list(_CUTOUT_FILL_MODES.keys()))}. "
+            f"Got: {fill_mode}.")
 
         module_name, fname = _CUTOUT_FILL_MODES[fill_mode]
         module = importlib.import_module(module_name)
@@ -1357,24 +1357,21 @@ def invert_(image, min_value=None, max_value=None, threshold=None,
                  if max_value is None else max_value)
     assert min_value >= min_value_dt, (
         "Expected min_value to be above or equal to dtype's min "
-        "value, got %s (vs. min possible %s for %s)" % (
-            str(min_value), str(min_value_dt), image.dtype.name)
+        f"value, got {str(min_value)} (vs. min possible {str(min_value_dt)} for {image.dtype.name})"
     )
     assert max_value <= max_value_dt, (
         "Expected max_value to be below or equal to dtype's max "
-        "value, got %s (vs. max possible %s for %s)" % (
-            str(max_value), str(max_value_dt), image.dtype.name)
+        f"value, got {str(max_value)} (vs. max possible {str(max_value_dt)} for {image.dtype.name})"
     )
     assert min_value < max_value, (
-        "Expected min_value to be below max_value, got %s "
-        "and %s" % (
-            str(min_value), str(max_value))
+        f"Expected min_value to be below max_value, got {str(min_value)} "
+        f"and {str(max_value)}"
     )
 
     if min_value != min_value_dt or max_value != max_value_dt:
         assert image.dtype in allow_dtypes_custom_minmax, (
             "Can use custom min/max values only with the following "
-            "dtypes: %s. Got: %s." % (
+            "dtypes: {}. Got: {}.".format(
                 ", ".join(allow_dtypes_custom_minmax), image.dtype.name))
 
     if image.dtype == iadt._UINT8_DTYPE:
@@ -1405,7 +1402,7 @@ def invert_(image, min_value=None, max_value=None, threshold=None,
 def _invert_bool(arr, min_value, max_value):
     assert min_value == 0 and max_value == 1, (
         "min_value and max_value must be 0 and 1 for bool arrays. "
-        "Got %.4f and %.4f." % (min_value, max_value))
+        f"Got {min_value:.4f} and {max_value:.4f}.")
     return ~arr
 
 
@@ -1442,6 +1439,9 @@ def _invert_uint8_lut_pregenerated_(arr, min_value, max_value, threshold,
 
 # Added in 0.5.0.
 def _invert_uint8_subtract_(arr, max_value):
+    if arr.size == 0:
+        return arr
+
     # seems to work with arr.base.shape[0] > 1
     if arr.base is not None and arr.base.shape[0] == 1:
         arr = np.copy(arr)
@@ -1450,14 +1450,19 @@ def _invert_uint8_subtract_(arr, max_value):
 
     input_shape = arr.shape
     if len(input_shape) > 2 and input_shape[-1] > 1:
-        arr = arr.ravel()
+        arr_flat = arr.ravel()
     # This also supports a mask, which would help for thresholded invert, but
     # it seems that all non-masked components are set to zero in the output
     # array. Tackling this issue seems to rather require more time than just
     # using a LUT.
+    if len(input_shape) > 2 and input_shape[-1] > 1:
+        # OpenCV treats short 1D arrays (length <4) as scalars and will change
+        # the output shape. Using column-vectors keeps output shapes stable.
+        arr_mat = arr_flat.reshape((-1, 1))
+        arr_mat = cv2.subtract(int(max_value), arr_mat, dst=arr_mat)
+        return arr_mat.reshape(input_shape)
+
     arr = cv2.subtract(int(max_value), arr, dst=arr)
-    if arr.shape != input_shape:
-        return arr.reshape(input_shape)
     return arr
 
 
@@ -1718,7 +1723,7 @@ def compress_jpeg(image, compression):
     iadt.allow_only_uint8({image.dtype})
     assert 0 <= compression <= 100, (
         "Expected compression to be in the interval [0, 100], "
-        "got %.4f." % (compression,))
+        f"got {compression:.4f}.")
 
     has_no_channels = (image.ndim == 2)
     is_single_channel = (image.ndim == 3 and image.shape[-1] == 1)
@@ -1727,7 +1732,7 @@ def compress_jpeg(image, compression):
 
     assert has_no_channels or is_single_channel or image.shape[-1] == 3, (
         "Expected either a grayscale image of shape (H,W) or (H,W,1) or an "
-        "RGB image of shape (H,W,3). Got shape %s." % (image.shape,))
+        f"RGB image of shape (H,W,3). Got shape {image.shape}.")
 
     # Map from compression to quality used by PIL
     # We have valid compressions from 0 to 100, i.e. 101 possible
@@ -2843,8 +2848,8 @@ class Cutout(meta.Augmenter):
                  fill_per_channel=False,
                  seed=None, name=None,
                  random_state="deprecated", deterministic="deprecated"):
-        from imgaug2.augmenters.size import _handle_position_parameter  # TODO move to iap
         from imgaug2.augmenters.geometric import _handle_cval_arg  # TODO move to iap
+        from imgaug2.augmenters.size import _handle_position_parameter  # TODO move to iap
 
         super().__init__(
             seed=seed, name=name,
@@ -2867,15 +2872,13 @@ class Cutout(meta.Augmenter):
     def _handle_fill_mode_param(cls, fill_mode):
         if ia.is_string(fill_mode):
             assert fill_mode in _CUTOUT_FILL_MODES, (
-                "Expected 'fill_mode' to be one of: %s. Got %s." % (
-                    str(list(_CUTOUT_FILL_MODES.keys())), fill_mode))
+                f"Expected 'fill_mode' to be one of: {str(list(_CUTOUT_FILL_MODES.keys()))}. Got {fill_mode}.")
             return iap.Deterministic(fill_mode)
         if isinstance(fill_mode, iap.StochasticParameter):
             return fill_mode
         assert ia.is_iterable(fill_mode), (
             "Expected 'fill_mode' to be a string, "
-            "StochasticParameter or list of strings. Got type %s." % (
-                type(fill_mode).__name__))
+            f"StochasticParameter or list of strings. Got type {type(fill_mode).__name__}.")
         return iap.Choice(fill_mode)
 
     # Added in 0.4.0.
@@ -3099,29 +3102,28 @@ def _handle_dropout_probability_param(p, name):
             "Expected `%s` to be given as a tuple containing exactly 2 values, "
             "got %d values." % (name, len(p),))
         assert p[0] < p[1], (
-            "Expected `%s` to be given as a tuple containing exactly 2 values "
-            "(a, b) with a < b. Got %.4f and %.4f." % (name, p[0], p[1]))
+            f"Expected `{name}` to be given as a tuple containing exactly 2 values "
+            f"(a, b) with a < b. Got {p[0]:.4f} and {p[1]:.4f}.")
         assert 0 <= p[0] <= 1.0 and 0 <= p[1] <= 1.0, (
-            "Expected `%s` given as tuple to only contain values in the "
-            "interval [0.0, 1.0], got %.4f and %.4f." % (name, p[0], p[1]))
+            f"Expected `{name}` given as tuple to only contain values in the "
+            f"interval [0.0, 1.0], got {p[0]:.4f} and {p[1]:.4f}.")
 
         p_param = iap.Binomial(iap.Uniform(1 - p[1], 1 - p[0]))
     elif ia.is_iterable(p):
         assert all([ia.is_single_number(v) for v in p]), (
-            "Expected iterable parameter '%s' to only contain numbers, "
-            "got %s." % (name, [type(v) for v in p],))
+            f"Expected iterable parameter '{name}' to only contain numbers, "
+            f"got {[type(v) for v in p]}.")
         assert all([0 <= p_i <= 1.0 for p_i in p]), (
-            "Expected iterable parameter '%s' to only contain probabilities "
-            "in the interval [0.0, 1.0], got values %s." % (
-                name, ", ".join(["%.4f" % (p_i,) for p_i in p])))
+            "Expected iterable parameter '{}' to only contain probabilities "
+            "in the interval [0.0, 1.0], got values {}.".format(
+                name, ", ".join([f"{p_i:.4f}" for p_i in p])))
         p_param = iap.Binomial(1 - iap.Choice(p))
     elif isinstance(p, iap.StochasticParameter):
         p_param = p
     else:
         raise Exception(
-            "Expected `%s` to be float or int or tuple (<number>, <number>) "
-            "or StochasticParameter, got type '%s'." % (
-                name, type(p).__name__,))
+            f"Expected `{name}` to be float or int or tuple (<number>, <number>) "
+            f"or StochasticParameter, got type '{type(p).__name__}'.")
 
     return p_param
 
@@ -3446,7 +3448,7 @@ class Dropout2d(meta.Augmenter):
 
         for attr_name in ["keypoints", "bounding_boxes", "polygons",
                           "line_strings"]:
-            do_drop = getattr(self, "_drop_%s" % (attr_name,))
+            do_drop = getattr(self, f"_drop_{attr_name}")
             attr_value = getattr(batch, attr_name)
             if attr_value is not None and do_drop:
                 for drop_idx in all_dropped_ids:
@@ -3633,7 +3635,7 @@ class TotalDropout(meta.Augmenter):
 
         for attr_name in ["keypoints", "bounding_boxes", "polygons",
                           "line_strings"]:
-            do_drop = getattr(self, "_drop_%s" % (attr_name,))
+            do_drop = getattr(self, f"_drop_{attr_name}")
             attr_value = getattr(batch, attr_name)
             if attr_value is not None and do_drop:
                 drop_ids = self._generate_drop_ids_once(drop_mask, drop_ids)

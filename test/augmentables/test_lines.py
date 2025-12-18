@@ -5,10 +5,10 @@ from unittest import mock
 import numpy as np
 
 import imgaug2 as ia
-from imgaug2.testutils import reseed, wrap_shift_deprecation, assertWarns
-from imgaug2.augmentables.lines import LineString, LineStringsOnImage
-from imgaug2.augmentables.kps import Keypoint
 from imgaug2.augmentables.heatmaps import HeatmapsOnImage
+from imgaug2.augmentables.kps import Keypoint
+from imgaug2.augmentables.lines import LineString, LineStringsOnImage
+from imgaug2.testutils import assertWarns, reseed, wrap_shift_deprecation
 
 
 class TestLineString_project_(unittest.TestCase):
@@ -929,8 +929,8 @@ class TestLineString(unittest.TestCase):
         ls = LineString([(0, 1), (9, 1)])
 
         module_name = "imgaug2.augmentables.lines."
-        line_fname = "%sLineString.draw_lines_heatmap_array" % (module_name,)
-        points_fname = "%sLineString.draw_points_heatmap_array" % (module_name,)
+        line_fname = f"{module_name}LineString.draw_lines_heatmap_array"
+        points_fname = f"{module_name}LineString.draw_points_heatmap_array"
         with mock.patch(line_fname, return_value=1) as mock_line, \
                 mock.patch(points_fname, return_value=2) as mock_points:
             _arr = ls.draw_heatmap_array(
@@ -1311,8 +1311,8 @@ class TestLineString(unittest.TestCase):
         ls = LineString([(0, 1), (9, 1)])
 
         module_name = "imgaug2.augmentables.lines."
-        line_fname = "%sLineString.draw_lines_on_image" % (module_name,)
-        points_fname = "%sLineString.draw_points_on_image" % (module_name,)
+        line_fname = f"{module_name}LineString.draw_lines_on_image"
+        points_fname = f"{module_name}LineString.draw_points_on_image"
         with mock.patch(line_fname, return_value=1) as mock_line, \
                 mock.patch(points_fname, return_value=2) as mock_points:
             _image = ls.draw_on_image(
@@ -2726,9 +2726,7 @@ class TestLineStringsOnImage(unittest.TestCase):
 
         observed = func(lsoi)
 
-        expected = "LineStringsOnImage([%s, %s], shape=(100, 100, 3))" % (
-            func(ls1), func(ls2)
-        )
+        expected = f"LineStringsOnImage([{func(ls1)}, {func(ls2)}], shape=(100, 100, 3))"
         assert observed == expected
 
     @classmethod

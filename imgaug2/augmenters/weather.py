@@ -15,13 +15,13 @@ List of augmenters:
 """
 from __future__ import annotations
 
-
 import numpy as np
 
-import imgaug2.imgaug as ia
-from imgaug2.augmenters import meta, arithmetic, blur, contrast, color as colorlib
-import imgaug2.parameters as iap
 import imgaug2.dtypes as iadt
+import imgaug2.imgaug as ia
+import imgaug2.parameters as iap
+from imgaug2.augmenters import arithmetic, blur, contrast, meta
+from imgaug2.augmenters import color as colorlib
 
 
 class FastSnowyLandscape(meta.Augmenter):

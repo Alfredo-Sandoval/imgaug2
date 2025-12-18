@@ -12,18 +12,16 @@ still in ``convolutional.py``.
 """
 from __future__ import annotations
 
-
 from abc import ABCMeta, abstractmethod
 
-import numpy as np
 import cv2
+import numpy as np
 
-import imgaug2.imgaug as ia
-from imgaug2.imgaug import _normalize_cv2_input_arr_
-from imgaug2.augmenters import meta
-from imgaug2.augmenters import blend
-import imgaug2.parameters as iap
 import imgaug2.dtypes as iadt
+import imgaug2.imgaug as ia
+import imgaug2.parameters as iap
+from imgaug2.augmenters import blend, meta
+from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 
 # TODO this should be placed in some other file than edges.py as it could be
@@ -118,7 +116,7 @@ class RandomColorsBinaryImageColorizer(IBinaryImageColorizer):
             "got %d dimensions." % (image_binary.ndim,))
         assert image_binary.dtype.kind == "b", (
             "Expected binary image to colorize to be boolean, "
-            "got dtype kind %s." % (image_binary.dtype.kind,))
+            f"got dtype kind {image_binary.dtype.kind}.")
         assert image_original.ndim == 3, (
             "Expected original image to be 3-dimensional, got %d "
             "dimensions." % (image_original.ndim,))
@@ -126,8 +124,7 @@ class RandomColorsBinaryImageColorizer(IBinaryImageColorizer):
             "Expected original image to have 1, 3 or 4 channels. "
             "Got %d channels." % (image_original.shape[-1],))
         assert image_original.dtype == iadt._UINT8_DTYPE, (
-            "Expected original image to have dtype uint8, got dtype %s." % (
-                image_original.dtype.name))
+            f"Expected original image to have dtype uint8, got dtype {image_original.dtype.name}.")
 
         color_true, color_false = self._draw_samples(random_state)
 
@@ -159,8 +156,7 @@ class RandomColorsBinaryImageColorizer(IBinaryImageColorizer):
 
     def __str__(self):
         return ("RandomColorsBinaryImageColorizer("
-                "color_true=%s, color_false=%s)") % (
-                    self.color_true, self.color_false)
+                f"color_true={self.color_true}, color_false={self.color_false})")
 
 
 class Canny(meta.Augmenter):
@@ -463,12 +459,9 @@ class Canny(meta.Augmenter):
 
     def __str__(self):
         return ("Canny("
-                "alpha=%s, "
-                "hysteresis_thresholds=%s, "
-                "sobel_kernel_size=%s, "
-                "colorizer=%s, "
-                "name=%s, "
-                "deterministic=%s)" % (
-                    self.alpha, self.hysteresis_thresholds,
-                    self.sobel_kernel_size, self.colorizer,
-                    self.name, self.deterministic))
+                f"alpha={self.alpha}, "
+                f"hysteresis_thresholds={self.hysteresis_thresholds}, "
+                f"sobel_kernel_size={self.sobel_kernel_size}, "
+                f"colorizer={self.colorizer}, "
+                f"name={self.name}, "
+                f"deterministic={self.deterministic})")

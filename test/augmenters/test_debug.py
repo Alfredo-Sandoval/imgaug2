@@ -4,15 +4,15 @@ import pickle
 import unittest
 from unittest import mock
 
-import numpy as np
 import cv2
 import imageio
+import numpy as np
 
 import imgaug2 as ia
+import imgaug2.augmenters.debug as debuglib
 from imgaug2 import augmenters as iaa
 from imgaug2 import random as iarandom
-from imgaug2.testutils import reseed, TemporaryDirectory
-import imgaug2.augmenters.debug as debuglib
+from imgaug2.testutils import TemporaryDirectory, reseed
 
 
 class Test_draw_debug_image(unittest.TestCase):

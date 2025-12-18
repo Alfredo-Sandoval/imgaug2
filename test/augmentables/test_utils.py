@@ -5,11 +5,11 @@ from unittest import mock
 import numpy as np
 
 from imgaug2.augmentables.utils import (
-    interpolate_points,
     interpolate_point_pair,
+    interpolate_points,
     interpolate_points_by_max_distance,
+    normalize_imglike_shape,
     normalize_shape,
-    normalize_imglike_shape
 )
 
 

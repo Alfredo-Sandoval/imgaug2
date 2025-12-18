@@ -6,7 +6,6 @@ Added in 0.4.0.
 from __future__ import annotations
 
 
-
 class IAugmentable:
     """Interface of augmentable objects.
 

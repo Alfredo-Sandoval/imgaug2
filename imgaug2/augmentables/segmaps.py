@@ -5,13 +5,11 @@ E.g. masks, semantic or instance segmentation maps.
 """
 from __future__ import annotations
 
-
-
 import numpy as np
 
 import imgaug2.imgaug as ia
-from imgaug2.augmenters import blend as blendlib
 from imgaug2.augmentables.base import IAugmentable
+from imgaug2.augmenters import blend as blendlib
 
 
 @ia.deprecated(
@@ -103,17 +101,14 @@ class SegmentationMapsOnImage(IAugmentable):
     ]
 
     def __init__(self, arr, shape, nb_classes=None):
-        assert ia.is_np_array(arr), "Expected to get numpy array, got %s." % (
-            type(arr),
-        )
+        assert ia.is_np_array(arr), f"Expected to get numpy array, got {type(arr)}."
         assert arr.ndim in [2, 3], (
             "Expected segmentation map array to be 2- or "
             "3-dimensional, got %d dimensions and shape %s." % (arr.ndim, arr.shape)
         )
         assert isinstance(shape, tuple), (
             "Expected 'shape' to be a tuple denoting the shape of the image "
-            "on which the segmentation map is placed. Got type %s instead."
-            % (type(shape))
+            f"on which the segmentation map is placed. Got type {type(shape)} instead."
         )
 
         if arr.dtype.kind == "f":
@@ -142,13 +137,13 @@ class SegmentationMapsOnImage(IAugmentable):
                 # allow only <=uint16 due to conversion to int32
                 assert arr.dtype.itemsize <= 2, (
                     "When using uint arrays as segmentation maps, only uint8 "
-                    "and uint16 are allowed. Got dtype %s." % (arr.dtype.name,)
+                    f"and uint16 are allowed. Got dtype {arr.dtype.name}."
                 )
             elif arr.dtype.kind == "i":
                 # allow only <=uint16 due to conversion to int32
                 assert arr.dtype.itemsize <= 4, (
                     "When using int arrays as segmentation maps, only int8, "
-                    "int16 and int32 are allowed. Got dtype %s." % (arr.dtype.name,)
+                    f"int16 and int32 are allowed. Got dtype {arr.dtype.name}."
                 )
 
             self._input_was = (arr.dtype, arr.ndim)
@@ -156,11 +151,10 @@ class SegmentationMapsOnImage(IAugmentable):
                 arr = arr[..., np.newaxis]
         else:
             raise Exception(
-                (
+                
                     "Input was expected to be an array of dtype 'bool', 'int' "
-                    "or 'uint'. Got dtype '%s'."
-                )
-                % (arr.dtype.name,)
+                    f"or 'uint'. Got dtype '{arr.dtype.name}'."
+                
             )
 
         if arr.dtype.name != "int32":
@@ -206,8 +200,8 @@ class SegmentationMapsOnImage(IAugmentable):
         if input_ndim == 2:
             assert arr_input.shape[2] == 1, (
                 "Originally got a (H,W) segmentation map. Internal array "
-                "should now have shape (H,W,1), but got %s. This might be "
-                "an internal error." % (arr_input.shape,)
+                f"should now have shape (H,W,1), but got {arr_input.shape}. This might be "
+                "an internal error."
             )
             return arr_input[:, :, 0]
         return arr_input
@@ -249,7 +243,7 @@ class SegmentationMapsOnImage(IAugmentable):
                 return max(int(arr_axis_size * sizeval), 1)
             if ia.is_single_integer(sizeval):
                 return sizeval
-            raise ValueError("Expected float or int, got %s." % (type(sizeval),))
+            raise ValueError(f"Expected float or int, got {type(sizeval)}.")
 
         if size is None:
             size = [size, size]
@@ -339,15 +333,14 @@ class SegmentationMapsOnImage(IAugmentable):
             "instead." % (image.shape[2],)
         )
         assert image.dtype.name == "uint8", (
-            "Expected to get image with dtype uint8, got dtype %s."
-            % (image.dtype.name,)
+            f"Expected to get image with dtype uint8, got dtype {image.dtype.name}."
         )
         assert 0 - 1e-8 <= alpha <= 1.0 + 1e-8, (
-            "Expected 'alpha' to be in interval [0.0, 1.0], got %.4f." % (alpha,)
+            f"Expected 'alpha' to be in interval [0.0, 1.0], got {alpha:.4f}."
         )
         assert resize in ["segmentation_map", "image"], (
             'Expected \'resize\' to be "segmentation_map" or "image", got '
-            "%s." % (resize,)
+            f"{resize}."
         )
 
         colors = (
@@ -387,6 +380,7 @@ class SegmentationMapsOnImage(IAugmentable):
                 segmap_drawn, image.shape[0:2], interpolation="nearest"
             )
 
+            # Lazy import to avoid circular import
             segmap_on_image = blendlib.blend_alpha(segmap_drawn, image, alpha)
 
             if draw_background:

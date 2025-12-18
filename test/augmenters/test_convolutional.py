@@ -4,13 +4,11 @@ from unittest import mock
 
 import numpy as np
 
-
 from imgaug2 import augmenters as iaa
-from imgaug2 import parameters as iap
 from imgaug2 import dtypes as iadt
+from imgaug2 import parameters as iap
 from imgaug2 import random as iarandom
 from imgaug2.testutils import reseed, runtest_pickleable_uint8_img
-
 
 # TODO add tests for EdgeDetect
 # TODO add tests for DirectedEdgeDetect

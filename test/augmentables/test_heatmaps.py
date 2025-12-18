@@ -4,9 +4,7 @@ from unittest import mock
 
 import numpy as np
 
-
 import imgaug2 as ia
-
 
 # TODO add tests for:
 #      hooks is_activated

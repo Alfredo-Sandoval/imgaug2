@@ -2,15 +2,15 @@
 import unittest
 from unittest import mock
 
-import numpy as np
 import cv2
+import numpy as np
 
 import imgaug2 as ia
+import imgaug2.augmenters.artistic as artisticlib
+import imgaug2.augmenters.color as colorlib
 from imgaug2 import augmenters as iaa
 from imgaug2 import random as iarandom
 from imgaug2.testutils import reseed, runtest_pickleable_uint8_img
-import imgaug2.augmenters.color as colorlib
-import imgaug2.augmenters.artistic as artisticlib
 
 
 class Test_stylize_cartoon(unittest.TestCase):

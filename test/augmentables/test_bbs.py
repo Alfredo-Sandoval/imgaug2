@@ -1,6 +1,6 @@
 
-import warnings
 import unittest
+import warnings
 from unittest import mock
 
 import numpy as np
@@ -8,7 +8,7 @@ import numpy as np
 import imgaug2 as ia
 import imgaug2.random as iarandom
 from imgaug2.augmentables.bbs import _LabelOnImageDrawer
-from imgaug2.testutils import wrap_shift_deprecation, assertWarns
+from imgaug2.testutils import assertWarns, wrap_shift_deprecation
 
 
 class TestBoundingBox_project_(unittest.TestCase):
@@ -2168,8 +2168,7 @@ class TestBoundingBoxesOnImage(unittest.TestCase):
                        "x2=40.0000, y2=30.0000, label=None)"
         bb2_expected = "BoundingBox(x1=25.0000, y1=15.0000, " \
                        "x2=51.0000, y2=35.0000, label=None)"
-        expected = "BoundingBoxesOnImage([%s, %s], shape=(40, 50, 3))" % (
-            bb1_expected, bb2_expected)
+        expected = f"BoundingBoxesOnImage([{bb1_expected}, {bb2_expected}], shape=(40, 50, 3))"
         assert (
             bbsoi.__repr__()
             == bbsoi.__str__()
@@ -2185,8 +2184,7 @@ class TestBoundingBoxesOnImage(unittest.TestCase):
                        "x2=40.0000, y2=30.0000, label=foo)"
         bb2_expected = "BoundingBox(x1=25.0000, y1=15.0000, " \
                        "x2=51.0000, y2=35.0000, label=bar)"
-        expected = "BoundingBoxesOnImage([%s, %s], shape=(40, 50, 3))" % (
-            bb1_expected, bb2_expected)
+        expected = f"BoundingBoxesOnImage([{bb1_expected}, {bb2_expected}], shape=(40, 50, 3))"
         assert (
             bbsoi.__repr__()
             == bbsoi.__str__()

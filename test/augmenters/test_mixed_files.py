@@ -6,11 +6,15 @@ import numpy as np
 import skimage
 import skimage.data
 
-
 import imgaug2 as ia
 from imgaug2 import augmenters as iaa
-from imgaug2.testutils import (create_random_images, array_equal_lists,
-                              keypoints_equal, reseed, assertWarns)
+from imgaug2.testutils import (
+    array_equal_lists,
+    assertWarns,
+    create_random_images,
+    keypoints_equal,
+    reseed,
+)
 
 
 # TODO this should probably be tested just once for Augmenter
@@ -94,13 +98,13 @@ def test_determinism():
         images_aug4 = aug_det.augment_images(images)
 
         assert array_equal_lists(images_aug1, images_aug2), \
-            "Images (1, 2) expected to be identical for %s" % (aug.name,)
+            f"Images (1, 2) expected to be identical for {aug.name}"
 
         assert array_equal_lists(images_aug3, images_aug4), \
-            "Images (3, 4) expected to be identical for %s" % (aug.name,)
+            f"Images (3, 4) expected to be identical for {aug.name}"
 
         assert not array_equal_lists(images_aug1, images_aug3), \
-            "Images (1, 3) expected to be different for %s" % (aug.name,)
+            f"Images (1, 3) expected to be different for {aug.name}"
 
     for aug in augs_affect_geometry:
         aug_det = aug.to_deterministic()
@@ -112,13 +116,13 @@ def test_determinism():
         kps_aug4 = aug_det.augment_keypoints(keypoints)
 
         assert keypoints_equal(kps_aug1, kps_aug2), \
-            "Keypoints (1, 2) expected to be identical for %s" % (aug.name,)
+            f"Keypoints (1, 2) expected to be identical for {aug.name}"
 
         assert keypoints_equal(kps_aug3, kps_aug4), \
-            "Keypoints (3, 4) expected to be identical for %s" % (aug.name,)
+            f"Keypoints (3, 4) expected to be identical for {aug.name}"
 
         assert not keypoints_equal(kps_aug1, kps_aug3), \
-            "Keypoints (1, 3) expected to be different for %s" % (aug.name,)
+            f"Keypoints (1, 3) expected to be different for {aug.name}"
 
 
 class TestKeypointAugmentation(unittest.TestCase):
@@ -214,11 +218,10 @@ class TestKeypointAugmentation(unittest.TestCase):
                         ds.append(d)
                 dss.extend(ds)
                 if len(ds) == 0:
-                    print("[INFO] No valid keypoints found for '%s' "
-                          "in test_keypoint_augmentation()" % (str(aug),))
+                    print(f"[INFO] No valid keypoints found for '{str(aug)}' "
+                          "in test_keypoint_augmentation()")
             assert np.average(dss) < 5.0, \
-                "Average distance too high (%.2f, with ds: %s)" \
-                % (np.average(dss), str(dss))
+                f"Average distance too high ({np.average(dss):.2f}, with ds: {str(dss)})"
 
 
 # TODO move these tests to the individual augmenters?

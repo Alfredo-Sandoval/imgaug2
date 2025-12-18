@@ -49,25 +49,21 @@ Added in 0.4.0.
 """
 from __future__ import annotations
 
-
-import numpy as np
 import cv2
+import numpy as np
 import PIL.Image
-import PIL.ImageOps
 import PIL.ImageEnhance
 import PIL.ImageFilter
+import PIL.ImageOps
 
+import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
-from imgaug2.imgaug import _normalize_cv2_input_arr_
-from imgaug2.augmenters import meta
-from imgaug2.augmenters import arithmetic
+import imgaug2.parameters as iap
+from imgaug2.augmenters import arithmetic, geometric, meta
 from imgaug2.augmenters import color as colorlib
 from imgaug2.augmenters import contrast as contrastlib
-from imgaug2.augmenters import geometric
 from imgaug2.augmenters import size as sizelib
-import imgaug2.parameters as iap
-import imgaug2.dtypes as iadt
-
+from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 # TODO some of the augmenters in this module broke on numpy arrays as
 #      image inputs (as opposed to lists of arrays) without any test failing
@@ -85,9 +81,9 @@ def _ensure_valid_shape(image, func_name):
         image.ndim == 2
         or (image.ndim == 3 and image.shape[-1] in [3, 4])
     ), (
-        "Can apply %s only to images of "
+        f"Can apply {func_name} only to images of "
         "shape (H, W) or (H, W, 1) or (H, W, 3) or (H, W, 4). "
-        "Got shape %s." % (func_name, image.shape,))
+        f"Got shape {image.shape}.")
     return image, is_hw1
 
 
@@ -302,9 +298,9 @@ def equalize_(image, mask=None):
 
     if mask is not None:
         assert mask.ndim == 2, (
-            "Expected 2-dimensional mask, got shape %s." % (mask.shape,))
+            f"Expected 2-dimensional mask, got shape {mask.shape}.")
         assert mask.dtype == iadt._UINT8_DTYPE, (
-            "Expected mask of dtype uint8, got dtype %s." % (mask.dtype.name,))
+            f"Expected mask of dtype uint8, got dtype {mask.dtype.name}.")
 
     size = image.size
     if size == 0:
@@ -1124,7 +1120,7 @@ def _create_affine_matrix(scale_x=1.0, scale_y=1.0,
                           rotate_deg=0,
                           shear_x_deg=0, shear_y_deg=0,
                           center_px=(0, 0)):
-    from imgaug2.augmenters.geometric import _AffineMatrixGenerator, _RAD_PER_DEGREE
+    from imgaug2.augmenters.geometric import _RAD_PER_DEGREE, _AffineMatrixGenerator
 
     scale_x = max(scale_x, 0.0001)
     scale_y = max(scale_y, 0.0001)
@@ -2462,8 +2458,8 @@ class Affine(geometric.Affine):
         cols = batch.get_column_names()
         assert len(cols) == 0 or (len(cols) == 1 and "images" in cols), (
             "pillike.Affine can currently only process image data. Got a "
-            "batch containing: %s. Use imgaug2.augmenters.geometric.Affine for "
-            "batches containing non-image data." % (", ".join(cols),))
+            "batch containing: {}. Use imgaug2.augmenters.geometric.Affine for "
+            "batches containing non-image data.".format(", ".join(cols)))
 
         return super()._augment_batch_(
             batch, random_state, parents, hooks)

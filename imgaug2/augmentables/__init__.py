@@ -1,10 +1,120 @@
 """Combination of all augmentable classes and related functions."""
 from __future__ import annotations
 
-from imgaug2.augmentables.kps import *
-from imgaug2.augmentables.bbs import *
-from imgaug2.augmentables.polys import *
-from imgaug2.augmentables.lines import *
-from imgaug2.augmentables.heatmaps import *
-from imgaug2.augmentables.segmaps import *
-from imgaug2.augmentables.batches import *
+from . import (
+    base,
+    batches,
+    bbs,
+    heatmaps,
+    kps,
+    lines,
+    normalization,
+    polys,
+    segmaps,
+    utils,
+)
+
+from .kps import (
+    Keypoint,
+    KeypointsOnImage,
+    compute_geometric_median,
+)
+
+from .bbs import (
+    BoundingBox,
+    BoundingBoxesOnImage,
+    copy,
+    project_coords,
+)
+
+from .polys import (
+    MultiPolygon,
+    Polygon,
+    PolygonsOnImage,
+    iarandom,
+    recover_psois_,
+    scipy,
+    traceback,
+)
+
+from .lines import (
+    LineString,
+    LineStringsOnImage,
+    copylib,
+    cv2,
+    interpolate_points,
+    normalize_imglike_shape,
+    project_coords_,
+    skimage,
+)
+
+from .heatmaps import (
+    HeatmapsOnImage,
+)
+
+from .base import (
+    IAugmentable,
+)
+
+from .segmaps import (
+    SegmentationMapOnImage,
+    SegmentationMapsOnImage,
+)
+
+from .batches import (
+    Batch,
+    DEFAULT,
+    UnnormalizedBatch,
+    collections,
+    ia,
+    nlib,
+    np,
+)
+
+__all__ = [
+    "Batch",
+    "BoundingBox",
+    "BoundingBoxesOnImage",
+    "DEFAULT",
+    "HeatmapsOnImage",
+    "IAugmentable",
+    "Keypoint",
+    "KeypointsOnImage",
+    "LineString",
+    "LineStringsOnImage",
+    "MultiPolygon",
+    "Polygon",
+    "PolygonsOnImage",
+    "SegmentationMapOnImage",
+    "SegmentationMapsOnImage",
+    "UnnormalizedBatch",
+    "annotations",
+    "base",
+    "batches",
+    "bbs",
+    "blendlib",
+    "collections",
+    "compute_geometric_median",
+    "copy",
+    "copylib",
+    "cv2",
+    "heatmaps",
+    "ia",
+    "iarandom",
+    "interpolate_points",
+    "kps",
+    "lines",
+    "nlib",
+    "normalization",
+    "normalize_imglike_shape",
+    "np",
+    "polys",
+    "project_coords",
+    "project_coords_",
+    "recover_psois_",
+    "scipy",
+    "segmaps",
+    "skimage",
+    "traceback",
+    "utils",
+]

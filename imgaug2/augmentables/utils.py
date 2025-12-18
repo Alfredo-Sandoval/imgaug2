@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import copy as copylib
+
 import numpy as np
+
 import imgaug2.imgaug as ia
 
 
@@ -42,20 +44,16 @@ def _handle_on_image_shape(shape, obj):
     if hasattr(shape, "shape"):
         ia.warn_deprecated(
             "Providing a numpy array for parameter `shape` in "
-            "`%s` is deprecated. Please provide a shape tuple, "
+            f"`{obj.__class__.__name__}` is deprecated. Please provide a shape tuple, "
             "i.e. a tuple of integers denoting (height, width, [channels]). "
             "Use something similar to `image.shape` to convert an array "
-            "to a shape tuple." % (
-                obj.__class__.__name__,
-            )
+            "to a shape tuple."
         )
         shape = normalize_shape(shape)
     else:
         assert isinstance(shape, tuple), (
             "Expected to get a tuple of integers or a numpy array "
-            "(deprecated) for parameter `shape` in `%s`. Got type %s." % (
-                obj.__class__.__name__, type(shape).__name__
-            )
+            f"(deprecated) for parameter `shape` in `{obj.__class__.__name__}`. Got type {type(shape).__name__}."
         )
     return shape
 
@@ -77,7 +75,7 @@ def normalize_shape(shape):
     if isinstance(shape, tuple):
         return shape
     assert ia.is_np_array(shape), (
-        "Expected tuple of ints or array, got %s." % (type(shape),))
+        f"Expected tuple of ints or array, got {type(shape)}.")
     return shape.shape
 
 
@@ -102,7 +100,7 @@ def normalize_imglike_shape(shape):
     if isinstance(shape, tuple):
         return shape
     assert ia.is_np_array(shape), (
-        "Expected tuple of ints or array, got %s." % (type(shape),))
+        f"Expected tuple of ints or array, got {type(shape)}.")
     shape = shape.shape
     assert len(shape) in [2, 3], (
         "Expected image array to be 2-dimensional or 3-dimensional, got "
@@ -151,7 +149,7 @@ def project_coords_(coords, from_shape, to_shape):
         all([v > 0 for v in [from_height, from_width, to_height, to_width]]))
     assert no_zeros_in_shapes, (
         "Expected from_shape and to_shape to not contain zeros. Got shapes "
-        "%s (from_shape) and %s (to_shape)." % (from_shape, to_shape))
+        f"{from_shape} (from_shape) and {to_shape} (to_shape).")
 
     coords_proj = coords
     if not ia.is_np_array(coords) or coords.dtype.kind != "f":
@@ -302,8 +300,7 @@ def interpolate_points_by_max_distance(points, max_distance, closed=True):
 
     """
     assert max_distance > 0, (
-        "Expected max_distance to have a value >0, got %.8f." % (
-            max_distance,))
+        f"Expected max_distance to have a value >0, got {max_distance:.8f}.")
     if len(points) <= 1:
         return points
     if closed:
@@ -375,7 +372,7 @@ def invert_convert_cbaois_to_kpsois_(cbaois, kpsois):
     if not isinstance(cbaois, list):
         assert not isinstance(kpsois, list), (
             "Expected non-list for `kpsois` when `cbaois` is non-list. "
-            "Got type %s." % (type(kpsois.__name__)),)
+            f"Got type {type(kpsois.__name__)}.",)
         return cbaois.invert_to_keypoints_on_image_(kpsois)
 
     result = []
@@ -399,10 +396,9 @@ def _normalize_shift_args(x, y, top=None, right=None, bottom=None, left=None):
     """Normalize ``shift()`` arguments to x, y and handle deprecated args."""
     if any([v is not None for v in [top, right, bottom, left]]):
         ia.warn_deprecated(
-            "Got one of the arguments `top` (%s), `right` (%s), "
-            "`bottom` (%s), `left` (%s) in a shift() call. "
-            "These are deprecated. Use `x` and `y` instead." % (
-                top, right, bottom, left),
+            f"Got one of the arguments `top` ({top}), `right` ({right}), "
+            f"`bottom` ({bottom}), `left` ({left}) in a shift() call. "
+            "These are deprecated. Use `x` and `y` instead.",
             stacklevel=3)
         top = top if top is not None else 0
         right = right if right is not None else 0

@@ -1,17 +1,16 @@
 
-import warnings
 import unittest
+import warnings
 from unittest import mock
 
 import numpy as np
-
 import shapely
 import shapely.geometry
 
 import imgaug2 as ia
 import imgaug2.random as iarandom
-from imgaug2.testutils import reseed, wrap_shift_deprecation, assertWarns
 from imgaug2.augmentables.polys import _ConcavePolygonRecoverer
+from imgaug2.testutils import assertWarns, reseed, wrap_shift_deprecation
 
 
 class TestPolygon___init__(unittest.TestCase):

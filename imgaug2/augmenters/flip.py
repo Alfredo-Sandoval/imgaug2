@@ -9,15 +9,13 @@ List of augmenters:
 """
 from __future__ import annotations
 
-
-import numpy as np
 import cv2
+import numpy as np
 
-from imgaug2.imgaug import _normalize_cv2_input_arr_
-from imgaug2.augmenters import meta
-import imgaug2.parameters as iap
 import imgaug2.dtypes as iadt
-
+import imgaug2.parameters as iap
+from imgaug2.augmenters import meta
+from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 # pylint:disable=pointless-string-statement
 """

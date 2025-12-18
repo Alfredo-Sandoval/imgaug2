@@ -27,7 +27,7 @@ def _warn_on_suspicious_multi_image_shapes(images):
     if ia.is_np_array(images):
         if images.ndim == 3 and images.shape[-1] in [1, 3]:
             ia.warn(
-                "You provided a numpy array of shape %s as a "
+                f"You provided a numpy array of shape {images.shape} as a "
                 "multi-image augmentation input, which was interpreted as "
                 "(N, H, W). The last dimension however has value 1 or "
                 "3, which indicates that you provided a single image "
@@ -36,7 +36,7 @@ def _warn_on_suspicious_multi_image_shapes(images):
                 "augment_image(<your input>) -- note the singular 'image' "
                 "instead of 'imageS'. Otherwise your single input image "
                 "will be interpreted as multiple images of shape (H, W) "
-                "during augmentation." % (images.shape,),
+                "during augmentation.",
                 category=SuspiciousMultiImageShapeWarning)
 
 
@@ -49,7 +49,7 @@ def _warn_on_suspicious_single_image_shape(image):
     # unittests.
     if image.ndim == 3 and image.shape[-1] >= 32 and image.shape[0:2] != (1, 1):
         ia.warn(
-            "You provided a numpy array of shape %s as a "
+            f"You provided a numpy array of shape {image.shape} as a "
             "single-image augmentation input, which was interpreted as "
             "(H, W, C). The last dimension however has a size of >=32, "
             "which indicates that you provided a multi-image array "
@@ -57,5 +57,5 @@ def _warn_on_suspicious_single_image_shape(image):
             "you should use e.g. augmenter(imageS=<your input>) or "
             "augment_imageS(<your input>). Otherwise your multi-image "
             "input will be interpreted as a single image during "
-            "augmentation." % (image.shape,),
+            "augmentation.",
             category=SuspiciousSingleImageShapeWarning)

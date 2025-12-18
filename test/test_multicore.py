@@ -1,24 +1,23 @@
 
-import time
 import multiprocessing
 import pickle
-from collections import defaultdict
-import warnings
+import time
 import unittest
+import warnings
+from collections import defaultdict
 from unittest import mock
 
 import numpy as np
-
 
 import imgaug2 as ia
 import imgaug2.multicore as multicore
 import imgaug2.random as iarandom
 from imgaug2 import augmenters as iaa
-from imgaug2.testutils import reseed
 from imgaug2.augmentables.batches import Batch, UnnormalizedBatch
+from imgaug2.testutils import reseed
 
 
-class clean_context():
+class clean_context:
     def __init__(self):
         self.old_context = None
 
@@ -228,8 +227,7 @@ class TestPool(unittest.TestCase):
                        clazz(images=[ia.data.quokka()+1])]
 
             def _generate_batches():
-                for batch in batches:
-                    yield batch
+                yield from batches
 
             augseq = iaa.Identity()
             mock_Pool = mock.MagicMock()
@@ -292,8 +290,7 @@ class TestPool(unittest.TestCase):
                 else pool.imap_batches
             )
 
-            for v in func(gen, output_buffer_size=output_buffer_size):
-                yield v
+            yield from func(gen, output_buffer_size=output_buffer_size)
 
         def contains_all_ids(inputs):
             arrs = np.uint8([batch.images_aug for batch in inputs])

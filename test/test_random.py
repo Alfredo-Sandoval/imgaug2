@@ -7,8 +7,8 @@ import numpy as np
 
 import imgaug2 as ia
 import imgaug2.augmenters as iaa
-from imgaug2.testutils import reseed
 import imgaug2.random as iarandom
+from imgaug2.testutils import reseed
 
 NP_VERSION = tuple(int(x) for x in np.__version__.split(".")[:2])
 IS_NP_117_OR_HIGHER = NP_VERSION >= (1, 17)

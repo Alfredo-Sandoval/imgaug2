@@ -1,42 +1,46 @@
 
-import os
-import warnings
-import itertools
 import copy
-from abc import ABCMeta, abstractmethod
-import unittest
-from unittest import mock
+import itertools
+import os
 import pickle
-
-import numpy as np
+import unittest
+import warnings
+from abc import ABCMeta, abstractmethod
+from unittest import mock
 
 import cv2
-import PIL.Image
 import imageio
+import numpy as np
+import PIL.Image
 
 import imgaug2 as ia
 from imgaug2 import augmenters as iaa
-from imgaug2 import parameters as iap
 from imgaug2 import dtypes as iadt
+from imgaug2 import parameters as iap
 from imgaug2 import random as iarandom
-from imgaug2.testutils import (create_random_images, create_random_keypoints,
-                              array_equal_lists, keypoints_equal, reseed,
-                              assert_cbaois_equal,
-                              runtest_pickleable_uint8_img,
-                              TemporaryDirectory, is_parameter_instance)
+from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmentables.heatmaps import HeatmapsOnImage
-from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
 from imgaug2.augmentables.lines import LineString, LineStringsOnImage
 from imgaug2.augmentables.polys import _ConcavePolygonRecoverer
-from imgaug2.augmentables.batches import _BatchInAugmentation
-
+from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
+from imgaug2.testutils import (
+    TemporaryDirectory,
+    array_equal_lists,
+    assert_cbaois_equal,
+    create_random_images,
+    create_random_keypoints,
+    is_parameter_instance,
+    keypoints_equal,
+    reseed,
+    runtest_pickleable_uint8_img,
+)
 
 IS_PY36_OR_HIGHER = True
 
 
 class _InplaceDummyAugmenterImgsArray(iaa.meta.Augmenter):
     def __init__(self, addval):
-        super(_InplaceDummyAugmenterImgsArray, self).__init__()
+        super().__init__()
         self.addval = addval
 
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -49,7 +53,7 @@ class _InplaceDummyAugmenterImgsArray(iaa.meta.Augmenter):
 
 class _InplaceDummyAugmenterImgsList(iaa.meta.Augmenter):
     def __init__(self, addval):
-        super(_InplaceDummyAugmenterImgsList, self).__init__()
+        super().__init__()
         self.addval = addval
 
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -64,7 +68,7 @@ class _InplaceDummyAugmenterImgsList(iaa.meta.Augmenter):
 
 class _InplaceDummyAugmenterSegMaps(iaa.meta.Augmenter):
     def __init__(self, addval):
-        super(_InplaceDummyAugmenterSegMaps, self).__init__()
+        super().__init__()
         self.addval = addval
 
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -79,7 +83,7 @@ class _InplaceDummyAugmenterSegMaps(iaa.meta.Augmenter):
 
 class _InplaceDummyAugmenterKeypoints(iaa.meta.Augmenter):
     def __init__(self, x, y):
-        super(_InplaceDummyAugmenterKeypoints, self).__init__()
+        super().__init__()
         self.x = x
         self.y = y
 
@@ -2074,11 +2078,11 @@ class _DummyAugmenterBBs(iaa.Augmenter):
 #      no longer abstract methods but default to noop
 class _DummyAugmenterCallsParent(iaa.Augmenter):
     def _augment_images(self, images, random_state, parents, hooks):
-        return super(_DummyAugmenterCallsParent, self)\
+        return super()\
             ._augment_images(images, random_state, parents, hooks)
 
     def get_parameters(self):
-        return super(_DummyAugmenterCallsParent, self)\
+        return super()\
             .get_parameters()
 
 
@@ -3471,7 +3475,7 @@ class TestAugmenter_draw_grid(unittest.TestCase):
             _ = aug.draw_grid(np.zeros((2,), dtype=np.uint8), rows=2, cols=2)
 
 
-class _TestAugmenter_augment_cbaois(object, metaclass=ABCMeta):
+class _TestAugmenter_augment_cbaois(metaclass=ABCMeta):
     """Class that is used to test augment_polygons() and augment_line_strings().
 
     Originally this was only used for polygons and then made more flexible.
@@ -3784,13 +3788,13 @@ class _DummyRecoverer(_ConcavePolygonRecoverer):
     def recover_from(self, new_exterior, old_polygon, random_state=0):
         # sample lots of values to ensure that the RNG is advanced
         _ = random_state.integers(0, 2**30, 100)
-        return super(_DummyRecoverer, self).recover_from(
+        return super().recover_from(
             new_exterior, old_polygon, random_state=random_state)
 
 
 class _DummyAugmenterWithRecoverer(iaa.Augmenter):
     def __init__(self, use_recoverer=True):
-        super(_DummyAugmenterWithRecoverer, self).__init__()
+        super().__init__()
         self.random_samples_images = []
         self.random_samples_kps = []
 
@@ -5397,7 +5401,7 @@ class TestAugmenterWithLoadedImages(unittest.TestCase):
 
                 with TemporaryDirectory() as dirpath:
                     imgpath = os.path.join(dirpath,
-                                           "temp_pil_%s.png" % (fname,))
+                                           f"temp_pil_{fname}.png")
                     imageio.imwrite(imgpath, image)
                     image_reloaded = getattr(np, fname)(PIL.Image.open(imgpath))
                     images_reloaded = image_reloaded[np.newaxis, :, :, :]
@@ -6099,8 +6103,8 @@ class TestSequential(unittest.TestCase):
         aug = iaa.Sequential(flip, random_order=True)
         expected = (
             "Sequential("
-            "name=%s, random_order=%s, children=[%s], deterministic=%s"
-            ")" % (aug.name, "True", str(flip), "False")
+            "name={}, random_order={}, children=[{}], deterministic={}"
+            ")".format(aug.name, "True", str(flip), "False")
         )
         assert aug.__str__() == aug.__repr__() == expected
 
@@ -6486,7 +6490,7 @@ class TestSomeOf(unittest.TestCase):
             elif s == (1+100)*2:
                 nb_observed[1] += 1
             else:
-                raise Exception("Unexpected sum: %.8f (@2)" % (s,))
+                raise Exception(f"Unexpected sum: {s:.8f} (@2)")
 
         p_observed = [n/nb_iterations for n in nb_observed]
         return p_observed
@@ -7651,20 +7655,20 @@ class TestSometimes(unittest.TestCase):
             "Sequential("
             "name=SometimesTest-then, "
             "random_order=False, "
-            "children=[%s], "
+            f"children=[{str(then_list)}], "
             "deterministic=False"
-            ")" % (str(then_list),))
+            ")")
         expected_else_list = (
             "Sequential("
             "name=SometimesTest-else, "
             "random_order=False, "
-            "children=[%s], "
+            f"children=[{str(else_list)}], "
             "deterministic=False"
-            ")" % (str(else_list),))
+            ")")
         expected = (
             "Sometimes("
-            "p=%s, name=%s, then_list=%s, else_list=%s, deterministic=%s"
-            ")" % (
+            "p={}, name={}, then_list={}, else_list={}, deterministic={}"
+            ")".format(
                 str(aug.p),
                 "SometimesTest",
                 expected_then_list,
@@ -7686,12 +7690,12 @@ class TestSometimes(unittest.TestCase):
 
         expected = (
             "Sometimes("
-            "p=%s, "
-            "name=%s, "
-            "then_list=%s, "
-            "else_list=%s, "
-            "deterministic=%s"
-            ")" % (
+            "p={}, "
+            "name={}, "
+            "then_list={}, "
+            "else_list={}, "
+            "deterministic={}"
+            ")".format(
                 str(aug.p),
                 "SometimesTest",
                 "None",
@@ -8391,9 +8395,9 @@ class TestWithChannels(unittest.TestCase):
             "WithChannels("
             "channels=[1], "
             "name=WithChannelsTest, "
-            "children=%s, "
+            f"children={str(children)}, "
             "deterministic=False"
-            ")" % (str(children),))
+            ")")
 
         assert aug.__repr__() == expected
         assert aug.__str__() == expected

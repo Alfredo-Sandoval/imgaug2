@@ -5,10 +5,8 @@ Deprecated module. Original name for module blend.py. Was changed in 0.2.8.
 """
 from __future__ import annotations
 
-
 import imgaug2.imgaug as ia
 from imgaug2.augmenters import blend
-
 
 _DEPRECATION_COMMENT = (
     "It has the same interface, except that the parameter "

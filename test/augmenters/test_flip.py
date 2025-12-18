@@ -1,21 +1,23 @@
 
-from abc import ABCMeta, abstractproperty, abstractmethod
 import unittest
+from abc import ABCMeta, abstractmethod, abstractproperty
 from unittest import mock
 
 import numpy as np
 
-
 import imgaug2 as ia
+import imgaug2.augmenters.flip as fliplib
 from imgaug2 import augmenters as iaa
-from imgaug2 import parameters as iap
 from imgaug2 import dtypes as iadt
-from imgaug2.testutils import (reseed, assert_cbaois_equal,
-                              runtest_pickleable_uint8_img,
-                              is_parameter_instance)
+from imgaug2 import parameters as iap
 from imgaug2.augmentables.heatmaps import HeatmapsOnImage
 from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
-import imgaug2.augmenters.flip as fliplib
+from imgaug2.testutils import (
+    assert_cbaois_equal,
+    is_parameter_instance,
+    reseed,
+    runtest_pickleable_uint8_img,
+)
 
 
 class TestHorizontalFlip(unittest.TestCase):
@@ -32,7 +34,7 @@ class TestVerticalFlip(unittest.TestCase):
         assert np.allclose(aug.p.p.value, 0.5)
 
 
-class _TestFliplrAndFlipudBase(object, metaclass=ABCMeta):
+class _TestFliplrAndFlipudBase(metaclass=ABCMeta):
     def setUp(self):
         reseed()
 
@@ -785,7 +787,7 @@ class Test_fliplr(unittest.TestCase):
         if nb_channels is not None:
             arr = np.tile(arr[..., np.newaxis], (1, 1, nb_channels))
             for c in range(nb_channels):
-                arr[..., c] += c
+                arr[..., c] += (c % 256)
 
         arr_flipped = func(arr)
 
@@ -797,7 +799,7 @@ class Test_fliplr(unittest.TestCase):
         if nb_channels is not None:
             expected = np.tile(expected[..., np.newaxis], (1, 1, nb_channels))
             for c in range(nb_channels):
-                expected[..., c] += c
+                expected[..., c] += (c % 256)
         assert arr_flipped.dtype.name == "uint8"
         assert arr_flipped.shape == arr.shape
         assert np.array_equal(arr_flipped, expected)

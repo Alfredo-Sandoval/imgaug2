@@ -1,21 +1,19 @@
 
-import itertools
 import copy as copylib
+import itertools
 import unittest
 from unittest import mock
 
+import cv2
 import numpy as np
 
-import cv2
-
 import imgaug2 as ia
+import imgaug2.augmenters.color as colorlib
+import imgaug2.augmenters.meta as meta
 import imgaug2.random as iarandom
 from imgaug2 import augmenters as iaa
 from imgaug2 import parameters as iap
-import imgaug2.augmenters.meta as meta
-from imgaug2.testutils import (reseed, runtest_pickleable_uint8_img,
-                              is_parameter_instance)
-import imgaug2.augmenters.color as colorlib
+from imgaug2.testutils import is_parameter_instance, reseed, runtest_pickleable_uint8_img
 
 
 class Test_change_colorspace_(unittest.TestCase):
@@ -387,7 +385,7 @@ class Test_change_color_temperature_(unittest.TestCase):
 
 class _BatchCapturingDummyAugmenter(iaa.Augmenter):
     def __init__(self):
-        super(_BatchCapturingDummyAugmenter, self).__init__()
+        super().__init__()
         self.last_batch = None
 
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -614,14 +612,11 @@ class TestWithBrightnessChannels(unittest.TestCase):
         expected_child = iaa.Sequential([child], name="foo-then")
         expected = (
             "WithBrightnessChannels("
-            "to_colorspace=%s, "
+            f"to_colorspace={str(aug.to_colorspace)}, "
             "from_colorspace=RGB, "
             "name=foo, "
-            "children=%s, "
-            "deterministic=False)" % (
-                str(aug.to_colorspace),
-                str(expected_child),
-            )
+            f"children={str(expected_child)}, "
+            "deterministic=False)"
         )
         assert aug_str == expected
 
@@ -803,17 +798,13 @@ class TestMultiplyAndAddToBrightness(unittest.TestCase):
 
                 expected = (
                     "MultiplyAndAddToBrightness("
-                    "mul=%s, "
-                    "add=%s, "
-                    "to_colorspace=%s, "
+                    f"mul={exp_mul}, "
+                    f"add={exp_add}, "
+                    f"to_colorspace={str(aug.to_colorspace)}, "
                     "from_colorspace=RGB, "
                     "random_order=True, "
                     "name=foo, "
-                    "deterministic=False)" % (
-                        exp_mul,
-                        exp_add,
-                        str(aug.to_colorspace)
-                    )
+                    "deterministic=False)"
                 )
                 assert aug_str == expected
 
@@ -845,7 +836,7 @@ class TestWithHueAndSaturation(unittest.TestCase):
     def test_augment_images(self):
         class _DummyAugmenter(meta.Augmenter):
             def __init__(self):
-                super(_DummyAugmenter, self).__init__()
+                super().__init__()
                 self.call_count = 0
 
             def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -942,7 +933,7 @@ class TestWithHueAndSaturation(unittest.TestCase):
 
         class _DummyAugmenter(meta.Augmenter):
             def __init__(self):
-                super(_DummyAugmenter, self).__init__()
+                super().__init__()
                 self.call_count = 0
 
             def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -968,7 +959,7 @@ class TestWithHueAndSaturation(unittest.TestCase):
 
         class _DummyAugmenter(meta.Augmenter):
             def __init__(self):
-                super(_DummyAugmenter, self).__init__()
+                super().__init__()
                 self.call_count = 0
 
             def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -1032,9 +1023,9 @@ class TestWithHueAndSaturation(unittest.TestCase):
             "WithHueAndSaturation("
             "from_colorspace=RGB, "
             "name=UnnamedWithHueAndSaturation, "
-            "children=[%s], "
+            f"children=[{child.__str__()}], "
             "deterministic=False"
-            ")" % (child.__str__(),)
+            ")"
         )
         assert observed == expected
 
@@ -2108,7 +2099,7 @@ class TestKMeansColorQuantization(unittest.TestCase):
         aug = iaa.KMeansColorQuantization(max_size=None)
         mock_imresize = mock.MagicMock(return_value=image)
 
-        fname = "imgaug2.imresize_single_image"
+        fname = "imgaug2.imgaug.imresize_single_image"
         with mock.patch(fname, mock_imresize):
             image_aug = aug.augment_image(image)
             assert image_aug.shape == image.shape
@@ -2133,7 +2124,7 @@ class TestKMeansColorQuantization(unittest.TestCase):
         mock_imresize = mock.Mock()
         mock_imresize.side_effect = _ImresizeSideEffect()
 
-        fname = "imgaug2.imresize_single_image"
+        fname = "imgaug2.imgaug.imresize_single_image"
         with mock.patch(fname, mock_imresize):
             _ = aug.augment_image(image)
 
@@ -2148,7 +2139,7 @@ class TestKMeansColorQuantization(unittest.TestCase):
         aug = self.augmenter(max_size=100)
         mock_imresize = mock.MagicMock(return_value=image)
 
-        fname = "imgaug2.imresize_single_image"
+        fname = "imgaug2.imgaug.imresize_single_image"
         with mock.patch(fname, mock_imresize):
             image_aug = aug.augment_image(image)
             assert image_aug.shape == image.shape
@@ -2173,7 +2164,7 @@ class TestKMeansColorQuantization(unittest.TestCase):
         mock_imresize = mock.Mock()
         mock_imresize.side_effect = _ImresizeSideEffect()
 
-        fname = "imgaug2.imresize_single_image"
+        fname = "imgaug2.imgaug.imresize_single_image"
         with mock.patch(fname, mock_imresize):
             _ = aug.augment_image(image)
 
@@ -2284,7 +2275,7 @@ class TestKMeansColorQuantization(unittest.TestCase):
 
 
 class Test_quantize_colors_kmeans(unittest.TestCase):
-    @mock.patch("imgaug2.imgaug2.warn_deprecated")
+    @mock.patch("imgaug2.imgaug.warn_deprecated")
     def test_warns_deprecated(self, mock_warn):
         arr = np.arange(1*1*3).astype(np.uint8).reshape((1, 1, 3))
 
@@ -2293,7 +2284,7 @@ class Test_quantize_colors_kmeans(unittest.TestCase):
         assert mock_warn.call_count == 1
 
     @mock.patch("imgaug2.augmenters.color.quantize_kmeans")
-    @mock.patch("imgaug2.imgaug2.warn_deprecated")
+    @mock.patch("imgaug2.imgaug.warn_deprecated")
     def test_calls_quantize_kmeans(self, mock_warn, mock_qu):
         arr = np.arange(1*1*3).astype(np.uint8).reshape((1, 1, 3))
         mock_qu.return_value = "foo"
@@ -2654,7 +2645,7 @@ class TestPosterize(TestUniformColorQuantizationToNBits):
 
 
 class Test_quantize_colors_uniform(unittest.TestCase):
-    @mock.patch("imgaug2.imgaug2.warn_deprecated")
+    @mock.patch("imgaug2.imgaug.warn_deprecated")
     def test_warns_deprecated(self, mock_warn):
         arr = np.arange(1*1*3).astype(np.uint8).reshape((1, 1, 3))
 
@@ -2663,7 +2654,7 @@ class Test_quantize_colors_uniform(unittest.TestCase):
         assert mock_warn.call_count == 1
 
     @mock.patch("imgaug2.augmenters.color.quantize_uniform")
-    @mock.patch("imgaug2.imgaug2.warn_deprecated")
+    @mock.patch("imgaug2.imgaug.warn_deprecated")
     def test_calls_quantize_uniform(self, mock_warn, mock_qu):
         arr = np.arange(1*1*3).astype(np.uint8).reshape((1, 1, 3))
         mock_qu.return_value = "foo"

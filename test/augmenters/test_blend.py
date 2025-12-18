@@ -1,23 +1,26 @@
 
-import warnings
-import unittest
-from unittest import mock
 import pickle
+import unittest
+import warnings
+from unittest import mock
 
 import numpy as np
 
-
 import imgaug2 as ia
 from imgaug2 import augmenters as iaa
-from imgaug2 import parameters as iap
 from imgaug2 import dtypes as iadt
-from imgaug2.augmenters import blend
-from imgaug2.testutils import (
-    keypoints_equal, reseed, assert_cbaois_equal,
-    runtest_pickleable_uint8_img, is_parameter_instance)
+from imgaug2 import parameters as iap
+from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmentables.heatmaps import HeatmapsOnImage
 from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
-from imgaug2.augmentables.batches import _BatchInAugmentation
+from imgaug2.augmenters import blend
+from imgaug2.testutils import (
+    assert_cbaois_equal,
+    is_parameter_instance,
+    keypoints_equal,
+    reseed,
+    runtest_pickleable_uint8_img,
+)
 
 
 class Test_blend_alpha(unittest.TestCase):
@@ -354,8 +357,13 @@ class Test_blend_alpha(unittest.TestCase):
                 dtype = np.dtype(dtype)
 
                 def _allclose(a, b):
-                    atol = 1e-4 if dtype == np.float16 else 1e-8
-                    return np.allclose(a, b, atol=atol, rtol=0)
+                    # For float32/float64, large magnitude values can only be
+                    # represented with limited absolute precision (e.g. float32
+                    # steps are ~O(1e2) around 1e9). Using rtol here keeps the
+                    # check meaningful across value ranges.
+                    if dtype == np.float16:
+                        return np.allclose(a, b, atol=1e-4, rtol=0)
+                    return np.allclose(a, b, atol=1e-8, rtol=1e-6)
 
                 isize = np.dtype(dtype).itemsize
                 max_value = 1000 ** (isize - 1)
@@ -1086,7 +1094,7 @@ class TestBlendAlpha(unittest.TestCase):
     def test_to_deterministic(self):
         class _DummyAugmenter(iaa.Identity):
             def __init__(self, *args, **kwargs):
-                super(_DummyAugmenter, self).__init__(*args, **kwargs)
+                super().__init__(*args, **kwargs)
                 self.deterministic_called = False
 
             def _to_deterministic(self):
@@ -1118,7 +1126,7 @@ class TestBlendAlpha(unittest.TestCase):
 
 class _DummyMaskParameter(iap.StochasticParameter):
     def __init__(self, inverted=False):
-        super(_DummyMaskParameter, self).__init__()
+        super().__init__()
         self.inverted = inverted
 
     def _draw_samples(self, size, random_state):

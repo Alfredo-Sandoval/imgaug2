@@ -27,21 +27,17 @@ List of augmenters:
 """
 from __future__ import annotations
 
-
 from abc import ABCMeta, abstractmethod
 
-import numpy as np
 import cv2
+import numpy as np
 
-import imgaug2.imgaug as ia
-from imgaug2.imgaug import _normalize_cv2_input_arr_
-from imgaug2.augmenters import meta
-from imgaug2.augmenters import blend
-from imgaug2.augmenters import arithmetic
-import imgaug2.parameters as iap
 import imgaug2.dtypes as iadt
+import imgaug2.imgaug as ia
+import imgaug2.parameters as iap
 import imgaug2.random as iarandom
-
+from imgaug2.augmenters import arithmetic, blend, meta
+from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 # pylint: disable=invalid-name
 CSPACE_RGB = "RGB"
@@ -65,9 +61,8 @@ def _get_opencv_attr(attr_names):
     for attr_name in attr_names:
         if hasattr(cv2, attr_name):
             return getattr(cv2, attr_name)
-    ia.warn("Could not find any of the following attributes in cv2: %s. "
-            "This can cause issues with colorspace transformations." % (
-                attr_names))
+    ia.warn(f"Could not find any of the following attributes in cv2: {attr_names}. "
+            "This can cause issues with colorspace transformations.")
     return None
 
 
@@ -251,8 +246,7 @@ def change_colorspace_(image, to_colorspace, from_colorspace=CSPACE_RGB):
 
     for arg_name in ["to_colorspace", "from_colorspace"]:
         assert locals()[arg_name] in CSPACE_ALL, (
-            "Expected `%s` to be one of: %s. Got: %s." % (
-                arg_name, CSPACE_ALL, locals()[arg_name]))
+            f"Expected `{arg_name}` to be one of: {CSPACE_ALL}. Got: {locals()[arg_name]}.")
 
     assert from_colorspace != CSPACE_GRAY, (
         "Cannot convert from grayscale to another colorspace as colors "
@@ -364,8 +358,8 @@ def change_colorspaces_(images, to_colorspaces, from_colorspaces=CSPACE_RGB):
             arg = [arg] * len(images)
         else:
             assert ia.is_iterable(arg), (
-                "Expected `%s` to be either an iterable of strings or a single "
-                "string. Got type: %s." % (arg_name, type(arg).__name__)
+                f"Expected `{arg_name}` to be either an iterable of strings or a single "
+                f"string. Got type: {type(arg).__name__}."
             )
             assert len(arg) == len(images), (
                 "If `%s` is provided as a list it must have the same length "
@@ -397,6 +391,8 @@ class _KelvinToRGBTableSingleton:
 
 # Added in 0.4.0.
 class _KelvinToRGBTable:
+    _TABLE = None
+
     # Added in 0.4.0.
     def __init__(self):
         self.table = self.create_table()
@@ -886,13 +882,13 @@ def change_color_temperatures_(images, kelvins, from_colorspaces=CSPACE_RGB):
                     arg_name, len(arg), len(images)))
         elif datatype == "str":
             assert ia.is_string(arg), (
-                "Expected `%s` to be either an iterable of strings or a single "
-                "string. Got type %s." % (arg_name, type(arg).__name__))
+                f"Expected `{arg_name}` to be either an iterable of strings or a single "
+                f"string. Got type {type(arg).__name__}.")
             arg = [arg] * len(images)
         else:
             assert ia.is_single_number(arg), (
-                "Expected `%s` to be either an iterable of numbers or a single "
-                "number. Got type %s." % (arg_name, type(arg).__name__))
+                f"Expected `{arg_name}` to be either an iterable of numbers or a single "
+                f"number. Got type {type(arg).__name__}.")
             arg = np.tile(np.float32([arg]), (len(images),))
         return arg
 
@@ -908,7 +904,7 @@ def change_color_temperatures_(images, kelvins, from_colorspaces=CSPACE_RGB):
     # above.
     assert 1000 <= kelvins[0] <= 40000, (
         "Expected Kelvin values in the interval [1000, 40000]. "
-        "Got interval [%.8f, %.8f]." % (np.min(kelvins), np.max(kelvins)))
+        f"Got interval [{np.min(kelvins):.8f}, {np.max(kelvins):.8f}].")
 
     table = _KelvinToRGBTableSingleton.get_instance()
     rgb_multipliers = table.transform_kelvins_to_rgb_multipliers(kelvins)
@@ -1087,7 +1083,7 @@ class WithColorspace(meta.Augmenter):
 
     def get_parameters(self):
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
-        return [self.channels]
+        return [self.to_colorspace, self.from_colorspace]
 
     def get_children_lists(self):
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
@@ -1095,10 +1091,8 @@ class WithColorspace(meta.Augmenter):
 
     def __str__(self):
         return (
-            "WithColorspace(from_colorspace=%s, "
-            "to_colorspace=%s, name=%s, children=[%s], deterministic=%s)" % (
-                self.from_colorspace, self.to_colorspace, self.name,
-                self.children, self.deterministic)
+            f"WithColorspace(from_colorspace={self.from_colorspace}, "
+            f"to_colorspace={self.to_colorspace}, name={self.name}, children=[{self.children}], deterministic={self.deterministic})"
         )
 
 
@@ -1292,16 +1286,11 @@ class WithBrightnessChannels(meta.Augmenter):
     def __str__(self):
         return (
             "WithBrightnessChannels("
-            "to_colorspace=%s, "
-            "from_colorspace=%s, "
-            "name=%s, "
-            "children=%s, "
-            "deterministic=%s)" % (
-                self.to_colorspace,
-                self.from_colorspace,
-                self.name,
-                self.children,
-                self.deterministic)
+            f"to_colorspace={self.to_colorspace}, "
+            f"from_colorspace={self.from_colorspace}, "
+            f"name={self.name}, "
+            f"children={self.children}, "
+            f"deterministic={self.deterministic})"
         )
 
 
@@ -1399,20 +1388,13 @@ class MultiplyAndAddToBrightness(WithBrightnessChannels):
     def __str__(self):
         return (
             "MultiplyAndAddToBrightness("
-            "mul=%s, "
-            "add=%s, "
-            "to_colorspace=%s, "
-            "from_colorspace=%s, "
-            "random_order=%s, "
-            "name=%s, "
-            "deterministic=%s)" % (
-                str(self.children[0]),
-                str(self.children[1]),
-                self.to_colorspace,
-                self.from_colorspace,
-                self.children.random_order,
-                self.name,
-                self.deterministic)
+            f"mul={str(self.children[0])}, "
+            f"add={str(self.children[1])}, "
+            f"to_colorspace={self.to_colorspace}, "
+            f"from_colorspace={self.from_colorspace}, "
+            f"random_order={self.children.random_order}, "
+            f"name={self.name}, "
+            f"deterministic={self.deterministic})"
         )
 
 
@@ -1746,10 +1728,8 @@ class WithHueAndSaturation(meta.Augmenter):
 
     def __str__(self):
         return (
-            "WithHueAndSaturation(from_colorspace=%s, "
-            "name=%s, children=[%s], deterministic=%s)" % (
-                self.from_colorspace, self.name,
-                self.children, self.deterministic)
+            f"WithHueAndSaturation(from_colorspace={self.from_colorspace}, "
+            f"name={self.name}, children=[{self.children}], deterministic={self.deterministic})"
         )
 
 
@@ -1881,12 +1861,10 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
         if mul is not None:
             assert mul_hue is None, (
                 "`mul_hue` may not be set if `mul` is set. "
-                "It is set to: %s (type: %s)." % (
-                    str(mul_hue), type(mul_hue)))
+                f"It is set to: {str(mul_hue)} (type: {type(mul_hue)}).")
             assert mul_saturation is None, (
                 "`mul_saturation` may not be set if `mul` is set. "
-                "It is set to: %s (type: %s)." % (
-                    str(mul_saturation), type(mul_saturation)))
+                f"It is set to: {str(mul_saturation)} (type: {type(mul_saturation)}).")
             mul = iap.handle_continuous_param(
                 mul, "mul", value_range=(-10.0, 10.0), tuple_to_uniform=True,
                 list_to_choice=True)
@@ -1916,7 +1894,7 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
                     mul,
                     per_channel=per_channel,
                     seed=rss[0],
-                    name="%s-Multiply" % (name,),
+                    name=f"{name}-Multiply",
                     random_state=random_state,
                     deterministic=deterministic
                 )
@@ -1929,12 +1907,12 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
                         arithmetic.Multiply(
                             mul_hue,
                             seed=rss[0],
-                            name="%s-MultiplyHue" % (name,),
+                            name=f"{name}-MultiplyHue",
                             random_state=random_state,
                             deterministic=deterministic
                         ),
                         seed=rss[1],
-                        name="%s-WithChannelsHue" % (name,),
+                        name=f"{name}-WithChannelsHue",
                         random_state=random_state,
                         deterministic=deterministic
                     )
@@ -1946,12 +1924,12 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
                         arithmetic.Multiply(
                             mul_saturation,
                             seed=rss[2],
-                            name="%s-MultiplySaturation" % (name,),
+                            name=f"{name}-MultiplySaturation",
                             random_state=random_state,
                             deterministic=deterministic
                         ),
                         seed=rss[3],
-                        name="%s-WithChannelsSaturation" % (name,),
+                        name=f"{name}-WithChannelsSaturation",
                         random_state=random_state,
                         deterministic=deterministic
                     )
@@ -2397,7 +2375,7 @@ class AddToHueAndSaturation(meta.Augmenter):
             assert -255 <= samples[0, 0] <= 255, (
                 "Expected values sampled from `value` in "
                 "AddToHueAndSaturation to be in range [-255, 255], "
-                "but got %.8f." % (samples[0, 0]))
+                f"but got {samples[0, 0]:.8f}.")
 
             samples_hue = samples[:, 0]
             samples_saturation = np.copy(samples[:, 0])
@@ -2516,12 +2494,10 @@ class AddToHueAndSaturation(meta.Augmenter):
         if value is not None:
             assert value_hue is None, (
                 "`value_hue` may not be set if `value` is set. "
-                "It is set to: %s (type: %s)." % (
-                    str(value_hue), type(value_hue)))
+                f"It is set to: {str(value_hue)} (type: {type(value_hue)}).")
             assert value_saturation is None, (
                 "`value_saturation` may not be set if `value` is set. "
-                "It is set to: %s (type: %s)." % (
-                    str(value_saturation), type(value_saturation)))
+                f"It is set to: {str(value_saturation)} (type: {type(value_saturation)}).")
             return iap.handle_discrete_param(
                 value, "value", value_range=(-255, 255), tuple_to_uniform=True,
                 list_to_choice=True, allow_floats=False)
@@ -2852,39 +2828,35 @@ class ChangeColorspace(meta.Augmenter):
 
         if ia.is_string(to_colorspace):
             assert to_colorspace in CSPACE_ALL, (
-                "Expected 'to_colorspace' to be one of %s. Got %s." % (
-                    CSPACE_ALL, to_colorspace))
+                f"Expected 'to_colorspace' to be one of {CSPACE_ALL}. Got {to_colorspace}.")
             self.to_colorspace = iap.Deterministic(to_colorspace)
         elif ia.is_iterable(to_colorspace):
             all_strings = all(
                 [ia.is_string(colorspace) for colorspace in to_colorspace])
             assert all_strings, (
                 "Expected list of 'to_colorspace' to only contain strings. "
-                "Got types %s." % (
-                    ", ".join([str(type(v)) for v in to_colorspace])))
+                "Got types {}.".format(", ".join([str(type(v)) for v in to_colorspace])))
             all_valid = all(
                 [(colorspace in CSPACE_ALL)
                  for colorspace in to_colorspace])
             assert all_valid, (
                 "Expected list of 'to_colorspace' to only contain strings "
-                "that are in %s. Got strings %s." % (
-                    CSPACE_ALL, to_colorspace))
+                f"that are in {CSPACE_ALL}. Got strings {to_colorspace}.")
             self.to_colorspace = iap.Choice(to_colorspace)
         elif isinstance(to_colorspace, iap.StochasticParameter):
             self.to_colorspace = to_colorspace
         else:
             raise Exception("Expected to_colorspace to be string, list of "
-                            "strings or StochasticParameter, got %s." % (
-                                type(to_colorspace),))
+                            f"strings or StochasticParameter, got {type(to_colorspace)}.")
         self.to_colorspace = iap._wrap_leafs_of_param_in_prefetchers(
             self.to_colorspace, iap._NB_PREFETCH_STRINGS
         )
 
         assert ia.is_string(from_colorspace), (
             "Expected from_colorspace to be a single string, "
-            "got type %s." % (type(from_colorspace),))
+            f"got type {type(from_colorspace)}.")
         assert from_colorspace in CSPACE_ALL, (
-            "Expected from_colorspace to be one of: %s. Got: %s." % (
+            "Expected from_colorspace to be one of: {}. Got: {}.".format(
                 ", ".join(CSPACE_ALL), from_colorspace))
         assert from_colorspace != CSPACE_GRAY, (
             "Cannot convert from grayscale images to other colorspaces.")
@@ -2914,8 +2886,7 @@ class ChangeColorspace(meta.Augmenter):
             to_colorspace = to_colorspaces[i]
 
             assert to_colorspace in CSPACE_ALL, (
-                "Expected 'to_colorspace' to be one of %s. Got %s." % (
-                    CSPACE_ALL, to_colorspace))
+                f"Expected 'to_colorspace' to be one of {CSPACE_ALL}. Got {to_colorspace}.")
 
             if alpha <= self.eps or self.from_colorspace == to_colorspace:
                 pass  # no change necessary
@@ -3472,7 +3443,7 @@ def quantize_kmeans(arr, nb_clusters, nb_max_iter=10, eps=1.0):
     iadt.allow_only_uint8({arr.dtype})
     assert arr.ndim in [2, 3], (
         "Expected two- or three-dimensional array shape, "
-        "got shape %s." % (arr.shape,))
+        f"got shape {arr.shape}.")
     assert 2 <= nb_clusters <= 256, (
         "Expected nb_clusters to be in the discrete interval [2..256]. "
         "Got a value of %d instead." % (nb_clusters,))

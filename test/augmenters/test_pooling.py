@@ -5,16 +5,17 @@ from unittest import mock
 
 import numpy as np
 
-
 import imgaug2 as ia
-import imgaug2.random as iarandom
 import imgaug2.augmenters.pooling as iapooling
+import imgaug2.random as iarandom
 from imgaug2 import augmenters as iaa
 from imgaug2 import parameters as iap
-from imgaug2.testutils import (reseed,
-                              assert_cbaois_equal,
-                              runtest_pickleable_uint8_img,
-                              is_parameter_instance)
+from imgaug2.testutils import (
+    assert_cbaois_equal,
+    is_parameter_instance,
+    reseed,
+    runtest_pickleable_uint8_img,
+)
 
 
 class Test_compute_shape_after_pooling(unittest.TestCase):

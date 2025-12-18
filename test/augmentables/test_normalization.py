@@ -4,11 +4,9 @@ from unittest import mock
 
 import numpy as np
 
-
 import imgaug2 as ia
 import imgaug2.augmentables.normalization as normalization
 from imgaug2.testutils import reseed
-
 
 # TODO split up tests here
 
@@ -2937,11 +2935,11 @@ class TestNormalization(unittest.TestCase):
 
             ntype = normalization._nonempty_info_to_type_str(
                 cls, True, [[]])
-            assert ntype == "iterable-%s" % (cls_name,)
+            assert ntype == f"iterable-{cls_name}"
 
             ntype = normalization._nonempty_info_to_type_str(
                 cls, True, [[], tuple()])
-            assert ntype == "iterable-iterable-%s" % (cls_name,)
+            assert ntype == f"iterable-iterable-{cls_name}"
 
     def test_estimate_heatmaps_norm_type(self):
         ntype = normalization.estimate_heatmaps_norm_type(None)
@@ -3011,7 +3009,7 @@ class TestNormalization(unittest.TestCase):
                             [np.int32, np.uint16, bool]):
             ntype = normalization.estimate_segmaps_norm_type(
                 np.zeros((1, 1, 1, 1), dtype=dt))
-            assert ntype == "array[%s]" % (name,)
+            assert ntype == f"array[{name}]"
 
         ntype = normalization.estimate_segmaps_norm_type(
             ia.SegmentationMapsOnImage(
@@ -3070,7 +3068,7 @@ class TestNormalization(unittest.TestCase):
                             [np.float32, np.int32, np.uint16]):
             ntype = normalization.estimate_keypoints_norm_type(
                 np.zeros((1, 5, 2), dtype=dt))
-            assert ntype == "array[%s]" % (name,)
+            assert ntype == f"array[{name}]"
 
         ntype = normalization.estimate_keypoints_norm_type((1, 2))
         assert ntype == "tuple[number,size=2]"
@@ -3090,7 +3088,7 @@ class TestNormalization(unittest.TestCase):
                             [np.float32, np.int32, np.uint16]):
             ntype = normalization.estimate_keypoints_norm_type(
                 [np.zeros((5, 2), dtype=dt)])
-            assert ntype == "iterable-array[%s]" % (name,)
+            assert ntype == f"iterable-array[{name}]"
 
         ntype = normalization.estimate_keypoints_norm_type([(1, 2)])
         assert ntype == "iterable-tuple[number,size=2]"
@@ -3148,7 +3146,7 @@ class TestNormalization(unittest.TestCase):
                             [np.float32, np.int32, np.uint16]):
             ntype = normalization.estimate_bounding_boxes_norm_type(
                 np.zeros((1, 5, 4), dtype=dt))
-            assert ntype == "array[%s]" % (name,)
+            assert ntype == f"array[{name}]"
 
         ntype = normalization.estimate_bounding_boxes_norm_type((1, 2, 3, 4))
         assert ntype == "tuple[number,size=4]"
@@ -3169,7 +3167,7 @@ class TestNormalization(unittest.TestCase):
                             [np.float32, np.int32, np.uint16]):
             ntype = normalization.estimate_bounding_boxes_norm_type(
                 [np.zeros((5, 4), dtype=dt)])
-            assert ntype == "iterable-array[%s]" % (name,)
+            assert ntype == f"iterable-array[{name}]"
 
         ntype = normalization.estimate_bounding_boxes_norm_type([(1, 2, 3, 4)])
         assert ntype == "iterable-tuple[number,size=4]"
@@ -3234,7 +3232,7 @@ class TestNormalization(unittest.TestCase):
             ntype = normalization.estimate_polygons_norm_type(
                 np.zeros((1, 2, 5, 2), dtype=dt)
             )
-            assert ntype == "array[%s]" % (name,)
+            assert ntype == f"array[{name}]"
 
         ntype = normalization.estimate_polygons_norm_type(
             ia.Polygon(points)
@@ -3255,7 +3253,7 @@ class TestNormalization(unittest.TestCase):
             ntype = normalization.estimate_polygons_norm_type(
                 [np.zeros((5, 4), dtype=dt)]
             )
-            assert ntype == "iterable-array[%s]" % (name,)
+            assert ntype == f"iterable-array[{name}]"
 
         ntype = normalization.estimate_polygons_norm_type(points)
         assert ntype == "iterable-tuple[number,size=2]"
@@ -3282,7 +3280,7 @@ class TestNormalization(unittest.TestCase):
             ntype = normalization.estimate_polygons_norm_type(
                 [[np.zeros((5, 4), dtype=dt)]]
             )
-            assert ntype == "iterable-iterable-array[%s]" % (name,)
+            assert ntype == f"iterable-iterable-array[{name}]"
 
         ntype = normalization.estimate_polygons_norm_type([points])
         assert ntype == "iterable-iterable-tuple[number,size=2]"
@@ -3349,7 +3347,7 @@ class TestNormalization(unittest.TestCase):
             ntype = normalization.estimate_line_strings_norm_type(
                 np.zeros((1, 2, 5, 2), dtype=dt)
             )
-            assert ntype == "array[%s]" % (name,)
+            assert ntype == f"array[{name}]"
 
         ntype = normalization.estimate_line_strings_norm_type(
             ia.LineString(points)
@@ -3370,7 +3368,7 @@ class TestNormalization(unittest.TestCase):
             ntype = normalization.estimate_line_strings_norm_type(
                 [np.zeros((5, 4), dtype=dt)]
             )
-            assert ntype == "iterable-array[%s]" % (name,)
+            assert ntype == f"iterable-array[{name}]"
 
         ntype = normalization.estimate_line_strings_norm_type(points)
         assert ntype == "iterable-tuple[number,size=2]"
@@ -3398,7 +3396,7 @@ class TestNormalization(unittest.TestCase):
             ntype = normalization.estimate_line_strings_norm_type(
                 [[np.zeros((5, 4), dtype=dt)]]
             )
-            assert ntype == "iterable-iterable-array[%s]" % (name,)
+            assert ntype == f"iterable-iterable-array[{name}]"
 
         ntype = normalization.estimate_line_strings_norm_type([points])
         assert ntype == "iterable-iterable-tuple[number,size=2]"

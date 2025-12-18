@@ -1,24 +1,28 @@
 
 import itertools
-import warnings
 import unittest
+import warnings
 from unittest import mock
 
+import cv2
 import numpy as np
-
 import skimage
 import skimage.data
-import cv2
 
 import imgaug2 as ia
 from imgaug2 import augmenters as iaa
-from imgaug2 import parameters as iap
 from imgaug2 import dtypes as iadt
-from imgaug2.augmenters import contrast as contrast_lib
-from imgaug2.testutils import (ArgCopyingMagicMock, keypoints_equal, reseed,
-                              runtest_pickleable_uint8_img, assertWarns,
-                              is_parameter_instance)
+from imgaug2 import parameters as iap
 from imgaug2.augmentables.batches import _BatchInAugmentation
+from imgaug2.augmenters import contrast as contrast_lib
+from imgaug2.testutils import (
+    ArgCopyingMagicMock,
+    assertWarns,
+    is_parameter_instance,
+    keypoints_equal,
+    reseed,
+    runtest_pickleable_uint8_img,
+)
 
 
 class TestGammaContrast(unittest.TestCase):

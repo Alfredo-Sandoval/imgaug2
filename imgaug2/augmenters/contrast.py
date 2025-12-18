@@ -15,18 +15,17 @@ List of augmenters:
 """
 from __future__ import annotations
 
-
+import cv2
 import numpy as np
 import skimage.exposure as ski_exposure
-import cv2
 
-import imgaug2.imgaug as ia
-from imgaug2.imgaug import _normalize_cv2_input_arr_
-from imgaug2.augmenters import meta
-from imgaug2.augmenters import color as color_lib
-import imgaug2.parameters as iap
 import imgaug2.dtypes as iadt
+import imgaug2.imgaug as ia
+import imgaug2.parameters as iap
 from imgaug2.augmentables.batches import _BatchInAugmentation
+from imgaug2.augmenters import color as color_lib
+from imgaug2.augmenters import meta
+from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 
 class _ContrastFuncWrapper(meta.Augmenter):
@@ -788,13 +787,11 @@ class _IntensityChannelBasedApplier:
         valid_from_colorspaces = [self.RGB, self.BGR, self.Lab, self.HLS,
                                   self.HSV]
         assert from_colorspace in valid_from_colorspaces, (
-            "Expected 'from_colorspace' to be one of %s, got %s." % (
-                valid_from_colorspaces, from_colorspace))
+            f"Expected 'from_colorspace' to be one of {valid_from_colorspaces}, got {from_colorspace}.")
 
         valid_to_colorspaces = [self.Lab, self.HLS, self.HSV]
         assert to_colorspace in valid_to_colorspaces, (
-            "Expected 'to_colorspace' to be one of %s, got %s." % (
-                valid_to_colorspaces, to_colorspace))
+            f"Expected 'to_colorspace' to be one of {valid_to_colorspaces}, got {to_colorspace}.")
 
         self.from_colorspace = from_colorspace
         self.to_colorspace = to_colorspace
@@ -1265,7 +1262,7 @@ class CLAHE(meta.Augmenter):
             clip_limit=clip_limit,
             tile_grid_size_px=tile_grid_size_px,
             tile_grid_size_px_min=tile_grid_size_px_min,
-            name="%s_AllChannelsCLAHE" % (name,))
+            name=f"{name}_AllChannelsCLAHE")
 
         self.intensity_channel_based_applier = _IntensityChannelBasedApplier(
             from_colorspace, to_colorspace)
@@ -1523,7 +1520,7 @@ class HistogramEqualization(meta.Augmenter):
 
         self.all_channel_histogram_equalization = \
             AllChannelsHistogramEqualization(
-                name="%s_AllChannelsHistogramEqualization" % (name,))
+                name=f"{name}_AllChannelsHistogramEqualization")
 
         self.intensity_channel_based_applier = _IntensityChannelBasedApplier(
             from_colorspace, to_colorspace)

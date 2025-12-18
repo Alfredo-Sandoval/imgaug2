@@ -19,19 +19,18 @@ List of augmenters:
 """
 from __future__ import annotations
 
-
 from abc import ABCMeta, abstractmethod
 
-import numpy as np
 import cv2
+import numpy as np
 
-import imgaug2.imgaug as ia
-from imgaug2.imgaug import _normalize_cv2_input_arr_
-from imgaug2.augmenters import meta
-import imgaug2.parameters as iap
 import imgaug2.dtypes as iadt
+import imgaug2.imgaug as ia
+import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables import utils as augm_utils
+from imgaug2.augmenters import meta
+from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 
 def _split_1d_array_to_list(arr, sizes):
@@ -163,10 +162,10 @@ def blend_alpha_(image_fg, image_bg, alpha, eps=1e-2):
     """
     assert image_fg.shape == image_bg.shape, (
         "Expected foreground and background images to have the same shape. "
-        "Got %s and %s." % (image_fg.shape, image_bg.shape))
+        f"Got {image_fg.shape} and {image_bg.shape}.")
     assert image_fg.dtype.kind == image_bg.dtype.kind, (
         "Expected foreground and background images to have the same dtype "
-        "kind. Got %s and %s." % (image_fg.dtype.kind, image_bg.dtype.kind))
+        f"kind. Got {image_fg.dtype.kind} and {image_bg.dtype.kind}.")
 
     # Note: If float128 is not available on the system, _FLOAT128_DTYPE is
     # None, but 'np.dtype("float64") == None' actually equates to True
@@ -202,17 +201,15 @@ def blend_alpha_(image_fg, image_bg, alpha, eps=1e-2):
         if alpha.ndim == 2:
             assert alpha.shape == image_fg.shape[0:2], (
                 "'alpha' given as an array must match the height and width "
-                "of the foreground and background image. Got shape %s vs "
-                "foreground/background shape %s." % (
-                    alpha.shape, image_fg.shape))
+                f"of the foreground and background image. Got shape {alpha.shape} vs "
+                f"foreground/background shape {image_fg.shape}.")
         elif alpha.ndim == 3:
             assert (
                 alpha.shape == image_fg.shape
                 or alpha.shape == image_fg.shape[0:2] + (1,)), (
                     "'alpha' given as an array must match the height and "
                     "width of the foreground and background image. Got "
-                    "shape %s vs foreground/background shape %s." % (
-                        alpha.shape, image_fg.shape))
+                    f"shape {alpha.shape} vs foreground/background shape {image_fg.shape}.")
         else:
             alpha = alpha.reshape((1, 1, -1))
 
@@ -233,7 +230,7 @@ def blend_alpha_(image_fg, image_bg, alpha, eps=1e-2):
     if alpha.size > 0:
         assert 0 <= alpha.item(0) <= 1.0, (
             "Expected 'alpha' value(s) to be in the interval [0.0, 1.0]. "
-            "Got min %.4f and max %.4f." % (np.min(alpha), np.max(alpha)))
+            f"Got min {np.min(alpha):.4f} and max {np.max(alpha):.4f}.")
 
     uint8 = iadt._UINT8_DTYPE
     both_uint8 = (image_fg.dtype, image_bg.dtype) == (uint8, uint8)
@@ -361,10 +358,10 @@ def _blend_alpha_non_uint8(image_fg, image_bg, alpha):
 
     # check if float128 (16*8=128) is supported
     assert dt_name != "f16" or hasattr(np, "float128"), (
-        "The input images use dtype '%s', for which alpha-blending "
+        f"The input images use dtype '{image_fg.dtype.name}', for which alpha-blending "
         "requires float128 support to compute accurately its output, "
         "but float128 seems to not be available on the current "
-        "system." % (image_fg.dtype.name,)
+        "system."
     )
 
     dt_blend = np.dtype(dt_name)
@@ -926,10 +923,9 @@ class BlendAlphaMask(meta.Augmenter):
         assert coords.shape == coords_fg.shape == coords_bg.shape, (
             "Expected number of coordinates to not be changed by foreground "
             "or background branch in BlendAlphaMask. But input coordinates "
-            "of shape %s were changed to %s (foreground) and %s "
+            f"of shape {coords.shape} were changed to {coords_fg.shape} (foreground) and {coords_bg.shape} "
             "(background). Make sure to not use any augmenters that affect "
-            "the existence of coordinates." % (
-                coords.shape, coords_fg.shape, coords_bg.shape))
+            "the existence of coordinates.")
 
         h_img, w_img = mask_image.shape[0:2]
 
@@ -2638,8 +2634,7 @@ class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
         if mask.size > 0:
             assert 0 <= mask.item(0) <= 1.0, (
                 "Expected 'parameter' samples to be in the interval "
-                "[0.0, 1.0]. Got min %.4f and max %.4f." % (
-                    np.min(mask), np.max(mask),))
+                f"[0.0, 1.0]. Got min {np.min(mask):.4f} and max {np.max(mask):.4f}.")
 
         return mask
 
@@ -3629,10 +3624,9 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
                 class_ids = [class_ids]
             assert isinstance(class_ids, list), (
                 "Expected `class_ids` to be a single integer or a list of "
-                "integers if `nb_sample_classes` is None. Got type `%s`. "
+                f"integers if `nb_sample_classes` is None. Got type `{type(class_ids).__name__}`. "
                 "Set `nb_sample_classes` to e.g. an integer to enable "
-                "stochastic parameters for `class_ids`." % (
-                    type(class_ids).__name__,))
+                "stochastic parameters for `class_ids`.")
             self.class_ids = class_ids
             self.nb_sample_classes = None
         else:
@@ -3668,7 +3662,7 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
         nb_sample_classes = self.nb_sample_classes
         if nb_sample_classes is None:
             assert isinstance(self.class_ids, list), (
-                "Expected list got %s." % (type(self.class_ids).__name__,))
+                f"Expected list got {type(self.class_ids).__name__}.")
             return [self.class_ids] * nb_rows
 
         nb_sample_classes = nb_sample_classes.draw_samples(
@@ -3796,10 +3790,9 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
                 labels = [labels]
             assert isinstance(labels, list), (
                 "Expected `labels` a single string or a list of "
-                "strings if `nb_sample_labels` is None. Got type `%s`. "
+                f"strings if `nb_sample_labels` is None. Got type `{type(labels).__name__}`. "
                 "Set `nb_sample_labels` to e.g. an integer to enable "
-                "stochastic parameters for `labels`." % (
-                    type(labels).__name__,))
+                "stochastic parameters for `labels`.")
             self.labels = labels
             self.nb_sample_labels = None
         else:
@@ -3836,7 +3829,7 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
         nb_sample_labels = self.nb_sample_labels
         if nb_sample_labels is None:
             assert isinstance(self.labels, list), (
-                "Expected list got %s." % (type(self.labels).__name__,))
+                f"Expected list got {type(self.labels).__name__}.")
             return [self.labels] * nb_rows
 
         nb_sample_labels = nb_sample_labels.draw_samples(

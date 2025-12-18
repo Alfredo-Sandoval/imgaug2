@@ -1,8 +1,6 @@
 """Classes to represent heatmaps, i.e. float arrays of ``[0.0, 1.0]``."""
 from __future__ import annotations
 
-
-
 import numpy as np
 
 import imgaug2.imgaug as ia
@@ -44,28 +42,28 @@ class HeatmapsOnImage(IAugmentable):
     def __init__(self, arr, shape, min_value=0.0, max_value=1.0):
         """Construct a new HeatmapsOnImage object."""
         assert ia.is_np_array(arr), (
-            "Expected numpy array as heatmap input array, got type %s" % (type(arr),)
+            f"Expected numpy array as heatmap input array, got type {type(arr)}"
         )
         # TODO maybe allow 0-sized heatmaps? in that case the min() and max()
         #      must be adjusted
         assert arr.shape[0] > 0 and arr.shape[1] > 0, (
             "Expected numpy array as heatmap with height and width greater "
-            "than 0, got shape %s." % (arr.shape,)
+            f"than 0, got shape {arr.shape}."
         )
         assert arr.dtype.name in ["float32"], (
             "Heatmap input array expected to be of dtype float32, "
-            "got dtype %s." % (arr.dtype,)
+            f"got dtype {arr.dtype}."
         )
         assert arr.ndim in [2, 3], (
-            "Heatmap input array must be 2d or 3d, got shape %s." % (arr.shape,)
+            f"Heatmap input array must be 2d or 3d, got shape {arr.shape}."
         )
         assert len(shape) in [2, 3], (
             "Argument 'shape' in HeatmapsOnImage expected to be 2d or 3d, "
-            "got shape %s." % (shape,)
+            f"got shape {shape}."
         )
         assert min_value < max_value, (
             "Expected min_value to be lower than max_value, "
-            "got %.4f and %.4f" % (min_value, max_value)
+            f"got {min_value:.4f} and {max_value:.4f}"
         )
 
         eps = np.finfo(arr.dtype).eps
@@ -74,10 +72,9 @@ class HeatmapsOnImage(IAugmentable):
         beyond_max = np.max(components) > max_value + eps
         if beyond_min or beyond_max:
             ia.warn(
-                "Value range of heatmap was chosen to be (%.8f, %.8f), but "
-                "found actual min/max of (%.8f, %.8f). Array will be "
+                f"Value range of heatmap was chosen to be ({min_value:.8f}, {max_value:.8f}), but "
+                f"found actual min/max of ({np.min(arr):.8f}, {np.max(arr):.8f}). Array will be "
                 "clipped to chosen value range."
-                % (min_value, max_value, np.min(arr), np.max(arr))
             )
             arr = np.clip(arr, min_value, max_value)
 
@@ -228,15 +225,13 @@ class HeatmapsOnImage(IAugmentable):
         assert image.shape[2] == 3, "Expected RGB image, got %d channels instead." % (
             image.shape[2],
         )
-        assert image.dtype.name == "uint8", "Expected uint8 image, got dtype %s." % (
-            image.dtype.name,
-        )
+        assert image.dtype.name == "uint8", f"Expected uint8 image, got dtype {image.dtype.name}."
 
         assert 0 - 1e-8 <= alpha <= 1.0 + 1e-8, (
-            "Expected 'alpha' to be in the interval [0.0, 1.0], got %.4f" % (alpha)
+            f"Expected 'alpha' to be in the interval [0.0, 1.0], got {alpha:.4f}"
         )
         assert resize in ["heatmaps", "image"], (
-            'Expected resize to be "heatmaps" or "image", got %s instead.' % (resize,)
+            f'Expected resize to be "heatmaps" or "image", got {resize} instead.'
         )
 
         if resize == "image":
@@ -626,18 +621,12 @@ class HeatmapsOnImage(IAugmentable):
             value range.
 
         """
-        assert ia.is_np_array(arr), "Expected 'arr' to be an ndarray, got type %s." % (
-            type(arr),
-        )
+        assert ia.is_np_array(arr), f"Expected 'arr' to be an ndarray, got type {type(arr)}."
 
         def _validate_tuple(arg_name, arg_value):
             assert isinstance(arg_value, tuple), (
-                "'%s' was not a HeatmapsOnImage instance, "
-                "expected type tuple then. Got type %s."
-                % (
-                    arg_name,
-                    type(arg_value),
-                )
+                f"'{arg_name}' was not a HeatmapsOnImage instance, "
+                f"expected type tuple then. Got type {type(arg_value)}."
             )
             assert len(arg_value) == 2, (
                 "Expected tuple '%s' to contain exactly two entries, "
@@ -648,9 +637,8 @@ class HeatmapsOnImage(IAugmentable):
                 )
             )
             assert arg_value[0] < arg_value[1], (
-                "Expected tuple '%s' to have two entries with "
-                "entry 1 < entry 2, got values %.4f and %.4f."
-                % (arg_name, arg_value[0], arg_value[1])
+                f"Expected tuple '{arg_name}' to have two entries with "
+                f"entry 1 < entry 2, got values {arg_value[0]:.4f} and {arg_value[1]:.4f}."
             )
 
         if isinstance(source, HeatmapsOnImage):

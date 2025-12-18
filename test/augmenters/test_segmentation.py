@@ -1,24 +1,22 @@
 
-import warnings
 import itertools
 import unittest
+import warnings
 from unittest import mock
 
 import numpy as np
 
-
 from imgaug2 import augmenters as iaa
-from imgaug2 import parameters as iap
 from imgaug2 import dtypes as iadt
+from imgaug2 import parameters as iap
 from imgaug2 import random as iarandom
+from imgaug2.imgaug import _NUMBA_INSTALLED
 from imgaug2.testutils import (
+    is_parameter_instance,
     reseed,
     runtest_pickleable_uint8_img,
     temporary_constants,
-    is_parameter_instance
 )
-from imgaug2.imgaug import _NUMBA_INSTALLED
-
 
 # On systems without numba we are forced to use numpy-based segment
 # replacement. We can thus only on numba systems test both.
@@ -1129,12 +1127,9 @@ class TestRegularGridPointsSampler(unittest.TestCase):
         sampler = iaa.RegularGridPointsSampler(10, (10, 30))
         expected = (
             "RegularGridPointsSampler("
-            "%s, "
-            "%s"
-            ")" % (
-                str(sampler.n_rows),
-                str(sampler.n_cols)
-            )
+            f"{str(sampler.n_rows)}, "
+            f"{str(sampler.n_cols)}"
+            ")"
         )
         assert sampler.__str__() == sampler.__repr__() == expected
 
@@ -1260,12 +1255,9 @@ class TestRelativeRegularGridPointsSampler(unittest.TestCase):
         sampler = iaa.RelativeRegularGridPointsSampler(0.01, (0.01, 0.05))
         expected = (
             "RelativeRegularGridPointsSampler("
-            "%s, "
-            "%s"
-            ")" % (
-                str(sampler.n_rows_frac),
-                str(sampler.n_cols_frac)
-            )
+            f"{str(sampler.n_rows_frac)}, "
+            f"{str(sampler.n_cols_frac)}"
+            ")"
         )
         assert sampler.__str__() == sampler.__repr__() == expected
 
@@ -1367,15 +1359,11 @@ class TestDropoutPointsSampler(unittest.TestCase):
         expected = (
             "DropoutPointsSampler("
             "RegularGridPointsSampler("
-            "%s, "
-            "%s"
+            f"{str(sampler.other_points_sampler.n_rows)}, "
+            f"{str(sampler.other_points_sampler.n_cols)}"
             "), "
-            "%s"
-            ")" % (
-                str(sampler.other_points_sampler.n_rows),
-                str(sampler.other_points_sampler.n_cols),
-                str(sampler.p_drop)
-            )
+            f"{str(sampler.p_drop)}"
+            ")"
         )
         assert sampler.__str__() == sampler.__repr__() == expected
 
@@ -1561,9 +1549,7 @@ class TestUniformPointsSampler(unittest.TestCase):
 
     def test_conversion_to_string(self):
         sampler = iaa.UniformPointsSampler(10)
-        expected = "UniformPointsSampler(%s)" % (
-            str(sampler.n_points)
-        )
+        expected = f"UniformPointsSampler({str(sampler.n_points)})"
         assert sampler.__str__() == sampler.__repr__() == expected
 
 
@@ -1652,13 +1638,10 @@ class TestSubsamplingPointsSampler(unittest.TestCase):
         expected = (
             "SubsamplingPointsSampler("
             "RegularGridPointsSampler("
-            "%s, "
-            "%s"
+            f"{str(sampler.other_points_sampler.n_rows)}, "
+            f"{str(sampler.other_points_sampler.n_cols)}"
             "), "
             "10"
-            ")" % (
-                str(sampler.other_points_sampler.n_rows),
-                str(sampler.other_points_sampler.n_cols)
-            )
+            ")"
         )
         assert sampler.__str__() == sampler.__repr__() == expected

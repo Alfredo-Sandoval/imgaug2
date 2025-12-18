@@ -2,19 +2,18 @@
 import unittest
 from unittest import mock
 
-import numpy as np
 import cv2
+import numpy as np
 
 import imgaug2 as ia
 from imgaug2 import augmenters as iaa
 from imgaug2 import parameters as iap
-from imgaug2.testutils import (reseed, runtest_pickleable_uint8_img,
-                              is_parameter_instance)
+from imgaug2.testutils import is_parameter_instance, reseed, runtest_pickleable_uint8_img
 
 
 class _TwoValueParam(iap.StochasticParameter):
     def __init__(self, v1, v2):
-        super(_TwoValueParam, self).__init__()
+        super().__init__()
         self.v1 = v1
         self.v2 = v2
 

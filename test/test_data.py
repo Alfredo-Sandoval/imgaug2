@@ -1,13 +1,13 @@
 
-import warnings
 import unittest
+import warnings
 from unittest import mock
 
 import numpy as np
 
 import imgaug2 as ia
 import imgaug2.data as iadata
-from imgaug2.data import _quokka_normalize_extract, _compute_resized_shape
+from imgaug2.data import _compute_resized_shape, _quokka_normalize_extract
 
 
 class Test__quokka_normalize_extract(unittest.TestCase):
