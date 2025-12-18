@@ -1,10 +1,10 @@
-numpy>=1.24
+numpy>=1.24,<3
 scipy
 Pillow
 matplotlib
 scikit-image>=0.14.2
-opencv-python-headless
+opencv-python-headless<4.12
 imageio
 Shapely
-# Optional
-numba
+# Optional extras:
+# - `pip install "imgaug2[numba]"` for numba acceleration hooks (where supported)

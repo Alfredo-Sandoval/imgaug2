@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "imgaug2"
-version = "0.5.0"
+version = "0.0.1"
 description = "Image augmentation library for deep neural networks"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -33,23 +33,26 @@ classifiers = [
 ]
 urls = {Repository = "https://github.com/Alfredo-Sandoval/imgaug2"}
 dependencies = [
-  "numpy>=1.24",
+  "numpy>=1.24,<3",
   "scipy",
   "Pillow",
   "matplotlib",
   "scikit-image>=0.14.2",
-  "opencv-python-headless",
+  "opencv-python-headless<4.12",
   "imageio",
   "Shapely",
+  "opensimplex>=0.4",
 ]
 
 [project.optional-dependencies]
 numba = ["numba"]
-
-[dependency-groups]
 dev = [
   "coverage",
   "imagecorruptions",
+  "mkdocs",
+  "mkdocs-material",
+  "mkdocstrings",
+  "mkdocstrings-python",
   "pytest",
   "pytest-cov",
   "pytest-subtests",
@@ -69,6 +72,7 @@ exclude = ["checks*", "changelogs*", "test*"]
 [tool.setuptools.package-data]
 "*" = ["LICENSE", "README.md", "requirements.txt"]
 "imgaug2" = [
+    "py.typed",
     "DejaVuSans.ttf",
     "quokka.jpg",
     "quokka_annotations.json",
@@ -98,8 +102,7 @@ select = [
     "FA",  # future-annotations
 ]
 ignore = [
-    "ANN101", "ANN102", # ignore self and cls
-    "ANN002", "ANN003", # ignore *args and **kwargs
+    # (empty) keep strict annotation rules
 ]
 
 # Mirror the repo's historical pylint config where possible.
@@ -118,9 +121,65 @@ max-nested-blocks = 5
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+# Tests - type separately
+"test/**/*.py" = ["ANN"]
+"checks/**/*.py" = ["ANN"]
 
 [tool.ruff.format]
 # Keep formatting stable while we migrate; defaults are fine, but we pin the basics explicitly.
 line-ending = "auto"
 indent-style = "space"
 quote-style = "preserve"
+
+[tool.ty.environment]
+python-version = "3.10"
+
+[tool.ty.src]
+# Focus type checking on the library code; exclude demo scripts, vendored code,
+# and build artifacts.
+exclude = [
+  "checks/**",
+  "test/**",
+  "docs/**",
+  "build/**",
+  "dist/**",
+  "imgaug2/external/**",
+  "imgaug2.egg-info/**",
+  "imgaug2/testutils.py",
+]
+
+[tool.ty.rules]
+# Start with a "gradual typing" posture. A lot of the imgaug API is highly
+# dynamic and NumPy-heavy; some rules are currently too noisy until we add more
+# precise annotations and/or stubs.
+"invalid-argument-type" = "ignore"
+"no-matching-overload" = "ignore"
+"non-subscriptable" = "ignore"
+"not-iterable" = "ignore"
+"index-out-of-bounds" = "ignore"
+"unsupported-operator" = "ignore"
+"call-non-callable" = "ignore"
+"unknown-argument" = "ignore"
+"invalid-assignment" = "ignore"
+"possibly-missing-attribute" = "ignore"
+
+# Known third-party stub gaps / API drift that we don't want to gate on yet.
+[[tool.ty.overrides]]
+include = ["imgaug2/augmenters/pillike.py"]
+rules."unresolved-attribute" = "ignore"
+
+[[tool.ty.overrides]]
+include = ["imgaug2/augmenters/segmentation.py"]
+rules."unresolved-attribute" = "ignore"
+rules."unresolved-import" = "ignore"
+
+[[tool.ty.overrides]]
+include = ["imgaug2/imgaug.py"]
+rules."unresolved-import" = "ignore"
+
+[tool.bandit]
+skips = ["B101", "B403"]
+
+[tool.pytest.ini_options]
+addopts = "-p pytester -p no:doctest --xdoctest --xdoctest-global-exec=\"import imgaug2 as ia\\nfrom imgaug2 import augmenters as iaa\""
+norecursedirs = ".git ignore build __pycache__ docs doc *.egg-info _*"
