@@ -6,6 +6,7 @@ in the future.
 Added in 0.4.0.
 
 """
+
 from __future__ import annotations
 
 import imgaug2.imgaug as ia
@@ -37,7 +38,8 @@ def _warn_on_suspicious_multi_image_shapes(images):
                 "instead of 'imageS'. Otherwise your single input image "
                 "will be interpreted as multiple images of shape (H, W) "
                 "during augmentation.",
-                category=SuspiciousMultiImageShapeWarning)
+                category=SuspiciousMultiImageShapeWarning,
+            )
 
 
 def _warn_on_suspicious_single_image_shape(image):
@@ -58,4 +60,5 @@ def _warn_on_suspicious_single_image_shape(image):
             "augment_imageS(<your input>). Otherwise your multi-image "
             "input will be interpreted as a single image during "
             "augmentation.",
-            category=SuspiciousSingleImageShapeWarning)
+            category=SuspiciousSingleImageShapeWarning,
+        )

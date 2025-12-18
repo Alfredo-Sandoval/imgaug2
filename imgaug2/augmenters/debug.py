@@ -706,9 +706,7 @@ def _generate_sm_hm_description(augmentables, channel_idx, show_details):
     if not show_details:
         shapes_str = ""
     elif stats.all_same_shape:
-        shapes_str = (
-            f"items for {len(augmentables):3d} images\nall arrays of shape {str(stats.shapes[0]):>11}"
-        )
+        shapes_str = f"items for {len(augmentables):3d} images\nall arrays of shape {str(stats.shapes[0]):>11}"
     else:
         shapes_str = (
             f"items for {len(augmentables):3d} images\n"

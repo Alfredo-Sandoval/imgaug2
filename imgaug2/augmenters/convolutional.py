@@ -12,6 +12,7 @@ List of augmenters:
 For MotionBlur, see ``blur.py``.
 
 """
+
 from __future__ import annotations
 
 import itertools
@@ -105,7 +106,7 @@ def convolve_(image, kernel):
     iadt.gate_dtypes_strs(
         {image.dtype},
         allowed="bool uint8 uint16 int8 int16 float16 float32 float64",
-        disallowed="uint32 uint64 int32 int64 float128"
+        disallowed="uint32 uint64 int32 int64 float128",
     )
 
     # currently we don't have to worry here about alignemnt with
@@ -137,9 +138,8 @@ def convolve_(image, kernel):
         assert len(kernel) == nb_channels, (
             "Kernel was given as a list. Expected that list to contain as "
             "many arrays as there are image channels. "
-            "Got %d, but expected %d for image of shape %s." % (
-                len(kernel), nb_channels, image.shape
-            )
+            "Got %d, but expected %d for image of shape %s."
+            % (len(kernel), nb_channels, image.shape)
         )
         matrices = kernel
 
@@ -160,10 +160,7 @@ def convolve_(image, kernel):
             if matrices[channel] is not None:
                 arr_channel = np.copy(image[..., channel])
                 image[..., channel] = cv2.filter2D(
-                    arr_channel,
-                    -1,
-                    matrices[channel],
-                    dst=arr_channel
+                    arr_channel, -1, matrices[channel], dst=arr_channel
                 )
 
     if input_dtype.kind == "b":
@@ -250,12 +247,17 @@ class Convolve(meta.Augmenter):
 
     """
 
-    def __init__(self, matrix=None,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        matrix=None,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
 
         if matrix is None:
             self.matrix = None
@@ -263,7 +265,8 @@ class Convolve(meta.Augmenter):
         elif ia.is_np_array(matrix):
             assert matrix.ndim == 2, (
                 "Expected convolution matrix to have exactly two dimensions, "
-                "got %d (shape %s)." % (matrix.ndim, matrix.shape))
+                "got %d (shape %s)." % (matrix.ndim, matrix.shape)
+            )
             self.matrix = matrix
             self.matrix_type = "constant"
         elif ia.is_callable(matrix):
@@ -272,7 +275,8 @@ class Convolve(meta.Augmenter):
         else:
             raise Exception(
                 "Expected float, int, tuple/list with 2 entries or "
-                f"StochasticParameter. Got {type(matrix)}.")
+                f"StochasticParameter. Got {type(matrix)}."
+            )
 
     # Added in 0.4.0.
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -374,22 +378,36 @@ class Sharpen(Convolve):
     (as in the above example).
 
     """
-    def __init__(self, alpha=(0.0, 0.2), lightness=(0.8, 1.2),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+
+    def __init__(
+        self,
+        alpha=(0.0, 0.2),
+        lightness=(0.8, 1.2),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         alpha_param = iap.handle_continuous_param(
-            alpha, "alpha",
-            value_range=(0, 1.0), tuple_to_uniform=True, list_to_choice=True)
+            alpha, "alpha", value_range=(0, 1.0), tuple_to_uniform=True, list_to_choice=True
+        )
         lightness_param = iap.handle_continuous_param(
-            lightness, "lightness",
-            value_range=(0, None), tuple_to_uniform=True, list_to_choice=True)
+            lightness,
+            "lightness",
+            value_range=(0, None),
+            tuple_to_uniform=True,
+            list_to_choice=True,
+        )
 
         matrix_gen = _SharpeningMatrixGenerator(alpha_param, lightness_param)
 
         super().__init__(
             matrix=matrix_gen,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class _SharpeningMatrixGenerator:
@@ -400,23 +418,14 @@ class _SharpeningMatrixGenerator:
     def __call__(self, _image, nb_channels, random_state):
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
-            "Expected 'alpha' to be in the interval [0.0, 1.0], "
-            f"got {alpha_sample:.4f}.")
-        lightness_sample = self.lightness.draw_sample(random_state=random_state)
-        matrix_nochange = np.array([
-            [0, 0, 0],
-            [0, 1, 0],
-            [0, 0, 0]
-        ], dtype=np.float32)
-        matrix_effect = np.array([
-            [-1, -1, -1],
-            [-1, 8+lightness_sample, -1],
-            [-1, -1, -1]
-        ], dtype=np.float32)
-        matrix = (
-            (1-alpha_sample) * matrix_nochange
-            + alpha_sample * matrix_effect
+            f"Expected 'alpha' to be in the interval [0.0, 1.0], got {alpha_sample:.4f}."
         )
+        lightness_sample = self.lightness.draw_sample(random_state=random_state)
+        matrix_nochange = np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]], dtype=np.float32)
+        matrix_effect = np.array(
+            [[-1, -1, -1], [-1, 8 + lightness_sample, -1], [-1, -1, -1]], dtype=np.float32
+        )
+        matrix = (1 - alpha_sample) * matrix_nochange + alpha_sample * matrix_effect
         return matrix
 
 
@@ -485,22 +494,32 @@ class Emboss(Convolve):
     using a random blending factor between ``0%`` and ``100%``.
 
     """
-    def __init__(self, alpha=(0.0, 1.0), strength=(0.25, 1.0),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+
+    def __init__(
+        self,
+        alpha=(0.0, 1.0),
+        strength=(0.25, 1.0),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         alpha_param = iap.handle_continuous_param(
-            alpha, "alpha",
-            value_range=(0, 1.0), tuple_to_uniform=True, list_to_choice=True)
+            alpha, "alpha", value_range=(0, 1.0), tuple_to_uniform=True, list_to_choice=True
+        )
         strength_param = iap.handle_continuous_param(
-            strength, "strength",
-            value_range=(0, None), tuple_to_uniform=True, list_to_choice=True)
+            strength, "strength", value_range=(0, None), tuple_to_uniform=True, list_to_choice=True
+        )
 
         matrix_gen = _EmbossMatrixGenerator(alpha_param, strength_param)
 
         super().__init__(
             matrix=matrix_gen,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class _EmbossMatrixGenerator:
@@ -511,23 +530,19 @@ class _EmbossMatrixGenerator:
     def __call__(self, _image, nb_channels, random_state):
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
-            "Expected 'alpha' to be in the interval [0.0, 1.0], "
-            f"got {alpha_sample:.4f}.")
-        strength_sample = self.strength.draw_sample(random_state=random_state)
-        matrix_nochange = np.array([
-            [0, 0, 0],
-            [0, 1, 0],
-            [0, 0, 0]
-        ], dtype=np.float32)
-        matrix_effect = np.array([
-            [-1-strength_sample, 0-strength_sample, 0],
-            [0-strength_sample, 1, 0+strength_sample],
-            [0, 0+strength_sample, 1+strength_sample]
-        ], dtype=np.float32)
-        matrix = (
-            (1-alpha_sample) * matrix_nochange
-            + alpha_sample * matrix_effect
+            f"Expected 'alpha' to be in the interval [0.0, 1.0], got {alpha_sample:.4f}."
         )
+        strength_sample = self.strength.draw_sample(random_state=random_state)
+        matrix_nochange = np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]], dtype=np.float32)
+        matrix_effect = np.array(
+            [
+                [-1 - strength_sample, 0 - strength_sample, 0],
+                [0 - strength_sample, 1, 0 + strength_sample],
+                [0, 0 + strength_sample, 1 + strength_sample],
+            ],
+            dtype=np.float32,
+        )
+        matrix = (1 - alpha_sample) * matrix_nochange + alpha_sample * matrix_effect
         return matrix
 
 
@@ -582,19 +597,28 @@ class EdgeDetect(Convolve):
     blending factor between ``0%`` and ``100%``.
 
     """
-    def __init__(self, alpha=(0.0, 0.75),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+
+    def __init__(
+        self,
+        alpha=(0.0, 0.75),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         alpha_param = iap.handle_continuous_param(
-            alpha, "alpha",
-            value_range=(0, 1.0), tuple_to_uniform=True, list_to_choice=True)
+            alpha, "alpha", value_range=(0, 1.0), tuple_to_uniform=True, list_to_choice=True
+        )
 
         matrix_gen = _EdgeDetectMatrixGenerator(alpha_param)
 
         super().__init__(
             matrix=matrix_gen,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class _EdgeDetectMatrixGenerator:
@@ -604,22 +628,11 @@ class _EdgeDetectMatrixGenerator:
     def __call__(self, _image, nb_channels, random_state):
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
-            "Expected 'alpha' to be in the interval [0.0, 1.0], "
-            f"got {alpha_sample:.4f}.")
-        matrix_nochange = np.array([
-            [0, 0, 0],
-            [0, 1, 0],
-            [0, 0, 0]
-        ], dtype=np.float32)
-        matrix_effect = np.array([
-            [0, 1, 0],
-            [1, -4, 1],
-            [0, 1, 0]
-        ], dtype=np.float32)
-        matrix = (
-            (1-alpha_sample) * matrix_nochange
-            + alpha_sample * matrix_effect
+            f"Expected 'alpha' to be in the interval [0.0, 1.0], got {alpha_sample:.4f}."
         )
+        matrix_nochange = np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]], dtype=np.float32)
+        matrix_effect = np.array([[0, 1, 0], [1, -4, 1], [0, 1, 0]], dtype=np.float32)
+        matrix = (1 - alpha_sample) * matrix_nochange + alpha_sample * matrix_effect
         return matrix
 
 
@@ -715,23 +728,32 @@ class DirectedEdgeDetect(Convolve):
     and ``30%``.
 
     """
-    def __init__(self, alpha=(0.0, 0.75), direction=(0.0, 1.0),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
-        alpha_param = iap.handle_continuous_param(
-            alpha, "alpha",
-            value_range=(0, 1.0), tuple_to_uniform=True, list_to_choice=True)
-        direction_param = iap.handle_continuous_param(
-            direction, "direction",
-            value_range=None, tuple_to_uniform=True, list_to_choice=True)
 
-        matrix_gen = _DirectedEdgeDetectMatrixGenerator(alpha_param,
-                                                        direction_param)
+    def __init__(
+        self,
+        alpha=(0.0, 0.75),
+        direction=(0.0, 1.0),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
+        alpha_param = iap.handle_continuous_param(
+            alpha, "alpha", value_range=(0, 1.0), tuple_to_uniform=True, list_to_choice=True
+        )
+        direction_param = iap.handle_continuous_param(
+            direction, "direction", value_range=None, tuple_to_uniform=True, list_to_choice=True
+        )
+
+        matrix_gen = _DirectedEdgeDetectMatrixGenerator(alpha_param, direction_param)
 
         super().__init__(
             matrix=matrix_gen,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class _DirectedEdgeDetectMatrixGenerator:
@@ -742,43 +764,30 @@ class _DirectedEdgeDetectMatrixGenerator:
     def __call__(self, _image, nb_channels, random_state):
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
-            "Expected 'alpha' to be in the interval [0.0, 1.0], "
-            f"got {alpha_sample:.4f}.")
+            f"Expected 'alpha' to be in the interval [0.0, 1.0], got {alpha_sample:.4f}."
+        )
         direction_sample = self.direction.draw_sample(random_state=random_state)
 
         deg = int(direction_sample * 360) % 360
         rad = np.deg2rad(deg)
-        x = np.cos(rad - 0.5*np.pi)
-        y = np.sin(rad - 0.5*np.pi)
+        x = np.cos(rad - 0.5 * np.pi)
+        y = np.sin(rad - 0.5 * np.pi)
         direction_vector = np.array([x, y])
 
-        matrix_effect = np.array([
-            [0, 0, 0],
-            [0, 0, 0],
-            [0, 0, 0]
-        ], dtype=np.float32)
+        matrix_effect = np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float32)
         for x, y in itertools.product([-1, 0, 1], [-1, 0, 1]):
             if (x, y) != (0, 0):
                 cell_vector = np.array([x, y])
-                distance_deg = np.rad2deg(
-                    ia.angle_between_vectors(cell_vector,
-                                             direction_vector))
+                distance_deg = np.rad2deg(ia.angle_between_vectors(cell_vector, direction_vector))
                 distance = distance_deg / 180
-                similarity = (1 - distance)**4
-                matrix_effect[y+1, x+1] = similarity
+                similarity = (1 - distance) ** 4
+                matrix_effect[y + 1, x + 1] = similarity
         matrix_effect = matrix_effect / np.sum(matrix_effect)
         matrix_effect = matrix_effect * (-1)
         matrix_effect[1, 1] = 1
 
-        matrix_nochange = np.array([
-            [0, 0, 0],
-            [0, 1, 0],
-            [0, 0, 0]
-        ], dtype=np.float32)
+        matrix_nochange = np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]], dtype=np.float32)
 
-        matrix = (
-            (1-alpha_sample) * matrix_nochange
-            + alpha_sample * matrix_effect
-        )
+        matrix = (1 - alpha_sample) * matrix_nochange + alpha_sample * matrix_effect
 
         return matrix

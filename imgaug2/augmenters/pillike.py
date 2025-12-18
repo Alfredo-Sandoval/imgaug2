@@ -47,6 +47,7 @@ Standard usage of these augmenters follows roughly the schema::
 Added in 0.4.0.
 
 """
+
 from __future__ import annotations
 
 import cv2
@@ -69,7 +70,7 @@ from imgaug2.imgaug import _normalize_cv2_input_arr_
 #      image inputs (as opposed to lists of arrays) without any test failing
 #      add appropriate tests for that
 
-_EQUALIZE_USE_PIL_BELOW = 64*64  # H*W
+_EQUALIZE_USE_PIL_BELOW = 64 * 64  # H*W
 
 
 # Added in 0.4.0.
@@ -77,13 +78,11 @@ def _ensure_valid_shape(image, func_name):
     is_hw1 = image.ndim == 3 and image.shape[-1] == 1
     if is_hw1:
         image = image[:, :, 0]
-    assert (
-        image.ndim == 2
-        or (image.ndim == 3 and image.shape[-1] in [3, 4])
-    ), (
+    assert image.ndim == 2 or (image.ndim == 3 and image.shape[-1] in [3, 4]), (
         f"Can apply {func_name} only to images of "
         "shape (H, W) or (H, W, 1) or (H, W, 3) or (H, W, 4). "
-        f"Got shape {image.shape}.")
+        f"Got shape {image.shape}."
+    )
     return image, is_hw1
 
 
@@ -290,17 +289,16 @@ def equalize_(image, mask=None):
     """
     nb_channels = 1 if image.ndim == 2 else image.shape[-1]
     if nb_channels not in [1, 3]:
-        result = [equalize_(image[:, :, c])
-                  for c in np.arange(nb_channels)]
+        result = [equalize_(image[:, :, c]) for c in np.arange(nb_channels)]
         return np.stack(result, axis=-1)
 
     iadt.allow_only_uint8({image.dtype})
 
     if mask is not None:
-        assert mask.ndim == 2, (
-            f"Expected 2-dimensional mask, got shape {mask.shape}.")
+        assert mask.ndim == 2, f"Expected 2-dimensional mask, got shape {mask.shape}."
         assert mask.dtype == iadt._UINT8_DTYPE, (
-            f"Expected mask of dtype uint8, got dtype {mask.dtype.name}.")
+            f"Expected mask of dtype uint8, got dtype {mask.dtype.name}."
+        )
 
     size = image.size
     if size == 0:
@@ -322,9 +320,8 @@ def _equalize_no_pil_(image, mask=None):
         if image.ndim == 2:
             image_c = image[:, :, np.newaxis]
         else:
-            image_c = image[:, :, c_idx:c_idx+1]
-        histo = cv2.calcHist(
-            [_normalize_cv2_input_arr_(image_c)], [0], mask, [256], [0, 256])
+            image_c = image[:, :, c_idx : c_idx + 1]
+        histo = cv2.calcHist([_normalize_cv2_input_arr_(image_c)], [0], mask, [256], [0, 256])
         if len(histo.nonzero()[0]) <= 1:
             lut[0, :, c_idx] = np.arange(256).astype(np.int32)
             continue
@@ -350,12 +347,7 @@ def _equalize_pil_(image, mask=None):
         mask = PIL.Image.fromarray(mask).convert("L")
 
     # don't return np.asarray(...) directly as its results are read-only
-    image[...] = np.asarray(
-        PIL.ImageOps.equalize(
-            PIL.Image.fromarray(image),
-            mask=mask
-        )
-    )
+    image[...] = np.asarray(PIL.ImageOps.equalize(PIL.Image.fromarray(image), mask=mask))
     return image
 
 
@@ -414,7 +406,7 @@ def autocontrast(image, cutoff=0, ignore=None):
     if 0 in image.shape:
         return np.copy(image)
 
-    standard_channels = (image.ndim == 2 or image.shape[2] == 3)
+    standard_channels = image.ndim == 2 or image.shape[2] == 3
 
     if cutoff and standard_channels:
         return _autocontrast_pil(image, cutoff, ignore)
@@ -425,10 +417,7 @@ def autocontrast(image, cutoff=0, ignore=None):
 def _autocontrast_pil(image, cutoff, ignore):
     # don't return np.asarray(...) as its results are read-only
     return np.array(
-        PIL.ImageOps.autocontrast(
-            PIL.Image.fromarray(image),
-            cutoff=cutoff, ignore=ignore
-        )
+        PIL.ImageOps.autocontrast(PIL.Image.fromarray(image), cutoff=cutoff, ignore=ignore)
     )
 
 
@@ -451,9 +440,8 @@ def _autocontrast_no_pil(image, cutoff, ignore):  # noqa: C901
         if image.ndim == 2:
             image_c = image[:, :, np.newaxis]
         else:
-            image_c = image[:, :, c_idx:c_idx+1]
-        h = cv2.calcHist(
-            [_normalize_cv2_input_arr_(image_c)], [0], None, [256], [0, 256])
+            image_c = image[:, :, c_idx : c_idx + 1]
+        h = cv2.calcHist([_normalize_cv2_input_arr_(image_c)], [0], None, [256], [0, 256])
         if ignore is not None:
             h[ignore] = 0
 
@@ -481,9 +469,9 @@ def _autocontrast_no_pil(image, cutoff, ignore):  # noqa: C901
                 hi = -1
             else:
                 hi = 255 - hi_cut_nz[0]
-            h[hi+1:] = 0
+            h[hi + 1 :] = 0
             if hi > -1:
-                h[hi] = hi_cut[255-hi]
+                h[hi] = hi_cut[255 - hi]
 
         # find lowest/highest samples after preprocessing
         for lo, lo_val in enumerate(h):
@@ -520,7 +508,7 @@ def _autocontrast_no_pil(image, cutoff, ignore):  # noqa: C901
 
         # TODO change to a single call instead of one per channel
         image_c_aug = ia.apply_lut(image_c, lut)
-        result[:, :, c_idx:c_idx+1] = image_c_aug
+        result[:, :, c_idx : c_idx + 1] = image_c_aug
     if image.ndim == 2:
         return result[..., 0]
     return result
@@ -533,15 +521,10 @@ def _apply_enhance_func(image, cls, factor):
     if 0 in image.shape:
         return np.copy(image)
 
-    image, is_hw1 = _ensure_valid_shape(
-        image, "imgaug2.augmenters.pillike.enhance_*()")
+    image, is_hw1 = _ensure_valid_shape(image, "imgaug2.augmenters.pillike.enhance_*()")
 
     # don't return np.asarray(...) as its results are read-only
-    result = np.array(
-        cls(
-            PIL.Image.fromarray(image)
-        ).enhance(factor)
-    )
+    result = np.array(cls(PIL.Image.fromarray(image)).enhance(factor))
     if is_hw1:
         result = result[:, :, np.newaxis]
     return result
@@ -727,8 +710,7 @@ def _filter_by_kernel(image, kernel):
     if 0 in image.shape:
         return np.copy(image)
 
-    image, is_hw1 = _ensure_valid_shape(
-        image, "imgaug2.augmenters.pillike.filter_*()")
+    image, is_hw1 = _ensure_valid_shape(image, "imgaug2.augmenters.pillike.filter_*()")
 
     image_pil = PIL.Image.fromarray(image)
 
@@ -1115,11 +1097,16 @@ def filter_detail(image):
 # TODO unify this with the matrix generation for Affine,
 #      there is probably no need to keep these separate
 # Added in 0.4.0.
-def _create_affine_matrix(scale_x=1.0, scale_y=1.0,
-                          translate_x_px=0, translate_y_px=0,
-                          rotate_deg=0,
-                          shear_x_deg=0, shear_y_deg=0,
-                          center_px=(0, 0)):
+def _create_affine_matrix(
+    scale_x=1.0,
+    scale_y=1.0,
+    translate_x_px=0,
+    translate_y_px=0,
+    rotate_deg=0,
+    shear_x_deg=0,
+    shear_y_deg=0,
+    center_px=(0, 0),
+):
     from imgaug2.augmenters.geometric import _RAD_PER_DEGREE, _AffineMatrixGenerator
 
     scale_x = max(scale_x, 0.0001)
@@ -1143,13 +1130,18 @@ def _create_affine_matrix(scale_x=1.0, scale_y=1.0,
     return matrix
 
 
-def warp_affine(image,
-                scale_x=1.0, scale_y=1.0,
-                translate_x_px=0, translate_y_px=0,
-                rotate_deg=0,
-                shear_x_deg=0, shear_y_deg=0,
-                fillcolor=None,
-                center=(0.5, 0.5)):
+def warp_affine(
+    image,
+    scale_x=1.0,
+    scale_y=1.0,
+    translate_x_px=0,
+    translate_y_px=0,
+    rotate_deg=0,
+    shear_x_deg=0,
+    shear_y_deg=0,
+    fillcolor=None,
+    center=(0.5, 0.5),
+):
     """Apply an affine transformation to an image.
 
     This function has identical outputs to
@@ -1240,27 +1232,27 @@ def warp_affine(image,
         # otherwise we get a deprecation warning in py3.8
         fillcolor = tuple(map(int, fillcolor))
 
-    image, is_hw1 = _ensure_valid_shape(
-        image, "imgaug2.augmenters.pillike.warp_affine()")
+    image, is_hw1 = _ensure_valid_shape(image, "imgaug2.augmenters.pillike.warp_affine()")
 
     image_pil = PIL.Image.fromarray(image)
 
     height, width = image.shape[0:2]
     center_px = (width * center[0], height * center[1])
-    matrix = _create_affine_matrix(scale_x=scale_x,
-                                   scale_y=scale_y,
-                                   translate_x_px=translate_x_px,
-                                   translate_y_px=translate_y_px,
-                                   rotate_deg=rotate_deg,
-                                   shear_x_deg=shear_x_deg,
-                                   shear_y_deg=shear_y_deg,
-                                   center_px=center_px)
+    matrix = _create_affine_matrix(
+        scale_x=scale_x,
+        scale_y=scale_y,
+        translate_x_px=translate_x_px,
+        translate_y_px=translate_y_px,
+        rotate_deg=rotate_deg,
+        shear_x_deg=shear_x_deg,
+        shear_y_deg=shear_y_deg,
+        center_px=center_px,
+    )
     matrix = matrix[:2, :].flat
 
     # don't return np.asarray(...) as its results are read-only
     result = np.array(
-        image_pil.transform(image_pil.size, PIL.Image.AFFINE, matrix,
-                            fillcolor=fillcolor)
+        image_pil.transform(image_pil.size, PIL.Image.AFFINE, matrix, fillcolor=fillcolor)
     )
 
     if is_hw1:
@@ -1319,15 +1311,27 @@ class Solarize(arithmetic.Invert):
 
     """
 
-    def __init__(self, p=1.0, threshold=128,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        p=1.0,
+        threshold=128,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            p=p, per_channel=False,
-            min_value=None, max_value=None,
-            threshold=threshold, invert_above_threshold=True,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            p=p,
+            per_channel=False,
+            min_value=None,
+            max_value=None,
+            threshold=threshold,
+            invert_above_threshold=True,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Posterize(colorlib.Posterize):
@@ -1390,12 +1394,10 @@ class Equalize(meta.Augmenter):
     """
 
     # Added in 0.4.0.
-    def __init__(self,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
 
     # Added in 0.4.0.
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -1476,43 +1478,65 @@ class Autocontrast(contrastlib._ContrastFuncWrapper):
     The cutoff value is sampled per *channel* instead of per *image*.
 
     """
+
     # pylint: disable=protected-access
 
     # Added in 0.4.0.
-    def __init__(self, cutoff=(0, 20), per_channel=False,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        cutoff=(0, 20),
+        per_channel=False,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         params1d = [
             iap.handle_discrete_param(
-                cutoff, "cutoff", value_range=(0, 49), tuple_to_uniform=True,
-                list_to_choice=True)
+                cutoff, "cutoff", value_range=(0, 49), tuple_to_uniform=True, list_to_choice=True
+            )
         ]
         func = autocontrast
 
         super().__init__(
-            func, params1d, per_channel,
+            func,
+            params1d,
+            per_channel,
             dtypes_allowed="uint8",
             dtypes_disallowed="uint16 uint32 uint64 int8 int16 int32 int64 "
-                              "float16 float32 float64 float128 "
-                              "bool",
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic
+            "float16 float32 float64 float128 "
+            "bool",
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
         )
 
 
 # Added in 0.4.0.
 class _EnhanceBase(meta.Augmenter):
     # Added in 0.4.0.
-    def __init__(self, func, factor, factor_value_range,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        func,
+        factor,
+        factor_value_range,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
         self.func = func
         self.factor = iap.handle_continuous_param(
-            factor, "factor", value_range=factor_value_range,
-            tuple_to_uniform=True, list_to_choice=True)
+            factor,
+            "factor",
+            value_range=factor_value_range,
+            tuple_to_uniform=True,
+            list_to_choice=True,
+        )
 
     # Added in 0.4.0.
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -1588,15 +1612,23 @@ class EnhanceColor(_EnhanceBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, factor=(0.0, 3.0),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        factor=(0.0, 3.0),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
             func=enhance_color,
             factor=factor,
             factor_value_range=(0.0, None),
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class EnhanceContrast(_EnhanceBase):
@@ -1654,15 +1686,23 @@ class EnhanceContrast(_EnhanceBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, factor=(0.5, 1.5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        factor=(0.5, 1.5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
             func=enhance_contrast,
             factor=factor,
             factor_value_range=(0.0, None),
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class EnhanceBrightness(_EnhanceBase):
@@ -1720,15 +1760,23 @@ class EnhanceBrightness(_EnhanceBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, factor=(0.5, 1.5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        factor=(0.5, 1.5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
             func=enhance_brightness,
             factor=factor,
             factor_value_range=(0.0, None),
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class EnhanceSharpness(_EnhanceBase):
@@ -1786,26 +1834,34 @@ class EnhanceSharpness(_EnhanceBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, factor=(0.0, 2.0),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        factor=(0.0, 2.0),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
             func=enhance_sharpness,
             factor=factor,
             factor_value_range=(0.0, None),
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 # Added in 0.4.0.
 class _FilterBase(meta.Augmenter):
     # Added in 0.4.0.
-    def __init__(self, func,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self, func, seed=None, name=None, random_state="deprecated", deterministic="deprecated"
+    ):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
         self.func = func
 
     # Added in 0.4.0.
@@ -1862,13 +1918,14 @@ class FilterBlur(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
         super().__init__(
             func=filter_blur,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class FilterSmooth(_FilterBase):
@@ -1912,13 +1969,14 @@ class FilterSmooth(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
         super().__init__(
             func=filter_smooth,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class FilterSmoothMore(_FilterBase):
@@ -1963,13 +2021,14 @@ class FilterSmoothMore(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
         super().__init__(
             func=filter_smooth_more,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class FilterEdgeEnhance(_FilterBase):
@@ -2015,13 +2074,14 @@ class FilterEdgeEnhance(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
         super().__init__(
             func=filter_edge_enhance,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class FilterEdgeEnhanceMore(_FilterBase):
@@ -2067,13 +2127,14 @@ class FilterEdgeEnhanceMore(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
         super().__init__(
             func=filter_edge_enhance_more,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class FilterFindEdges(_FilterBase):
@@ -2118,13 +2179,14 @@ class FilterFindEdges(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
         super().__init__(
             func=filter_find_edges,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class FilterContour(_FilterBase):
@@ -2169,13 +2231,14 @@ class FilterContour(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
         super().__init__(
             func=filter_contour,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class FilterEmboss(_FilterBase):
@@ -2219,13 +2282,14 @@ class FilterEmboss(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
         super().__init__(
             func=filter_emboss,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class FilterSharpen(_FilterBase):
@@ -2269,13 +2333,14 @@ class FilterSharpen(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
         super().__init__(
             func=filter_sharpen,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class FilterDetail(_FilterBase):
@@ -2320,13 +2385,14 @@ class FilterDetail(_FilterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(self, seed=None, name=None, random_state="deprecated", deterministic="deprecated"):
         super().__init__(
             func=filter_detail,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Affine(geometric.Affine):
@@ -2433,10 +2499,20 @@ class Affine(geometric.Affine):
     """
 
     # Added in 0.4.0.
-    def __init__(self, scale=1.0, translate_percent=None, translate_px=None,
-                 rotate=0.0, shear=0.0, fillcolor=0, center=(0.5, 0.5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        scale=1.0,
+        translate_percent=None,
+        translate_px=None,
+        rotate=0.0,
+        shear=0.0,
+        fillcolor=0,
+        center=(0.5, 0.5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
             scale=scale,
             translate_percent=translate_percent,
@@ -2448,8 +2524,11 @@ class Affine(geometric.Affine):
             mode="constant",
             fit_output=False,
             backend="auto",
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
         # TODO move that func to iap
         self.center = sizelib._handle_position_parameter(center)
 
@@ -2459,25 +2538,24 @@ class Affine(geometric.Affine):
         assert len(cols) == 0 or (len(cols) == 1 and "images" in cols), (
             "pillike.Affine can currently only process image data. Got a "
             "batch containing: {}. Use imgaug2.augmenters.geometric.Affine for "
-            "batches containing non-image data.".format(", ".join(cols)))
+            "batches containing non-image data.".format(", ".join(cols))
+        )
 
-        return super()._augment_batch_(
-            batch, random_state, parents, hooks)
+        return super()._augment_batch_(batch, random_state, parents, hooks)
 
     # Added in 0.4.0.
-    def _augment_images_by_samples(self, images, samples,
-                                   image_shapes=None,
-                                   return_matrices=False):
+    def _augment_images_by_samples(self, images, samples, image_shapes=None, return_matrices=False):
         assert return_matrices is False, (
             "Got unexpectedly return_matrices=True. pillike.Affine does not "
-            "yet produce that output.")
+            "yet produce that output."
+        )
 
         for i, image in enumerate(images):
-            image_shape = (image.shape if image_shapes is None
-                           else image_shapes[i])
+            image_shape = image.shape if image_shapes is None else image_shapes[i]
 
             params = samples.get_affine_parameters(
-                i, arr_shape=image_shape, image_shape=image_shape)
+                i, arr_shape=image_shape, image_shape=image_shape
+            )
 
             image[...] = warp_affine(
                 image,
@@ -2489,7 +2567,7 @@ class Affine(geometric.Affine):
                 shear_x_deg=params["shear_x_deg"],
                 shear_y_deg=params["shear_y_deg"],
                 fillcolor=tuple(samples.cval[i]),
-                center=(samples.center_x[i], samples.center_y[i])
+                center=(samples.center_x[i], samples.center_y[i]),
             )
 
         return images
@@ -2497,19 +2575,15 @@ class Affine(geometric.Affine):
     # Added in 0.4.0.
     def _draw_samples(self, nb_samples, random_state):
         # standard affine samples
-        samples = super()._draw_samples(nb_samples,
-                                                    random_state)
+        samples = super()._draw_samples(nb_samples, random_state)
 
         # add samples for 'center' parameter, which is not yet a part of
         # Affine
         if isinstance(self.center, tuple):
-            xx = self.center[0].draw_samples(nb_samples,
-                                             random_state=random_state)
-            yy = self.center[1].draw_samples(nb_samples,
-                                             random_state=random_state)
+            xx = self.center[0].draw_samples(nb_samples, random_state=random_state)
+            yy = self.center[1].draw_samples(nb_samples, random_state=random_state)
         else:
-            xy = self.center.draw_samples((nb_samples, 2),
-                                          random_state=random_state)
+            xy = self.center.draw_samples((nb_samples, 2), random_state=random_state)
             xx = xy[:, 0]
             yy = xy[:, 1]
 
@@ -2520,6 +2594,4 @@ class Affine(geometric.Affine):
     # Added in 0.4.0.
     def get_parameters(self):
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
-        return [
-            self.scale, self.translate, self.rotate, self.shear, self.cval,
-            self.center]
+        return [self.scale, self.translate, self.rotate, self.shear, self.cval, self.center]

@@ -1,4 +1,5 @@
 """Combination of all augmenters, related classes and related functions."""
+
 from __future__ import annotations
 
 import imgaug2
@@ -17,10 +18,12 @@ from . import (
     convolutional,
     debug,
     edges,
+    experimental,
     flip,
     geometric,
     imgcorruptlike,
     meta,
+    mix,
     pillike,
     pooling,
     segmentation,
@@ -219,6 +222,18 @@ from .edges import (
     RandomColorsBinaryImageColorizer,
 )
 
+from .experimental import (
+    FancyPCA,
+    FourierDomainAdaptation,
+    GlassBlur,
+    HEStain,
+    PlanckianJitter,
+    PlasmaBrightness,
+    PlasmaShadow,
+    ThinPlateSpline,
+    ZoomBlur,
+)
+
 from .flip import (
     Fliplr,
     Flipud,
@@ -232,6 +247,8 @@ from .geometric import (
     Affine,
     AffineCv2,
     ElasticTransformation,
+    GridDistortion,
+    OpticalDistortion,
     Jigsaw,
     PerspectiveTransform,
     PiecewiseAffine,
@@ -290,7 +307,12 @@ from .pooling import (
     AveragePooling,
     MaxPooling,
     MedianPooling,
-    MinPooling,
+)
+
+from .mix import (
+    cutmix,
+    mixup,
+    mosaic4,
 )
 
 from .segmentation import (
@@ -467,6 +489,7 @@ __all__ = [
     "GammaContrast",
     "GaussianBlur",
     "Grayscale",
+    "GridDistortion",
     "HistogramEqualization",
     "HorizontalFlip",
     "HorizontalLinearGradientMaskGen",
@@ -500,6 +523,7 @@ __all__ = [
     "MultiplySaturation",
     "Noop",
     "OneOf",
+    "OpticalDistortion",
     "Pad",
     "PadToAspectRatio",
     "PadToFixedSize",
@@ -682,4 +706,16 @@ __all__ = [
     "tempfile",
     "tf",
     "weather",
+    "FancyPCA",
+    "FourierDomainAdaptation",
+    "GlassBlur",
+    "HEStain",
+    "PlanckianJitter",
+    "PlasmaBrightness",
+    "PlasmaShadow",
+    "ThinPlateSpline",
+    "ZoomBlur",
+    "cutmix",
+    "mixup",
+    "mosaic4",
 ]

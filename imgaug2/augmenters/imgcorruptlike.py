@@ -67,8 +67,10 @@ Example usage::
 Added in 0.4.0.
 
 """
+
 from __future__ import annotations
 
+import inspect
 import warnings
 
 import numpy as np
@@ -93,6 +95,102 @@ _MISSING_PACKAGE_ERROR_MSG = (
 )
 
 
+# Added in 0.6.0.
+def _patch_imagecorruptions_modules_():
+    """Patch `imagecorruptions` for compatibility with newer numpy/skimage.
+
+    The upstream `imagecorruptions` package is an optional dependency and may be
+    installed in versions that are not fully compatible with newer libraries.
+    The goal here is not to change the corruption algorithms, but to keep them
+    usable and deterministic in modern environments (e.g. NumPy>=2, skimage with
+    `channel_axis`).
+    """
+    try:
+        with warnings.catch_warnings():
+            import imagecorruptions
+            import imagecorruptions.corruptions as corruptions
+    except ImportError:
+        raise ImportError(_MISSING_PACKAGE_ERROR_MSG)
+
+    # Patch only once per process.
+    if getattr(imagecorruptions, "__imgaug2_patched__", False):
+        return imagecorruptions, corruptions
+
+    # NumPy removed legacy scalar aliases like `np.float` / `np.int` / `np.bool`
+    # (deprecated since 1.20; removed in 1.24+). Some optional dependencies
+    # (including older `imagecorruptions` releases) still reference them.
+    #
+    # Avoid `hasattr(np, ...)` here as it can trigger numpy's deprecation
+    # machinery (and warnings) via `__getattr__`. Checking `np.__dict__` keeps
+    # this warning-free.
+    legacy_aliases = {
+        "bool": bool,
+        "int": int,
+        "float": float,
+        "complex": complex,
+        "object": object,
+        "str": str,
+        "unicode": str,
+        "long": int,
+    }
+    for name, value in legacy_aliases.items():
+        if name not in np.__dict__:
+            setattr(np, name, value)
+
+    # skimage.filters.gaussian dropped `multichannel` in favor of `channel_axis`.
+    gaussian_sig = inspect.signature(skimage.filters.gaussian)
+    supports_channel_axis = "channel_axis" in gaussian_sig.parameters
+    if supports_channel_axis:
+
+        def gaussian_compat(image, *args, **kwargs):
+            if "multichannel" in kwargs:
+                multichannel = kwargs.pop("multichannel")
+                kwargs["channel_axis"] = -1 if multichannel else None
+            return skimage.filters.gaussian(image, *args, **kwargs)
+
+    else:
+
+        def gaussian_compat(image, *args, **kwargs):
+            return skimage.filters.gaussian(image, *args, **kwargs)
+
+    corruptions.gaussian = gaussian_compat
+
+    # skimage.util.random_noise now uses an explicit RNG. Older `imagecorruptions`
+    # calls it without an RNG, which makes it non-deterministic even if numpy's
+    # global RNG is seeded. Patch impulse_noise to pass a deterministic RNG that
+    # is derived from numpy's global RNG (and hence affected by `np.random.seed`).
+    def impulse_noise_compat(x, severity=1):
+        c = [0.03, 0.06, 0.09, 0.17, 0.27][severity - 1]
+        # Draw a seed from the current global RNG state to remain tied to the
+        # existing `temporary_numpy_seed()` behavior.
+        seed_local = int(np.random.randint(0, 2**32 - 1, dtype=np.uint32))
+        rng = np.random.default_rng(seed_local)
+        x = corruptions.sk.util.random_noise(np.array(x) / 255.0, mode="s&p", amount=c, rng=rng)
+        return np.clip(x, 0, 1) * 255
+
+    corruptions.impulse_noise = impulse_noise_compat
+    if hasattr(imagecorruptions, "corruption_dict"):
+        imagecorruptions.corruption_dict["impulse_noise"] = impulse_noise_compat
+
+    # Keep behavior for clip_zoom(), but avoid scipy warning spam.
+    corruptions.clipped_zoom = _clipped_zoom_no_scipy_warning
+
+    imagecorruptions.__imgaug2_patched__ = True
+    return imagecorruptions, corruptions
+
+
+# Added in 0.6.0.
+def _gaussian_skimage_compat(image, sigma, multichannel):
+    """Call `skimage.filters.gaussian` across skimage versions."""
+    try:
+        return skimage.filters.gaussian(
+            image, sigma=sigma, channel_axis=(-1 if multichannel else None)
+        )
+    except TypeError:
+        # Old skimage versions used the `multichannel` kwarg.
+        return skimage.filters.gaussian(image, sigma=sigma, multichannel=multichannel)
+
+
 # Added in 0.4.0.
 def _clipped_zoom_no_scipy_warning(img, zoom_factor):
     from scipy.ndimage import zoom as scizoom
@@ -108,8 +206,9 @@ def _clipped_zoom_no_scipy_warning(img, zoom_factor):
         ch1 = int(np.ceil(img.shape[1] / float(zoom_factor)))
         top1 = (img.shape[1] - ch1) // 2
 
-        img = scizoom(img[top0:top0 + ch0, top1:top1 + ch1],
-                      (zoom_factor, zoom_factor, 1), order=1)
+        img = scizoom(
+            img[top0 : top0 + ch0, top1 : top1 + ch1], (zoom_factor, zoom_factor, 1), order=1
+        )
 
         return img
 
@@ -142,22 +241,7 @@ def _call_imgcorrupt_func(fname, seed, convert_to_pil, *args, **kwargs):
               package.
 
     """
-    # import imagecorruptions, note that it is an optional dependency
-    try:
-        # imagecorruptions sets its own warnings filter rule via
-        # warnings.simplefilter(). That rule is the in effect for the whole
-        # program and not just the module. So to prevent that here
-        # we use catch_warnings(), which uintuitively does not by default
-        # catch warnings but saves and restores the warnings filter settings.
-        with warnings.catch_warnings():
-            import imagecorruptions.corruptions as corruptions
-    except ImportError:
-        raise ImportError(_MISSING_PACKAGE_ERROR_MSG)
-
-    # Monkeypatch clip_zoom() as that causes warnings in some scipy versions,
-    # and the implementation here suppresses these warnings. They suppress
-    # all UserWarnings on a module level instead, which seems very exhaustive.
-    corruptions.clipped_zoom = _clipped_zoom_no_scipy_warning
+    _imagecorruptions, corruptions = _patch_imagecorruptions_modules_()
 
     image = args[0]
 
@@ -169,12 +253,14 @@ def _call_imgcorrupt_func(fname, seed, convert_to_pil, *args, **kwargs):
     assert height >= 32 and width >= 32, (
         "Expected the provided image to have a width and height of at least "
         "32 pixels, as that is the lower limit that the wrapped "
-        f"imagecorruptions functions use. Got shape {image.shape}.")
+        f"imagecorruptions functions use. Got shape {image.shape}."
+    )
 
     ndim = image.ndim
     assert ndim == 2 or (ndim == 3 and (image.shape[2] in [1, 3])), (
         "Expected input image to have shape (height, width) or "
-        f"(height, width, 1) or (height, width, 3). Got shape {image.shape}.")
+        f"(height, width, 1) or (height, width, 3). Got shape {image.shape}."
+    )
 
     if ndim == 2:
         image = image[..., np.newaxis]
@@ -183,6 +269,7 @@ def _call_imgcorrupt_func(fname, seed, convert_to_pil, *args, **kwargs):
 
     if convert_to_pil:
         import PIL.Image
+
         image = PIL.Image.fromarray(image)
 
     with iarandom.temporary_numpy_seed(seed):
@@ -257,6 +344,7 @@ def get_corruption_names(subset="common"):
 # the docstrings would save many lines of code. It is intentionally not done
 # here for the same reasons as in case of the augmenters. See the comment
 # further below at the start of the augmenter section for details.
+
 
 def apply_gaussian_noise(x, severity=1, seed=None):
     """Apply ``gaussian_noise`` from ``imagecorruptions``.
@@ -447,8 +535,7 @@ def apply_glass_blur(x, severity=1, seed=None):
         Corrupted image.
 
     """
-    return _call_imgcorrupt_func(_apply_glass_blur_imgaug, seed, False, x,
-                                 severity)
+    return _call_imgcorrupt_func(_apply_glass_blur_imgaug, seed, False, x, severity)
 
 
 # Added in 0.4.0.
@@ -461,49 +548,29 @@ def _apply_glass_blur_imgaug(x, severity=1):
     # https://github.com/bethgelab/imagecorruptions/blob/master/imagecorruptions/corruptions.py
     # this is an improved (i.e. faster) version
     # sigma, max_delta, iterations
-    c = [
-        (0.7, 1, 2),
-        (0.9, 2, 1),
-        (1, 2, 3),
-        (1.1, 3, 2),
-        (1.5, 4, 2)
-    ][severity - 1]
+    c = [(0.7, 1, 2), (0.9, 2, 1), (1, 2, 3), (1.1, 3, 2), (1.5, 4, 2)][severity - 1]
 
     sigma, max_delta, iterations = c
 
     x = (
-        skimage.filters.gaussian(
-            np.array(x) / 255., sigma=sigma, multichannel=True
-        ) * 255
+        _gaussian_skimage_compat(np.array(x) / 255.0, sigma=sigma, multichannel=True) * 255
     ).astype(np.uint)
     x_shape = x.shape
 
     dxxdyy = np.random.randint(
         -max_delta,
         max_delta,
-        size=(
-            iterations,
-            x_shape[0] - 2*max_delta,
-            x_shape[1] - 2*max_delta,
-            2
-        )
+        size=(iterations, x_shape[0] - 2 * max_delta, x_shape[1] - 2 * max_delta, 2),
     )
 
-    x = _apply_glass_blur_imgaug_loop(
-        x, iterations, max_delta, dxxdyy
-    )
+    x = _apply_glass_blur_imgaug_loop(x, iterations, max_delta, dxxdyy)
 
-    return np.clip(
-        skimage.filters.gaussian(x / 255., sigma=sigma, multichannel=True),
-        0, 1
-    ) * 255
+    return np.clip(_gaussian_skimage_compat(x / 255.0, sigma=sigma, multichannel=True), 0, 1) * 255
 
 
 # Added in 0.5.0.
 @_numbajit(nopython=True, nogil=True, cache=True)
-def _apply_glass_blur_imgaug_loop(
-        x, iterations, max_delta, dxxdyy
-):
+def _apply_glass_blur_imgaug_loop(x, iterations, max_delta, dxxdyy):
     x_shape = x.shape
     nb_height = x_shape[0] - 2 * max_delta
     nb_width = x_shape[1] - 2 * max_delta
@@ -935,8 +1002,7 @@ def apply_elastic_transform(image, severity=1, seed=None):
         Corrupted image.
 
     """
-    return _call_imgcorrupt_func("elastic_transform", seed, False, image,
-                                 severity)
+    return _call_imgcorrupt_func("elastic_transform", seed, False, image, severity)
 
 
 # ----------------------------------------------------------------------------
@@ -1007,25 +1073,35 @@ def apply_elastic_transform(image, severity=1, seed=None):
 
 # Added in 0.4.0.
 class _ImgcorruptAugmenterBase(meta.Augmenter):
-    def __init__(self, func, severity=1,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        func,
+        severity=1,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
 
         self.func = func
         self.severity = iap.handle_discrete_param(
-            severity, "severity", value_range=(1, 5), tuple_to_uniform=True,
-            list_to_choice=True, allow_floats=False)
+            severity,
+            "severity",
+            value_range=(1, 5),
+            tuple_to_uniform=True,
+            list_to_choice=True,
+            allow_floats=False,
+        )
 
     # Added in 0.4.0.
     def _augment_batch_(self, batch, random_state, parents, hooks):
         if batch.images is None:
             return batch
 
-        severities, seeds = self._draw_samples(len(batch.images),
-                                               random_state=random_state)
+        severities, seeds = self._draw_samples(len(batch.images), random_state=random_state)
 
         for image, severity, seed in zip(batch.images, severities, seeds):
             image[...] = self.func(image, severity=severity, seed=seed)
@@ -1034,8 +1110,7 @@ class _ImgcorruptAugmenterBase(meta.Augmenter):
 
     # Added in 0.4.0.
     def _draw_samples(self, nb_rows, random_state):
-        severities = self.severity.draw_samples((nb_rows,),
-                                                random_state=random_state)
+        severities = self.severity.draw_samples((nb_rows,), random_state=random_state)
         seeds = random_state.generate_seeds_(nb_rows)
 
         return severities, seeds
@@ -1096,13 +1171,22 @@ class GaussianNoise(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_gaussian_noise, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_gaussian_noise,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class ShotNoise(_ImgcorruptAugmenterBase):
@@ -1155,13 +1239,22 @@ class ShotNoise(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_shot_noise, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_shot_noise,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class ImpulseNoise(_ImgcorruptAugmenterBase):
@@ -1214,13 +1307,22 @@ class ImpulseNoise(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_impulse_noise, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_impulse_noise,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class SpeckleNoise(_ImgcorruptAugmenterBase):
@@ -1273,13 +1375,22 @@ class SpeckleNoise(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_speckle_noise, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_speckle_noise,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class GaussianBlur(_ImgcorruptAugmenterBase):
@@ -1332,13 +1443,22 @@ class GaussianBlur(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_gaussian_blur, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_gaussian_blur,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class GlassBlur(_ImgcorruptAugmenterBase):
@@ -1391,13 +1511,22 @@ class GlassBlur(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_glass_blur, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_glass_blur,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class DefocusBlur(_ImgcorruptAugmenterBase):
@@ -1450,13 +1579,22 @@ class DefocusBlur(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_defocus_blur, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_defocus_blur,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class MotionBlur(_ImgcorruptAugmenterBase):
@@ -1509,13 +1647,22 @@ class MotionBlur(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_motion_blur, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_motion_blur,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class ZoomBlur(_ImgcorruptAugmenterBase):
@@ -1568,13 +1715,22 @@ class ZoomBlur(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_zoom_blur, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_zoom_blur,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Fog(_ImgcorruptAugmenterBase):
@@ -1627,13 +1783,22 @@ class Fog(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_fog, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_fog,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Frost(_ImgcorruptAugmenterBase):
@@ -1686,13 +1851,22 @@ class Frost(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_frost, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_frost,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Snow(_ImgcorruptAugmenterBase):
@@ -1745,13 +1919,22 @@ class Snow(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_snow, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_snow,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Spatter(_ImgcorruptAugmenterBase):
@@ -1804,13 +1987,22 @@ class Spatter(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_spatter, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_spatter,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Contrast(_ImgcorruptAugmenterBase):
@@ -1863,13 +2055,22 @@ class Contrast(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_contrast, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_contrast,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Brightness(_ImgcorruptAugmenterBase):
@@ -1922,13 +2123,22 @@ class Brightness(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_brightness, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_brightness,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Saturate(_ImgcorruptAugmenterBase):
@@ -1981,13 +2191,22 @@ class Saturate(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_saturate, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_saturate,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class JpegCompression(_ImgcorruptAugmenterBase):
@@ -2040,13 +2259,22 @@ class JpegCompression(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_jpeg_compression, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_jpeg_compression,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Pixelate(_ImgcorruptAugmenterBase):
@@ -2099,13 +2327,22 @@ class Pixelate(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_pixelate, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_pixelate,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class ElasticTransform(_ImgcorruptAugmenterBase):
@@ -2162,13 +2399,22 @@ class ElasticTransform(_ImgcorruptAugmenterBase):
     """
 
     # Added in 0.4.0.
-    def __init__(self, severity=(1, 5),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        severity=(1, 5),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            apply_elastic_transform, severity,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            apply_elastic_transform,
+            severity,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
     # Added in 0.4.0.
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -2177,6 +2423,6 @@ class ElasticTransform(_ImgcorruptAugmenterBase):
             "imgcorruptlike.ElasticTransform can currently only process image "
             "data. Got a batch containing: {}. Use "
             "imgaug2.augmenters.geometric.ElasticTransformation for "
-            "batches containing non-image data.".format(", ".join(cols)))
-        return super()._augment_batch_(
-            batch, random_state, parents, hooks)
+            "batches containing non-image data.".format(", ".join(cols))
+        )
+        return super()._augment_batch_(batch, random_state, parents, hooks)

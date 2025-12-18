@@ -7,17 +7,26 @@ List of augmenters:
     * :class:`Flipud`
 
 """
+
 from __future__ import annotations
+
+from typing import Literal, TypeAlias, TypeVar, overload
 
 import cv2
 import numpy as np
+from numpy.typing import NDArray
 
 import imgaug2.dtypes as iadt
+import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
+import imgaug2.random as iarandom
+from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import meta
 from imgaug2.imgaug import _normalize_cv2_input_arr_
 
-# pylint:disable=pointless-string-statement
+TFlipArray = TypeVar("TFlipArray")
+NumpyArray: TypeAlias = NDArray[np.generic]
+
 """
 Speed comparison by datatype and flip method.
 
@@ -27,7 +36,8 @@ HORIZONTAL FLIPS.
 bool
 ----------
                slice 0.00052ms
-       slice, contig 0.21878ms
+----------
+               slice 0.21878ms
               fliplr 0.00180ms
        fliplr contig 0.22000ms
                  cv2 Error: Expected cv::UMat for argument 'src'
@@ -648,7 +658,7 @@ flip method followed by Affine
             cv2_ get Error: 'numpy.ndarray' object has no attribute 'get'
      cv2_ get contig Error: 'numpy.ndarray' object has no attribute 'get'
        fort cv2_ get 3.94321ms
-fort cv2_ get contig 4.01652ms
+fort cv2_ get contig 3.94321ms
 
 ==============================
 flip method followed by AverageBlur
@@ -669,15 +679,19 @@ flip method followed by AverageBlur
      cv2_ get contig Error: 'numpy.ndarray' object has no attribute 'get'
        fort cv2_ get 1.93064ms
 fort cv2_ get contig 1.95215ms
-"""
-# pylint:enable=pointless-string-statement
 
-_FLIPLR_DTYPES_CV2 = iadt._convert_dtype_strs_to_types(
-    "uint8 uint16 int8 int16"
-)
+_FLIPLR_DTYPES_CV2 = iadt._convert_dtype_strs_to_types("uint8 uint16 int8 int16")
 
 
-def fliplr(arr):
+@overload
+def fliplr(arr: NumpyArray) -> NumpyArray: ...
+
+
+@overload
+def fliplr(arr: TFlipArray) -> TFlipArray: ...
+
+
+def fliplr(arr: TFlipArray) -> TFlipArray:
     """Flip an image-like array horizontally.
 
     **Supported dtypes**:
@@ -716,6 +730,14 @@ def fliplr(arr):
     Create a ``4x4`` array and flip it horizontally.
 
     """
+    # MLX fast-path (B1): only when input is already on device.
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(arr):
+        import imgaug2.mlx as mlx
+
+        return mlx.fliplr(arr)
+
     # we don't check here if #channels > 512, because the cv2 function also
     # kinda works with that, it is very rare to happen and would induce an
     # additional check (with significant relative impact on runtime considering
@@ -725,11 +747,11 @@ def fliplr(arr):
     return _fliplr_sliced(arr)
 
 
-def _fliplr_sliced(arr):
+def _fliplr_sliced(arr: NumpyArray) -> NumpyArray:
     return arr[:, ::-1, ...]
 
 
-def _fliplr_cv2(arr):
+def _fliplr_cv2(arr: NumpyArray) -> NumpyArray:
     # cv2.flip() returns None for arrays with zero height or width
     # and turns channels=0 to channels=512
     if arr.size == 0:
@@ -739,9 +761,7 @@ def _fliplr_cv2(arr):
     if arr.ndim == 3 and arr.shape[-1] > 512:
         # TODO this is quite inefficient right now
         channels = [
-            cv2.flip(_normalize_cv2_input_arr_(arr[..., c]), 1)
-            for c
-            in range(arr.shape[-1])
+            cv2.flip(_normalize_cv2_input_arr_(arr[..., c]), 1) for c in range(arr.shape[-1])
         ]
         result = np.stack(channels, axis=-1)
     else:
@@ -762,7 +782,15 @@ def _fliplr_cv2(arr):
     return result
 
 
-def flipud(arr):
+@overload
+def flipud(arr: NumpyArray) -> NumpyArray: ...
+
+
+@overload
+def flipud(arr: TFlipArray) -> TFlipArray: ...
+
+
+def flipud(arr: TFlipArray) -> TFlipArray:
     """Flip an image-like array vertically.
 
     **Supported dtypes**:
@@ -801,18 +829,26 @@ def flipud(arr):
     Create a ``4x4`` array and flip it vertically.
 
     """
+    # MLX fast-path (B1): only when input is already on device.
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(arr):
+        import imgaug2.mlx as mlx
+
+        return mlx.flipud(arr)
+
     # Note that this function is currently not called by Flipud for performance
     # reasons. Changing this will therefore not affect Flipud.
     return arr[::-1, ...]
 
 
-def HorizontalFlip(*args, **kwargs):
+def HorizontalFlip(*args, **kwargs) -> Fliplr:
     """Alias for Fliplr."""
     # pylint: disable=invalid-name
     return Fliplr(*args, **kwargs)
 
 
-def VerticalFlip(*args, **kwargs):
+def VerticalFlip(*args, **kwargs) -> Flipud:
     """Alias for Flipud."""
     # pylint: disable=invalid-name
     return Flipud(*args, **kwargs)
@@ -867,30 +903,38 @@ class Fliplr(meta.Augmenter):
 
     """
 
-    def __init__(self, p=1,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        p: float | int | bool | iap.StochasticParameter = 1,
+        seed: iarandom.RNGInput = None,
+        name: str | None = None,
+        random_state: iarandom.RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
         self.p = iap.handle_probability_param(p, "p")
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
-        samples = self.p.draw_samples((batch.nb_rows,),
-                                      random_state=random_state)
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
+        samples = self.p.draw_samples((batch.nb_rows,), random_state=random_state)
         for i, sample in enumerate(samples):
             if sample >= 0.5:
                 if batch.images is not None:
                     batch.images[i] = fliplr(batch.images[i])
 
                 if batch.heatmaps is not None:
-                    batch.heatmaps[i].arr_0to1 = fliplr(
-                        batch.heatmaps[i].arr_0to1)
+                    batch.heatmaps[i].arr_0to1 = fliplr(batch.heatmaps[i].arr_0to1)
 
                 if batch.segmentation_maps is not None:
-                    batch.segmentation_maps[i].arr = fliplr(
-                        batch.segmentation_maps[i].arr)
+                    batch.segmentation_maps[i].arr = fliplr(batch.segmentation_maps[i].arr)
 
                 if batch.keypoints is not None:
                     kpsoi = batch.keypoints[i]
@@ -925,7 +969,7 @@ class Fliplr(meta.Augmenter):
 
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[iap.StochasticParameter]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.p]
 
@@ -979,18 +1023,28 @@ class Flipud(meta.Augmenter):
 
     """
 
-    def __init__(self, p=1,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        p: float | int | bool | iap.StochasticParameter = 1,
+        seed: iarandom.RNGInput = None,
+        name: str | None = None,
+        random_state: iarandom.RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
         self.p = iap.handle_probability_param(p, "p")
 
     # Added in 0.4.0.
-    def _augment_batch_(self, batch, random_state, parents, hooks):
-        samples = self.p.draw_samples((batch.nb_rows,),
-                                      random_state=random_state)
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
+        samples = self.p.draw_samples((batch.nb_rows,), random_state=random_state)
         for i, sample in enumerate(samples):
             if sample >= 0.5:
                 if batch.images is not None:
@@ -999,12 +1053,10 @@ class Flipud(meta.Augmenter):
                     batch.images[i] = batch.images[i][::-1, ...]
 
                 if batch.heatmaps is not None:
-                    batch.heatmaps[i].arr_0to1 = \
-                        batch.heatmaps[i].arr_0to1[::-1, ...]
+                    batch.heatmaps[i].arr_0to1 = batch.heatmaps[i].arr_0to1[::-1, ...]
 
                 if batch.segmentation_maps is not None:
-                    batch.segmentation_maps[i].arr = \
-                        batch.segmentation_maps[i].arr[::-1, ...]
+                    batch.segmentation_maps[i].arr = batch.segmentation_maps[i].arr[::-1, ...]
 
                 if batch.keypoints is not None:
                     kpsoi = batch.keypoints[i]
@@ -1039,6 +1091,6 @@ class Flipud(meta.Augmenter):
 
         return batch
 
-    def get_parameters(self):
+    def get_parameters(self) -> list[iap.StochasticParameter]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.p]

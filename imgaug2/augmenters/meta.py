@@ -36,6 +36,7 @@ import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import Batch, UnnormalizedBatch, _BatchInAugmentation
 from imgaug2.augmenters import base as iabase
+from imgaug2.compat.markers import legacy
 
 
 @ia.deprecated("imgaug2.dtypes.clip_")
@@ -68,6 +69,7 @@ def clip_augmented_images(images, min_value, max_value):
     return clip_augmented_images_(images, min_value, max_value)
 
 
+@legacy
 def handle_children_list(lst, augmenter_name, lst_name, default="sequential"):
     """Normalize an augmenter list provided by a user."""
     if lst is None:
@@ -97,6 +99,7 @@ def handle_children_list(lst, augmenter_name, lst_name, default="sequential"):
     )
 
 
+@legacy
 def reduce_to_nonempty(objs):
     """Remove from a list all objects that don't follow ``obj.empty==True``."""
     objs_reduced = []
@@ -210,6 +213,7 @@ class _maybe_deterministic_ctx:  # pylint: disable=invalid-name
             self.random_state.state = self.old_state
 
 
+@legacy
 class Augmenter(metaclass=ABCMeta):
     """
     Base class for Augmenter objects.
@@ -746,10 +750,14 @@ class Augmenter(metaclass=ABCMeta):
             The corresponding augmented image.
 
         """
-        assert ia.is_np_array(image), (
-            "Expected to get a single numpy array of shape (H,W) or (H,W,C) "
+        # B1 backend policy: allow MLX arrays, but never implicitly convert
+        # numpy -> MLX (or MLX -> numpy) in the augmenter pipeline.
+        from imgaug2.mlx._core import is_mlx_array
+
+        assert ia.is_np_array(image) or is_mlx_array(image), (
+            "Expected to get a single array of shape (H,W) or (H,W,C) "
             f"for `image`. Got instead type {type(image).__name__}. Use `augment_images(images)` "
-            "to augment a list of multiple images."
+            "to augment a list/batch of multiple images."
         )
         assert image.ndim in [2, 3], (
             f"Expected image to have shape (height, width, [channels]), got shape {image.shape}."
@@ -2214,6 +2222,24 @@ class Augmenter(metaclass=ABCMeta):
             return self.to_deterministic(1)[0]
         return [self._to_deterministic() for _ in range(n)]
 
+    def with_probability(self, p):
+        """Wrap this augmenter in :class:`~imgaug2.augmenters.meta.Sometimes`.
+
+        This is a convenience method to get a uniform "probability of applying"
+        interface across *all* augmenters, including those that don't have a
+        dedicated `p` parameter.
+
+        Example
+        -------
+        >>> import imgaug2.augmenters as iaa
+        >>> aug = iaa.Add((-10, 10)).with_probability(0.2)
+
+        Equivalent to:
+
+        >>> aug = iaa.Sometimes(0.2, iaa.Add((-10, 10)))
+        """
+        return Sometimes(p, self)
+
     def _to_deterministic(self):
         """Convert this augmenter from a stochastic to a deterministic one.
 
@@ -2940,6 +2966,7 @@ class Augmenter(metaclass=ABCMeta):
         return f"{self.__class__.__name__}(name={self.name}, parameters=[{params_str}], deterministic={self.deterministic})"
 
 
+@legacy
 class Sequential(Augmenter, list):
     """List augmenter containing child augmenters to apply to inputs.
 
@@ -3337,7 +3364,7 @@ class SomeOf(Augmenter, list):
         # pylint: disable=invalid-name
         nn = self._get_n(nb_rows, random_state)
         nn = [min(n, len(self)) for n in nn]
-        augmenter_active = np.zeros((nb_rows, len(self)), dtype=np.bool)
+        augmenter_active = np.zeros((nb_rows, len(self)), dtype=bool)
         for row_idx, n_true in enumerate(nn):
             if n_true > 0:
                 augmenter_active[row_idx, 0:n_true] = 1
@@ -3840,15 +3867,31 @@ class WithChannels(Augmenter):
         if self.channels is None:
             return images
         if ia.is_np_array(images):
+            if images.ndim >= 3 and images.shape[-1] == 0:
+                return images
             return images[..., self.channels]
-        return [image[..., self.channels] for image in images]
+        result = []
+        for image in images:
+            if image.ndim >= 3 and image.shape[-1] == 0:
+                result.append(image)
+            else:
+                result.append(image[..., self.channels])
+        return result
 
     # Added in 0.4.0.
     def _invert_reduce_images_to_channels(self, images_aug, images):
         if self.channels is None:
             return images_aug
 
+        if ia.is_np_array(images_aug):
+            if images_aug.ndim >= 3 and images_aug.shape[-1] == 0:
+                return images_aug
+            images[..., self.channels] = images_aug
+            return images
+
         for image, image_aug in zip(images, images_aug):
+            if image.ndim >= 3 and image.shape[-1] == 0:
+                continue
             image[..., self.channels] = image_aug
         return images
 

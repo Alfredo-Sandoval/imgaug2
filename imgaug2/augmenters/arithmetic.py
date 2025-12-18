@@ -29,6 +29,7 @@ List of augmenters:
     * :class:`JpegCompression`
 
 """
+
 from __future__ import annotations
 
 import tempfile
@@ -54,7 +55,7 @@ from imgaug2.imgaug import _normalize_cv2_input_arr_
 # assigned in that way.)
 _CUTOUT_FILL_MODES = {
     "constant": ("imgaug2.augmenters.arithmetic", "_fill_rectangle_constant_"),
-    "gaussian": ("imgaug2.augmenters.arithmetic", "_fill_rectangle_gaussian_")
+    "gaussian": ("imgaug2.augmenters.arithmetic", "_fill_rectangle_gaussian_"),
 }
 
 
@@ -145,6 +146,14 @@ def add_scalar_(image, value):
         This might be the input `image`, changed in-place.
 
     """
+    # MLX fast-path (B1): only when input is already on device.
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(image):
+        import imgaug2.mlx as mlx
+
+        return mlx.add(image, value)
+
     if image.size == 0:
         return np.copy(image)
 
@@ -152,7 +161,8 @@ def add_scalar_(image, value):
         {image.dtype},
         allowed="bool uint8 uint16 int8 int16 float16 float32",
         disallowed="uint32 uint64 int32 int64 float64 float128",
-        augmenter=None)
+        augmenter=None,
+    )
 
     if image.dtype == iadt._UINT8_DTYPE:
         return _add_scalar_to_uint8_(image, value)
@@ -164,7 +174,7 @@ def _add_scalar_to_uint8_(image, value):
         is_single_value = True
         value = round(value)
     elif ia.is_np_scalar(value) or ia.is_np_array(value):
-        is_single_value = (value.size == 1)
+        is_single_value = value.size == 1
         value = np.round(value) if value.dtype.kind == "f" else value
     else:
         is_single_value = False
@@ -197,7 +207,8 @@ def _add_scalar_to_non_uint8(image, value):
     is_single_value = (
         ia.is_single_number(value)
         or ia.is_np_scalar(value)
-        or (ia.is_np_array(value) and value.size == 1))
+        or (ia.is_np_array(value) and value.size == 1)
+    )
     is_channelwise = not is_single_value
     nb_channels = 1 if image.ndim == 2 else image.shape[-1]
 
@@ -217,8 +228,7 @@ def _add_scalar_to_non_uint8(image, value):
     # uint8 it must allow for -255 to 255.
     itemsize = image.dtype.itemsize * 2
     dtype_target = np.dtype("%s%d" % (value.dtype.kind, itemsize))
-    value = iadt.clip_to_dtype_value_range_(
-        value, dtype_target, validate=True)
+    value = iadt.clip_to_dtype_value_range_(value, dtype_target, validate=True)
 
     # Itemsize is currently reduced from 2 to 1 due to clip no
     # longer supporting int64, which can cause issues with int32
@@ -226,9 +236,8 @@ def _add_scalar_to_non_uint8(image, value):
     # TODO limit value ranges of samples to int16/uint16 for
     #      security
     image, value = iadt.promote_array_dtypes_(
-        [image, value],
-        dtypes=[image.dtype, dtype_target],
-        increase_itemsize_factor=1)
+        [image, value], dtypes=[image.dtype, dtype_target], increase_itemsize_factor=1
+    )
     image = np.add(image, value, out=image, casting="no")
 
     return iadt.restore_dtypes_(image, input_dtype)
@@ -285,7 +294,8 @@ def add_elementwise(image, values):
         {image.dtype},
         allowed="bool uint8 uint16 int8 int16 float16 float32",
         disallowed="uint32 uint64 int32 int64 float64 float128",
-        augmenter=None)
+        augmenter=None,
+    )
 
     if image.dtype == iadt._UINT8_DTYPE:
         vdt = values.dtype
@@ -296,17 +306,10 @@ def add_elementwise(image, values):
         ishape = image.shape
 
         is_image_valid_shape_cv2 = (
-            (
-                len(ishape) == 2
-                or (len(ishape) == 3 and ishape[-1] <= 512)
-            )
-            and 0 not in ishape
-        )
+            len(ishape) == 2 or (len(ishape) == 3 and ishape[-1] <= 512)
+        ) and 0 not in ishape
 
-        use_cv2 = (
-            is_image_valid_shape_cv2
-            and vdt in valid_value_dtypes_cv2
-        )
+        use_cv2 = is_image_valid_shape_cv2 and vdt in valid_value_dtypes_cv2
         if use_cv2:
             return _add_elementwise_cv2_to_uint8(image, values)
         return _add_elementwise_np_to_uint8(image, values)
@@ -315,12 +318,11 @@ def add_elementwise(image, values):
 
 def _add_elementwise_cv2_to_uint8(image, values):
     ind, vnd = image.ndim, values.ndim
-    valid_vnd = [ind] if ind == 2 else [ind-1, ind]
+    valid_vnd = [ind] if ind == 2 else [ind - 1, ind]
     assert vnd in valid_vnd, (
         "Expected values with any of %s dimensions, "
-        "got %d dimensions (shape %s vs. image shape %s)." % (
-            valid_vnd, vnd, values.shape, image.shape
-        )
+        "got %d dimensions (shape %s vs. image shape %s)."
+        % (valid_vnd, vnd, values.shape, image.shape)
     )
 
     if vnd == ind - 1:
@@ -382,17 +384,15 @@ def _add_elementwise_np_to_non_uint8(image, values):
 
     itemsize = image.dtype.itemsize * 2
     dtype_target = np.dtype("%s%d" % (values.dtype.kind, itemsize))
-    values = iadt.clip_to_dtype_value_range_(values, dtype_target,
-                                             validate=100)
+    values = iadt.clip_to_dtype_value_range_(values, dtype_target, validate=100)
 
     if values.shape[2] == 1:
         values = np.tile(values, (1, 1, nb_channels))
 
     # Decreased itemsize from 2 to 1 here, see explanation in Add.
     image, values = iadt.promote_array_dtypes_(
-        [image, values],
-        dtypes=[image.dtype, dtype_target],
-        increase_itemsize_factor=1)
+        [image, values], dtypes=[image.dtype, dtype_target], increase_itemsize_factor=1
+    )
     image = np.add(image, values, out=image, casting="no")
     image = iadt.restore_dtypes_(image, input_dtype)
 
@@ -518,6 +518,14 @@ def multiply_scalar_(image, multiplier):
         Might be the same image instance as was provided in `image`.
 
     """
+    # MLX fast-path (B1): only when input is already on device.
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(image):
+        import imgaug2.mlx as mlx
+
+        return mlx.multiply(image, multiplier)
+
     size = image.size
     if size == 0:
         return image
@@ -526,10 +534,11 @@ def multiply_scalar_(image, multiplier):
         {image.dtype},
         allowed="bool uint8 uint16 int8 int16 float16 float32",
         disallowed="uint32 uint64 int32 int64 float64 float128",
-        augmenter=None)
+        augmenter=None,
+    )
 
     if image.dtype == iadt._UINT8_DTYPE:
-        if size >= 224*224*3:
+        if size >= 224 * 224 * 3:
             return _multiply_scalar_to_uint8_lut_(image, multiplier)
         return _multiply_scalar_to_uint8_cv2_mul_(image, multiplier)
     return _multiply_scalar_to_non_uint8(image, multiplier)
@@ -541,7 +550,8 @@ def _multiply_scalar_to_uint8_lut_(image, multiplier):
     is_single_value = (
         ia.is_single_number(multiplier)
         or ia.is_np_scalar(multiplier)
-        or (ia.is_np_array(multiplier) and multiplier.size == 1))
+        or (ia.is_np_array(multiplier) and multiplier.size == 1)
+    )
     is_channelwise = not is_single_value
     nb_channels = 1 if image.ndim == 2 else image.shape[-1]
 
@@ -551,18 +561,18 @@ def _multiply_scalar_to_uint8_lut_(image, multiplier):
     if is_channelwise:
         assert multiplier.ndim == 1, (
             "Expected `multiplier` to be 1-dimensional, got %d-dimensional "
-            "data with shape %s." % (multiplier.ndim, multiplier.shape))
+            "data with shape %s." % (multiplier.ndim, multiplier.shape)
+        )
         assert image.ndim == 3, (
             "Expected `image` to be 3-dimensional when multiplying by one "
-            "value per channel, got %d-dimensional data with shape %s." % (
-                image.ndim, image.shape))
+            "value per channel, got %d-dimensional data with shape %s." % (image.ndim, image.shape)
+        )
         assert image.shape[-1] == multiplier.size, (
             "Expected number of channels in `image` and number of components "
-            "in `multiplier` to be identical. Got %d vs. %d." % (
-                image.shape[-1], multiplier.size))
+            "in `multiplier` to be identical. Got %d vs. %d." % (image.shape[-1], multiplier.size)
+        )
 
-        value_range = np.broadcast_to(value_range[:, np.newaxis],
-                                      (256, nb_channels))
+        value_range = np.broadcast_to(value_range[:, np.newaxis], (256, nb_channels))
         value_range = value_range * multiplier[np.newaxis, :]
     else:
         value_range = value_range * multiplier
@@ -580,12 +590,7 @@ def _multiply_scalar_to_uint8_cv2_mul_(image, multiplier):
         multiplier = np.full(image.shape, multiplier, dtype=np.float32)
 
     image = _normalize_cv2_input_arr_(image)
-    result = cv2.multiply(
-        image,
-        multiplier,
-        dtype=cv2.CV_8U,
-        dst=image
-    )
+    result = cv2.multiply(image, multiplier, dtype=cv2.CV_8U, dst=image)
 
     return result
 
@@ -598,7 +603,8 @@ def _multiply_scalar_to_non_uint8(image, multiplier):
     is_single_value = (
         ia.is_single_number(multiplier)
         or ia.is_np_scalar(multiplier)
-        or (ia.is_np_array(multiplier) and multiplier.size == 1))
+        or (ia.is_np_array(multiplier) and multiplier.size == 1)
+    )
     is_channelwise = not is_single_value
     nb_channels = 1 if image.ndim == 2 else image.shape[-1]
 
@@ -621,19 +627,17 @@ def _multiply_scalar_to_non_uint8(image, multiplier):
     # The downside is that the mul parameter is limited in its
     # value range.
     itemsize = max(
-        image.dtype.itemsize,
-        2 if multiplier.dtype.kind == "f" else 1
+        image.dtype.itemsize, 2 if multiplier.dtype.kind == "f" else 1
     )  # float min itemsize is 2 not 1
     dtype_target = np.dtype("%s%d" % (multiplier.dtype.kind, itemsize))
-    multiplier = iadt.clip_to_dtype_value_range_(
-        multiplier, dtype_target, validate=True)
+    multiplier = iadt.clip_to_dtype_value_range_(multiplier, dtype_target, validate=True)
 
     image, multiplier = iadt.promote_array_dtypes_(
         [image, multiplier],
         dtypes=[image.dtype, dtype_target],
         # increase_itemsize_factor=(
         #     1 if is_not_increasing_value_range else 2)
-        increase_itemsize_factor=1
+        increase_itemsize_factor=1,
     )
     image = np.multiply(image, multiplier, out=image, casting="no")
 
@@ -755,7 +759,8 @@ def multiply_elementwise_(image, multipliers):
         {image.dtype},
         allowed="bool uint8 uint16 int8 int16 float16 float32",
         disallowed="uint32 uint64 int32 int64 float64 float128",
-        augmenter=None)
+        augmenter=None,
+    )
 
     if 0 in image.shape:
         return image
@@ -821,13 +826,12 @@ def _multiply_elementwise_to_non_uint8(image, multipliers):
     # The downside is that the mul parameter is limited in its
     # value range.
     itemsize = max(
-        image.dtype.itemsize,
-        2 if multipliers.dtype.kind == "f" else 1
+        image.dtype.itemsize, 2 if multipliers.dtype.kind == "f" else 1
     )  # float min itemsize is 2
     dtype_target = np.dtype("%s%d" % (multipliers.dtype.kind, itemsize))
     multipliers = iadt.clip_to_dtype_value_range_(
-        multipliers, dtype_target,
-        validate=True, validate_values=(mul_min, mul_max))
+        multipliers, dtype_target, validate=True, validate_values=(mul_min, mul_max)
+    )
 
     if multipliers.shape[2] == 1:
         # TODO check if tile() is here actually needed
@@ -837,7 +841,7 @@ def _multiply_elementwise_to_non_uint8(image, multipliers):
     image, multipliers = iadt.promote_array_dtypes_(
         [image, multipliers],
         dtypes=[image, dtype_target],
-        increase_itemsize_factor=1
+        increase_itemsize_factor=1,
         # increase_itemsize_factor=(
         #     1 if is_not_increasing_value_range else 2)
     )
@@ -845,9 +849,7 @@ def _multiply_elementwise_to_non_uint8(image, multipliers):
     return iadt.restore_dtypes_(image, input_dtype)
 
 
-def cutout(image, x1, y1, x2, y2,
-           fill_mode="constant", cval=0, fill_per_channel=False,
-           seed=None):
+def cutout(image, x1, y1, x2, y2, fill_mode="constant", cval=0, fill_per_channel=False, seed=None):
     """Fill a single area within an image using a fill mode.
 
     This cutout method uses the top-left and bottom-right corner coordinates
@@ -900,14 +902,10 @@ def cutout(image, x1, y1, x2, y2,
         Image with area filled in.
 
     """
-    return cutout_(np.copy(image),
-                   x1, y1, x2, y2,
-                   fill_mode, cval, fill_per_channel, seed)
+    return cutout_(np.copy(image), x1, y1, x2, y2, fill_mode, cval, fill_per_channel, seed)
 
 
-def cutout_(image, x1, y1, x2, y2,
-            fill_mode="constant", cval=0, fill_per_channel=False,
-            seed=None):
+def cutout_(image, x1, y1, x2, y2, fill_mode="constant", cval=0, fill_per_channel=False, seed=None):
     """Fill a single area within an image using a fill mode (in-place).
 
     This cutout method uses the top-left and bottom-right corner coordinates
@@ -979,26 +977,28 @@ def cutout_(image, x1, y1, x2, y2,
     if x2 > x1 and y2 > y1:
         assert fill_mode in _CUTOUT_FILL_MODES, (
             f"Expected one of the following fill modes: {str(list(_CUTOUT_FILL_MODES.keys()))}. "
-            f"Got: {fill_mode}.")
+            f"Got: {fill_mode}."
+        )
 
         module_name, fname = _CUTOUT_FILL_MODES[fill_mode]
         module = importlib.import_module(module_name)
         func = getattr(module, fname)
         image = func(
             image,
-            x1=x1, y1=y1, x2=x2, y2=y2,
+            x1=x1,
+            y1=y1,
+            x2=x2,
+            y2=y2,
             cval=cval,
             per_channel=(fill_per_channel >= 0.5),
             random_state=(
-                iarandom.RNG(seed)
-                if not isinstance(seed, iarandom.RNG)
-                else seed)  # only RNG(.) without "if" is ~8x slower
+                iarandom.RNG(seed) if not isinstance(seed, iarandom.RNG) else seed
+            ),  # only RNG(.) without "if" is ~8x slower
         )
     return image
 
 
-def _fill_rectangle_gaussian_(image, x1, y1, x2, y2, cval, per_channel,
-                              random_state):
+def _fill_rectangle_gaussian_(image, x1, y1, x2, y2, cval, per_channel, random_state):
     """Fill a rectangular image area with samples from a gaussian.
 
     Added in 0.4.0.
@@ -1035,8 +1035,7 @@ def _fill_rectangle_gaussian_(image, x1, y1, x2, y2, cval, per_channel,
         center_value = 0.5
         max_value = 1.0
     else:
-        min_value, center_value, max_value = iadt.get_value_range_of_dtype(
-            image.dtype)
+        min_value, center_value, max_value = iadt.get_value_range_of_dtype(image.dtype)
 
     # set standard deviation to 1/3 of value range to get 99.7% of values
     # within [min v.r., max v.r.]
@@ -1051,7 +1050,7 @@ def _fill_rectangle_gaussian_(image, x1, y1, x2, y2, cval, per_channel,
         shape = shape + (image.shape[2],)
     rect = random_state.normal(center_value, stddev, size=shape)
     if image.dtype.kind == "b":
-        rect_vr = (rect > 0.5)
+        rect_vr = rect > 0.5
     else:
         rect_vr = np.clip(rect, min_value, max_value).astype(image.dtype)
 
@@ -1063,8 +1062,7 @@ def _fill_rectangle_gaussian_(image, x1, y1, x2, y2, cval, per_channel,
     return image
 
 
-def _fill_rectangle_constant_(image, x1, y1, x2, y2, cval, per_channel,
-                              random_state):
+def _fill_rectangle_constant_(image, x1, y1, x2, y2, cval, per_channel, random_state):
     """Fill a rectangular area within an image with constant value(s).
 
     `cval` may be a single value or one per channel. If the number of items
@@ -1158,10 +1156,9 @@ def replace_elementwise_(image, mask, replacements):
     """
     iadt.gate_dtypes_strs(
         {image.dtype},
-        allowed="bool uint8 uint16 uint32 int8 int16 int32 float16 float32 "
-                "float64",
+        allowed="bool uint8 uint16 uint32 int8 int16 int32 float16 float32 float64",
         disallowed="uint64 int64 float128",
-        augmenter=None
+        augmenter=None,
     )
 
     # This is slightly faster (~20%) for masks that are True at many
@@ -1207,8 +1204,7 @@ def replace_elementwise_(image, mask, replacements):
     if image.dtype.kind in ["i", "u", "b"] and replacements.dtype.kind == "f":
         replacements = np.round(replacements)
 
-    replacement_samples = iadt.clip_to_dtype_value_range_(
-        replacements, image.dtype, validate=False)
+    replacement_samples = iadt.clip_to_dtype_value_range_(replacements, image.dtype, validate=False)
     replacement_samples = replacement_samples.astype(image.dtype, copy=False)
 
     image[mask_thresh] = replacement_samples
@@ -1217,8 +1213,7 @@ def replace_elementwise_(image, mask, replacements):
     return image
 
 
-def invert(image, min_value=None, max_value=None, threshold=None,
-           invert_above_threshold=True):
+def invert(image, min_value=None, max_value=None, threshold=None, invert_above_threshold=True):
     """Invert an array.
 
     **Supported dtypes**:
@@ -1248,13 +1243,16 @@ def invert(image, min_value=None, max_value=None, threshold=None,
         Inverted image.
 
     """
-    return invert_(np.copy(image), min_value=min_value, max_value=max_value,
-                   threshold=threshold,
-                   invert_above_threshold=invert_above_threshold)
+    return invert_(
+        np.copy(image),
+        min_value=min_value,
+        max_value=max_value,
+        threshold=threshold,
+        invert_above_threshold=invert_above_threshold,
+    )
 
 
-def invert_(image, min_value=None, max_value=None, threshold=None,
-            invert_above_threshold=True):
+def invert_(image, min_value=None, max_value=None, threshold=None, invert_above_threshold=True):
     """Invert an array in-place.
 
     Added in 0.4.0.
@@ -1349,12 +1347,9 @@ def invert_(image, min_value=None, max_value=None, threshold=None,
         "uint8 uint16 uint32 int8 int16 int32 float16 float32"
     )
 
-    min_value_dt, _, max_value_dt = \
-        iadt.get_value_range_of_dtype(image.dtype)
-    min_value = (min_value_dt
-                 if min_value is None else min_value)
-    max_value = (max_value_dt
-                 if max_value is None else max_value)
+    min_value_dt, _, max_value_dt = iadt.get_value_range_of_dtype(image.dtype)
+    min_value = min_value_dt if min_value is None else min_value
+    max_value = max_value_dt if max_value is None else max_value
     assert min_value >= min_value_dt, (
         "Expected min_value to be above or equal to dtype's min "
         f"value, got {str(min_value)} (vs. min possible {str(min_value_dt)} for {image.dtype.name})"
@@ -1364,25 +1359,24 @@ def invert_(image, min_value=None, max_value=None, threshold=None,
         f"value, got {str(max_value)} (vs. max possible {str(max_value_dt)} for {image.dtype.name})"
     )
     assert min_value < max_value, (
-        f"Expected min_value to be below max_value, got {str(min_value)} "
-        f"and {str(max_value)}"
+        f"Expected min_value to be below max_value, got {str(min_value)} and {str(max_value)}"
     )
 
     if min_value != min_value_dt or max_value != max_value_dt:
         assert image.dtype in allow_dtypes_custom_minmax, (
-            "Can use custom min/max values only with the following "
-            "dtypes: {}. Got: {}.".format(
-                ", ".join(allow_dtypes_custom_minmax), image.dtype.name))
+            "Can use custom min/max values only with the following dtypes: {}. Got: {}.".format(
+                ", ".join(allow_dtypes_custom_minmax), image.dtype.name
+            )
+        )
 
     if image.dtype == iadt._UINT8_DTYPE:
-        return _invert_uint8_(image, min_value, max_value, threshold,
-                              invert_above_threshold)
+        return _invert_uint8_(image, min_value, max_value, threshold, invert_above_threshold)
 
     dtype_kind_to_invert_func = {
         "b": _invert_bool,
         "u": _invert_uint16_or_larger_,  # uint8 handled above
         "i": _invert_int_,
-        "f": _invert_float
+        "f": _invert_float,
     }
 
     func = dtype_kind_to_invert_func[image.dtype.kind]
@@ -1392,9 +1386,9 @@ def invert_(image, min_value=None, max_value=None, threshold=None,
 
     arr_inv = func(np.copy(image), min_value, max_value)
     if invert_above_threshold:
-        mask = (image >= threshold)
+        mask = image >= threshold
     else:
-        mask = (image < threshold)
+        mask = image < threshold
     image[mask] = arr_inv[mask]
     return image
 
@@ -1402,20 +1396,20 @@ def invert_(image, min_value=None, max_value=None, threshold=None,
 def _invert_bool(arr, min_value, max_value):
     assert min_value == 0 and max_value == 1, (
         "min_value and max_value must be 0 and 1 for bool arrays. "
-        f"Got {min_value:.4f} and {max_value:.4f}.")
+        f"Got {min_value:.4f} and {max_value:.4f}."
+    )
     return ~arr
 
 
 # Added in 0.4.0.
-def _invert_uint8_(arr, min_value, max_value, threshold,
-                   invert_above_threshold):
+def _invert_uint8_(arr, min_value, max_value, threshold, invert_above_threshold):
     shape = arr.shape
     nb_channels = shape[-1] if len(shape) == 3 else 1
     valid_for_cv2 = (
         threshold is None
         and min_value == 0
         and len(shape) >= 2
-        and shape[0]*shape[1]*nb_channels != 4
+        and shape[0] * shape[1] * nb_channels != 4
     )
     if valid_for_cv2:
         return _invert_uint8_subtract_(arr, max_value)
@@ -1425,13 +1419,12 @@ def _invert_uint8_(arr, min_value, max_value, threshold,
 
 
 # Added in 0.5.0.
-def _invert_uint8_lut_pregenerated_(arr, min_value, max_value, threshold,
-                                    invert_above_threshold):
+def _invert_uint8_lut_pregenerated_(arr, min_value, max_value, threshold, invert_above_threshold):
     table = _InvertTablesSingleton.get_instance().get_table(
         min_value=min_value,
         max_value=max_value,
         threshold=threshold,
-        invert_above_threshold=invert_above_threshold
+        invert_above_threshold=invert_above_threshold,
     )
     arr = ia.apply_lut_(arr, table)
     return arr
@@ -1468,14 +1461,10 @@ def _invert_uint8_subtract_(arr, max_value):
 
 # Added in 0.4.0.
 def _invert_uint16_or_larger_(arr, min_value, max_value):
-    min_max_is_vr = (min_value == 0
-                     and max_value == np.iinfo(arr.dtype).max)
+    min_max_is_vr = min_value == 0 and max_value == np.iinfo(arr.dtype).max
     if min_max_is_vr:
         return max_value - arr
-    return _invert_by_distance(
-        np.clip(arr, min_value, max_value),
-        min_value, max_value
-    )
+    return _invert_by_distance(np.clip(arr, min_value, max_value), min_value, max_value)
 
 
 # Added in 0.4.0.
@@ -1499,7 +1488,7 @@ def _invert_int_(arr, min_value, max_value):
 
     if min_value == (-1) * max_value - 1:
         arr_inv = np.copy(arr)
-        mask = (arr_inv == min_value)
+        mask = arr_inv == min_value
 
         # there is probably a one-liner here to do this, but
         #  ((-1) * (arr_inv * ~mask) - 1) + mask * max_value
@@ -1513,19 +1502,13 @@ def _invert_int_(arr, min_value, max_value):
 
         return arr_inv
 
-    return _invert_by_distance(
-        np.clip(arr, min_value, max_value),
-        min_value, max_value
-    )
+    return _invert_by_distance(np.clip(arr, min_value, max_value), min_value, max_value)
 
 
 def _invert_float(arr, min_value, max_value):
-    if np.isclose(max_value, (-1)*min_value, rtol=0):
+    if np.isclose(max_value, (-1) * min_value, rtol=0):
         return (-1) * arr
-    return _invert_by_distance(
-        np.clip(arr, min_value, max_value),
-        min_value, max_value
-    )
+    return _invert_by_distance(np.clip(arr, min_value, max_value), min_value, max_value)
 
 
 def _invert_by_distance(arr, min_value, max_value):
@@ -1540,16 +1523,14 @@ def _invert_by_distance(arr, min_value, max_value):
     if arr.dtype.kind == "f":
         arr_inv = np.clip(arr_inv, min_value, max_value)
     if arr.dtype.kind in ["i", "f"]:
-        arr_inv = iadt.restore_dtypes_(
-            arr_inv, arr.dtype, clip=False)
+        arr_inv = iadt.restore_dtypes_(arr_inv, arr.dtype, clip=False)
     return arr_inv
 
 
 # Added in 0.4.0.
-def _generate_table_for_invert_uint8(min_value, max_value, threshold,
-                                     invert_above_threshold):
+def _generate_table_for_invert_uint8(min_value, max_value, threshold, invert_above_threshold):
     table = np.arange(256).astype(np.int32)
-    full_value_range = (min_value == 0 and max_value == 255)
+    full_value_range = min_value == 0 and max_value == 255
     if full_value_range:
         table_inv = table[::-1]
     else:
@@ -1560,15 +1541,13 @@ def _generate_table_for_invert_uint8(min_value, max_value, threshold,
     if threshold is not None:
         table = table.astype(np.uint8)
         if invert_above_threshold:
-            table_inv = np.concatenate([
-                table[0:int(threshold)],
-                table_inv[int(threshold):]
-            ], axis=0)
+            table_inv = np.concatenate(
+                [table[0 : int(threshold)], table_inv[int(threshold) :]], axis=0
+            )
         else:
-            table_inv = np.concatenate([
-                table_inv[0:int(threshold)],
-                table[int(threshold):]
-            ], axis=0)
+            table_inv = np.concatenate(
+                [table_inv[0 : int(threshold)], table[int(threshold) :]], axis=0
+            )
 
     return table_inv
 
@@ -1580,8 +1559,7 @@ class _InvertTables:
         self.tables = {}
 
     # Added in 0.5.0.
-    def get_table(self, min_value, max_value, threshold,
-                  invert_above_threshold):
+    def get_table(self, min_value, max_value, threshold, invert_above_threshold):
         if min_value == 0 and max_value == 255:
             key = (threshold, invert_above_threshold)
             table = self.tables.get(key, None)
@@ -1722,17 +1700,18 @@ def compress_jpeg(image, compression):
 
     iadt.allow_only_uint8({image.dtype})
     assert 0 <= compression <= 100, (
-        "Expected compression to be in the interval [0, 100], "
-        f"got {compression:.4f}.")
+        f"Expected compression to be in the interval [0, 100], got {compression:.4f}."
+    )
 
-    has_no_channels = (image.ndim == 2)
-    is_single_channel = (image.ndim == 3 and image.shape[-1] == 1)
+    has_no_channels = image.ndim == 2
+    is_single_channel = image.ndim == 3 and image.shape[-1] == 1
     if is_single_channel:
         image = image[..., 0]
 
     assert has_no_channels or is_single_channel or image.shape[-1] == 3, (
         "Expected either a grayscale image of shape (H,W) or (H,W,1) or an "
-        f"RGB image of shape (H,W,3). Got shape {image.shape}.")
+        f"RGB image of shape (H,W,3). Got shape {image.shape}."
+    )
 
     # Map from compression to quality used by PIL
     # We have valid compressions from 0 to 100, i.e. 101 possible
@@ -1740,12 +1719,10 @@ def compress_jpeg(image, compression):
     quality = int(
         np.clip(
             np.round(
-                minimum_quality
-                + (maximum_quality - minimum_quality)
-                * (1.0 - (compression / 101))
+                minimum_quality + (maximum_quality - minimum_quality) * (1.0 - (compression / 101))
             ),
             minimum_quality,
-            maximum_quality
+            maximum_quality,
         )
     )
 
@@ -1843,18 +1820,28 @@ class Add(meta.Augmenter):
 
     """
 
-    def __init__(self, value=(-20, 20), per_channel=False,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        value=(-20, 20),
+        per_channel=False,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
 
         self.value = iap.handle_continuous_param(
-            value, "value", value_range=None, tuple_to_uniform=True,
-            list_to_choice=True, prefetch=True)
-        self.per_channel = iap.handle_probability_param(
-            per_channel, "per_channel")
+            value,
+            "value",
+            value_range=None,
+            tuple_to_uniform=True,
+            list_to_choice=True,
+            prefetch=True,
+        )
+        self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
     # Added in 0.4.0.
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -1866,10 +1853,8 @@ class Add(meta.Augmenter):
         nb_channels_max = meta.estimate_max_number_of_channels(images)
         rss = random_state.duplicate(2)
 
-        per_channel_samples = self.per_channel.draw_samples(
-            (nb_images,), random_state=rss[0])
-        value_samples = self.value.draw_samples(
-            (nb_images, nb_channels_max), random_state=rss[1])
+        per_channel_samples = self.per_channel.draw_samples((nb_images,), random_state=rss[0])
+        value_samples = self.value.draw_samples((nb_images, nb_channels_max), random_state=rss[1])
 
         gen = enumerate(zip(images, value_samples, per_channel_samples))
         for i, (image, value_samples_i, per_channel_samples_i) in gen:
@@ -1989,18 +1974,23 @@ class AddElementwise(meta.Augmenter):
 
     """
 
-    def __init__(self, value=(-20, 20), per_channel=False,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        value=(-20, 20),
+        per_channel=False,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
 
         self.value = iap.handle_continuous_param(
-            value, "value", value_range=None, tuple_to_uniform=True,
-            list_to_choice=True)
-        self.per_channel = iap.handle_probability_param(
-            per_channel, "per_channel")
+            value, "value", value_range=None, tuple_to_uniform=True, list_to_choice=True
+        )
+        self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
     # Added in 0.4.0.
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -2009,16 +1999,13 @@ class AddElementwise(meta.Augmenter):
 
         images = batch.images
         nb_images = len(images)
-        rss = random_state.duplicate(1+nb_images)
-        per_channel_samples = self.per_channel.draw_samples(
-            (nb_images,), random_state=rss[0])
+        rss = random_state.duplicate(1 + nb_images)
+        per_channel_samples = self.per_channel.draw_samples((nb_images,), random_state=rss[0])
 
         gen = enumerate(zip(images, per_channel_samples, rss[1:]))
         for i, (image, per_channel_samples_i, rs) in gen:
             height, width, nb_channels = image.shape
-            sample_shape = (height,
-                            width,
-                            nb_channels if per_channel_samples_i > 0.5 else 1)
+            sample_shape = (height, width, nb_channels if per_channel_samples_i > 0.5 else 1)
             values = self.value.draw_samples(sample_shape, random_state=rs)
 
             batch.images[i] = add_elementwise(image, values)
@@ -2127,22 +2114,34 @@ class AdditiveGaussianNoise(AddElementwise):
     active for 50 percent of all images.
 
     """
-    def __init__(self, loc=0, scale=(0, 15), per_channel=False,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+
+    def __init__(
+        self,
+        loc=0,
+        scale=(0, 15),
+        per_channel=False,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         loc2 = iap.handle_continuous_param(
-            loc, "loc", value_range=None, tuple_to_uniform=True,
-            list_to_choice=True)
+            loc, "loc", value_range=None, tuple_to_uniform=True, list_to_choice=True
+        )
         scale2 = iap.handle_continuous_param(
-            scale, "scale", value_range=(0, None), tuple_to_uniform=True,
-            list_to_choice=True)
+            scale, "scale", value_range=(0, None), tuple_to_uniform=True, list_to_choice=True
+        )
 
         value = iap.Normal(loc=loc2, scale=scale2)
 
         super().__init__(
-            value, per_channel=per_channel,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            value,
+            per_channel=per_channel,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 # TODO add tests
@@ -2250,23 +2249,34 @@ class AdditiveLaplaceNoise(AddElementwise):
     active for 50 percent of all images.
 
     """
-    def __init__(self, loc=0, scale=(0, 15), per_channel=False,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+
+    def __init__(
+        self,
+        loc=0,
+        scale=(0, 15),
+        per_channel=False,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         loc2 = iap.handle_continuous_param(
-            loc, "loc", value_range=None, tuple_to_uniform=True,
-            list_to_choice=True)
+            loc, "loc", value_range=None, tuple_to_uniform=True, list_to_choice=True
+        )
         scale2 = iap.handle_continuous_param(
-            scale, "scale", value_range=(0, None), tuple_to_uniform=True,
-            list_to_choice=True)
+            scale, "scale", value_range=(0, None), tuple_to_uniform=True, list_to_choice=True
+        )
 
         value = iap.Laplace(loc=loc2, scale=scale2)
 
         super().__init__(
             value,
             per_channel=per_channel,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 # TODO add tests
@@ -2366,20 +2376,30 @@ class AdditivePoissonNoise(AddElementwise):
     active for 50 percent of all images.
 
     """
-    def __init__(self, lam=(0.0, 15.0), per_channel=False,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+
+    def __init__(
+        self,
+        lam=(0.0, 15.0),
+        per_channel=False,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         lam2 = iap.handle_continuous_param(
-            lam, "lam",
-            value_range=(0, None), tuple_to_uniform=True, list_to_choice=True)
+            lam, "lam", value_range=(0, None), tuple_to_uniform=True, list_to_choice=True
+        )
 
         value = iap.RandomSign(iap.Poisson(lam=lam2))
 
         super().__init__(
             value,
             per_channel=per_channel,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Multiply(meta.Augmenter):
@@ -2458,18 +2478,23 @@ class Multiply(meta.Augmenter):
 
     """
 
-    def __init__(self, mul=(0.8, 1.2), per_channel=False,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        mul=(0.8, 1.2),
+        per_channel=False,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
 
         self.mul = iap.handle_continuous_param(
-            mul, "mul", value_range=None, tuple_to_uniform=True,
-            list_to_choice=True)
-        self.per_channel = iap.handle_probability_param(
-            per_channel, "per_channel")
+            mul, "mul", value_range=None, tuple_to_uniform=True, list_to_choice=True
+        )
+        self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
     # Added in 0.4.0.
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -2480,10 +2505,8 @@ class Multiply(meta.Augmenter):
         nb_images = len(images)
         nb_channels_max = meta.estimate_max_number_of_channels(images)
         rss = random_state.duplicate(2)
-        per_channel_samples = self.per_channel.draw_samples(
-            (nb_images,), random_state=rss[0])
-        mul_samples = self.mul.draw_samples(
-            (nb_images, nb_channels_max), random_state=rss[1])
+        per_channel_samples = self.per_channel.draw_samples((nb_images,), random_state=rss[0])
+        mul_samples = self.mul.draw_samples((nb_images, nb_channels_max), random_state=rss[1])
 
         gen = enumerate(zip(images, mul_samples, per_channel_samples))
         for i, (image, mul_samples_i, per_channel_samples_i) in gen:
@@ -2602,18 +2625,23 @@ class MultiplyElementwise(meta.Augmenter):
 
     """
 
-    def __init__(self, mul=(0.8, 1.2), per_channel=False,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        mul=(0.8, 1.2),
+        per_channel=False,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
 
         self.mul = iap.handle_continuous_param(
-            mul, "mul",
-            value_range=None, tuple_to_uniform=True, list_to_choice=True)
-        self.per_channel = iap.handle_probability_param(per_channel,
-                                                        "per_channel")
+            mul, "mul", value_range=None, tuple_to_uniform=True, list_to_choice=True
+        )
+        self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
     # Added in 0.4.0.
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -2622,9 +2650,8 @@ class MultiplyElementwise(meta.Augmenter):
 
         images = batch.images
         nb_images = len(images)
-        rss = random_state.duplicate(1+nb_images)
-        per_channel_samples = self.per_channel.draw_samples(
-            (nb_images,), random_state=rss[0])
+        rss = random_state.duplicate(1 + nb_images)
+        per_channel_samples = self.per_channel.draw_samples((nb_images,), random_state=rss[0])
         is_mul_binomial = isinstance(self.mul, iap.Binomial) or (
             isinstance(self.mul, iap.FromLowerResolution)
             and isinstance(self.mul.other_param, iap.Binomial)
@@ -2633,9 +2660,7 @@ class MultiplyElementwise(meta.Augmenter):
         gen = enumerate(zip(images, per_channel_samples, rss[1:]))
         for i, (image, per_channel_samples_i, rs) in gen:
             height, width, nb_channels = image.shape
-            sample_shape = (height,
-                            width,
-                            nb_channels if per_channel_samples_i > 0.5 else 1)
+            sample_shape = (height, width, nb_channels if per_channel_samples_i > 0.5 else 1)
             mul = self.mul.draw_samples(sample_shape, random_state=rs)
             # TODO let Binomial return boolean mask directly instead of [0, 1]
             #      integers?
@@ -2657,8 +2682,18 @@ class MultiplyElementwise(meta.Augmenter):
 # Added in 0.4.0.
 class _CutoutSamples:
     # Added in 0.4.0.
-    def __init__(self, nb_iterations, pos_x, pos_y, size_h, size_w, squared,
-                 fill_mode, cval, fill_per_channel):
+    def __init__(
+        self,
+        nb_iterations,
+        pos_x,
+        pos_y,
+        size_h,
+        size_w,
+        squared,
+        fill_mode,
+        cval,
+        fill_per_channel,
+    ):
         self.nb_iterations = nb_iterations
         self.pos_x = pos_x
         self.pos_y = pos_y
@@ -2838,47 +2873,57 @@ class Cutout(meta.Augmenter):
     """
 
     # Added in 0.4.0.
-    def __init__(self,
-                 nb_iterations=1,
-                 position="uniform",
-                 size=0.2,
-                 squared=True,
-                 fill_mode="constant",
-                 cval=128,
-                 fill_per_channel=False,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        nb_iterations=1,
+        position="uniform",
+        size=0.2,
+        squared=True,
+        fill_mode="constant",
+        cval=128,
+        fill_per_channel=False,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         from imgaug2.augmenters.geometric import _handle_cval_arg  # TODO move to iap
         from imgaug2.augmenters.size import _handle_position_parameter  # TODO move to iap
 
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
         self.nb_iterations = iap.handle_discrete_param(
-            nb_iterations, "nb_iterations", value_range=(0, None),
-            tuple_to_uniform=True, list_to_choice=True, allow_floats=False)
+            nb_iterations,
+            "nb_iterations",
+            value_range=(0, None),
+            tuple_to_uniform=True,
+            list_to_choice=True,
+            allow_floats=False,
+        )
         self.position = _handle_position_parameter(position)
         self.size = iap.handle_continuous_param(
-            size, "size", value_range=(0.0, 1.0+1e-4),
-            tuple_to_uniform=True, list_to_choice=True)
+            size, "size", value_range=(0.0, 1.0 + 1e-4), tuple_to_uniform=True, list_to_choice=True
+        )
         self.squared = iap.handle_probability_param(squared, "squared")
         self.fill_mode = self._handle_fill_mode_param(fill_mode)
         self.cval = _handle_cval_arg(cval)
-        self.fill_per_channel = iap.handle_probability_param(
-            fill_per_channel, "fill_per_channel")
+        self.fill_per_channel = iap.handle_probability_param(fill_per_channel, "fill_per_channel")
 
     # Added in 0.4.0.
     @classmethod
     def _handle_fill_mode_param(cls, fill_mode):
         if ia.is_string(fill_mode):
             assert fill_mode in _CUTOUT_FILL_MODES, (
-                f"Expected 'fill_mode' to be one of: {str(list(_CUTOUT_FILL_MODES.keys()))}. Got {fill_mode}.")
+                f"Expected 'fill_mode' to be one of: {str(list(_CUTOUT_FILL_MODES.keys()))}. Got {fill_mode}."
+            )
             return iap.Deterministic(fill_mode)
         if isinstance(fill_mode, iap.StochasticParameter):
             return fill_mode
         assert ia.is_iterable(fill_mode), (
             "Expected 'fill_mode' to be a string, "
-            f"StochasticParameter or list of strings. Got type {type(fill_mode).__name__}.")
+            f"StochasticParameter or list of strings. Got type {type(fill_mode).__name__}."
+        )
         return iap.Choice(fill_mode)
 
     # Added in 0.4.0.
@@ -2915,7 +2960,8 @@ class Cutout(meta.Augmenter):
                 samples.fill_mode[start:end],
                 samples.cval[start:end],
                 samples.fill_per_channel[start:end],
-                random_state)
+                random_state,
+            )
 
             nb_iterations_sum += nb_iterations
 
@@ -2927,33 +2973,26 @@ class Cutout(meta.Augmenter):
         nb_rows = len(images)
         nb_channels_max = meta.estimate_max_number_of_channels(images)
 
-        nb_iterations = self.nb_iterations.draw_samples(
-            (nb_rows,), random_state=rngs[0])
+        nb_iterations = self.nb_iterations.draw_samples((nb_rows,), random_state=rngs[0])
         nb_dropped_areas = int(np.sum(nb_iterations))
 
         if isinstance(self.position, tuple):
-            pos_x = self.position[0].draw_samples((nb_dropped_areas,),
-                                                  random_state=rngs[1])
-            pos_y = self.position[1].draw_samples((nb_dropped_areas,),
-                                                  random_state=rngs[2])
+            pos_x = self.position[0].draw_samples((nb_dropped_areas,), random_state=rngs[1])
+            pos_y = self.position[1].draw_samples((nb_dropped_areas,), random_state=rngs[2])
         else:
-            pos = self.position.draw_samples((nb_dropped_areas, 2),
-                                             random_state=rngs[1])
+            pos = self.position.draw_samples((nb_dropped_areas, 2), random_state=rngs[1])
             pos_x = pos[:, 0]
             pos_y = pos[:, 1]
 
-        size = self.size.draw_samples((nb_dropped_areas, 2),
-                                      random_state=rngs[3])
-        squared = self.squared.draw_samples((nb_dropped_areas,),
-                                            random_state=rngs[4])
-        fill_mode = self.fill_mode.draw_samples(
-            (nb_dropped_areas,), random_state=rngs[5])
+        size = self.size.draw_samples((nb_dropped_areas, 2), random_state=rngs[3])
+        squared = self.squared.draw_samples((nb_dropped_areas,), random_state=rngs[4])
+        fill_mode = self.fill_mode.draw_samples((nb_dropped_areas,), random_state=rngs[5])
 
-        cval = self.cval.draw_samples((nb_dropped_areas, nb_channels_max),
-                                      random_state=rngs[6])
+        cval = self.cval.draw_samples((nb_dropped_areas, nb_channels_max), random_state=rngs[6])
 
         fill_per_channel = self.fill_per_channel.draw_samples(
-            (nb_dropped_areas,), random_state=rngs[7])
+            (nb_dropped_areas,), random_state=rngs[7]
+        )
 
         return _CutoutSamples(
             nb_iterations=nb_iterations,
@@ -2964,14 +3003,14 @@ class Cutout(meta.Augmenter):
             squared=squared,
             fill_mode=fill_mode,
             cval=cval,
-            fill_per_channel=fill_per_channel
+            fill_per_channel=fill_per_channel,
         )
 
     # Added in 0.4.0.
     @classmethod
-    def _augment_image_by_samples(cls, image, x1, y1, x2, y2, squared,
-                                  fill_mode, cval, fill_per_channel,
-                                  random_state):
+    def _augment_image_by_samples(
+        cls, image, x1, y1, x2, y2, squared, fill_mode, cval, fill_per_channel, random_state
+    ):
         for i, x1_i in enumerate(x1):
             x2_i = x2[i]
             if squared[i] >= 0.5:
@@ -2989,14 +3028,22 @@ class Cutout(meta.Augmenter):
                 fill_mode=fill_mode[i],
                 cval=cval[i],
                 fill_per_channel=fill_per_channel[i],
-                seed=random_state)
+                seed=random_state,
+            )
         return image
 
     # Added in 0.4.0.
     def get_parameters(self):
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
-        return [self.nb_iterations, self.position, self.size, self.squared,
-                self.fill_mode, self.cval, self.fill_per_channel]
+        return [
+            self.nb_iterations,
+            self.position,
+            self.size,
+            self.squared,
+            self.fill_mode,
+            self.cval,
+            self.fill_per_channel,
+        ]
 
 
 # TODO verify that (a, b) still leads to a p being sampled per image and not
@@ -3081,16 +3128,26 @@ class Dropout(MultiplyElementwise):
     active for ``50`` percent of all images.
 
     """
-    def __init__(self, p=(0.0, 0.05), per_channel=False,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+
+    def __init__(
+        self,
+        p=(0.0, 0.05),
+        per_channel=False,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         p_param = _handle_dropout_probability_param(p, "p")
 
         super().__init__(
             p_param,
             per_channel=per_channel,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 # Added in 0.4.0.
@@ -3100,30 +3157,41 @@ def _handle_dropout_probability_param(p, name):
     elif isinstance(p, tuple):
         assert len(p) == 2, (
             "Expected `%s` to be given as a tuple containing exactly 2 values, "
-            "got %d values." % (name, len(p),))
+            "got %d values."
+            % (
+                name,
+                len(p),
+            )
+        )
         assert p[0] < p[1], (
             f"Expected `{name}` to be given as a tuple containing exactly 2 values "
-            f"(a, b) with a < b. Got {p[0]:.4f} and {p[1]:.4f}.")
+            f"(a, b) with a < b. Got {p[0]:.4f} and {p[1]:.4f}."
+        )
         assert 0 <= p[0] <= 1.0 and 0 <= p[1] <= 1.0, (
             f"Expected `{name}` given as tuple to only contain values in the "
-            f"interval [0.0, 1.0], got {p[0]:.4f} and {p[1]:.4f}.")
+            f"interval [0.0, 1.0], got {p[0]:.4f} and {p[1]:.4f}."
+        )
 
         p_param = iap.Binomial(iap.Uniform(1 - p[1], 1 - p[0]))
     elif ia.is_iterable(p):
         assert all([ia.is_single_number(v) for v in p]), (
             f"Expected iterable parameter '{name}' to only contain numbers, "
-            f"got {[type(v) for v in p]}.")
+            f"got {[type(v) for v in p]}."
+        )
         assert all([0 <= p_i <= 1.0 for p_i in p]), (
             "Expected iterable parameter '{}' to only contain probabilities "
             "in the interval [0.0, 1.0], got values {}.".format(
-                name, ", ".join([f"{p_i:.4f}" for p_i in p])))
+                name, ", ".join([f"{p_i:.4f}" for p_i in p])
+            )
+        )
         p_param = iap.Binomial(1 - iap.Choice(p))
     elif isinstance(p, iap.StochasticParameter):
         p_param = p
     else:
         raise Exception(
             f"Expected `{name}` to be float or int or tuple (<number>, <number>) "
-            f"or StochasticParameter, got type '{type(p).__name__}'.")
+            f"or StochasticParameter, got type '{type(p).__name__}'."
+        )
 
     return p_param
 
@@ -3280,32 +3348,44 @@ class CoarseDropout(MultiplyElementwise):
     for ``50`` percent of all images.
 
     """
-    def __init__(self, p=(0.02, 0.1), size_px=None, size_percent=None,
-                 per_channel=False, min_size=3,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+
+    def __init__(
+        self,
+        p=(0.02, 0.1),
+        size_px=None,
+        size_percent=None,
+        per_channel=False,
+        min_size=3,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         p_param = _handle_dropout_probability_param(p, "p")
 
         if size_px is not None:
-            p_param = iap.FromLowerResolution(other_param=p_param,
-                                              size_px=size_px,
-                                              min_size=min_size)
+            p_param = iap.FromLowerResolution(
+                other_param=p_param, size_px=size_px, min_size=min_size
+            )
         elif size_percent is not None:
-            p_param = iap.FromLowerResolution(other_param=p_param,
-                                              size_percent=size_percent,
-                                              min_size=min_size)
+            p_param = iap.FromLowerResolution(
+                other_param=p_param, size_percent=size_percent, min_size=min_size
+            )
         else:
             # default if neither size_px nor size_percent is provided
             # is size_px=(3, 8)
-            p_param = iap.FromLowerResolution(other_param=p_param,
-                                              size_px=(3, 8),
-                                              min_size=min_size)
+            p_param = iap.FromLowerResolution(
+                other_param=p_param, size_px=(3, 8), min_size=min_size
+            )
 
         super().__init__(
             p_param,
             per_channel=per_channel,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Dropout2d(meta.Augmenter):
@@ -3401,12 +3481,18 @@ class Dropout2d(meta.Augmenter):
     """
 
     # Added in 0.4.0.
-    def __init__(self, p=0.1, nb_keep_channels=1,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        p=0.1,
+        nb_keep_channels=1,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
         self.p = _handle_dropout_probability_param(p, "p")
         self.nb_keep_channels = max(nb_keep_channels, 0)
 
@@ -3423,12 +3509,10 @@ class Dropout2d(meta.Augmenter):
 
     # Added in 0.4.0.
     def _augment_batch_(self, batch, random_state, parents, hooks):
-        imagewise_drop_channel_ids, all_dropped_ids = self._draw_samples(
-            batch, random_state)
+        imagewise_drop_channel_ids, all_dropped_ids = self._draw_samples(batch, random_state)
 
         if batch.images is not None:
-            for image, drop_ids in zip(batch.images,
-                                       imagewise_drop_channel_ids):
+            for image, drop_ids in zip(batch.images, imagewise_drop_channel_ids):
                 image[:, :, drop_ids] = 0
 
         # Skip the non-image data steps below if we won't modify non-image
@@ -3446,8 +3530,7 @@ class Dropout2d(meta.Augmenter):
             for drop_idx in all_dropped_ids:
                 batch.segmentation_maps[drop_idx].arr[...] = cval
 
-        for attr_name in ["keypoints", "bounding_boxes", "polygons",
-                          "line_strings"]:
+        for attr_name in ["keypoints", "bounding_boxes", "polygons", "line_strings"]:
             do_drop = getattr(self, f"_drop_{attr_name}")
             attr_value = getattr(batch, attr_name)
             if attr_value is not None and do_drop:
@@ -3463,17 +3546,13 @@ class Dropout2d(meta.Augmenter):
         # maybe noteworthy here that the channel axis can have size 0,
         # e.g. (5, 5, 0)
         shapes = batch.get_rowwise_shapes()
-        shapes = [shape
-                  if len(shape) >= 2
-                  else tuple(list(shape) + [1])
-                  for shape in shapes]
-        imagewise_channels = np.array([
-            shape[2] for shape in shapes
-        ], dtype=np.int32)
+        shapes = [shape if len(shape) >= 2 else tuple(list(shape) + [1]) for shape in shapes]
+        imagewise_channels = np.array([shape[2] for shape in shapes], dtype=np.int32)
 
         # channelwise drop value over all images (float <0.5 = drop channel)
-        p_samples = self.p.draw_samples((int(np.sum(imagewise_channels)),),
-                                        random_state=random_state)
+        p_samples = self.p.draw_samples(
+            (int(np.sum(imagewise_channels)),), random_state=random_state
+        )
 
         # We map the flat p_samples array to an imagewise one,
         # convert the mask to channel-ids to drop and remove channel ids if
@@ -3485,7 +3564,7 @@ class Dropout2d(meta.Augmenter):
         all_dropped_ids = []
         channel_idx = 0
         for i, nb_channels in enumerate(imagewise_channels):
-            p_samples_i = p_samples[channel_idx:channel_idx+nb_channels]
+            p_samples_i = p_samples[channel_idx : channel_idx + nb_channels]
 
             drop_ids = np.nonzero(p_samples_i < 0.5)[0]
             nb_dropable = max(nb_channels - self.nb_keep_channels, 0)
@@ -3494,7 +3573,7 @@ class Dropout2d(meta.Augmenter):
                 drop_ids = drop_ids[:nb_dropable]
             imagewise_channels_to_drop.append(drop_ids)
 
-            all_dropped = (len(drop_ids) == nb_channels)
+            all_dropped = len(drop_ids) == nb_channels
             if all_dropped:
                 all_dropped_ids.append(i)
 
@@ -3589,12 +3668,12 @@ class TotalDropout(meta.Augmenter):
     """
 
     # Added in 0.4.0.
-    def __init__(self, p=1,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self, p=1, seed=None, name=None, random_state="deprecated", deterministic="deprecated"
+    ):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
         self.p = _handle_dropout_probability_param(p, "p")
 
         self._drop_images = True
@@ -3633,8 +3712,7 @@ class TotalDropout(meta.Augmenter):
             for drop_idx in drop_ids:
                 batch.segmentation_maps[drop_idx].arr[...] = cval
 
-        for attr_name in ["keypoints", "bounding_boxes", "polygons",
-                          "line_strings"]:
+        for attr_name in ["keypoints", "bounding_boxes", "polygons", "line_strings"]:
             do_drop = getattr(self, f"_drop_{attr_name}")
             attr_value = getattr(batch, attr_name)
             if attr_value is not None and do_drop:
@@ -3649,7 +3727,7 @@ class TotalDropout(meta.Augmenter):
     # Added in 0.4.0.
     def _draw_samples(self, batch, random_state):
         p = self.p.draw_samples((batch.nb_rows,), random_state=random_state)
-        drop_mask = (p < 0.5)
+        drop_mask = p < 0.5
         return drop_mask
 
     # Added in 0.4.0.
@@ -3771,19 +3849,25 @@ class ReplaceElementwise(meta.Augmenter):
 
     """
 
-    def __init__(self, mask, replacement, per_channel=False,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        mask,
+        replacement,
+        per_channel=False,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
 
         self.mask = iap.handle_probability_param(
-            mask, "mask", tuple_to_uniform=True, list_to_choice=True)
-        self.replacement = iap.handle_continuous_param(replacement,
-                                                       "replacement")
-        self.per_channel = iap.handle_probability_param(per_channel,
-                                                        "per_channel")
+            mask, "mask", tuple_to_uniform=True, list_to_choice=True
+        )
+        self.replacement = iap.handle_continuous_param(replacement, "replacement")
+        self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
     # Added in 0.4.0.
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -3792,18 +3876,14 @@ class ReplaceElementwise(meta.Augmenter):
 
         images = batch.images
         nb_images = len(images)
-        rss = random_state.duplicate(1+2*nb_images)
-        per_channel_samples = self.per_channel.draw_samples(
-            (nb_images,), random_state=rss[0])
+        rss = random_state.duplicate(1 + 2 * nb_images)
+        per_channel_samples = self.per_channel.draw_samples((nb_images,), random_state=rss[0])
 
         gen = enumerate(zip(images, per_channel_samples, rss[1::2], rss[2::2]))
         for i, (image, per_channel_i, rs_mask, rs_replacement) in gen:
             height, width, nb_channels = image.shape
-            sampling_shape = (height,
-                              width,
-                              nb_channels if per_channel_i > 0.5 else 1)
-            mask_samples = self.mask.draw_samples(sampling_shape,
-                                                  random_state=rs_mask)
+            sampling_shape = (height, width, nb_channels if per_channel_i > 0.5 else 1)
+            mask_samples = self.mask.draw_samples(sampling_shape, random_state=rs_mask)
 
             # TODO add separate per_channels for mask and replacement
             # TODO add test that replacement with per_channel=False is not
@@ -3811,22 +3891,21 @@ class ReplaceElementwise(meta.Augmenter):
             if per_channel_i <= 0.5:
                 nb_channels = image.shape[-1]
                 replacement_samples = self.replacement.draw_samples(
-                    (int(np.sum(mask_samples[:, :, 0])),),
-                    random_state=rs_replacement)
+                    (int(np.sum(mask_samples[:, :, 0])),), random_state=rs_replacement
+                )
                 # important here to use repeat instead of tile. repeat
                 # converts e.g. [0, 1, 2] to [0, 0, 1, 1, 2, 2], while tile
                 # leads to [0, 1, 2, 0, 1, 2]. The assignment below iterates
                 # over each channel and pixel simultaneously, *not* first
                 # over all pixels of channel 0, then all pixels in
                 # channel 1, ...
-                replacement_samples = np.repeat(replacement_samples,
-                                                nb_channels)
+                replacement_samples = np.repeat(replacement_samples, nb_channels)
             else:
                 replacement_samples = self.replacement.draw_samples(
-                    (int(np.sum(mask_samples)),), random_state=rs_replacement)
+                    (int(np.sum(mask_samples)),), random_state=rs_replacement
+                )
 
-            batch.images[i] = replace_elementwise_(image, mask_samples,
-                                                   replacement_samples)
+            batch.images[i] = replace_elementwise_(image, mask_samples, replacement_samples)
 
         return batch
 
@@ -3900,15 +3979,25 @@ class SaltAndPepper(ReplaceElementwise):
     noise.
 
     """
-    def __init__(self, p=(0.0, 0.03), per_channel=False,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+
+    def __init__(
+        self,
+        p=(0.0, 0.03),
+        per_channel=False,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
             mask=p,
             replacement=iap.Beta(0.5, 0.5) * 255,
             per_channel=per_channel,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class ImpulseNoise(SaltAndPepper):
@@ -3963,14 +4052,22 @@ class ImpulseNoise(SaltAndPepper):
 
     """
 
-    def __init__(self, p=(0.0, 0.03),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        p=(0.0, 0.03),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
             p=p,
             per_channel=True,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class CoarseSaltAndPepper(ReplaceElementwise):
@@ -4103,22 +4200,28 @@ class CoarseSaltAndPepper(ReplaceElementwise):
 
     """
 
-    def __init__(self, p=(0.02, 0.1), size_px=None, size_percent=None,
-                 per_channel=False, min_size=3,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
-        mask = iap.handle_probability_param(
-            p, "p", tuple_to_uniform=True, list_to_choice=True)
+    def __init__(
+        self,
+        p=(0.02, 0.1),
+        size_px=None,
+        size_percent=None,
+        per_channel=False,
+        min_size=3,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
+        mask = iap.handle_probability_param(p, "p", tuple_to_uniform=True, list_to_choice=True)
 
         if size_px is not None:
-            mask_low = iap.FromLowerResolution(
-                other_param=mask, size_px=size_px, min_size=min_size)
+            mask_low = iap.FromLowerResolution(other_param=mask, size_px=size_px, min_size=min_size)
         elif size_percent is not None:
             mask_low = iap.FromLowerResolution(
-                other_param=mask, size_percent=size_percent, min_size=min_size)
+                other_param=mask, size_percent=size_percent, min_size=min_size
+            )
         else:
-            mask_low = iap.FromLowerResolution(
-                other_param=mask, size_px=(3, 8), min_size=min_size)
+            mask_low = iap.FromLowerResolution(other_param=mask, size_px=(3, 8), min_size=min_size)
 
         replacement = iap.Beta(0.5, 0.5) * 255
 
@@ -4126,8 +4229,11 @@ class CoarseSaltAndPepper(ReplaceElementwise):
             mask=mask_low,
             replacement=replacement,
             per_channel=per_channel,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Salt(ReplaceElementwise):
@@ -4193,14 +4299,16 @@ class Salt(ReplaceElementwise):
 
     """
 
-    def __init__(self, p=(0.0, 0.03), per_channel=False,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
-        replacement01 = iap.ForceSign(
-            iap.Beta(0.5, 0.5) - 0.5,
-            positive=True,
-            mode="invert"
-        ) + 0.5
+    def __init__(
+        self,
+        p=(0.0, 0.03),
+        per_channel=False,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
+        replacement01 = iap.ForceSign(iap.Beta(0.5, 0.5) - 0.5, positive=True, mode="invert") + 0.5
         # FIXME max replacement seems to essentially never exceed 254
         replacement = replacement01 * 255
 
@@ -4208,8 +4316,11 @@ class Salt(ReplaceElementwise):
             mask=p,
             replacement=replacement,
             per_channel=per_channel,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class CoarseSalt(ReplaceElementwise):
@@ -4322,36 +4433,41 @@ class CoarseSalt(ReplaceElementwise):
 
     """
 
-    def __init__(self, p=(0.02, 0.1), size_px=None, size_percent=None,
-                 per_channel=False, min_size=3,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
-        mask = iap.handle_probability_param(
-            p, "p", tuple_to_uniform=True, list_to_choice=True)
+    def __init__(
+        self,
+        p=(0.02, 0.1),
+        size_px=None,
+        size_percent=None,
+        per_channel=False,
+        min_size=3,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
+        mask = iap.handle_probability_param(p, "p", tuple_to_uniform=True, list_to_choice=True)
 
         if size_px is not None:
-            mask_low = iap.FromLowerResolution(
-                other_param=mask, size_px=size_px, min_size=min_size)
+            mask_low = iap.FromLowerResolution(other_param=mask, size_px=size_px, min_size=min_size)
         elif size_percent is not None:
             mask_low = iap.FromLowerResolution(
-                other_param=mask, size_percent=size_percent, min_size=min_size)
+                other_param=mask, size_percent=size_percent, min_size=min_size
+            )
         else:
-            mask_low = iap.FromLowerResolution(
-                other_param=mask, size_px=(3, 8), min_size=min_size)
+            mask_low = iap.FromLowerResolution(other_param=mask, size_px=(3, 8), min_size=min_size)
 
-        replacement01 = iap.ForceSign(
-            iap.Beta(0.5, 0.5) - 0.5,
-            positive=True,
-            mode="invert"
-        ) + 0.5
+        replacement01 = iap.ForceSign(iap.Beta(0.5, 0.5) - 0.5, positive=True, mode="invert") + 0.5
         replacement = replacement01 * 255
 
         super().__init__(
             mask=mask_low,
             replacement=replacement,
             per_channel=per_channel,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Pepper(ReplaceElementwise):
@@ -4420,22 +4536,27 @@ class Pepper(ReplaceElementwise):
 
     """
 
-    def __init__(self, p=(0.0, 0.05), per_channel=False,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
-        replacement01 = iap.ForceSign(
-            iap.Beta(0.5, 0.5) - 0.5,
-            positive=False,
-            mode="invert"
-        ) + 0.5
+    def __init__(
+        self,
+        p=(0.0, 0.05),
+        per_channel=False,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
+        replacement01 = iap.ForceSign(iap.Beta(0.5, 0.5) - 0.5, positive=False, mode="invert") + 0.5
         replacement = replacement01 * 255
 
         super().__init__(
             mask=p,
             replacement=replacement,
             per_channel=per_channel,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class CoarsePepper(ReplaceElementwise):
@@ -4546,36 +4667,41 @@ class CoarsePepper(ReplaceElementwise):
 
     """
 
-    def __init__(self, p=(0.02, 0.1), size_px=None, size_percent=None,
-                 per_channel=False, min_size=3,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
-        mask = iap.handle_probability_param(
-            p, "p", tuple_to_uniform=True, list_to_choice=True)
+    def __init__(
+        self,
+        p=(0.02, 0.1),
+        size_px=None,
+        size_percent=None,
+        per_channel=False,
+        min_size=3,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
+        mask = iap.handle_probability_param(p, "p", tuple_to_uniform=True, list_to_choice=True)
 
         if size_px is not None:
-            mask_low = iap.FromLowerResolution(
-                other_param=mask, size_px=size_px, min_size=min_size)
+            mask_low = iap.FromLowerResolution(other_param=mask, size_px=size_px, min_size=min_size)
         elif size_percent is not None:
             mask_low = iap.FromLowerResolution(
-                other_param=mask, size_percent=size_percent, min_size=min_size)
+                other_param=mask, size_percent=size_percent, min_size=min_size
+            )
         else:
-            mask_low = iap.FromLowerResolution(
-                other_param=mask, size_px=(3, 8), min_size=min_size)
+            mask_low = iap.FromLowerResolution(other_param=mask, size_px=(3, 8), min_size=min_size)
 
-        replacement01 = iap.ForceSign(
-            iap.Beta(0.5, 0.5) - 0.5,
-            positive=False,
-            mode="invert"
-        ) + 0.5
+        replacement01 = iap.ForceSign(iap.Beta(0.5, 0.5) - 0.5, positive=False, mode="invert") + 0.5
         replacement = replacement01 * 255
 
         super().__init__(
             mask=mask_low,
             replacement=replacement,
             per_channel=per_channel,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 class Invert(meta.Augmenter):
@@ -4683,6 +4809,7 @@ class Invert(meta.Augmenter):
     active for 50 percent of all images.
 
     """
+
     # when no custom min/max are chosen, all bool, uint, int and float dtypes
     # should be invertable (float tested only up to 64bit)
     # when chosing custom min/max:
@@ -4694,25 +4821,39 @@ class Invert(meta.Augmenter):
     #   off by 10 for center value of range (float 16 min, 16), where float
     #   16 min is around -65500
     ALLOW_DTYPES_CUSTOM_MINMAX = [
-        np.dtype(dt) for dt in [
-            np.uint8, np.uint16, np.uint32,
-            np.int8, np.int16, np.int32,
-            np.float16, np.float32
+        np.dtype(dt)
+        for dt in [
+            np.uint8,
+            np.uint16,
+            np.uint32,
+            np.int8,
+            np.int16,
+            np.int32,
+            np.float16,
+            np.float32,
         ]
     ]
 
-    def __init__(self, p=1, per_channel=False, min_value=None, max_value=None,
-                 threshold=None, invert_above_threshold=0.5,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        p=1,
+        per_channel=False,
+        min_value=None,
+        max_value=None,
+        threshold=None,
+        invert_above_threshold=0.5,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
 
         # TODO allow list and tuple for p
         self.p = iap.handle_probability_param(p, "p")
-        self.per_channel = iap.handle_probability_param(per_channel,
-                                                        "per_channel")
+        self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
         self.min_value = min_value
         self.max_value = max_value
 
@@ -4720,10 +4861,11 @@ class Invert(meta.Augmenter):
             self.threshold = None
         else:
             self.threshold = iap.handle_continuous_param(
-                threshold, "threshold", value_range=None, tuple_to_uniform=True,
-                list_to_choice=True)
+                threshold, "threshold", value_range=None, tuple_to_uniform=True, list_to_choice=True
+            )
         self.invert_above_threshold = iap.handle_probability_param(
-            invert_above_threshold, "invert_above_threshold")
+            invert_above_threshold, "invert_above_threshold"
+        )
 
     # Added in 0.4.0.
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -4740,7 +4882,7 @@ class Invert(meta.Augmenter):
                 "min_value": samples.min_value[i],
                 "max_value": samples.max_value[i],
                 "threshold": samples.threshold[i],
-                "invert_above_threshold": samples.invert_above_threshold[i]
+                "invert_above_threshold": samples.invert_above_threshold[i],
             }
 
             if samples.per_channel[i]:
@@ -4757,24 +4899,22 @@ class Invert(meta.Augmenter):
     def _draw_samples(self, batch, random_state):
         nb_images = batch.nb_rows
         nb_channels = meta.estimate_max_number_of_channels(batch.images)
-        p = self.p.draw_samples((nb_images, nb_channels),
-                                random_state=random_state)
-        p = (p > 0.5)
-        per_channel = self.per_channel.draw_samples((nb_images,),
-                                                    random_state=random_state)
-        per_channel = (per_channel > 0.5)
+        p = self.p.draw_samples((nb_images, nb_channels), random_state=random_state)
+        p = p > 0.5
+        per_channel = self.per_channel.draw_samples((nb_images,), random_state=random_state)
+        per_channel = per_channel > 0.5
         min_value = [self.min_value] * nb_images
         max_value = [self.max_value] * nb_images
 
         if self.threshold is None:
             threshold = [None] * nb_images
         else:
-            threshold = self.threshold.draw_samples(
-                (nb_images,), random_state=random_state)
+            threshold = self.threshold.draw_samples((nb_images,), random_state=random_state)
 
         invert_above_threshold = self.invert_above_threshold.draw_samples(
-            (nb_images,), random_state=random_state)
-        invert_above_threshold = (invert_above_threshold > 0.5)
+            (nb_images,), random_state=random_state
+        )
+        invert_above_threshold = invert_above_threshold > 0.5
 
         return _InvertSamples(
             p=p,
@@ -4782,20 +4922,25 @@ class Invert(meta.Augmenter):
             min_value=min_value,
             max_value=max_value,
             threshold=threshold,
-            invert_above_threshold=invert_above_threshold
+            invert_above_threshold=invert_above_threshold,
         )
 
     def get_parameters(self):
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
-        return [self.p, self.per_channel, self.min_value, self.max_value,
-                self.threshold, self.invert_above_threshold]
+        return [
+            self.p,
+            self.per_channel,
+            self.min_value,
+            self.max_value,
+            self.threshold,
+            self.invert_above_threshold,
+        ]
 
 
 # Added in 0.4.0.
 class _InvertSamples:
     # Added in 0.4.0.
-    def __init__(self, p, per_channel, min_value, max_value,
-                 threshold, invert_above_threshold):
+    def __init__(self, p, per_channel, min_value, max_value, threshold, invert_above_threshold):
         self.p = p
         self.per_channel = per_channel
         self.min_value = min_value
@@ -4866,24 +5011,44 @@ class Solarize(Invert):
     per image. The thresholding operation happens per channel.
 
     """
-    def __init__(self, p=1, per_channel=False, min_value=None, max_value=None,
-                 threshold=(128-64, 128+64), invert_above_threshold=True,
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+
+    def __init__(
+        self,
+        p=1,
+        per_channel=False,
+        min_value=None,
+        max_value=None,
+        threshold=(128 - 64, 128 + 64),
+        invert_above_threshold=True,
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            p=p, per_channel=per_channel,
-            min_value=min_value, max_value=max_value,
-            threshold=threshold, invert_above_threshold=invert_above_threshold,
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            p=p,
+            per_channel=per_channel,
+            min_value=min_value,
+            max_value=max_value,
+            threshold=threshold,
+            invert_above_threshold=invert_above_threshold,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
 
 
 # TODO remove from examples
 @ia.deprecated("imgaug2.contrast.LinearContrast")
-def ContrastNormalization(alpha=1.0, per_channel=False,
-                          seed=None, name=None,
-                          random_state="deprecated",
-                          deterministic="deprecated"):
+def ContrastNormalization(
+    alpha=1.0,
+    per_channel=False,
+    seed=None,
+    name=None,
+    random_state="deprecated",
+    deterministic="deprecated",
+):
     """
     Change the contrast of images.
 
@@ -4956,9 +5121,15 @@ def ContrastNormalization(alpha=1.0, per_channel=False,
     # pylint: disable=invalid-name
     # placed here to avoid cyclic dependency
     from imgaug2.augmenters import contrast as contrast_lib
+
     return contrast_lib.LinearContrast(
-        alpha=alpha, per_channel=per_channel,
-        seed=seed, name=name, random_state=random_state, deterministic=deterministic)
+        alpha=alpha,
+        per_channel=per_channel,
+        seed=seed,
+        name=name,
+        random_state=random_state,
+        deterministic=deterministic,
+    )
 
 
 # TODO try adding per channel somehow
@@ -5030,18 +5201,27 @@ class JpegCompression(meta.Augmenter):
 
     """
 
-    def __init__(self, compression=(0, 100),
-                 seed=None, name=None,
-                 random_state="deprecated", deterministic="deprecated"):
+    def __init__(
+        self,
+        compression=(0, 100),
+        seed=None,
+        name=None,
+        random_state="deprecated",
+        deterministic="deprecated",
+    ):
         super().__init__(
-            seed=seed, name=name,
-            random_state=random_state, deterministic=deterministic)
+            seed=seed, name=name, random_state=random_state, deterministic=deterministic
+        )
 
         # will be converted to int during augmentation, which is why we allow
         # floats here
         self.compression = iap.handle_continuous_param(
-            compression, "compression",
-            value_range=(0, 100), tuple_to_uniform=True, list_to_choice=True)
+            compression,
+            "compression",
+            value_range=(0, 100),
+            tuple_to_uniform=True,
+            list_to_choice=True,
+        )
 
     # Added in 0.4.0.
     def _augment_batch_(self, batch, random_state, parents, hooks):
@@ -5050,8 +5230,7 @@ class JpegCompression(meta.Augmenter):
 
         images = batch.images
         nb_images = len(images)
-        samples = self.compression.draw_samples((nb_images,),
-                                                random_state=random_state)
+        samples = self.compression.draw_samples((nb_images,), random_state=random_state)
 
         for i, (image, sample) in enumerate(zip(images, samples)):
             batch.images[i] = compress_jpeg(image, int(sample))
