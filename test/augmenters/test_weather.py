@@ -210,10 +210,33 @@ class TestClouds(unittest.TestCase):
         aug = iaa.Clouds(seed=1)
         runtest_pickleable_uint8_img(aug, iterations=3, shape=(20, 20, 3))
 
+    def test_keypoints_not_modified(self):
+        # Weather augmenters should not modify keypoints
+        kpsoi = ia.KeypointsOnImage([ia.Keypoint(10, 20), ia.Keypoint(30, 40)], shape=(100, 100, 3))
+        aug = iaa.Clouds()
+
+        kpsoi_aug = aug.augment_keypoints(kpsoi)
+
+        assert len(kpsoi_aug.keypoints) == 2
+        assert kpsoi_aug.keypoints[0].x == 10
+        assert kpsoi_aug.keypoints[0].y == 20
+        assert kpsoi_aug.keypoints[1].x == 30
+        assert kpsoi_aug.keypoints[1].y == 40
+
+    def test_heatmaps_not_modified(self):
+        # Weather augmenters should not modify heatmaps
+        hm_arr = np.zeros((50, 50), dtype=np.float32)
+        hm_arr[10:40, 10:40] = 0.8
+        hm = ia.HeatmapsOnImage(hm_arr, shape=(100, 100, 3))
+        aug = iaa.Clouds()
+
+        hm_aug = aug.augment_heatmaps(hm)
+
+        assert np.allclose(hm_aug.arr_0to1, hm.arr_0to1)
+
 
 # only a very rough test here currently, because the augmenter is fairly hard
 # to test
-# TODO add more tests, improve testability
 class TestFog(unittest.TestCase):
     def setUp(self):
         reseed()

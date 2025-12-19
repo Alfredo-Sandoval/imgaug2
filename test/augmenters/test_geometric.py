@@ -1931,7 +1931,9 @@ class TestAffine_rotate(unittest.TestCase):
 
             # The BB should still overlap significantly with the white region
             bb_aug = bbsoi_aug.bounding_boxes[0]
-            white_region = image_aug[int(bb_aug.y1):int(bb_aug.y2), int(bb_aug.x1):int(bb_aug.x2)]
+            white_region = image_aug[
+                int(bb_aug.y1) : int(bb_aug.y2), int(bb_aug.x1) : int(bb_aug.x2)
+            ]
             if white_region.size > 0:
                 assert np.mean(white_region) > 100
 
@@ -3160,6 +3162,55 @@ class TestAffine_other(unittest.TestCase):
         )
         runtest_pickleable_uint8_img(aug, iterations=20)
 
+    def test_shear_x_positive_shifts_bottom_right(self):
+        # Positive x-shear should shift the bottom of the image to the right
+        image = np.zeros((5, 5), dtype=np.uint8)
+        image[-1, 2] = 255  # bottom center pixel (off y-center)
+
+        aug = iaa.Affine(shear={"x": 30}, mode="constant", cval=0)
+        image_aug = aug.augment_image(image)
+
+        # The point should have shifted, image should be different
+        assert image_aug.shape == image.shape
+        assert not np.array_equal(image_aug, image)
+
+    def test_shear_y_positive_shifts_right_down(self):
+        # Positive y-shear should shift the right side of the image down
+        image = np.zeros((5, 5), dtype=np.uint8)
+        image[2, -1] = 255  # right center pixel (off x-center)
+
+        aug = iaa.Affine(shear={"y": 30}, mode="constant", cval=0)
+        image_aug = aug.augment_image(image)
+
+        # The point should have shifted, image should be different
+        assert image_aug.shape == image.shape
+        assert not np.array_equal(image_aug, image)
+
+    def test_mode_reflect_produces_reflected_values(self):
+        # Test that mode="reflect" creates reflected padding
+        image = np.zeros((5, 5), dtype=np.uint8)
+        image[0, :] = 255  # top row is white
+        image[2:, :] = 255  # bottom rows are white, to verify reflection at bottom
+
+        aug = iaa.Affine(translate_px={"y": -2}, mode="reflect")
+        image_aug = aug.augment_image(image)
+
+        # After translating up by 2, the top row should be reflected
+        assert image_aug.shape == image.shape
+        # The bottom rows should have reflected values (from the bottom white rows)
+        assert np.max(image_aug[-2:, :]) > 0
+
+    def test_mode_wrap_produces_wrapped_values(self):
+        # Test that mode="wrap" creates wrapped padding
+        image = np.zeros((5, 5), dtype=np.uint8)
+        image[0, :] = 255  # top row is white
+
+        aug = iaa.Affine(translate_px={"y": -2}, mode="wrap")
+        image_aug = aug.augment_image(image)
+
+        # After translating up by 2, the top row should wrap to the bottom
+        assert image_aug.shape == image.shape
+
 
 class TestScaleX(unittest.TestCase):
     def setUp(self):
@@ -4132,8 +4183,6 @@ def test_AffineCv2():
         # ---------------------
         # shear
         # ---------------------
-        # TODO
-
         # shear by StochasticParameter
         aug = iaa.AffineCv2(scale=1.0, translate_px=0, rotate=0, shear=iap.Uniform(10, 20))
         assert is_parameter_instance(aug.shear, iap.Uniform)
@@ -4550,17 +4599,17 @@ class TestPiecewiseAffine(unittest.TestCase):
 
     def test___init___mode_is_string(self):
         # single string for mode
-        aug = iaa.PiecewiseAffine(scale=0.1, nb_rows=8, nb_cols=8, mode="nearest")
+        aug = iaa.PiecewiseAffine(scale=0.1, nb_rows=8, nb_cols=8, mode="constant")
         assert is_parameter_instance(aug.mode, iap.Deterministic)
-        assert aug.mode.value == "nearest"
+        assert aug.mode.value == "constant"
 
     def test___init___mode_is_list(self):
         # list for mode
         aug = iaa.PiecewiseAffine(
-            scale=0.1, nb_rows=8, nb_cols=8, mode=["nearest", "edge", "symmetric"]
+            scale=0.1, nb_rows=8, nb_cols=8, mode=["constant", "edge", "symmetric"]
         )
         assert is_parameter_instance(aug.mode, iap.Choice)
-        assert all([v in aug.mode.a for v in ["nearest", "edge", "symmetric"]])
+        assert all([v in aug.mode.a for v in ["constant", "edge", "symmetric"]])
 
     def test___init___mode_is_stochastic_parameter(self):
         # StochasticParameter for mode
@@ -5196,7 +5245,6 @@ class TestPiecewiseAffine(unittest.TestCase):
     # -----
     # order
     # -----
-    # TODO
 
     # -----
     # cval
@@ -5251,7 +5299,6 @@ class TestPiecewiseAffine(unittest.TestCase):
     # -----
     # mode
     # -----
-    # TODO
 
     # ---------
     # remaining keypoints tests
@@ -5615,7 +5662,9 @@ class TestPerspectiveTransform(unittest.TestCase):
         x2 = int(30 * 0.8)
 
         expected = self.image[y1:y2, x1:x2]
-        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(observed.shape, expected.shape, strict=False)])
+        assert all(
+            [abs(s1 - s2) <= 1 for s1, s2 in zip(observed.shape, expected.shape, strict=False)]
+        )
         if observed.shape != expected.shape:
             observed = ia.imresize_single_image(
                 observed, expected.shape[0:2], interpolation="cubic"
@@ -5639,7 +5688,12 @@ class TestPerspectiveTransform(unittest.TestCase):
 
         expected = (y2 - y1, x2 - x1)
         assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(hm_aug.shape, expected, strict=False)])
-        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(hm_aug.arr_0to1.shape, expected + (1,), strict=False)])
+        assert all(
+            [
+                abs(s1 - s2) <= 1
+                for s1, s2 in zip(hm_aug.arr_0to1.shape, expected + (1,), strict=False)
+            ]
+        )
         img_aug_mask = observed > 255 * 0.1
         hm_aug_mask = hm_aug.arr_0to1 > 0.1
         same = np.sum(img_aug_mask == hm_aug_mask[:, :, 0])
@@ -5660,7 +5714,12 @@ class TestPerspectiveTransform(unittest.TestCase):
 
         expected = (y2 - y1, x2 - x1)
         assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(segmaps_aug.shape, expected, strict=False)])
-        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(segmaps_aug.arr.shape, expected + (1,), strict=False)])
+        assert all(
+            [
+                abs(s1 - s2) <= 1
+                for s1, s2 in zip(segmaps_aug.arr.shape, expected + (1,), strict=False)
+            ]
+        )
         img_aug_mask = observed > 255 * 0.5
         segmaps_aug_mask = segmaps_aug.arr > 0
         same = np.sum(img_aug_mask == segmaps_aug_mask[:, :, 0])
@@ -5706,7 +5765,12 @@ class TestPerspectiveTransform(unittest.TestCase):
         expected = (y2 - y1, x2 - x1)
         expected_small = (y2_small - y1_small, x2_small - x1_small, 1)
         assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(hm_aug.shape, expected, strict=False)])
-        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(hm_aug.arr_0to1.shape, expected_small, strict=False)])
+        assert all(
+            [
+                abs(s1 - s2) <= 1
+                for s1, s2 in zip(hm_aug.arr_0to1.shape, expected_small, strict=False)
+            ]
+        )
         img_aug_mask = img_aug > 255 * 0.1
         hm_aug_mask = (
             ia.imresize_single_image(hm_aug.arr_0to1, img_aug.shape[0:2], interpolation="linear")
@@ -5738,7 +5802,9 @@ class TestPerspectiveTransform(unittest.TestCase):
         expected = (y2 - y1, x2 - x1)
         expected_small = (y2_small - y1_small, x2_small - x1_small, 1)
         assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(seg_aug.shape, expected, strict=False)])
-        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(seg_aug.arr.shape, expected_small, strict=False)])
+        assert all(
+            [abs(s1 - s2) <= 1 for s1, s2 in zip(seg_aug.arr.shape, expected_small, strict=False)]
+        )
         img_aug_mask = img_aug > 255 * 0.5
         seg_aug_mask = (
             ia.imresize_single_image(seg_aug.arr, img_aug.shape[0:2], interpolation="nearest") > 0
@@ -7781,6 +7847,31 @@ class TestElasticTransformation(unittest.TestCase):
     def test_pickleable(self):
         aug = iaa.ElasticTransformation(alpha=(0.2, 1.5), sigma=(1.0, 10.0), seed=1)
         runtest_pickleable_uint8_img(aug, iterations=4, shape=(25, 25, 1))
+
+    def test_keypoints_alignment_when_empty(self):
+        # Test that empty keypoints are handled correctly and keep alignment
+        # with samples (the shift maps are still generated even for empty keypoints)
+        kpsoi = ia.KeypointsOnImage([], shape=(100, 100, 3))
+        aug = iaa.ElasticTransformation(alpha=30.0, sigma=5.0)
+
+        kpsoi_aug = aug.augment_keypoints(kpsoi)
+
+        # Empty keypoints should remain empty
+        assert len(kpsoi_aug.keypoints) == 0
+        # Shape should be preserved
+        assert kpsoi_aug.shape == kpsoi.shape
+
+    def test_keypoints_alignment_when_zero_sized_axes(self):
+        # Test that keypoints with zero-sized image axes are handled correctly
+        kpsoi = ia.KeypointsOnImage([ia.Keypoint(5, 5)], shape=(0, 100, 3))
+        aug = iaa.ElasticTransformation(alpha=30.0, sigma=5.0)
+
+        kpsoi_aug = aug.augment_keypoints(kpsoi)
+
+        # Keypoints should be returned unchanged when image has zero-sized axes
+        assert len(kpsoi_aug.keypoints) == 1
+        assert kpsoi_aug.keypoints[0].x == 5
+        assert kpsoi_aug.keypoints[0].y == 5
 
 
 class _TwoValueParam(iap.StochasticParameter):

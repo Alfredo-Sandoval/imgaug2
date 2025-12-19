@@ -789,6 +789,62 @@ class TestLambda(unittest.TestCase):
                 assert image_aug.dtype.name == dtype
                 assert np.all(image_aug == expected)
 
+    def test_line_strings(self):
+        def func_line_strings(line_strings, random_state, parents, hooks):
+            result = []
+            for lsoi in line_strings:
+                new_ls_list = []
+                for ls in lsoi.line_strings:
+                    # Shift all coordinates by (1, 0)
+                    new_coords = [(x + 1, y) for x, y in ls.coords]
+                    new_ls_list.append(ia.LineString(new_coords))
+                result.append(ia.LineStringsOnImage(new_ls_list, shape=lsoi.shape))
+            return result
+
+        ls = ia.LineString([(0, 0), (1, 1), (2, 2)])
+        lsoi = ia.LineStringsOnImage([ls], shape=(3, 3, 3))
+
+        aug = iaa.Lambda(func_line_strings=func_line_strings)
+        lsoi_aug = aug.augment_line_strings(lsoi)
+
+        assert len(lsoi_aug.line_strings) == 1
+        assert np.allclose(lsoi_aug.line_strings[0].coords[0], (1, 0))
+        assert np.allclose(lsoi_aug.line_strings[0].coords[1], (2, 1))
+        assert np.allclose(lsoi_aug.line_strings[0].coords[2], (3, 2))
+
+    def test_line_strings_empty(self):
+        lsoi = ia.LineStringsOnImage([], shape=(1, 2, 3))
+
+        def func_line_strings(line_strings, random_state, parents, hooks):
+            return line_strings
+
+        aug = iaa.Lambda(func_line_strings=func_line_strings)
+        observed = aug.augment_line_strings(lsoi)
+
+        assert len(observed.line_strings) == 0
+        assert observed.shape == (1, 2, 3)
+
+    def test_no_func_set_images(self):
+        # When no func_images is set, images should pass through unchanged
+        aug = iaa.Lambda()  # no funcs set
+        image = np.zeros((3, 3, 1), dtype=np.uint8)
+        image[1, 1] = 255
+
+        image_aug = aug.augment_image(image)
+
+        assert np.array_equal(image_aug, image)
+
+    def test_no_func_set_keypoints(self):
+        # When no func_keypoints is set, keypoints should pass through unchanged
+        aug = iaa.Lambda()  # no funcs set
+        kpsoi = ia.KeypointsOnImage([ia.Keypoint(1, 2)], shape=(3, 3, 3))
+
+        kpsoi_aug = aug.augment_keypoints(kpsoi)
+
+        assert len(kpsoi_aug.keypoints) == 1
+        assert kpsoi_aug.keypoints[0].x == 1
+        assert kpsoi_aug.keypoints[0].y == 2
+
     def test_pickleable(self):
         aug = iaa.Lambda(func_images=_lambda_pickleable_callback_images, seed=1)
         runtest_pickleable_uint8_img(aug)
@@ -3094,6 +3150,86 @@ class TestAugmenter_augment_batch_(unittest.TestCase):
             np.array(batch_aug12.images_aug, dtype=np.uint8),
             np.array(batch_aug32.images_aug, dtype=np.uint8),
         )
+
+    def test_verify_inplace_aug__heatmaps__normalized_batch(self):
+        arr = np.zeros((10, 20), dtype=np.float32)
+        arr[3:6, 3:9] = 0.8
+        hm = ia.HeatmapsOnImage(arr, shape=(10, 20, 3))
+        hm_cp = ia.HeatmapsOnImage(np.copy(arr), shape=(10, 20, 3))
+
+        aug = iaa.Identity()
+        batch = ia.Batch(heatmaps=[hm])
+        batch_aug = aug.augment_batch_(batch)
+        hm_unaug = batch_aug.heatmaps_unaug[0]
+        hm_aug = batch_aug.heatmaps_aug[0]
+
+        assert batch_aug is batch
+        assert np.array_equal(hm.arr_0to1, hm_cp.arr_0to1)
+        assert np.array_equal(hm_unaug.arr_0to1, hm_cp.arr_0to1)
+        assert np.array_equal(hm_aug.arr_0to1, hm_cp.arr_0to1)
+
+    def test_verify_inplace_aug__bounding_boxes__normalized_batch(self):
+        bb = ia.BoundingBox(x1=1, y1=2, x2=5, y2=6)
+        bbsoi = ia.BoundingBoxesOnImage([bb], shape=(10, 20, 3))
+
+        aug = iaa.Identity()
+        batch = ia.Batch(bounding_boxes=[bbsoi])
+        batch_aug = aug.augment_batch_(batch)
+        bbsoi_unaug = batch_aug.bounding_boxes_unaug[0]
+        bbsoi_aug = batch_aug.bounding_boxes_aug[0]
+
+        assert batch_aug is batch
+        assert len(bbsoi_unaug.bounding_boxes) == 1
+        assert len(bbsoi_aug.bounding_boxes) == 1
+        assert bbsoi_unaug.bounding_boxes[0].x1 == 1
+        assert bbsoi_aug.bounding_boxes[0].x1 == 1
+
+    def test_verify_inplace_aug__line_strings__normalized_batch(self):
+        ls = ia.LineString([(0, 0), (5, 5), (10, 0)])
+        lsoi = ia.LineStringsOnImage([ls], shape=(10, 20, 3))
+
+        aug = iaa.Identity()
+        batch = ia.Batch(line_strings=[lsoi])
+        batch_aug = aug.augment_batch_(batch)
+        lsoi_unaug = batch_aug.line_strings_unaug[0]
+        lsoi_aug = batch_aug.line_strings_aug[0]
+
+        assert batch_aug is batch
+        assert len(lsoi_unaug.line_strings) == 1
+        assert len(lsoi_aug.line_strings) == 1
+
+    def test_verify_inplace_aug__polygons__normalized_batch(self):
+        poly = ia.Polygon([(0, 0), (5, 0), (5, 5), (0, 5)])
+        psoi = ia.PolygonsOnImage([poly], shape=(10, 20, 3))
+
+        aug = iaa.Identity()
+        batch = ia.Batch(polygons=[psoi])
+        batch_aug = aug.augment_batch_(batch)
+        psoi_unaug = batch_aug.polygons_unaug[0]
+        psoi_aug = batch_aug.polygons_aug[0]
+
+        assert batch_aug is batch
+        assert len(psoi_unaug.polygons) == 1
+        assert len(psoi_aug.polygons) == 1
+
+    def test_with_hooks_propagated_correctly(self):
+        # Test that hooks passed to augment_batch_ are propagated correctly
+        hook_called = [False]
+
+        def activator(images, augmenter, parents, default):
+            hook_called[0] = True
+            return False  # deactivate augmentation
+
+        image = np.zeros((10, 10, 3), dtype=np.uint8)
+        aug = iaa.Add(100)
+        hooks = ia.HooksImages(activator=activator)
+        batch = ia.UnnormalizedBatch(images=[image])
+
+        batch_aug = aug.augment_batch_(batch, hooks=hooks)
+
+        assert hook_called[0]
+        # Image should be unchanged because hook deactivated augmentation
+        assert np.array_equal(batch_aug.images_aug[0], image)
 
 
 class TestAugmenter_augment_segmentation_maps(unittest.TestCase):

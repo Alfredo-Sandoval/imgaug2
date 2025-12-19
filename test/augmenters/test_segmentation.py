@@ -34,9 +34,7 @@ class TestSuperpixels(unittest.TestCase):
 
     @classmethod
     def _array_equals_tolerant(cls, a, b, tolerance):
-        # TODO isnt this just np.allclose(a, b, rtol=0, atol=tolerance) ?!
-        diff = np.abs(a.astype(np.int32) - b.astype(np.int32))
-        return np.all(diff <= tolerance)
+        return np.allclose(a, b, rtol=0, atol=tolerance)
 
     @property
     def base_img(self):

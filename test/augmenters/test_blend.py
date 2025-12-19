@@ -1632,6 +1632,38 @@ class TestBlendAlphaElementwise(unittest.TestCase):
         )
         runtest_pickleable_uint8_img(aug, iterations=3)
 
+    def test_heatmaps_smaller_than_image(self):
+        # Test that heatmaps smaller than image are handled correctly
+        image = np.zeros((6, 6, 3), dtype=np.uint8)
+        heatmap_arr = np.float32([[0.0, 0.5], [0.5, 1.0]])
+        hm = HeatmapsOnImage(heatmap_arr, shape=(6, 6, 3))
+
+        aug = iaa.BlendAlphaElementwise(
+            0.5,
+            iaa.Identity(),
+            iaa.Identity(),
+        )
+        hm_aug = aug.augment_heatmaps(hm)
+
+        assert hm_aug.shape == (6, 6, 3)
+        assert hm_aug.arr_0to1.shape == (2, 2, 1)
+
+    def test_segmaps_smaller_than_image(self):
+        # Test that segmaps smaller than image are handled correctly
+        image = np.zeros((6, 6, 3), dtype=np.uint8)
+        segmap_arr = np.int32([[0, 1], [1, 0]])
+        sm = SegmentationMapsOnImage(segmap_arr, shape=(6, 6, 3))
+
+        aug = iaa.BlendAlphaElementwise(
+            0.5,
+            iaa.Identity(),
+            iaa.Identity(),
+        )
+        sm_aug = aug.augment_segmentation_maps(sm)
+
+        assert sm_aug.shape == (6, 6, 3)
+        assert sm_aug.arr.shape == (2, 2, 1)
+
 
 class TestBlendAlphaSomeColors(unittest.TestCase):
     def setUp(self):

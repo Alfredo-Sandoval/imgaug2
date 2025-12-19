@@ -3,6 +3,7 @@ from unittest import mock
 
 import numpy as np
 
+import imgaug2 as ia
 from imgaug2 import augmenters as iaa
 from imgaug2 import dtypes as iadt
 from imgaug2 import parameters as iap
@@ -533,6 +534,21 @@ class TestConvolve(unittest.TestCase):
     def test_pickleable__callback_function(self):
         aug = iaa.Convolve(_convolve_pickleable_matrix_generator, seed=1)
         runtest_pickleable_uint8_img(aug, iterations=20)
+
+    def test_keypoints_unchanged(self):
+        # Convolution operations should not affect keypoint coordinates
+        kpsoi = ia.KeypointsOnImage([ia.Keypoint(1, 2), ia.Keypoint(3, 4)], shape=(10, 10, 3))
+        matrix = np.float32([[0, -1, 0], [-1, 4, -1], [0, -1, 0]])  # edge detection kernel
+        aug = iaa.Convolve(matrix=matrix)
+
+        kpsoi_aug = aug.augment_keypoints(kpsoi)
+
+        # Keypoints should remain unchanged
+        assert len(kpsoi_aug.keypoints) == 2
+        assert kpsoi_aug.keypoints[0].x == 1
+        assert kpsoi_aug.keypoints[0].y == 2
+        assert kpsoi_aug.keypoints[1].x == 3
+        assert kpsoi_aug.keypoints[1].y == 4
 
 
 def _convolve_pickleable_matrix_generator(_img, _nb_channels, random_state):

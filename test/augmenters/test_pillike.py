@@ -341,6 +341,19 @@ class _TestEnhanceFunc(unittest.TestCase):
         func = functools.partial(func, factor=0.2)
         _test_shape_hw1(func)
 
+    def _test_unusual_channel_numbers(self, func, factors=(0.0, 0.5, 1.0, 1.5)):
+        # Test with unusual channel numbers (not 3)
+        channel_counts = [1, 2, 4, 5, 10]
+        for nb_channels in channel_counts:
+            for factor in factors:
+                with self.subTest(nb_channels=nb_channels, factor=factor):
+                    image = np.random.randint(0, 256, size=(10, 10, nb_channels), dtype=np.uint8)
+
+                    image_aug = func(image, factor=factor)
+
+                    assert image_aug.dtype.name == "uint8"
+                    assert image_aug.shape == image.shape
+
 
 class Test_enhance_color(_TestEnhanceFunc):
     def test_by_comparison_with_pil(self):
@@ -354,6 +367,9 @@ class Test_enhance_color(_TestEnhanceFunc):
 
     def test_image_shape_hw1(self):
         self._test_image_shape_hw1(iaa.pillike.enhance_color)
+
+    def test_unusual_channel_numbers(self):
+        self._test_unusual_channel_numbers(iaa.pillike.enhance_color)
 
 
 class Test_enhance_contrast(_TestEnhanceFunc):

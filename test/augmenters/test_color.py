@@ -576,7 +576,6 @@ class TestWithBrightnessChannels(unittest.TestCase):
         assert len(children_lsts[0]) == 1
         assert children_lsts[0][0] is child
 
-    # TODO this test exists two times
     def test_to_deterministic2(self):
         child = iaa.Identity()
         aug = iaa.WithBrightnessChannels([child])
@@ -973,6 +972,32 @@ class TestWithHueAndSaturation(unittest.TestCase):
     def test_pickleable(self):
         aug = iaa.WithHueAndSaturation(iaa.Add((0, 50), seed=1), seed=2)
         runtest_pickleable_uint8_img(aug, iterations=10)
+
+    def test_propagation_hooks_heatmaps(self):
+        # Test that propagation hooks work correctly for heatmaps
+        from imgaug2.augmentables.heatmaps import HeatmapsOnImage
+
+        arr = np.zeros((4, 4), dtype=np.float32)
+        arr[1:3, 1:3] = 0.8
+        hm = HeatmapsOnImage(arr, shape=(4, 4, 3))
+
+        aug = iaa.WithHueAndSaturation(iaa.Identity())
+        hm_aug = aug.augment_heatmaps(hm)
+
+        # Heatmaps should pass through unchanged with Identity
+        assert np.allclose(hm_aug.arr_0to1, hm.arr_0to1)
+
+    def test_propagation_hooks_keypoints(self):
+        # Test that propagation hooks work correctly for keypoints
+        kpsoi = ia.KeypointsOnImage([ia.Keypoint(1, 2)], shape=(4, 4, 3))
+
+        aug = iaa.WithHueAndSaturation(iaa.Identity())
+        kpsoi_aug = aug.augment_keypoints(kpsoi)
+
+        # Keypoints should pass through unchanged
+        assert len(kpsoi_aug.keypoints) == 1
+        assert kpsoi_aug.keypoints[0].x == 1
+        assert kpsoi_aug.keypoints[0].y == 2
 
 
 class TestMultiplyHueAndSaturation(unittest.TestCase):
@@ -1956,7 +1981,7 @@ class TestKMeansColorQuantization(unittest.TestCase):
         mock_change_colorspace = mock.MagicMock()
         mock_change_colorspace.return_value = mock_change_colorspace
         mock_change_colorspace.augment_image.side_effect = _noop
-        mock_change_colorspace._draw_samples.return_value = (None, ["foo"])
+        mock_change_colorspace._draw_to_colorspace.return_value = "foo"
 
         fname = "imgaug2.augmenters.color.ChangeColorspace"
         with mock.patch(fname, mock_change_colorspace):
@@ -2392,7 +2417,7 @@ class TestUniformColorQuantization(TestKMeansColorQuantization):
         mock_change_colorspace = mock.MagicMock()
         mock_change_colorspace.return_value = mock_change_colorspace
         mock_change_colorspace.augment_image.side_effect = _noop
-        mock_change_colorspace._draw_samples.return_value = (None, ["foo"])
+        mock_change_colorspace._draw_to_colorspace.return_value = "foo"
 
         fname = "imgaug2.augmenters.color.ChangeColorspace"
         with mock.patch(fname, mock_change_colorspace):

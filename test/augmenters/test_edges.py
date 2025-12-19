@@ -292,9 +292,6 @@ class TestCanny(unittest.TestCase):
         hthresh_expected[0] = iap.Choice([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).draw_samples(
             (nb_images,), rss[1]
         )
-        # TODO simplify this to rss[2].randint(5, 100+1)
-        #      would currenlty be a bit more ugly, because DiscrUniform
-        #      samples two values for a and b first from rss[2]
         hthresh_expected[1] = iap.DiscreteUniform(5, 100).draw_samples((nb_images,), rss[2])
         hthresh_expected = np.stack(hthresh_expected, axis=-1)
 

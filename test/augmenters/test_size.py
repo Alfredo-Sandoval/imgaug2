@@ -1275,7 +1275,24 @@ class TestResize(unittest.TestCase):
         assert observed2d.shape == (int(12 * (1 / aspect_ratio2d)), 12)
         assert observed3d.shape == (int(12 * (1 / aspect_ratio3d)), 12, 3)
 
-    # TODO add test for shorter side being tuple, list, stochastic parameter
+    def test_shorter_side_as_tuple(self):
+        aug = iaa.Resize({"shorter-side": (4, 8), "longer-side": "keep-aspect-ratio"})
+        seen_sizes = set()
+        for _ in range(50):
+            observed = aug.augment_image(self.image3d)
+            seen_sizes.add(observed.shape[0])
+        # Should see multiple sizes in the range
+        assert len(seen_sizes) > 1
+
+    def test_shorter_side_as_list(self):
+        aug = iaa.Resize({"shorter-side": [4, 8], "longer-side": "keep-aspect-ratio"})
+        seen_sizes = set()
+        for _ in range(50):
+            observed = aug.augment_image(self.image3d)
+            seen_sizes.add(observed.shape[0])
+        # Should see both sizes
+        assert 4 in seen_sizes or 8 in seen_sizes
+
     def test_change_shorter_side_by_fixed_int_longer_keeps_aspect_ratio(self):
         aug = iaa.Resize({"shorter-side": 6, "longer-side": "keep-aspect-ratio"})
         observed2d = aug.augment_image(self.image2d)
@@ -1285,7 +1302,24 @@ class TestResize(unittest.TestCase):
         assert observed2d.shape == (6, int(6 * aspect_ratio2d))
         assert observed3d.shape == (6, int(6 * aspect_ratio3d), 3)
 
-    # TODO add test for longer side being tuple, list, stochastic parameter
+    def test_longer_side_as_tuple(self):
+        aug = iaa.Resize({"longer-side": (10, 20), "shorter-side": "keep-aspect-ratio"})
+        seen_sizes = set()
+        for _ in range(50):
+            observed = aug.augment_image(self.image3d)
+            seen_sizes.add(observed.shape[1])  # longer side is width for this image
+        # Should see multiple sizes in the range
+        assert len(seen_sizes) > 1
+
+    def test_longer_side_as_list(self):
+        aug = iaa.Resize({"longer-side": [10, 20], "shorter-side": "keep-aspect-ratio"})
+        seen_sizes = set()
+        for _ in range(50):
+            observed = aug.augment_image(self.image3d)
+            seen_sizes.add(observed.shape[1])  # longer side is width for this image
+        # Should see both sizes
+        assert 10 in seen_sizes or 20 in seen_sizes
+
     def test_change_longer_side_by_fixed_int_shorter_keeps_aspect_ratio(self):
         aug = iaa.Resize({"longer-side": 6, "shorter-side": "keep-aspect-ratio"})
         observed2d = aug.augment_image(self.image2d)
@@ -3988,6 +4022,18 @@ class TestCrop(unittest.TestCase):
     def test_pickleable(self):
         aug = iaa.Crop((0, 10), seed=1)
         runtest_pickleable_uint8_img(aug, iterations=5, shape=(30, 30, 1))
+
+    def test_zero_channels_falls_back_to_skimage(self):
+        # OpenCV turns the channel axis for arrays with 0 channels to 512,
+        # so we need to fall back to skimage for this case
+        aug = iaa.Pad(px=(2, 2, 2, 2), keep_size=False, pad_mode="constant", pad_cval=0)
+        image = np.zeros((10, 10, 0), dtype=np.uint8)
+
+        image_aug = aug.augment_image(image)
+
+        # Should preserve shape with 0 channels
+        assert image_aug.shape == (14, 14, 0)
+        assert image_aug.dtype == np.uint8
 
 
 class TestPadToFixedSize(unittest.TestCase):

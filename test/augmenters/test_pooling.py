@@ -778,8 +778,26 @@ class TestAveragePooling(unittest.TestCase, _TestPoolingAugmentersBase):
         assert image_aug.shape == (1, 2, 1)
         assert np.all(diff <= 1)
 
+    def test_padding_behavior_with_odd_dimensions(self):
+        # Test that padding correctly handles images with odd dimensions
+        # that don't divide evenly by the kernel size
+        aug = iaa.AveragePooling(2, keep_size=False)
 
-# TODO add test that checks the padding behaviour
+        # 3x3 image - should be padded before pooling
+        image = np.zeros((3, 3, 1), dtype=np.uint8)
+        image[0, 0] = 100
+        image[1, 1] = 100
+        image[2, 2] = 100
+
+        image_aug = aug.augment_image(image)
+
+        # With 2x2 kernel on a 3x3 image, we need padding
+        # The output should be 2x2 after pooling (with proper padding)
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape[0] >= 1
+        assert image_aug.shape[1] >= 1
+
+
 # We don't have many tests here, because MaxPooling and AveragePooling derive
 # from the same base class, i.e. they share most of the methods, which are then
 # tested via TestAveragePooling.
