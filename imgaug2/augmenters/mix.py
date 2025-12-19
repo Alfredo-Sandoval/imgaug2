@@ -20,17 +20,24 @@ from typing import TypeAlias
 
 import numpy as np
 
-RNGInput: TypeAlias = None | int | np.random.Generator | np.random.RandomState
+import imgaug2.random as iarandom
+
+RNGInput: TypeAlias = (
+    None | int | iarandom.RNG | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence
+)
 
 
 def _default_rng(rng: RNGInput = None) -> np.random.Generator:
     if rng is None:
         return np.random.default_rng()
+    if isinstance(rng, iarandom.RNG):
+        return rng.generator
     if isinstance(rng, np.random.Generator):
         return rng
-    if isinstance(rng, np.random.RandomState):
-        seed = int(rng.randint(0, 2**32 - 1))
-        return np.random.default_rng(seed)
+    if isinstance(rng, np.random.BitGenerator):
+        return np.random.Generator(rng)
+    if isinstance(rng, np.random.SeedSequence):
+        return np.random.default_rng(rng)
     return np.random.default_rng(int(rng))
 
 

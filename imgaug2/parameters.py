@@ -651,20 +651,14 @@ class StochasticParameter(metaclass=ABCMeta):
 
     def draw_sample(
         self,
-        random_state: int
-        | iarandom.RNG
-        | np.random.Generator
-        | np.random.BitGenerator
-        | np.random.SeedSequence
-        | np.random.RandomState
-        | None = None,
+        random_state: iarandom.RNGInput = None,
     ) -> Any:  # noqa: ANN401
         """
         Draws a single sample value from this parameter.
 
         Parameters
         ----------
-        random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+        random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
             A seed or random number generator to use during the sampling
             process. If ``None``, the global RNG will be used.
             See also :func:`~imgaug2.augmenters.meta.Augmenter.__init__`
@@ -684,13 +678,7 @@ class StochasticParameter(metaclass=ABCMeta):
     def draw_samples(
         self,
         size: int | tuple[int, ...],
-        random_state: int
-        | iarandom.RNG
-        | np.random.Generator
-        | np.random.BitGenerator
-        | np.random.SeedSequence
-        | np.random.RandomState
-        | None = None,
+        random_state: iarandom.RNGInput = None,
     ) -> Any:  # noqa: ANN401
         """Draw one or more samples from the parameter.
 
@@ -699,7 +687,7 @@ class StochasticParameter(metaclass=ABCMeta):
         size : tuple of int or int
             Number of samples by dimension.
 
-        random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+        random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
             A seed or random number generator to use during the sampling
             process. If ``None``, the global RNG will be used.
             See also :func:`~imgaug2.augmenters.meta.Augmenter.__init__`

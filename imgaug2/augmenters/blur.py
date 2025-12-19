@@ -419,6 +419,16 @@ def blur_avg_(image: Array, k: int | tuple[int, int]) -> Array:
     else:
         k_height, k_width = k, k
 
+    from imgaug2.mlx._core import is_mlx_array
+    if is_mlx_array(image):
+        if image.size == 0:
+            return image
+        if k_height <= 0 or k_width <= 0 or (k_height, k_width) == (1, 1):
+            return image
+        import imgaug2.mlx as mlx
+
+        return mlx.average_blur(image, (int(k_height), int(k_width)))
+
     shape = image.shape
     if 0 in shape:
         return image
@@ -584,13 +594,13 @@ class GaussianBlur(meta.Augmenter):
             * If a ``StochasticParameter``, then ``N`` samples will be drawn
               from that parameter per ``N`` input images.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -719,13 +729,13 @@ class AverageBlur(meta.Augmenter):
               above. This leads to different values for height and width of
               the kernel.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -886,13 +896,13 @@ class MedianBlur(meta.Augmenter):
               a sampled value is not odd, then that value will be increased
               by ``1``.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -962,10 +972,17 @@ class MedianBlur(meta.Augmenter):
         images = batch.images
         nb_images = len(images)
         samples = self.k.draw_samples((nb_images,), random_state=random_state)
+        from imgaug2.mlx._core import is_mlx_array
+
         for i, (image, ksize) in enumerate(zip(images, samples, strict=True)):
             has_zero_sized_axes = image.size == 0
             if ksize > 1 and not has_zero_sized_axes:
                 ksize = ksize + 1 if ksize % 2 == 0 else ksize
+                if is_mlx_array(image):
+                    import imgaug2.mlx as mlx
+
+                    batch.images[i] = mlx.median_blur(image, ksize=int(ksize))
+                    continue
                 if image.ndim == 2 or image.shape[-1] <= 512:
                     image_aug = cv2.medianBlur(_normalize_cv2_input_arr_(image), ksize)
                     # cv2.medianBlur() removes channel axis for single-channel
@@ -1065,13 +1082,13 @@ class BilateralBlur(meta.Augmenter):
               from that parameter per ``N`` input images, each representing
               the diameter for the n-th image. Expected to be discrete.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -1229,13 +1246,13 @@ class MotionBlur(iaa_convolutional.Convolve):
         continuous/smooth as `angle` is changed, particularly around multiple
         of ``45`` degrees.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -1290,6 +1307,13 @@ class MotionBlur(iaa_convolutional.Convolve):
             tuple_to_uniform=True,
             list_to_choice=True,
         )
+
+        # Keep parameters accessible for downstream code/tests and for parity
+        # with the original imgaug API.
+        self.k = k_param
+        self.angle = angle_param
+        self.direction = direction_param
+        self.order = order
 
         matrix_gen = _MotionBlurMatrixGenerator(k_param, angle_param, direction_param, order)
 
@@ -1382,13 +1406,13 @@ class MeanShiftBlur(meta.Augmenter):
               per batch for ``(N,)`` values with ``N`` denoting the number of
               images.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.

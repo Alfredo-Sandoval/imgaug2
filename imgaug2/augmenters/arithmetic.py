@@ -902,7 +902,7 @@ def cutout(
     fill_per_channel : number or bool, optional
         See :func:`~imgaug2.augmenters.arithmetic.cutout_`.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.arithmetic.cutout_`.
 
     Returns
@@ -973,7 +973,7 @@ def cutout_(
         Whether to fill in a channelwise fashion.
         If number then a value ``>=0.5`` will be interpreted as ``True``.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         A random number generator to sample random values from.
         Usually an integer seed value or an ``RNG`` instance.
         See :class:`imgaug2.random.RNG` for details.
@@ -1841,13 +1841,13 @@ class Add(meta.Augmenter):
         with values between ``0.0`` and ``1.0``, where values ``>0.5`` will
         lead to per-channel behaviour (i.e. same as ``True``).
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -2002,13 +2002,13 @@ class AddElementwise(meta.Augmenter):
         with values between ``0.0`` and ``1.0``, where values ``>0.5`` will
         lead to per-channel behaviour (i.e. same as ``True``).
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -2148,13 +2148,13 @@ class AdditiveGaussianNoise(AddElementwise):
         with values between ``0.0`` and ``1.0``, where values ``>0.5`` will
         lead to per-channel behaviour (i.e. same as ``True``).
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -2281,13 +2281,13 @@ class AdditiveLaplaceNoise(AddElementwise):
         with values between ``0.0`` and ``1.0``, where values ``>0.5`` will
         lead to per-channel behaviour (i.e. same as ``True``).
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -2400,13 +2400,13 @@ class AdditivePoissonNoise(AddElementwise):
         with values between ``0.0`` and ``1.0``, where values ``>0.5`` will
         lead to per-channel behaviour (i.e. same as ``True``).
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -2509,13 +2509,13 @@ class Multiply(meta.Augmenter):
         with values between ``0.0`` and ``1.0``, where values ``>0.5`` will
         lead to per-channel behaviour (i.e. same as ``True``).
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -2661,13 +2661,13 @@ class MultiplyElementwise(meta.Augmenter):
         with values between ``0.0`` and ``1.0``, where values ``>0.5`` will
         lead to per-channel behaviour (i.e. same as ``True``).
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -2924,7 +2924,7 @@ class Cutout(meta.Augmenter):
     deterministic : bool, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.bit_generator.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.bit_generator.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     Examples
@@ -3188,13 +3188,13 @@ class Dropout(MultiplyElementwise):
         with values between ``0.0`` and ``1.0``, where values ``>0.5`` will
         lead to per-channel behaviour (i.e. same as ``True``).
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -3392,13 +3392,13 @@ class CoarseDropout(MultiplyElementwise):
         less than ``2``, otherwise one may end up with a ``1x1`` low resolution
         mask, leading easily to the whole image being dropped.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -3541,13 +3541,13 @@ class Dropout2d(meta.Augmenter):
         will not be dropped, even if ``p=1.0``. Set to ``0`` to allow dropping
         all channels.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -3740,13 +3740,13 @@ class TotalDropout(meta.Augmenter):
               parameter, you can usually do ``imgaug2.parameters.Binomial(1-p)``
               to convert parameter `p` to a 0/1 representation.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -3907,13 +3907,13 @@ class ReplaceElementwise(meta.Augmenter):
         with values between ``0.0`` and ``1.0``, where values ``>0.5`` will
         lead to per-channel behaviour (i.e. same as ``True``).
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -4067,13 +4067,13 @@ class SaltAndPepper(ReplaceElementwise):
         with values between ``0.0`` and ``1.0``, where values ``>0.5`` will
         lead to per-channel behaviour (i.e. same as ``True``).
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -4145,13 +4145,13 @@ class ImpulseNoise(SaltAndPepper):
               sampled from that parameter per image. Any value ``>0.5`` in
               that mask will be replaced with impulse noise noise.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -4277,13 +4277,13 @@ class CoarseSaltAndPepper(ReplaceElementwise):
         less than ``2``, otherwise one may end up with a ``1x1`` low resolution
         mask, leading easily to the whole image being replaced.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -4392,13 +4392,13 @@ class Salt(ReplaceElementwise):
         with values between ``0.0`` and ``1.0``, where values ``>0.5`` will
         lead to per-channel behaviour (i.e. same as ``True``).
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -4524,13 +4524,13 @@ class CoarseSalt(ReplaceElementwise):
         less than ``2``, otherwise one may end up with a ``1x1`` low resolution
         mask, leading easily to the whole image being replaced.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -4631,13 +4631,13 @@ class Pepper(ReplaceElementwise):
         with values between ``0.0`` and ``1.0``, where values ``>0.5`` will
         lead to per-channel behaviour (i.e. same as ``True``).
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -4758,13 +4758,13 @@ class CoarsePepper(ReplaceElementwise):
         otherwise one may end up with a ``1x1`` low resolution mask, leading
         easily to the whole image being replaced.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -4895,13 +4895,13 @@ class Invert(meta.Augmenter):
         ``N`` and interpreted as ``True`` if ``>0.5``.
         If `threshold` is ``None`` this parameter has no effect.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -5121,13 +5121,13 @@ class Solarize(Invert):
     invert_above_threshold : bool or float or imgaug2.parameters.StochasticParameter, optional
         See :class:`Invert`.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -5221,13 +5221,13 @@ def ContrastNormalization(
         with values between ``0.0`` and ``1.0``, where values ``>0.5`` will
         lead to per-channel behaviour (i.e. same as ``True``).
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -5305,13 +5305,13 @@ class JpegCompression(meta.Augmenter):
               from that parameter per ``N`` input images, each representing the
               compression for the ``n``-th image.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.

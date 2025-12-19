@@ -86,13 +86,13 @@ class FastSnowyLandscape(meta.Augmenter):
         The source colorspace of the input images.
         See :func:`~imgaug2.augmenters.color.ChangeColorspace.__init__`.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -352,13 +352,13 @@ class CloudLayer(meta.Augmenter):
             * If a ``StochasticParameter``, then a value will be sampled
               per image from that parameter.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -590,13 +590,13 @@ class Clouds(meta.SomeOf):
 
     Parameters
     ----------
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -700,13 +700,13 @@ class Fog(CloudLayer):
 
     Parameters
     ----------
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -901,13 +901,13 @@ class SnowflakesLayer(meta.Augmenter):
         will be clipped to be within that range. This prevents extreme
         values for very small or large images.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -1252,13 +1252,13 @@ class Snowflakes(meta.SomeOf):
             * If a ``StochasticParameter``, then a value will be sampled
               per image from that parameter.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -1374,13 +1374,13 @@ class RainLayer(SnowflakesLayer):
     blur_sigma_limits : tuple of float, optional
         Same as in :class:`~imgaug2.augmenters.weather.SnowflakesLayer`.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -1501,13 +1501,13 @@ class Rain(meta.SomeOf):
     speed : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         See :class:`~imgaug2.augmenters.weather.RainLayer`.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.

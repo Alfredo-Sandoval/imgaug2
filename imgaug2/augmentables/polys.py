@@ -39,15 +39,7 @@ if TYPE_CHECKING:
 
 _TDefault = TypeVar("_TDefault")
 ShapeLike = Shape | NDArray[np.generic]
-RandomStateLike = (
-    None
-    | int
-    | iarandom.RNG
-    | np.random.Generator
-    | np.random.BitGenerator
-    | np.random.SeedSequence
-    | np.random.RandomState
-)
+RNGInputLike = iarandom.RNGInput
 Points2DLike = Sequence[Sequence[float]] | NDArray[np.number]
 
 
@@ -63,7 +55,7 @@ def recover_psois_(
     psois: PolygonsOnImage,
     psois_orig: PolygonsOnImage,
     recoverer: _ConcavePolygonRecoverer,
-    random_state: RandomStateLike,
+    random_state: RNGInputLike,
 ) -> PolygonsOnImage: ...
 
 
@@ -72,7 +64,7 @@ def recover_psois_(
     psois: list[PolygonsOnImage],
     psois_orig: list[PolygonsOnImage],
     recoverer: _ConcavePolygonRecoverer,
-    random_state: RandomStateLike,
+    random_state: RNGInputLike,
 ) -> list[PolygonsOnImage]: ...
 
 
@@ -80,7 +72,7 @@ def recover_psois_(
     psois: PolygonsOnImage | list[PolygonsOnImage],
     psois_orig: PolygonsOnImage | list[PolygonsOnImage],
     recoverer: _ConcavePolygonRecoverer,
-    random_state: RandomStateLike,
+    random_state: RNGInputLike,
 ) -> PolygonsOnImage | list[PolygonsOnImage]:
     """Apply a polygon recoverer to input polygons in-place.
 
@@ -97,7 +89,7 @@ def recover_psois_(
     recoverer : imgaug2.augmentables.polys._ConcavePolygonRecoverer
         The polygon recoverer used to repair broken input polygons.
 
-    random_state : None or int or RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState
+    random_state : None or int or RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence
         An RNG to use during the polygon recovery.
 
     Returns
@@ -2413,7 +2405,11 @@ def _convert_points_to_shapely_line_string(
 
     # interpolate points between each consecutive pair of points
     if interpolate > 0:
-        points_tuples = interpolate_points(points_tuples, interpolate)
+        # For polygons (>=3 points), interpolate also across the closing segment
+        # (last->first), even if `closed` is False. The `closed` argument only
+        # controls whether the returned LineString repeats the first point at
+        # the end.
+        points_tuples = interpolate_points(points_tuples, interpolate, closed=(len(points) >= 3))
 
     # close if requested and not yet closed
     # used here intentionally `points` instead of `points_tuples`
@@ -2476,7 +2472,7 @@ class _ConcavePolygonRecoverer:
         self.decimals = 4
 
     def recover_from(
-        self, new_exterior: Points2DLike, old_polygon: Polygon, random_state: RandomStateLike = 0
+        self, new_exterior: Points2DLike, old_polygon: Polygon, random_state: RNGInputLike = 0
     ) -> Polygon:
         assert isinstance(new_exterior, list) or (
             ia.is_np_array(new_exterior) and new_exterior.ndim == 2 and new_exterior.shape[1] == 2

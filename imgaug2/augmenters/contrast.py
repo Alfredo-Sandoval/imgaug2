@@ -502,13 +502,13 @@ class GammaContrast(_ContrastFuncWrapper):
         float ``p``, then for ``p`` percent of all images `per_channel` will
         be treated as ``True``, otherwise as ``False``.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -617,13 +617,13 @@ class SigmoidContrast(_ContrastFuncWrapper):
         float ``p``, then for ``p`` percent of all images `per_channel` will
         be treated as ``True``, otherwise as ``False``.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -726,13 +726,13 @@ class LogContrast(_ContrastFuncWrapper):
         float ``p``, then for ``p`` percent of all images `per_channel` will
         be treated as ``True``, otherwise as ``False``.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -820,13 +820,13 @@ class LinearContrast(_ContrastFuncWrapper):
         float ``p``, then for ``p`` percent of all images `per_channel` will
         be treated as ``True``, otherwise as ``False``.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -1072,13 +1072,13 @@ class AllChannelsCLAHE(meta.Augmenter):
         float ``p``, then for ``p`` percent of all images `per_channel` will
         be treated as ``True``, otherwise as ``False``.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -1327,13 +1327,13 @@ class CLAHE(meta.Augmenter):
         to all channels of an input image (without colorspace conversion),
         see ``imgaug2.augmenters.contrast.AllChannelsCLAHE``.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -1496,13 +1496,13 @@ class AllChannelsHistogramEqualization(meta.Augmenter):
 
     Parameters
     ----------
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -1637,13 +1637,13 @@ class HistogramEqualization(meta.Augmenter):
         (without colorspace conversion), see
         ``imgaug2.augmenters.contrast.AllChannelsHistogramEqualization``.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.

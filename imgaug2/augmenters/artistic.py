@@ -324,13 +324,13 @@ class Cartoon(meta.Augmenter):
         The source colorspace. Use one of ``imgaug2.augmenters.color.CSPACE_*``.
         Defaults to ``RGB``.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.

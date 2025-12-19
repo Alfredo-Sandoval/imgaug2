@@ -336,7 +336,7 @@ class TestConvolve(unittest.TestCase):
     def test_lambda_with_changing_matrices(self):
         # changing matrices when using callable
         def _matrix_generator(_img, _nb_channels, random_state):
-            return np.float32([[iarandom.polyfill_integers(random_state, 0, 5)]])
+            return np.float32([[random_state.integers(0, 5)]])
 
         expected = []
         for i in range(5):

@@ -1027,7 +1027,6 @@ class _IImageDestination(metaclass=ABCMeta):
     """A destination which receives images to save."""
 
     @legacy(version="0.4.0")
-    @abstractmethod
     def on_batch(self, batch: _BatchInAugmentation) -> None:
         """Signal to the destination that a new batch is processed.
 
@@ -1040,6 +1039,9 @@ class _IImageDestination(metaclass=ABCMeta):
             A batch to which the next ``receive()`` call may correspond.
 
         """
+        # Backwards-compatible default: many destinations only care about the
+        # image itself and don't need per-batch notifications.
+        _ = batch
 
     @legacy(version="0.4.0")
     @abstractmethod
@@ -1158,13 +1160,13 @@ class _SaveDebugImage(meta.Augmenter):
         The schedule to use to determine for which batches an image is
         supposed to be generated.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -1244,13 +1246,13 @@ class SaveDebugImageEveryNBatches(_SaveDebugImage):
         executed conditionally or re-instantiated, it may not see all batches
         or the counter may be wrong in other ways.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.

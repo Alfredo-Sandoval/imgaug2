@@ -125,9 +125,18 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
         gen = enumerate(zip(images, kernel_sizes_h, kernel_sizes_w, strict=True))
         for i, (image, ksize_h, ksize_w) in gen:
             if ksize_h >= 2 or ksize_w >= 2:
+                from imgaug2.mlx._core import is_mlx_array
+
                 image_pooled = self._pool_image(image, ksize_h, ksize_w)
                 if self.keep_size:
-                    image_pooled = ia.imresize_single_image(image_pooled, image.shape[0:2])
+                    if is_mlx_array(image_pooled):
+                        import imgaug2.mlx as mlx
+
+                        image_pooled = mlx.geometry.resize(
+                            image_pooled, image.shape[0:2], order=1
+                        )
+                    else:
+                        image_pooled = ia.imresize_single_image(image_pooled, image.shape[0:2])
                 images[i] = image_pooled
 
         return images
@@ -278,13 +287,13 @@ class AveragePooling(_AbstractPoolingBase):
         to the input image's size, i.e. the augmenter's output shape is always
         identical to the input shape.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -349,6 +358,12 @@ class AveragePooling(_AbstractPoolingBase):
         )
 
     def _pool_image(self, image: ImageArray, kernel_size_h: int, kernel_size_w: int) -> ImageArray:
+        from imgaug2.mlx._core import is_mlx_array
+
+        if is_mlx_array(image):
+            import imgaug2.mlx as mlx
+
+            return mlx.avg_pool(image, (kernel_size_h, kernel_size_w))
         return ia.avg_pool(image, (kernel_size_h, kernel_size_w))
 
 
@@ -406,13 +421,13 @@ class MaxPooling(_AbstractPoolingBase):
         to the input image's size, i.e. the augmenter's output shape is always
         identical to the input shape.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -477,6 +492,12 @@ class MaxPooling(_AbstractPoolingBase):
         )
 
     def _pool_image(self, image: ImageArray, kernel_size_h: int, kernel_size_w: int) -> ImageArray:
+        from imgaug2.mlx._core import is_mlx_array
+
+        if is_mlx_array(image):
+            import imgaug2.mlx as mlx
+
+            return mlx.max_pool(image, (kernel_size_h, kernel_size_w))
         return ia.max_pool_(image, (kernel_size_h, kernel_size_w))
 
 
@@ -534,13 +555,13 @@ class MinPooling(_AbstractPoolingBase):
         to the input image's size, i.e. the augmenter's output shape is always
         identical to the input shape.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -605,6 +626,12 @@ class MinPooling(_AbstractPoolingBase):
         )
 
     def _pool_image(self, image: ImageArray, kernel_size_h: int, kernel_size_w: int) -> ImageArray:
+        from imgaug2.mlx._core import is_mlx_array
+
+        if is_mlx_array(image):
+            import imgaug2.mlx as mlx
+
+            return mlx.min_pool(image, (kernel_size_h, kernel_size_w))
         return ia.min_pool_(image, (kernel_size_h, kernel_size_w))
 
 
@@ -662,13 +689,13 @@ class MedianPooling(_AbstractPoolingBase):
         to the input image's size, i.e. the augmenter's output shape is always
         identical to the input shape.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -735,4 +762,12 @@ class MedianPooling(_AbstractPoolingBase):
     def _pool_image(self, image: ImageArray, kernel_size_h: int, kernel_size_w: int) -> ImageArray:
         # TODO extend pool to support pad_mode and set it here
         #      to reflection padding
+        from imgaug2.mlx._core import is_mlx_array
+
+        if is_mlx_array(image):
+            import imgaug2.mlx as mlx
+
+            image_np = mlx.to_numpy(image)
+            image_np = ia.median_pool(image_np, (kernel_size_h, kernel_size_w))
+            return mlx.to_mlx(image_np)
         return ia.median_pool(image, (kernel_size_h, kernel_size_w))

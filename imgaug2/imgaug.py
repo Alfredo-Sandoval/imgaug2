@@ -483,20 +483,19 @@ def seed(entropy: int | None = None, seedval: int | None = None) -> None:
 
 @legacy(deprecated=True, replacement="imgaug2.random.normalize_generator")
 def normalize_random_state(random_state: RNGInput) -> NumpyGenerator:
-    # NOTE: Despite the name, this returns a numpy Generator/RandomState.
+    # NOTE: Despite the name, this returns a numpy Generator.
     # The legacy name is kept for backwards compatibility.
     """Normalize various inputs to a numpy random generator.
 
     Parameters
     ----------
-    random_state : None or int or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.bit_generator.SeedSequence or numpy.random.RandomState
+    random_state : None or int or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.bit_generator.SeedSequence
         See :func:`~imgaug2.random.normalize_generator`.
 
     Returns
     -------
-    numpy.random.Generator or numpy.random.RandomState
-        In numpy <=1.16 a ``RandomState``, in 1.17+ a ``Generator`` (even if
-        the input was a ``RandomState``).
+    numpy.random.Generator
+        Generator initialized from the provided input.
 
     """
     import imgaug2.random
@@ -505,7 +504,6 @@ def normalize_random_state(random_state: RNGInput) -> NumpyGenerator:
 
 
 @legacy(deprecated=True, replacement="imgaug2.random.get_global_rng")
-@deprecated("imgaug2.random.get_global_rng")
 def current_random_state() -> RNG:
     """Get or create the current global RNG of imgaug2.
 
@@ -539,9 +537,8 @@ def new_random_state(seed: int | None = None, fully_random: bool = False) -> RNG
 
     Returns
     -------
-    numpy.random.Generator or numpy.random.RandomState
-        In numpy <=1.16 a ``RandomState``, in 1.17+ a ``Generator``.
-        Both are initialized with the provided seed.
+    numpy.random.Generator
+        Generator initialized with the provided seed.
 
     """
     import imgaug2.random
@@ -576,7 +573,7 @@ def copy_random_state(random_state: NumpyGenerator, force_copy: bool = False) ->
 
     Parameters
     ----------
-    random_state : numpy.random.Generator or numpy.random.RandomState
+    random_state : numpy.random.Generator
         The generator to copy.
 
     force_copy : bool, optional
@@ -586,8 +583,8 @@ def copy_random_state(random_state: NumpyGenerator, force_copy: bool = False) ->
 
     Returns
     -------
-    rs_copy : numpy.random.RandomState
-        The copied random state.
+    numpy.random.Generator
+        The copied generator.
 
     """
     import imgaug2.random
@@ -604,14 +601,13 @@ def derive_random_state(random_state: NumpyGenerator) -> NumpyGenerator:
 
     Parameters
     ----------
-    random_state : numpy.random.Generator or numpy.random.RandomState
+    random_state : numpy.random.Generator
         The generator from which to derive a new child generator.
 
     Returns
     -------
-    numpy.random.Generator or numpy.random.RandomState
-        In numpy <=1.16 a ``RandomState``, in 1.17+ a ``Generator``.
-        In both cases a derived child generator.
+    numpy.random.Generator
+        A derived child generator.
 
     """
     import imgaug2.random
@@ -626,7 +622,7 @@ def derive_random_states(random_state: NumpyGenerator, n: int = 1) -> list[Numpy
 
     Parameters
     ----------
-    random_state : numpy.random.Generator or numpy.random.RandomState
+    random_state : numpy.random.Generator
         The generator from which to derive new child generators.
 
     n : int, optional
@@ -634,10 +630,8 @@ def derive_random_states(random_state: NumpyGenerator, n: int = 1) -> list[Numpy
 
     Returns
     -------
-    list of numpy.random.Generator or list of numpy.random.RandomState
-        In numpy <=1.16 a ``list`` of  ``RandomState`` s,
-        in 1.17+ a ``list`` of ``Generator`` s.
-        In both cases lists of derived child generators.
+    list of numpy.random.Generator
+        List of derived child generators.
 
     """
     import imgaug2.random
@@ -652,7 +646,7 @@ def forward_random_state(random_state: RNG) -> None:
 
     Parameters
     ----------
-    random_state : numpy.random.Generator or numpy.random.RandomState
+    random_state : numpy.random.Generator
         Generator of which to advance the internal state.
 
     """
@@ -865,8 +859,7 @@ def draw_text(
     # PIL/asarray returns read only array
     if not img_np.flags["WRITEABLE"]:
         try:
-            # this seems to no longer work with np 1.16 (or was pillow
-            # updated?)
+            # This seems to no longer work with recent NumPy/Pillow combos.
             img_np.setflags(write=True)
         except ValueError as ex:
             if "cannot set WRITEABLE flag to True of this array" in str(ex):

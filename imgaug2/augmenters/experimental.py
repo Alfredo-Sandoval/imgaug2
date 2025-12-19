@@ -42,7 +42,7 @@ Image: TypeAlias = Array
 
 
 # ---------------------------------------------------------------------
-# RNG adapter (works with numpy RandomState, numpy Generator, imgaug RNG)
+# RNG adapter (works with numpy Generator and imgaug RNG)
 # ---------------------------------------------------------------------
 
 

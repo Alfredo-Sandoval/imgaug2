@@ -261,7 +261,7 @@ value = param.draw_sample()
 # Sample array
 values = param.draw_samples(100)
 
-# With specific random state
-rs = np.random.RandomState(42)
-value = param.draw_sample(random_state=rs)
+# With specific random generator
+rng = np.random.default_rng(42)
+value = param.draw_sample(random_state=rng)
 ```

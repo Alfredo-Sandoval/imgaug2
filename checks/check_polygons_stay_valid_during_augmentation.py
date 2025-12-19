@@ -41,9 +41,9 @@ def main():
 
 
 def create_random_polygon(height, width, seed):
-    rs = np.random.RandomState(seed)
-    nb_points = rs.randint(3, 50)
-    coords = rs.rand(nb_points, 2)
+    rng = np.random.default_rng(seed)
+    nb_points = int(rng.integers(3, 50))
+    coords = rng.random((nb_points, 2))
     coords = (coords * 2 - 0.5)  # allow coords outside of the image plane
     coords[:, 0] *= width
     coords[:, 1] *= height
@@ -51,7 +51,7 @@ def create_random_polygon(height, width, seed):
     if poly.is_valid:
         return poly
 
-    new_seed = rs.randint(ia.SEED_MIN_VALUE, ia.SEED_MAX_VALUE)
+    new_seed = int(rng.integers(ia.SEED_MIN_VALUE, ia.SEED_MAX_VALUE))
     return create_random_polygon(height, width, new_seed)
 
 

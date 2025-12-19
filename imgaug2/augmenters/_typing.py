@@ -71,11 +71,11 @@ _AffineSamplingResultType: TypeAlias = _AffineSamplingResultVar
 # ---- RNG inputs -----------------------------------------------------------
 
 if TYPE_CHECKING:
-    from numpy.random import BitGenerator, Generator, RandomState, SeedSequence
+    from numpy.random import BitGenerator, Generator, SeedSequence
 
     from imgaug2.random import RNG
 
-    RNGInput: TypeAlias = None | int | RNG | Generator | BitGenerator | SeedSequence | RandomState
+    RNGInput: TypeAlias = None | int | RNG | Generator | BitGenerator | SeedSequence
 else:
     # Used only for runtime type-alias binding; due to `from __future__ import annotations`,
     # function annotations are stored as strings and won't evaluate this at runtime.

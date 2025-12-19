@@ -237,7 +237,7 @@ class Augmenter(metaclass=ABCMeta):
 
     Parameters
     ----------
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Seed to use for this augmenter's random number generator (RNG) or
         alternatively an RNG itself. Setting this parameter allows to
         control/influence the random number sampling of this specific
@@ -262,8 +262,6 @@ class Augmenter(metaclass=ABCMeta):
               :class:`~imgaug2.random.Generator`. Then
               similar behaviour to :class:`~imgaug2.random.Generator`
               parameters.
-            * If :class:`~imgaug2.random.RandomState`: Similar behaviour to
-              :class:`~imgaug2.random.Generator`. Outdated in numpy 1.17+.
 
         If a new bit generator has to be created, it will be an instance
         of :class:`numpy.random.SFC64`.
@@ -277,7 +275,7 @@ class Augmenter(metaclass=ABCMeta):
         If ``None``, ``UnnamedX`` will be used as the name, where ``X``
         is the Augmenter's class name.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -1864,39 +1862,13 @@ class Augmenter(metaclass=ABCMeta):
 
         If `return_batch` was set to ``False`` (the default), the method will
         return a tuple of augmentables. It will return the same types of
-        augmentables (but in augmented form) as input into the method. This
-        behaviour is partly specific to the python version:
-
-        * In **python 3.6+** (if ``return_batch=False``):
-
-            * Any number of augmentables may be provided as input.
-            * None of the provided named arguments *has to be* `image` or
-              `images` (but of coarse you *may* provide them).
-            * The return order matches the order of the named arguments, e.g.
-              ``x_aug, y_aug, z_aug = augment(X=x, Y=y, Z=z)``.
-
-        * In **python <3.6** (if ``return_batch=False``):
-
-            * One or two augmentables may be used as input, not more than that.
-            * One of the input arguments has to be `image` or `images`.
-            * The augmented images are *always* returned first, independent
-              of the input argument order, e.g.
-              ``a_aug, b_aug = augment(b=b, images=a)``. This also means
-              that the output of the function can only be one of the
-              following three cases: a batch, list/array of images,
-              tuple of images and something (like images + segmentation maps).
+        augmentables (but in augmented form) as input into the method. The
+        return order matches the order of the named arguments, e.g.
+        ``x_aug, y_aug, z_aug = augment(X=x, Y=y, Z=z)``.
 
         If `return_batch` was set to ``True``, an instance of
         :class:`~imgaug2.augmentables.batches.UnnormalizedBatch` will be
-        returned. The output is the same for all python version and any
-        number or combination of augmentables may be provided.
-
-        So, to keep code downward compatible for python <3.6, use one of the
-        following three options:
-
-          * Use ``batch = augment(images=X, ..., return_batch=True)``.
-          * Call ``images = augment(images=X)``.
-          * Call ``images, other = augment(images=X, <something_else>=Y)``.
+        returned.
 
         All augmentables must be provided as named arguments.
         E.g. ``augment(<array>)`` will crash, but ``augment(images=<array>)``
@@ -1906,13 +1878,9 @@ class Augmenter(metaclass=ABCMeta):
         ----------
         image : None or (H,W,C) ndarray or (H,W) ndarray, optional
             The image to augment. Only this or `images` can be set, not both.
-            If `return_batch` is ``False`` and the python version is below 3.6,
-            either this or `images` **must** be provided.
 
         images : None or (N,H,W,C) ndarray or (N,H,W) ndarray or iterable of (H,W,C) ndarray or iterable of (H,W) ndarray, optional
             The images to augment. Only this or `image` can be set, not both.
-            If `return_batch` is ``False`` and the python version is below 3.6,
-            either this or `image` **must** be provided.
 
         heatmaps : None or (N,H,W,C) ndarray or imgaug2.augmentables.heatmaps.HeatmapsOnImage or iterable of (H,W,C) ndarray or iterable of imgaug2.augmentables.heatmaps.HeatmapsOnImage, optional
             The heatmaps to augment.
@@ -1991,10 +1959,7 @@ class Augmenter(metaclass=ABCMeta):
 
         return_batch : bool, optional
             Whether to return an instance of
-            :class:`~imgaug2.augmentables.batches.UnnormalizedBatch`. If the
-            python version is below 3.6 and more than two augmentables were
-            provided (e.g. images, keypoints and polygons), then this must be
-            set to ``True``. Otherwise an error will be raised.
+            :class:`~imgaug2.augmentables.batches.UnnormalizedBatch`.
 
         hooks : None or imgaug2.imgaug2.HooksImages, optional
             Hooks object to dynamically interfere with the augmentation process.
@@ -2007,9 +1972,7 @@ class Augmenter(metaclass=ABCMeta):
             If `return_batch` was set to ``False``, a tuple of augmentables
             will be returned, e.g. ``(augmented images, augmented keypoints)``.
             The datatypes match the input datatypes of the corresponding named
-            arguments. In python <3.6, augmented images are always the first
-            entry in the returned tuple. In python 3.6+ the order matches the
-            order of the named arguments.
+            arguments. The order matches the order of the named arguments.
 
         Examples
         --------
@@ -2025,12 +1988,7 @@ class Augmenter(metaclass=ABCMeta):
         Create a single image and a set of two keypoints on it, then
         augment both by applying a random rotation between ``-25`` deg and
         ``+25`` deg. The sampled rotation value is automatically aligned
-        between image and keypoints. Note that in python <3.6, augmented
-        images will always be returned first, independent of the order of
-        the named input arguments. So
-        ``keypoints_aug, images_aug = aug.augment(keypoints=keypoints,
-        image=image)`` would **not** be correct (but in python 3.6+ it would
-        be).
+        between image and keypoints.
 
         >>> import numpy as np
         >>> import imgaug2 as ia
@@ -2060,8 +2018,7 @@ class Augmenter(metaclass=ABCMeta):
         :class:`~imgaug2.augmentables.batches.UnnormalizedBatch` from which the
         augmented data can be retrieved via ``batch_aug.images_aug``,
         ``batch_aug.keypoints_aug``, and ``batch_aug.bounding_boxes_aug``.
-        In python 3.6+, `return_batch` can be kept at ``False`` and the
-        augmented data can be retrieved as
+        The augmented data can be retrieved as
         ``images_aug, keypoints_aug, bbs_aug = augment(...)``.
 
         """
@@ -2499,7 +2456,7 @@ class Augmenter(metaclass=ABCMeta):
 
         Parameters
         ----------
-        entropy : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+        entropy : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
             A seed or random number generator that is used to derive new
             random number generators for this augmenter and its children.
             If an ``int`` is provided, it will be interpreted as a seed.
@@ -3226,13 +3183,13 @@ class Sequential(Augmenter, list):
         Whether to apply the child augmenters in random order.
         If ``True``, the order will be randomly sampled once per batch.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -3427,13 +3384,13 @@ class SomeOf(Augmenter, list):
         Whether to apply the child augmenters in random order.
         If ``True``, the order will be randomly sampled once per batch.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -3684,13 +3641,13 @@ class OneOf(SomeOf):
     children : imgaug2.augmenters.meta.Augmenter or list of imgaug2.augmenters.meta.Augmenter
         The choices of augmenters to apply.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -3794,13 +3751,13 @@ class Sometimes(Augmenter):
         If this is a list of augmenters, it will be converted to a
         :class:`~imgaug2.augmenters.meta.Sequential`.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -3954,13 +3911,13 @@ class WithChannels(Augmenter):
         One or more augmenters to apply to images, after the channels
         are extracted.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -4224,13 +4181,13 @@ class Identity(Augmenter):
 
     Parameters
     ----------
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -4290,13 +4247,13 @@ class Noop(Identity):
 
     Parameters
     ----------
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -4447,13 +4404,13 @@ class Lambda(Augmenter):
         corner vertices to keypoints and calling `func_keypoints`.
 
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -4861,13 +4818,13 @@ class AssertLambda(Lambda):
         :func:`~imgaug2.augmenters.meta.Augmenter._augment_line_strings`.
 
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -5072,13 +5029,13 @@ class AssertShape(Lambda):
         ``.shape`` attribute, i.e. the shape of the corresponding image.
 
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -5348,13 +5305,13 @@ class ChannelShuffle(Augmenter):
         (Values start at ``0``. All channel indices in the list must exist in
         each image.)
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -5531,13 +5488,13 @@ class RemoveCBAsByOutOfImageFraction(Augmenter):
         where ``fraction_{actual}`` denotes the estimated out of image
         fraction.
 
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.
@@ -5651,13 +5608,13 @@ class ClipCBAsToImagePlanes(Augmenter):
 
     Parameters
     ----------
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
     name : None or str, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
 
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
         Its usage will not yet cause a deprecation warning,
         but it is still recommended to use `seed` now.

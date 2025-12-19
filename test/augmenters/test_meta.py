@@ -35,9 +35,6 @@ from imgaug2.testutils import (
     runtest_pickleable_uint8_img,
 )
 
-IS_PY36_OR_HIGHER = True
-
-
 class _InplaceDummyAugmenterImgsArray(iaa.meta.Augmenter):
     def __init__(self, addval):
         super().__init__()
@@ -4448,7 +4445,6 @@ class TestAugmenter_augment(unittest.TestCase):
         )
         assert len(set(shapes_images)) == 2
 
-    @unittest.skipIf(not IS_PY36_OR_HIGHER, "Behaviour is only supported in python 3.6+")
     def test_py_gte_36_two_outputs_none_of_them_images(self):
         aug = iaa.Identity()
         keypoints = ia.data.quokka_keypoints((128, 128), extract="square")
@@ -4459,7 +4455,6 @@ class TestAugmenter_augment(unittest.TestCase):
         assert_cbaois_equal(keypoints_aug[0], keypoints)
         assert_cbaois_equal(polygons_aug[0], polygons)
 
-    @unittest.skipIf(not IS_PY36_OR_HIGHER, "Behaviour is only supported in python 3.6+")
     def test_py_gte_36_two_outputs_none_of_them_images_inverted(self):
         aug = iaa.Identity()
         keypoints = ia.data.quokka_keypoints((128, 128), extract="square")
@@ -4470,7 +4465,6 @@ class TestAugmenter_augment(unittest.TestCase):
         assert_cbaois_equal(keypoints_aug[0], keypoints)
         assert_cbaois_equal(polygons_aug[0], polygons)
 
-    @unittest.skipIf(not IS_PY36_OR_HIGHER, "Behaviour is only supported in python 3.6+")
     def test_py_gte_36_two_outputs_inverted_order_heatmaps(self):
         aug = iaa.Identity()
         image = ia.data.quokka((128, 128), extract="square")
@@ -4480,7 +4474,6 @@ class TestAugmenter_augment(unittest.TestCase):
         assert np.array_equal(images_aug[0], image)
         assert np.allclose(heatmaps_aug[0].arr_0to1, heatmaps.arr_0to1)
 
-    @unittest.skipIf(not IS_PY36_OR_HIGHER, "Behaviour is only supported in python 3.6+")
     def test_py_gte_36_two_outputs_inverted_order_segmaps(self):
         aug = iaa.Identity()
         image = ia.data.quokka((128, 128), extract="square")
@@ -4491,7 +4484,6 @@ class TestAugmenter_augment(unittest.TestCase):
         assert np.array_equal(images_aug[0], image)
         assert np.array_equal(segmaps_aug[0].arr, segmaps.arr)
 
-    @unittest.skipIf(not IS_PY36_OR_HIGHER, "Behaviour is only supported in python 3.6+")
     def test_py_gte_36_two_outputs_inverted_order_keypoints(self):
         aug = iaa.Identity()
         image = ia.data.quokka((128, 128), extract="square")
@@ -4502,7 +4494,6 @@ class TestAugmenter_augment(unittest.TestCase):
         assert np.array_equal(images_aug[0], image)
         assert_cbaois_equal(keypoints_aug[0], keypoints)
 
-    @unittest.skipIf(not IS_PY36_OR_HIGHER, "Behaviour is only supported in python 3.6+")
     def test_py_gte_36_two_outputs_inverted_order_bbs(self):
         aug = iaa.Identity()
         image = ia.data.quokka((128, 128), extract="square")
@@ -4513,7 +4504,6 @@ class TestAugmenter_augment(unittest.TestCase):
         assert np.array_equal(images_aug[0], image)
         assert_cbaois_equal(bbs_aug[0], bbs)
 
-    @unittest.skipIf(not IS_PY36_OR_HIGHER, "Behaviour is only supported in python 3.6+")
     def test_py_gte_36_two_outputs_inverted_order_polygons(self):
         aug = iaa.Identity()
         image = ia.data.quokka((128, 128), extract="square")
@@ -4524,7 +4514,6 @@ class TestAugmenter_augment(unittest.TestCase):
         assert np.array_equal(images_aug[0], image)
         assert_cbaois_equal(polygons_aug[0], polygons)
 
-    @unittest.skipIf(not IS_PY36_OR_HIGHER, "Behaviour is only supported in python 3.6+")
     def test_py_gte_36_two_outputs_inverted_order_line_strings(self):
         aug = iaa.Identity()
         image = ia.data.quokka((128, 128), extract="square")
@@ -4538,7 +4527,6 @@ class TestAugmenter_augment(unittest.TestCase):
         assert np.array_equal(images_aug[0], image)
         assert_cbaois_equal(lsoi_aug[0], lsoi)
 
-    @unittest.skipIf(not IS_PY36_OR_HIGHER, "Behaviour is only supported in python 3.6+")
     def test_py_gte_36_three_inputs_expected_order(self):
         aug = iaa.Identity()
         image = ia.data.quokka((128, 128), extract="square")
@@ -4553,7 +4541,6 @@ class TestAugmenter_augment(unittest.TestCase):
         assert np.allclose(heatmaps_aug[0].arr_0to1, heatmaps.arr_0to1)
         assert np.array_equal(segmaps_aug[0].arr, segmaps.arr)
 
-    @unittest.skipIf(not IS_PY36_OR_HIGHER, "Behaviour is only supported in python 3.6+")
     def test_py_gte_36_three_inputs_expected_order2(self):
         aug = iaa.Identity()
         segmaps = ia.data.quokka_segmentation_map((128, 128), extract="square")
@@ -4568,7 +4555,6 @@ class TestAugmenter_augment(unittest.TestCase):
         assert_cbaois_equal(keypoints_aug[0], keypoints)
         assert_cbaois_equal(polygons_aug[0], polygons)
 
-    @unittest.skipIf(not IS_PY36_OR_HIGHER, "Behaviour is only supported in python 3.6+")
     def test_py_gte_36_three_inputs_inverted_order(self):
         aug = iaa.Identity()
         image = ia.data.quokka((128, 128), extract="square")
@@ -4583,7 +4569,6 @@ class TestAugmenter_augment(unittest.TestCase):
         assert np.allclose(heatmaps_aug[0].arr_0to1, heatmaps.arr_0to1)
         assert np.array_equal(segmaps_aug[0].arr, segmaps.arr)
 
-    @unittest.skipIf(not IS_PY36_OR_HIGHER, "Behaviour is only supported in python 3.6+")
     def test_py_gte_36_three_inputs_inverted_order2(self):
         aug = iaa.Identity()
         segmaps = ia.data.quokka_segmentation_map((128, 128), extract="square")
@@ -4598,7 +4583,6 @@ class TestAugmenter_augment(unittest.TestCase):
         assert_cbaois_equal(keypoints_aug[0], keypoints)
         assert_cbaois_equal(polygons_aug[0], polygons)
 
-    @unittest.skipIf(not IS_PY36_OR_HIGHER, "Behaviour is only supported in python 3.6+")
     def test_py_gte_36_all_inputs_expected_order(self):
         aug = iaa.Identity()
         image = ia.data.quokka((128, 128), extract="square")
@@ -4631,7 +4615,6 @@ class TestAugmenter_augment(unittest.TestCase):
         assert_cbaois_equal(polygons_aug[0], polygons)
         assert_cbaois_equal(lsoi_aug[0], lsoi)
 
-    @unittest.skipIf(not IS_PY36_OR_HIGHER, "Behaviour is only supported in python 3.6+")
     def test_py_gte_36_all_inputs_inverted_order(self):
         aug = iaa.Identity()
         image = ia.data.quokka((128, 128), extract="square")
@@ -4663,37 +4646,6 @@ class TestAugmenter_augment(unittest.TestCase):
         assert_cbaois_equal(bbs_aug[0], bbs)
         assert_cbaois_equal(polygons_aug[0], polygons)
         assert_cbaois_equal(lsoi_aug[0], lsoi)
-
-    @unittest.skipIf(IS_PY36_OR_HIGHER, "Test checks behaviour for python <=3.5")
-    def test_py_lte_35_calls_without_images_fail(self):
-        aug = iaa.Identity()
-        keypoints = ia.data.quokka_keypoints((128, 128), extract="square")
-        polygons = ia.data.quokka_polygons((128, 128), extract="square")
-
-        got_exception = False
-        try:
-            _ = aug.augment(keypoints=[keypoints], polygons=[polygons])
-        except Exception as exc:
-            msg = "Requested two outputs from augment() that were not 'images'"
-            assert msg in str(exc)
-            got_exception = True
-        assert got_exception
-
-    @unittest.skipIf(IS_PY36_OR_HIGHER, "Test checks behaviour for python <=3.5")
-    def test_py_lte_35_calls_with_more_than_three_args_fail(self):
-        aug = iaa.Identity()
-        image = ia.data.quokka((128, 128), extract="square")
-        heatmaps = ia.data.quokka_heatmap((128, 128), extract="square")
-        segmaps = ia.data.quokka_segmentation_map((128, 128), extract="square")
-
-        got_exception = False
-        try:
-            _ = aug.augment(images=[image], heatmaps=[heatmaps], segmentation_maps=[segmaps])
-        except Exception as exc:
-            assert "Requested more than two outputs" in str(exc)
-            got_exception = True
-        assert got_exception
-
 
 class TestAugmenter___call__(unittest.TestCase):
     def setUp(self):

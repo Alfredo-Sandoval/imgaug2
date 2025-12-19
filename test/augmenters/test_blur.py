@@ -1440,8 +1440,8 @@ class TestBilateralBlur(unittest.TestCase):
 
     def test_blur_modifies_image(self):
         # Create image with noise/texture that bilateral blur will smooth
-        rng = np.random.RandomState(42)
-        image = rng.randint(0, 256, size=(64, 64, 3), dtype=np.uint8)
+        rng = np.random.default_rng(42)
+        image = rng.integers(0, 256, size=(64, 64, 3), dtype=np.uint8)
 
         aug = iaa.BilateralBlur(d=9, sigma_color=75, sigma_space=75)
         image_aug = aug(image=image)
