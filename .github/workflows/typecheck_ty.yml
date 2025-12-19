@@ -20,7 +20,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          # Install the project (runtime deps) so `ty` can resolve imports.
+          # This avoids drift between `requirements.txt` and `pyproject.toml`.
+          python -m pip install -e .
           python -m pip install ty
 
       - name: Type check

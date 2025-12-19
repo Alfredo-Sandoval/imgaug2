@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches:
+      # Repo default branch is `master`, but keep `main` as a fallback.
+      - master
       - main
 
 jobs:
