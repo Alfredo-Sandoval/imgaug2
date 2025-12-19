@@ -6,12 +6,12 @@ import functools
 import importlib
 import math
 import numbers
-from pathlib import Path
-
 import sys
 import types
 import typing
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Iterator, Sequence
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeAlias, TypeVar
 
 import cv2
 import numpy as np
@@ -25,11 +25,12 @@ try:
 except ImportError:
     numba = None
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     # `imgaug2.imgaug` dynamically creates these names (see `MOVED`) to preserve
     # backwards compatibility. Statically declare them so type checkers (ty) can
     # resolve imports like `from imgaug2.imgaug import pad`.
-    from typing import Any
+    from imgaug2.augmenters.meta import Augmenter
+    from imgaug2.random import RNG, NumpyGenerator, RNGInput
 
     BackgroundAugmenter: Any
     BatchLoader: Any
@@ -72,6 +73,20 @@ ALL = "ALL"
 
 DEFAULT_FONT_FP = str(Path(__file__).parent / "DejaVuSans.ttf")
 
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+_T = TypeVar("_T")
+
+Number: TypeAlias = float | int
+SizeParam: TypeAlias = Number | tuple[Number, Number] | list[Number]
+ImagesInput: TypeAlias = np.ndarray | Sequence[np.ndarray]
+BlockSize: TypeAlias = int | tuple[int, int] | tuple[int, int, int] | list[int]
+Interpolation: TypeAlias = str | int | None
+NestedIterable: TypeAlias = _T | list["NestedIterable[_T]"] | tuple["NestedIterable[_T]", ...]
+Parents: TypeAlias = Sequence["Augmenter"]
+HookActivator: TypeAlias = Callable[[ImagesInput, "Augmenter", Parents, bool], bool]
+HookProcessor: TypeAlias = Callable[[ImagesInput, "Augmenter", Parents], ImagesInput]
+
 
 # To check if a dtype instance is among these dtypes, use e.g.
 # `dtype.type in NP_FLOAT_TYPES` (do not use `dtype in NP_FLOAT_TYPES` as that
@@ -79,7 +94,7 @@ DEFAULT_FONT_FP = str(Path(__file__).parent / "DejaVuSans.ttf")
 #
 # NumPy 2.0 removed `np.sctypes`. We derive the scalar type sets from the
 # stable `np.typecodes` mapping instead.
-def _get_np_scalar_types(typecodes_key):
+def _get_np_scalar_types(typecodes_key: str) -> set[type[np.generic]]:
     types = set()
     for code in np.typecodes.get(typecodes_key, ""):
         try:
@@ -134,7 +149,7 @@ class DeprecationWarning(Warning):  # pylint: disable=redefined-builtin
 
 
 @legacy
-def warn(msg, category=UserWarning, stacklevel=2):
+def warn(msg: str, category: type[Warning] = UserWarning, stacklevel: int = 2) -> None:
     """Generate a a warning with stacktrace.
 
     Parameters
@@ -157,7 +172,7 @@ def warn(msg, category=UserWarning, stacklevel=2):
 
 
 @legacy
-def warn_deprecated(msg, stacklevel=2):
+def warn_deprecated(msg: str, stacklevel: int = 2) -> None:
     """Generate a non-silent deprecation warning with stacktrace.
 
     The used warning is ``imgaug2.imgaug2.DeprecationWarning``.
@@ -201,13 +216,19 @@ class deprecated:  # pylint: disable=invalid-name
 
     """
 
-    def __init__(self, alt_func=None, behavior="warn", removed_version=None, comment=None):
+    def __init__(
+        self,
+        alt_func: str | None = None,
+        behavior: Literal["warn", "raise"] = "warn",
+        removed_version: str | None = None,
+        comment: str | None = None,
+    ) -> None:
         self.alt_func = alt_func
         self.behavior = behavior
         self.removed_version = removed_version
         self.comment = comment
 
-    def __call__(self, func):
+    def __call__(self, func: Callable[_P, _R]) -> Callable[_P, _R]:
         alt_msg = None
         if self.alt_func is not None:
             alt_msg = f"Use ``{self.alt_func}`` instead."
@@ -225,7 +246,7 @@ class deprecated:  # pylint: disable=invalid-name
         )
 
         @functools.wraps(func)
-        def wrapped(*args, **kwargs):
+        def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
             # getargpec() is deprecated
             # pylint: disable=deprecated-method
 
@@ -235,12 +256,14 @@ class deprecated:  # pylint: disable=invalid-name
 
             arg_names = inspect.getfullargspec(func)[0]
 
+            func_name = getattr(func, "__name__", func.__class__.__name__)
+
             if "self" in arg_names or "cls" in arg_names:
                 main_msg = (
-                    f"Method ``{args[0].__class__.__name__}.{func.__name__}()`` is deprecated."
+                    f"Method ``{args[0].__class__.__name__}.{func_name}()`` is deprecated."
                 )
             else:
-                main_msg = f"Function ``{func.__name__}()`` is deprecated."
+                main_msg = f"Function ``{func_name}()`` is deprecated."
 
             msg = (main_msg + " " + addendum).rstrip(" ").replace("``", "`")
 
@@ -497,7 +520,7 @@ def is_generator(val: object) -> bool:
 
 
 @legacy
-def flatten(nested_iterable):
+def flatten(nested_iterable: NestedIterable[_T]) -> Iterator[_T]:
     """Flatten arbitrarily nested lists/tuples.
 
     Code partially taken from https://stackoverflow.com/a/10824420.
@@ -527,7 +550,7 @@ def flatten(nested_iterable):
 
 # TODO no longer used anywhere. deprecate?
 @legacy
-def caller_name():
+def caller_name() -> str:
     """Return the name of the caller, e.g. a function.
 
     Returns
@@ -541,7 +564,7 @@ def caller_name():
 
 
 @legacy
-def seed(entropy=None, seedval=None):
+def seed(entropy: int | None = None, seedval: int | None = None) -> None:
     """Set the seed of imgaug's global RNG.
 
     The global RNG controls most of the "randomness" in imgaug2.
@@ -588,7 +611,9 @@ def seed(entropy=None, seedval=None):
 
 @legacy(deprecated=True, replacement="imgaug2.random.normalize_generator")
 @deprecated("imgaug2.random.normalize_generator")
-def normalize_random_state(random_state):
+def normalize_random_state(random_state: RNGInput) -> NumpyGenerator:
+    # NOTE: Despite the name, this returns a numpy Generator/RandomState.
+    # The legacy name is kept for backwards compatibility.
     """Normalize various inputs to a numpy random generator.
 
     Parameters
@@ -610,7 +635,7 @@ def normalize_random_state(random_state):
 
 @legacy(deprecated=True, replacement="imgaug2.random.get_global_rng")
 @deprecated("imgaug2.random.get_global_rng")
-def current_random_state():
+def current_random_state() -> RNG:
     """Get or create the current global RNG of imgaug2.
 
     Note that the first call to this function will create a global RNG.
@@ -628,7 +653,7 @@ def current_random_state():
 
 @legacy
 @deprecated("imgaug2.random.convert_seed_to_rng")
-def new_random_state(seed=None, fully_random=False):
+def new_random_state(seed: int | None = None, fully_random: bool = False) -> RNG:
     """Create a new numpy random number generator.
 
     Parameters
@@ -661,7 +686,7 @@ def new_random_state(seed=None, fully_random=False):
 # TODO seems to not be used anywhere anymore
 @legacy
 @deprecated("imgaug2.random.convert_seed_to_rng")
-def dummy_random_state():
+def dummy_random_state() -> RNG:
     """Create a dummy random state using a seed of ``1``.
 
     Returns
@@ -677,7 +702,7 @@ def dummy_random_state():
 
 @legacy
 @deprecated("imgaug2.random.copy_generator_unless_global_rng")
-def copy_random_state(random_state, force_copy=False):
+def copy_random_state(random_state: NumpyGenerator, force_copy: bool = False) -> NumpyGenerator:
     """Copy an existing numpy (random number) generator.
 
     Parameters
@@ -705,7 +730,7 @@ def copy_random_state(random_state, force_copy=False):
 
 @legacy
 @deprecated("imgaug2.random.derive_generator_")
-def derive_random_state(random_state):
+def derive_random_state(random_state: NumpyGenerator) -> NumpyGenerator:
     """Derive a child numpy random generator from another one.
 
     Parameters
@@ -727,7 +752,7 @@ def derive_random_state(random_state):
 
 @legacy
 @deprecated("imgaug2.random.derive_generators_")
-def derive_random_states(random_state, n=1):
+def derive_random_states(random_state: NumpyGenerator, n: int = 1) -> list[NumpyGenerator]:
     """Derive child numpy random generators from another one.
 
     Parameters
@@ -748,12 +773,12 @@ def derive_random_states(random_state, n=1):
     """
     import imgaug2.random
 
-    return imgaug2.random.derive_generators_(random_state, n=n)
+    return list(imgaug2.random.derive_generators_(random_state, n=n))
 
 
 @legacy
 @deprecated("imgaug2.random.advance_generator_")
-def forward_random_state(random_state):
+def forward_random_state(random_state: RNG) -> None:
     """Advance a numpy random generator's internal state.
 
     Parameters
@@ -769,7 +794,7 @@ def forward_random_state(random_state):
 
 # TODO change this to some atan2 stuff?
 @legacy
-def angle_between_vectors(v1, v2):
+def angle_between_vectors(v1: np.ndarray, v2: np.ndarray) -> float:
     """Calculcate the angle in radians between vectors `v1` and `v2`.
 
     From
@@ -813,7 +838,16 @@ def angle_between_vectors(v1, v2):
 # TODO this might also be covered by augmentables.utils or
 #      augmentables.polys/lines
 @legacy
-def compute_line_intersection_point(x1, y1, x2, y2, x3, y3, x4, y4):
+def compute_line_intersection_point(
+    x1: Number,
+    y1: Number,
+    x2: Number,
+    y2: Number,
+    x3: Number,
+    y3: Number,
+    x4: Number,
+    y4: Number,
+) -> tuple[Number, Number] | bool:
     """Compute the intersection point of two lines.
 
     Taken from https://stackoverflow.com/a/20679579 .
@@ -862,7 +896,10 @@ def compute_line_intersection_point(x1, y1, x2, y2, x3, y3, x4, y4):
     """
 
     # pylint: disable=invalid-name
-    def _make_line(point1, point2):
+    def _make_line(
+        point1: tuple[Number, Number],
+        point2: tuple[Number, Number],
+    ) -> tuple[Number, Number, Number]:
         line_y = point1[1] - point2[1]
         line_x = point2[0] - point1[0]
         slope = point1[0] * point2[1] - point2[0] * point1[1]
@@ -883,7 +920,14 @@ def compute_line_intersection_point(x1, y1, x2, y2, x3, y3, x4, y4):
 
 # TODO replace by cv2.putText()?
 @legacy
-def draw_text(img, y, x, text, color=(0, 255, 0), size=25):
+def draw_text(
+    img: np.ndarray,
+    y: int,
+    x: int,
+    text: str,
+    color: Sequence[int] = (0, 255, 0),
+    size: int = 25,
+) -> np.ndarray:
     """Draw text on an image.
 
     This uses by default DejaVuSans as its font, which is included in this
@@ -973,7 +1017,11 @@ def draw_text(img, y, x, text, color=(0, 255, 0), size=25):
 
 # TODO rename sizes to size?
 @legacy
-def imresize_many_images(images, sizes=None, interpolation=None):
+def imresize_many_images(
+    images: ImagesInput,
+    sizes: SizeParam | None = None,
+    interpolation: Interpolation = None,
+) -> np.ndarray | list[np.ndarray]:
     """Resize each image in a list or array to a specified size.
 
     **Supported dtypes**:
@@ -1067,7 +1115,9 @@ def imresize_many_images(images, sizes=None, interpolation=None):
     # we just do nothing if the input contains zero images
     # one could also argue that an exception would be appropriate here
     if len(images) == 0:
-        return images
+        if isinstance(images, np.ndarray):
+            return images
+        return list(images)
 
     # verify that sizes contains only values >0
     if is_single_number(sizes) and sizes <= 0:
@@ -1228,7 +1278,7 @@ def imresize_many_images(images, sizes=None, interpolation=None):
     return result
 
 
-def _assert_two_or_three_dims(shape):
+def _assert_two_or_three_dims(shape: np.ndarray | Sequence[int]) -> None:
     if hasattr(shape, "shape"):
         shape = shape.shape
     assert len(shape) in [2, 3], (
@@ -1238,7 +1288,11 @@ def _assert_two_or_three_dims(shape):
 
 
 @legacy
-def imresize_single_image(image, sizes, interpolation=None):
+def imresize_single_image(
+    image: np.ndarray,
+    sizes: SizeParam,
+    interpolation: Interpolation = None,
+) -> np.ndarray:
     """Resize a single image.
 
     **Supported dtypes**:
@@ -1277,7 +1331,15 @@ def imresize_single_image(image, sizes, interpolation=None):
 
 
 @legacy
-def pool(arr, block_size, func, pad_mode="constant", pad_cval=0, preserve_dtype=True, cval=None):
+def pool(
+    arr: np.ndarray,
+    block_size: BlockSize,
+    func: Callable[..., np.ndarray | float],
+    pad_mode: str = "constant",
+    pad_cval: Number = 0,
+    preserve_dtype: bool = True,
+    cval: Number | None = None,
+) -> np.ndarray:
     """Resize an array by pooling values within blocks.
 
     **Supported dtypes**:
@@ -1403,16 +1465,16 @@ def pool(arr, block_size, func, pad_mode="constant", pad_cval=0, preserve_dtype=
 # Added in 0.5.0.
 @legacy
 def _pool_dispatcher_(
-    arr,
-    block_size,
-    func_uint8,
-    blockfunc,
-    pad_mode="edge",
-    pad_cval=255,
-    preserve_dtype=True,
-    cval=None,
-    copy=False,
-):
+    arr: np.ndarray,
+    block_size: BlockSize,
+    func_uint8: Callable[..., np.ndarray],
+    blockfunc: Callable[..., np.ndarray | float],
+    pad_mode: str = "edge",
+    pad_cval: Number = 255,
+    preserve_dtype: bool = True,
+    cval: Number | None = None,
+    copy: bool = False,
+) -> np.ndarray:
     if not isinstance(block_size, (tuple, list)):
         block_size = (block_size, block_size)
 
@@ -1441,7 +1503,14 @@ def _pool_dispatcher_(
 
 
 @legacy
-def avg_pool(arr, block_size, pad_mode="reflect", pad_cval=128, preserve_dtype=True, cval=None):
+def avg_pool(
+    arr: np.ndarray,
+    block_size: BlockSize,
+    pad_mode: str = "reflect",
+    pad_cval: Number = 128,
+    preserve_dtype: bool = True,
+    cval: Number | None = None,
+) -> np.ndarray:
     """Resize an array using average pooling.
 
     Defaults to ``pad_mode="reflect"`` to ensure that padded values do not
@@ -1503,7 +1572,12 @@ def avg_pool(arr, block_size, pad_mode="reflect", pad_cval=128, preserve_dtype=T
 
 # Added in 0.5.0.
 @legacy
-def _avg_pool_uint8(arr, block_size, pad_mode="reflect", pad_cval=128):
+def _avg_pool_uint8(
+    arr: np.ndarray,
+    block_size: Sequence[int],
+    pad_mode: str = "reflect",
+    pad_cval: Number = 128,
+) -> np.ndarray:
     from imgaug2.augmenters.size import pad_to_multiples_of
 
     ndim_in = arr.ndim
@@ -1530,7 +1604,14 @@ def _avg_pool_uint8(arr, block_size, pad_mode="reflect", pad_cval=128):
 
 
 @legacy
-def max_pool(arr, block_size, pad_mode="edge", pad_cval=0, preserve_dtype=True, cval=None):
+def max_pool(
+    arr: np.ndarray,
+    block_size: BlockSize,
+    pad_mode: str = "edge",
+    pad_cval: Number = 0,
+    preserve_dtype: bool = True,
+    cval: Number | None = None,
+) -> np.ndarray:
     """Resize an array using max-pooling.
 
     Defaults to ``pad_mode="edge"`` to ensure that padded values do not affect
@@ -1583,7 +1664,14 @@ def max_pool(arr, block_size, pad_mode="edge", pad_cval=0, preserve_dtype=True, 
 
 
 @legacy
-def max_pool_(arr, block_size, pad_mode="edge", pad_cval=0, preserve_dtype=True, cval=None):
+def max_pool_(
+    arr: np.ndarray,
+    block_size: BlockSize,
+    pad_mode: str = "edge",
+    pad_cval: Number = 0,
+    preserve_dtype: bool = True,
+    cval: Number | None = None,
+) -> np.ndarray:
     """Resize an array in-place using max-pooling.
 
     Defaults to ``pad_mode="edge"`` to ensure that padded values do not affect
@@ -1642,7 +1730,13 @@ def max_pool_(arr, block_size, pad_mode="edge", pad_cval=0, preserve_dtype=True,
 
 
 @legacy
-def min_pool(arr, block_size, pad_mode="edge", pad_cval=255, preserve_dtype=True):
+def min_pool(
+    arr: np.ndarray,
+    block_size: BlockSize,
+    pad_mode: str = "edge",
+    pad_cval: Number = 255,
+    preserve_dtype: bool = True,
+) -> np.ndarray:
     """Resize an array using min-pooling.
 
     Defaults to ``pad_mode="edge"`` to ensure that padded values do not affect
@@ -1691,7 +1785,13 @@ def min_pool(arr, block_size, pad_mode="edge", pad_cval=255, preserve_dtype=True
 
 
 @legacy
-def min_pool_(arr, block_size, pad_mode="edge", pad_cval=255, preserve_dtype=True):
+def min_pool_(
+    arr: np.ndarray,
+    block_size: BlockSize,
+    pad_mode: str = "edge",
+    pad_cval: Number = 255,
+    preserve_dtype: bool = True,
+) -> np.ndarray:
     """Resize an array in-place using min-pooling.
 
     Defaults to ``pad_mode="edge"`` to ensure that padded values do not affect
@@ -1747,19 +1847,35 @@ def min_pool_(arr, block_size, pad_mode="edge", pad_cval=255, preserve_dtype=Tru
 
 # Added in 0.5.0.
 @legacy
-def _min_pool_uint8_(arr, block_size, pad_mode="edge", pad_cval=255):
+def _min_pool_uint8_(
+    arr: np.ndarray,
+    block_size: Sequence[int],
+    pad_mode: str = "edge",
+    pad_cval: Number = 255,
+) -> np.ndarray:
     return _minmax_pool_uint8_(arr, block_size, cv2.erode, pad_mode=pad_mode, pad_cval=pad_cval)
 
 
 # Added in 0.5.0.
 @legacy
-def _max_pool_uint8_(arr, block_size, pad_mode="edge", pad_cval=0):
+def _max_pool_uint8_(
+    arr: np.ndarray,
+    block_size: Sequence[int],
+    pad_mode: str = "edge",
+    pad_cval: Number = 0,
+) -> np.ndarray:
     return _minmax_pool_uint8_(arr, block_size, cv2.dilate, pad_mode=pad_mode, pad_cval=pad_cval)
 
 
 # Added in 0.5.0.
 @legacy
-def _minmax_pool_uint8_(arr, block_size, func, pad_mode, pad_cval):
+def _minmax_pool_uint8_(
+    arr: np.ndarray,
+    block_size: Sequence[int],
+    func: Callable[..., np.ndarray],
+    pad_mode: str,
+    pad_cval: Number,
+) -> np.ndarray:
     from imgaug2.augmenters.size import pad_to_multiples_of
 
     ndim_in = arr.ndim
@@ -1794,7 +1910,13 @@ def _minmax_pool_uint8_(arr, block_size, func, pad_mode, pad_cval):
 
 
 @legacy
-def median_pool(arr, block_size, pad_mode="reflect", pad_cval=128, preserve_dtype=True):
+def median_pool(
+    arr: np.ndarray,
+    block_size: BlockSize,
+    pad_mode: str = "reflect",
+    pad_cval: Number = 128,
+    preserve_dtype: bool = True,
+) -> np.ndarray:
     """Resize an array using median-pooling.
 
     Defaults to ``pad_mode="reflect"`` to ensure that padded values do not
@@ -1875,7 +1997,12 @@ def median_pool(arr, block_size, pad_mode="reflect", pad_cval=128, preserve_dtyp
 # pool methods that support (int, int).
 # Added in 0.5.0.
 @legacy
-def _median_pool_cv2(arr, block_size, pad_mode, pad_cval):
+def _median_pool_cv2(
+    arr: np.ndarray,
+    block_size: int,
+    pad_mode: str,
+    pad_cval: Number,
+) -> np.ndarray:
     from imgaug2.augmenters.size import pad_to_multiples_of
 
     ndim_in = arr.ndim
@@ -1897,7 +2024,7 @@ def _median_pool_cv2(arr, block_size, pad_mode, pad_cval):
 
 
 @legacy
-def draw_grid(images, rows=None, cols=None):
+def draw_grid(images: ImagesInput, rows: int | None = None, cols: int | None = None) -> np.ndarray:
     """Combine multiple images into a single grid-like image.
 
     Calling this function with four images of the same shape and ``rows=2``,
@@ -2012,7 +2139,7 @@ def draw_grid(images, rows=None, cols=None):
 
 
 @legacy
-def show_grid(images, rows=None, cols=None):
+def show_grid(images: ImagesInput, rows: int | None = None, cols: int | None = None) -> None:
     """Combine multiple images into a single image and plot the result.
 
     This will show a window of the results of :func:`~imgaug2.imgaug2.draw_grid`.
@@ -2041,7 +2168,10 @@ def show_grid(images, rows=None, cols=None):
 
 
 @legacy
-def imshow(image, backend=IMSHOW_BACKEND_DEFAULT):
+def imshow(
+    image: np.ndarray,
+    backend: Literal["matplotlib", "cv2"] = IMSHOW_BACKEND_DEFAULT,
+) -> None:
     """Show an image in a window.
 
     **Supported dtypes**:
@@ -2106,7 +2236,7 @@ def imshow(image, backend=IMSHOW_BACKEND_DEFAULT):
 
 
 @legacy
-def do_assert(condition, message="Assertion failed."):
+def do_assert(condition: bool, message: str = "Assertion failed.") -> None:
     """Assert that a ``condition`` holds or raise an ``Exception`` otherwise.
 
     This was added because `assert` statements are removed in optimized code.
@@ -2128,7 +2258,7 @@ def do_assert(condition, message="Assertion failed."):
 
 # Added in 0.4.0.
 @legacy
-def _normalize_cv2_input_arr_(arr):
+def _normalize_cv2_input_arr_(arr: np.ndarray) -> np.ndarray:
     flags = arr.flags
     if not flags["OWNDATA"]:
         arr = np.copy(arr)
@@ -2139,7 +2269,7 @@ def _normalize_cv2_input_arr_(arr):
 
 
 @legacy
-def apply_lut(image, table):
+def apply_lut(image: np.ndarray, table: np.ndarray | list[np.ndarray]) -> np.ndarray:
     """Map an input image to a new one using a lookup table.
 
     Added in 0.4.0.
@@ -2168,7 +2298,7 @@ def apply_lut(image, table):
 # TODO make this function compatible with short max sized images, probably
 #      isn't right now
 @legacy
-def apply_lut_(image, table):
+def apply_lut_(image: np.ndarray, table: np.ndarray | list[np.ndarray]) -> np.ndarray:
     """Map an input image in-place to a new one using a lookup table.
 
     Added in 0.4.0.
@@ -2256,10 +2386,13 @@ def apply_lut_(image, table):
 
 # Added in 0.5.0.
 @legacy
-def _identity_decorator(*_dec_args, **_dec_kwargs):
-    def _decorator(func):
+def _identity_decorator(  # noqa: ANN401 - signature mirrors numba.jit and accepts any args.
+    *_dec_args: Any,  # noqa: ANN401 - decorator args are intentionally unconstrained.
+    **_dec_kwargs: Any,  # noqa: ANN401 - decorator kwargs are intentionally unconstrained.
+) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
+    def _decorator(func: Callable[_P, _R]) -> Callable[_P, _R]:
         @functools.wraps(func)
-        def _wrapper(*args, **kwargs):
+        def _wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
             return func(*args, **kwargs)
 
         return _wrapper
@@ -2349,13 +2482,25 @@ class HooksImages:
 
     """
 
-    def __init__(self, activator=None, propagator=None, preprocessor=None, postprocessor=None):
+    def __init__(
+        self,
+        activator: HookActivator | None = None,
+        propagator: HookActivator | None = None,
+        preprocessor: HookProcessor | None = None,
+        postprocessor: HookProcessor | None = None,
+    ) -> None:
         self.activator = activator
         self.propagator = propagator
         self.preprocessor = preprocessor
         self.postprocessor = postprocessor
 
-    def is_activated(self, images, augmenter, parents, default):
+    def is_activated(
+        self,
+        images: ImagesInput,
+        augmenter: Augmenter,
+        parents: Parents,
+        default: bool,
+    ) -> bool:
         """Estimate whether an augmenter may be executed.
 
         This also affects propagation of data to child augmenters.
@@ -2371,7 +2516,13 @@ class HooksImages:
             return default
         return self.activator(images, augmenter, parents, default)
 
-    def is_propagating(self, images, augmenter, parents, default):
+    def is_propagating(
+        self,
+        images: ImagesInput,
+        augmenter: Augmenter,
+        parents: Parents,
+        default: bool,
+    ) -> bool:
         """Estimate whether an augmenter may call its children.
 
         This function decides whether an augmenter with children is allowed
@@ -2391,7 +2542,12 @@ class HooksImages:
             return default
         return self.propagator(images, augmenter, parents, default)
 
-    def preprocess(self, images, augmenter, parents):
+    def preprocess(
+        self,
+        images: ImagesInput,
+        augmenter: Augmenter,
+        parents: Parents,
+    ) -> ImagesInput:
         """Preprocess input data per augmenter before augmentation.
 
         Returns
@@ -2404,7 +2560,12 @@ class HooksImages:
             return images
         return self.preprocessor(images, augmenter, parents)
 
-    def postprocess(self, images, augmenter, parents):
+    def postprocess(
+        self,
+        images: ImagesInput,
+        augmenter: Augmenter,
+        parents: Parents,
+    ) -> ImagesInput:
         """Postprocess input data per augmenter after augmentation.
 
         Returns
@@ -2468,13 +2629,13 @@ class HooksBoundingBoxes(HooksImages):
 
 
 @legacy
-def _is_moved_class_name(name):
+def _is_moved_class_name(name: str) -> bool:
     name_stripped = name.lstrip("_")
     return bool(name_stripped) and name_stripped[0].isupper()
 
 
 class _MovedClassProxyMeta(type):
-    def _resolve_target(cls):
+    def _resolve_target(cls) -> type:
         target = getattr(cls, "_moved_target", None)
         if target is None:
             module = importlib.import_module(cls._moved_module_name_new)
@@ -2482,30 +2643,40 @@ class _MovedClassProxyMeta(type):
             cls._moved_target = target
         return target
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(  # noqa: ANN401 - dynamic proxy forwards to target signature.
+        cls,
+        *args: Any,  # noqa: ANN401 - proxy forwards target args.
+        **kwargs: Any,  # noqa: ANN401 - proxy forwards target kwargs.
+    ) -> Any:  # noqa: ANN401 - proxy returns target instance.
         warn_deprecated(
             f"`imgaug2.imgaug.{cls.__name__}` is deprecated. Use `{cls._moved_alt_func}` instead.",
             stacklevel=3,
         )
         return cls._resolve_target()(*args, **kwargs)
 
-    def __instancecheck__(cls, instance):
+    def __instancecheck__(cls, instance: object) -> bool:
         return isinstance(instance, cls._resolve_target())
 
-    def __subclasscheck__(cls, subclass):
+    def __subclasscheck__(cls, subclass: type) -> bool:
         return issubclass(subclass, cls._resolve_target())
 
-    def __getattr__(cls, item):
+    def __getattr__(cls, item: str) -> Any:  # noqa: ANN401 - dynamic proxy attribute access.
         return getattr(cls._resolve_target(), item)
 
 
-def _mark_moved_class_or_function(name_old, module_name_new, name_new):
+def _mark_moved_class_or_function(  # noqa: ANN401 - return depends on moved target signature.
+    name_old: str,
+    module_name_new: str,
+    name_new: str | None,
+) -> Callable[..., Any] | type:
     # pylint: disable=redefined-outer-name
     name_new = name_new if name_new is not None else name_old
 
     if _is_moved_class_name(name_old):
 
-        def __mro_entries__(cls, bases):
+        def __mro_entries__(
+            cls: _MovedClassProxyMeta, bases: tuple[type, ...]
+        ) -> tuple[type, ...]:
             return (cls._resolve_target(),)
 
         return _MovedClassProxyMeta(
@@ -2521,7 +2692,7 @@ def _mark_moved_class_or_function(name_old, module_name_new, name_new):
             },
         )
 
-    def _func(*args, **kwargs):
+    def _func(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401 - dynamic proxy signature.
         module = importlib.import_module(module_name_new)
         return getattr(module, name_new)(*args, **kwargs)
 

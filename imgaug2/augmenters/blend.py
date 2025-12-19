@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from collections.abc import Sequence
-from typing import cast, TYPE_CHECKING, Literal, Protocol, TypeAlias
+from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias, cast
 
 import cv2
 import numpy as np
@@ -31,12 +31,12 @@ import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
+from imgaug2.augmentables import utils as augm_utils
 from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmentables.bbs import BoundingBoxesOnImage
 from imgaug2.augmentables.kps import KeypointsOnImage
 from imgaug2.augmentables.lines import LineStringsOnImage
 from imgaug2.augmentables.polys import PolygonsOnImage
-from imgaug2.augmentables import utils as augm_utils
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
@@ -380,7 +380,7 @@ def _blend_alpha_non_uint8(image_fg: Array, image_bg: Array, alpha: Array) -> Ar
     # faster than float16
     isize = dt_images.itemsize * 2
     isize = max(isize, 4)
-    dt_name = "f%d" % (isize,)
+    dt_name = f"f{isize}"
 
     # check if float128 (16*8=128) is supported
     assert dt_name != "f16" or hasattr(np, "float128"), (
@@ -677,6 +677,8 @@ class BlendAlpha(meta.Augmenter):
 
             # blend images
             if batch.images is not None:
+                assert batch_fg.images is not None
+                assert batch_bg.images is not None
                 batch.images[i] = blend_alpha_(
                     batch_fg.images[i], batch_bg.images[i], alphas_i, eps=self.epsilon
                 )
@@ -987,12 +989,12 @@ class BlendAlphaMask(meta.Augmenter):
                 "Got different numbers of coordinates before/after "
                 "augmentation in BlendAlphaMask. The number of "
                 "coordinates is currently not allowed to change for this "
-                "augmenter. Input contained %d coordinates, foreground "
-                "branch %d, backround branch %d." % (len(coords), len(coords_fg), len(coords_bg))
+                f"augmenter. Input contained {len(coords)} coordinates, foreground "
+                f"branch {len(coords_fg)}, backround branch {len(coords_bg)}."
             )
 
             coords_aug = []
-            subgen = zip(coords, coords_fg, coords_bg)
+            subgen = zip(coords, coords_fg, coords_bg, strict=True)
             for coord, coord_fg, coord_bg in subgen:
                 x_int = int(np.round(coord[0]))
                 y_int = int(np.round(coord[1]))
@@ -1668,7 +1670,7 @@ class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
         size_px_max: ParamInput = (4, 16),
         upscale_method: UpscaleMethodInput = None,
         iterations: ParamInput = (1, 3),
-        aggregation_method: AggregationMethodInput = ["avg", "max"],
+        aggregation_method: AggregationMethodInput | None = None,
         sigmoid: SigmoidInput = 0.5,
         sigmoid_thresh: ParamInput | None = None,
         seed: RNGInput = None,
@@ -1677,6 +1679,9 @@ class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
         # pylint: disable=dangerous-default-value
+        aggregation_method = (
+            aggregation_method if aggregation_method is not None else ["avg", "max"]
+        )
         upscale_method_default = iap.Choice(["nearest", "linear", "cubic"], p=[0.05, 0.6, 0.35])
         sigmoid_thresh_default = iap.Normal(0.0, 5.0)
 
@@ -1846,7 +1851,7 @@ class BlendAlphaSomeColors(BlendAlphaMask):
         background: ChildrenInput = None,
         nb_bins: ParamInput = (5, 15),
         smoothness: ParamInput = (0.1, 0.3),
-        alpha: ParamInput = [0.0, 1.0],
+        alpha: ParamInput | None = None,
         rotation_deg: ParamInput = (0, 360),
         from_colorspace: str = "RGB",
         seed: RNGInput = None,
@@ -1859,7 +1864,7 @@ class BlendAlphaSomeColors(BlendAlphaMask):
             SomeColorsMaskGen(
                 nb_bins=nb_bins,
                 smoothness=smoothness,
-                alpha=alpha,
+                alpha=alpha if alpha is not None else [0.0, 1.0],
                 rotation_deg=rotation_deg,
                 from_colorspace=from_colorspace,
             ),
@@ -2255,7 +2260,7 @@ class BlendAlphaRegularGrid(BlendAlphaMask):
         nb_cols: ParamInput,
         foreground: ChildrenInput = None,
         background: ChildrenInput = None,
-        alpha: ParamInput = [0.0, 1.0],
+        alpha: ParamInput | None = None,
         seed: RNGInput = None,
         name: str | None = None,
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
@@ -2263,7 +2268,9 @@ class BlendAlphaRegularGrid(BlendAlphaMask):
     ) -> None:
         # pylint: disable=dangerous-default-value
         super().__init__(
-            RegularGridMaskGen(nb_rows=nb_rows, nb_cols=nb_cols, alpha=alpha),
+            RegularGridMaskGen(
+                nb_rows=nb_rows, nb_cols=nb_cols, alpha=alpha if alpha is not None else [0.0, 1.0]
+            ),
             foreground=foreground,
             background=background,
             seed=seed,
@@ -2740,7 +2747,7 @@ class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
 
         return [
             self._draw_mask(shape, random_state, per_channel_i)
-            for shape, per_channel_i in zip(shapes, per_channel)
+            for shape, per_channel_i in zip(shapes, per_channel, strict=True)
         ]
 
     # Added in 0.4.0.
@@ -2878,7 +2885,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         self,
         nb_bins: ParamInput = (5, 15),
         smoothness: ParamInput = (0.1, 0.3),
-        alpha: ParamInput = [0.0, 1.0],
+        alpha: ParamInput | None = None,
         rotation_deg: ParamInput = (0, 360),
         from_colorspace: str = "RGB",
     ) -> None:
@@ -2896,7 +2903,11 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
             list_to_choice=True,
         )
         self.alpha = iap.handle_continuous_param(
-            alpha, "alpha", value_range=(0.0, 1.0), tuple_to_uniform=True, list_to_choice=True
+            alpha if alpha is not None else [0.0, 1.0],
+            "alpha",
+            value_range=(0.0, 1.0),
+            tuple_to_uniform=True,
+            list_to_choice=True,
         )
         self.rotation_deg = iap.handle_continuous_param(
             rotation_deg,
@@ -3497,7 +3508,9 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
     """
 
     # Added in 0.4.0.
-    def __init__(self, nb_rows: ParamInput, nb_cols: ParamInput, alpha: ParamInput = [0.0, 1.0]) -> None:
+    def __init__(
+        self, nb_rows: ParamInput, nb_cols: ParamInput, alpha: ParamInput | None = None
+    ) -> None:
         # pylint: disable=dangerous-default-value
         self.nb_rows = iap.handle_discrete_param(
             nb_rows,
@@ -3516,7 +3529,11 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
             allow_floats=False,
         )
         self.alpha = iap.handle_continuous_param(
-            alpha, "alpha", value_range=(0.0, 1.0), tuple_to_uniform=True, list_to_choice=True
+            alpha if alpha is not None else [0.0, 1.0],
+            "alpha",
+            value_range=(0.0, 1.0),
+            tuple_to_uniform=True,
+            list_to_choice=True,
         )
 
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
@@ -3532,7 +3549,7 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
 
         return [
             self.generate_mask(shape, nb_rows_i, nb_cols_i, alpha_i)
-            for shape, nb_rows_i, nb_cols_i, alpha_i in zip(shapes, nb_rows, nb_cols, alpha)
+            for shape, nb_rows_i, nb_cols_i, alpha_i in zip(shapes, nb_rows, nb_cols, alpha, strict=True)
         ]
 
     # Added in 0.4.0.
@@ -3594,9 +3611,8 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
         assert alphas.size == nb_rows * nb_cols, (
             "Expected `alphas` to not contain less values than "
             "`nb_rows * nb_cols` (both clipped to [1, height] and "
-            "[1, width] respectively). Got %d alpha values vs %d expected "
-            "values (nb_rows=%d, nb_cols=%d) for requested mask shape %s."
-            % (alphas.size, nb_rows * nb_cols, nb_rows, nb_cols, (height, width))
+            f"[1, width] respectively). Got {alphas.size} alpha values vs {nb_rows * nb_cols} expected "
+            f"values (nb_rows={nb_rows}, nb_cols={nb_cols}) for requested mask shape {(height, width)}."
         )
         mask = alphas.astype(np.float32).reshape((nb_rows, nb_cols))
         mask = np.repeat(mask, cell_height, axis=0)
@@ -3688,7 +3704,7 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
 
         return [
             self.generate_mask(shape, nb_rows_i, nb_cols_i)
-            for shape, nb_rows_i, nb_cols_i in zip(shapes, nb_rows, nb_cols)
+            for shape, nb_rows_i, nb_cols_i in zip(shapes, nb_rows, nb_cols, strict=True)
         ]
 
     @classmethod
@@ -3846,7 +3862,7 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
 
         return [
             self.generate_mask(segmap, class_ids_i)
-            for segmap, class_ids_i in zip(batch.segmentation_maps, class_ids)
+            for segmap, class_ids_i in zip(batch.segmentation_maps, class_ids, strict=True)
         ]
 
     # Added in 0.4.0.
@@ -4019,7 +4035,7 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
 
         return [
             self.generate_mask(bbsoi, labels_i)
-            for bbsoi, labels_i in zip(batch.bounding_boxes, labels)
+            for bbsoi, labels_i in zip(batch.bounding_boxes, labels, strict=True)
         ]
 
     # Added in 0.4.0.
@@ -4116,7 +4132,7 @@ class InvertMaskGen(IBatchwiseMaskGenerator):
         random_state = iarandom.RNG.create_if_not_rng_(random_state)
         masks = self.child.draw_masks(batch, random_state=random_state)
         p = self.p.draw_samples(len(masks), random_state=random_state)
-        for mask, p_i in zip(masks, p):
+        for mask, p_i in zip(masks, p, strict=True):
             if p_i >= 0.5:
                 mask[...] = 1.0 - mask
         return masks
@@ -4256,7 +4272,7 @@ def FrequencyNoiseAlpha(
     size_px_max: ParamInput = (4, 16),
     upscale_method: UpscaleMethodInput = None,
     iterations: ParamInput = (1, 3),
-    aggregation_method: AggregationMethodInput = ["avg", "max"],
+    aggregation_method: AggregationMethodInput | None = None,
     sigmoid: SigmoidInput = 0.5,
     sigmoid_thresh: ParamInput | None = None,
     seed: RNGInput = None,
@@ -4278,7 +4294,9 @@ def FrequencyNoiseAlpha(
         size_px_max=size_px_max,
         upscale_method=upscale_method,
         iterations=iterations,
-        aggregation_method=aggregation_method,
+        aggregation_method=aggregation_method
+        if aggregation_method is not None
+        else ["avg", "max"],
         sigmoid=sigmoid,
         sigmoid_thresh=sigmoid_thresh,
         seed=seed,

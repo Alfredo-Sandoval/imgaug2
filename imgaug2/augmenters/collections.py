@@ -3,6 +3,7 @@
 List of augmenters:
 
     * :class:`RandAugment`
+    * :class:`PosePreset`
 
 Added in 0.4.0.
 
@@ -17,12 +18,20 @@ import numpy as np
 
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
-from imgaug2.augmenters import arithmetic, flip, meta, pillike
+from imgaug2.augmenters import arithmetic, contrast, flip, geometric, meta, pillike
 from imgaug2.augmenters import size as sizelib
 from imgaug2.augmenters._typing import Numberish, RNGInput
 
 DiscreteParamInput: TypeAlias = int | tuple[int, int] | list[int] | iap.StochasticParameter | None
 FillColor: TypeAlias = int | Sequence[int] | iap.StochasticParameter
+PosePresetName: TypeAlias = Literal[
+    "lightning_pose_dlc",
+    "lightning_pose_dlc_lr",
+    "lightning_pose_dlc_top_down",
+    "deeplabcut_pytorch_default",
+    "sleap_default",
+    "mmpose_default",
+]
 
 
 class RandAugment(meta.Sequential):
@@ -343,3 +352,131 @@ class RandAugment(meta.Sequential):
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         someof = self[1]
         return [someof.n, self._m, self._cval]
+
+
+class PosePreset(meta.Sequential):
+    """
+    Pose estimation augmentation preset built from common toolchain configs.
+
+    This preset is based on augmentation settings documented for Lightning Pose,
+    DeepLabCut (PyTorch/TF), MMPose, and SLEAP. Reference snippets are stored in
+    ``third_party/pose_presets``.
+    """
+
+    def __init__(
+        self,
+        preset: PosePresetName = "lightning_pose_dlc",
+        random_order: bool = False,
+        seed: RNGInput = None,
+        name: str | None = None,
+        random_state: RNGInput | Literal["deprecated"] = "deprecated",
+        deterministic: bool | Literal["deprecated"] = "deprecated",
+    ) -> None:
+        children = _pose_preset_children(preset)
+        super().__init__(
+            children=children,
+            random_order=random_order,
+            seed=seed,
+            name=name,
+            random_state=random_state,
+            deterministic=deterministic,
+        )
+        self.preset = preset
+
+
+def _pose_preset_children(preset: PosePresetName) -> list[meta.Augmenter]:
+    if preset in {"lightning_pose_dlc", "deeplabcut_pytorch_default"}:
+        return _pose_preset_children_dlc(hflip_prob=0.0, vflip_prob=0.0)
+    if preset == "lightning_pose_dlc_lr":
+        return _pose_preset_children_dlc(hflip_prob=0.5, vflip_prob=0.0)
+    if preset == "lightning_pose_dlc_top_down":
+        return _pose_preset_children_dlc(hflip_prob=0.5, vflip_prob=0.5)
+    if preset == "sleap_default":
+        return _pose_preset_children_sleap()
+    if preset == "mmpose_default":
+        return _pose_preset_children_mmpose()
+    raise ValueError(f"Unknown PosePreset preset: {preset}")
+
+
+def _pose_preset_children_dlc(*, hflip_prob: float, vflip_prob: float) -> list[meta.Augmenter]:
+    rotation_range = 20.0
+    zoom_range = 0.15
+    shift_range = 0.1
+    rotation_prob = 0.4
+    zoom_prob = 0.4
+    shift_prob = 0.3
+    covering_prob = 0.5
+    covering_ratio = 0.1
+    covering_radius = 5
+    gaussian_noise = 0.01
+
+    rot = iap.Binomial(rotation_prob) * iap.Uniform(-rotation_range, rotation_range)
+    scale = 1.0 + iap.Binomial(zoom_prob) * iap.Uniform(-zoom_range, zoom_range)
+    shift = iap.Binomial(shift_prob) * iap.Uniform(-shift_range, shift_range)
+
+    augs: list[meta.Augmenter] = []
+    if hflip_prob > 0.0:
+        augs.append(flip.Fliplr(hflip_prob))
+    if vflip_prob > 0.0:
+        augs.append(flip.Flipud(vflip_prob))
+
+    augs.append(
+        geometric.Affine(
+            rotate=rot,
+            scale=scale,
+            translate_percent={"x": shift, "y": shift},
+            mode="reflect",
+            order=1,
+        )
+    )
+    augs.append(
+        meta.Sometimes(
+            covering_prob,
+            arithmetic.CoarseDropout(p=covering_ratio, size_px=covering_radius),
+        )
+    )
+    if gaussian_noise > 0.0:
+        augs.append(arithmetic.AdditiveGaussianNoise(scale=gaussian_noise * 255.0))
+    return augs
+
+
+def _pose_preset_children_sleap() -> list[meta.Augmenter]:
+    apply_prob = 0.5
+    rotate = 180.0
+    translate = 50
+    scale = 0.2
+    uniform_noise = 0.02
+    gaussian_noise = 5.0
+    contrast_delta = 0.1
+    brightness_delta = 0.2
+
+    seq = meta.Sequential(
+        [
+            geometric.Affine(
+                rotate=(-rotate, rotate),
+                scale=(1.0 - scale, 1.0 + scale),
+                translate_px={"x": (-translate, translate), "y": (-translate, translate)},
+                mode="reflect",
+                order=1,
+            ),
+            arithmetic.Add((-uniform_noise * 255.0, uniform_noise * 255.0)),
+            arithmetic.AdditiveGaussianNoise(scale=gaussian_noise),
+            contrast.LinearContrast((1.0 - contrast_delta, 1.0 + contrast_delta)),
+            arithmetic.Multiply((1.0 - brightness_delta, 1.0 + brightness_delta)),
+        ],
+        random_order=False,
+    )
+    return [meta.Sometimes(apply_prob, seq)]
+
+
+def _pose_preset_children_mmpose() -> list[meta.Augmenter]:
+    return [
+        flip.Fliplr(0.5),
+        geometric.Affine(
+            rotate=(-80, 80),
+            scale=(1.0 - 0.25, 1.0 + 0.25),
+            translate_percent={"x": (-0.16, 0.16), "y": (-0.16, 0.16)},
+            mode="reflect",
+            order=1,
+        ),
+    ]

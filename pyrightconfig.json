@@ -1,0 +1,33 @@
+{
+  "include": ["imgaug2"],
+  "exclude": [
+    "checks/**",
+    "test/**",
+    "docs/**",
+    "build/**",
+    "dist/**",
+    "imgaug2/external/**",
+    "imgaug2.egg-info/**",
+    "imgaug2/testutils.py"
+  ],
+  "pythonVersion": "3.10",
+  "typeCheckingMode": "basic",
+  "reportInvalidTypeForm": "none",
+  "reportOptionalSubscript": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportOptionalCall": "none",
+  "reportOptionalIterable": "none",
+  "reportOptionalContextManager": "none",
+  "reportOptionalOperand": "none",
+  "reportArgumentType": "none",
+  "reportReturnType": "none",
+  "reportIndexIssue": "none",
+  "reportAttributeAccessIssue": "none",
+  "reportCallIssue": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportUnusedImport": "none",
+  "reportOperatorIssue": "none",
+  "reportAssignmentType": "none",
+  "reportUnsupportedDunderAll": "none",
+  "reportMissingImports": "none"
+}

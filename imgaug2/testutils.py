@@ -1,3 +1,4 @@
+# TODO: Have Codex check this file
 """
 Some utility functions that are only used for unittests.
 Placing them in test/ directory seems to be against convention, so they are part of the library.
@@ -15,16 +16,23 @@ import re
 import shutil
 import sys
 import tempfile
+import unittest
 import unittest.mock as mock
 import warnings
+from collections.abc import Callable, Iterable, Sequence
+from typing import Any, NoReturn, TypeVar
 
 import numpy as np
+from numpy.typing import NDArray
 
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.kps import KeypointsOnImage
 from imgaug2.augmentables.polys import PolygonsOnImage
+
+T = TypeVar("T")
+
 
 
 class ArgCopyingMagicMock(mock.MagicMock):
@@ -37,38 +45,40 @@ class ArgCopyingMagicMock(mock.MagicMock):
 
     """
 
-    def _mock_call(self, *args, **kwargs):
+    def _mock_call(self, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
         args_copy = copy.deepcopy(args)
         kwargs_copy = copy.deepcopy(kwargs)
         return super()._mock_call(*args_copy, **kwargs_copy)
 
 
 # Added in 0.4.0.
-def assert_cbaois_equal(observed, expected, max_distance=1e-4):
+def assert_cbaois_equal(observed: Any, expected: Any, max_distance: float = 1e-4) -> None:  # noqa: ANN401
     # pylint: disable=unidiomatic-typecheck
     if isinstance(observed, list) or isinstance(expected, list):
         assert isinstance(observed, list)
         assert isinstance(expected, list)
         assert len(observed) == len(expected)
-        for observed_i, expected_i in zip(observed, expected):
+        for observed_i, expected_i in zip(observed, expected, strict=True):
             assert_cbaois_equal(observed_i, expected_i, max_distance=max_distance)
     else:
         assert type(observed) == type(expected)
         assert len(observed.items) == len(expected.items)
         assert observed.shape == expected.shape
-        for item_a, item_b in zip(observed.items, expected.items):
+        for item_a, item_b in zip(observed.items, expected.items, strict=True):
             assert item_a.coords_almost_equals(item_b, max_distance=max_distance)
         if isinstance(expected, PolygonsOnImage):
-            for item_obs, item_exp in zip(observed.items, expected.items):
+            for item_obs, item_exp in zip(observed.items, expected.items, strict=True):
                 if item_exp.is_valid:
                     assert item_obs.is_valid
 
 
-def create_random_images(size):
+def create_random_images(size: tuple[int, ...]) -> NDArray[np.uint8]:
     return np.random.uniform(0, 255, size).astype(np.uint8)
 
 
-def create_random_keypoints(size_images, nb_keypoints_per_img):
+def create_random_keypoints(
+    size_images: tuple[int, ...], nb_keypoints_per_img: int
+) -> list[KeypointsOnImage]:
     result = []
     for _ in range(size_images[0]):
         kps = []
@@ -81,21 +91,27 @@ def create_random_keypoints(size_images, nb_keypoints_per_img):
     return result
 
 
-def array_equal_lists(list1, list2):
+def array_equal_lists(
+    list1: list[NDArray[Any]], list2: list[NDArray[Any]]
+) -> bool:
     assert isinstance(list1, list), f"Expected list1 to be a list, got type {type(list1)}."
     assert isinstance(list2, list), f"Expected list2 to be a list, got type {type(list2)}."
 
     if len(list1) != len(list2):
         return False
 
-    for arr1, arr2 in zip(list1, list2):
+    for arr1, arr2 in zip(list1, list2, strict=True):
         if not np.array_equal(arr1, arr2):
             return False
 
     return True
 
 
-def keypoints_equal(kpsois1, kpsois2, eps=0.001):
+def keypoints_equal(
+    kpsois1: KeypointsOnImage | list[KeypointsOnImage],
+    kpsois2: KeypointsOnImage | list[KeypointsOnImage],
+    eps: float = 0.001,
+) -> bool:
     if isinstance(kpsois1, KeypointsOnImage):
         assert isinstance(kpsois2, KeypointsOnImage)
         kpsois1 = [kpsois1]
@@ -104,13 +120,13 @@ def keypoints_equal(kpsois1, kpsois2, eps=0.001):
     if len(kpsois1) != len(kpsois2):
         return False
 
-    for kpsoi1, kpsoi2 in zip(kpsois1, kpsois2):
+    for kpsoi1, kpsoi2 in zip(kpsois1, kpsois2, strict=True):
         kps1 = kpsoi1.keypoints
         kps2 = kpsoi2.keypoints
         if len(kps1) != len(kps2):
             return False
 
-        for kp1, kp2 in zip(kps1, kps2):
+        for kp1, kp2 in zip(kps1, kps2, strict=True):
             x_equal = float(kp2.x) - eps <= float(kp1.x) <= float(kp2.x) + eps
             y_equal = float(kp2.y) - eps <= float(kp1.y) <= float(kp2.y) + eps
             if not x_equal or not y_equal:
@@ -119,14 +135,16 @@ def keypoints_equal(kpsois1, kpsois2, eps=0.001):
     return True
 
 
-def reseed(seed=0):
+def reseed(seed: int = 0) -> None:
     iarandom.seed(seed)
     np.random.seed(seed)
     random.seed(seed)
 
 
 # Added in 0.4.0.
-def runtest_pickleable_uint8_img(augmenter, shape=(15, 15, 3), iterations=3):
+def runtest_pickleable_uint8_img(
+    augmenter: Any, shape: tuple[int, ...] = (15, 15, 3), iterations: int = 3  # noqa: ANN401
+) -> None:
     image = np.mod(np.arange(int(np.prod(shape))), 256).astype(np.uint8)
     image = image.reshape(shape)
     # SECURITY: Test helper to validate that augmenters are pickleable. This
@@ -139,7 +157,7 @@ def runtest_pickleable_uint8_img(augmenter, shape=(15, 15, 3), iterations=3):
         assert np.array_equal(image_aug, image_aug_pkl)
 
 
-def wrap_shift_deprecation(func, *args, **kwargs):
+def wrap_shift_deprecation(func: Callable[..., T], *args: Any, **kwargs: Any) -> T:  # noqa: ANN401
     """Helper for tests of CBA shift() functions.
 
     Added in 0.4.0.
@@ -173,14 +191,21 @@ class TemporaryDirectory:
 
     """
 
-    def __init__(self, suffix="", prefix="tmp", dir=None):
+    def __init__(
+        self, suffix: str = "", prefix: str = "tmp", dir: str | None = None
+    ) -> None:
         # pylint: disable=redefined-builtin
         self.name = tempfile.mkdtemp(suffix, prefix, dir)
 
-    def __enter__(self):
+    def __enter__(self) -> str:
         return self.name
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,  # noqa: ANN401
+    ) -> None:
         shutil.rmtree(self.name)
 
 
@@ -189,7 +214,7 @@ class TemporaryDirectory:
 # at commit 293dd23 (Nov 19, 2019).
 # Required at least to enable assertWarns() in python <3.2.
 # Added in 0.4.0.
-def _is_subtype(expected, basetype):
+def _is_subtype(expected: type | tuple[type, ...], basetype: type) -> bool:
     if isinstance(expected, tuple):
         return all(_is_subtype(e, basetype) for e in expected)
     return isinstance(expected, type) and issubclass(expected, basetype)
@@ -202,11 +227,11 @@ def _is_subtype(expected, basetype):
 # Added in 0.4.0.
 class _BaseTestCaseContext:
     # Added in 0.4.0.
-    def __init__(self, test_case):
+    def __init__(self, test_case: unittest.TestCase) -> None:
         self.test_case = test_case
 
     # Added in 0.4.0.
-    def _raiseFailure(self, standardMsg):
+    def _raiseFailure(self, standardMsg: str) -> NoReturn:
         # pylint: disable=invalid-name, protected-access, no-member
         msg = self.test_case._formatMessage(self.msg, standardMsg)
         raise self.test_case.failureException(msg)
@@ -219,7 +244,12 @@ class _BaseTestCaseContext:
 # Added in 0.4.0.
 class _AssertRaisesBaseContext(_BaseTestCaseContext):
     # Added in 0.4.0.
-    def __init__(self, expected, test_case, expected_regex=None):
+    def __init__(
+        self,
+        expected: type[BaseException] | tuple[type[BaseException], ...],
+        test_case: unittest.TestCase,
+        expected_regex: str | re.Pattern | None = None,
+    ) -> None:
         _BaseTestCaseContext.__init__(self, test_case)
         self.expected = expected
         self.test_case = test_case
@@ -231,7 +261,9 @@ class _AssertRaisesBaseContext(_BaseTestCaseContext):
 
     # Added in 0.4.0.
     # pylint: disable=inconsistent-return-statements
-    def handle(self, name, args, kwargs):
+    def handle(
+        self, name: str, args: Sequence[Any], kwargs: dict[str, Any]
+    ) -> Any:  # noqa: ANN401
         """
         If args is empty, assertRaises/Warns is being used as a
         context manager, so check for a 'msg' kwarg and return self.
@@ -278,7 +310,7 @@ class _AssertWarnsContext(_AssertRaisesBaseContext):
     _base_type_str = 'a warning type or tuple of warning types'
 
     # Added in 0.4.0.
-    def __enter__(self):
+    def __enter__(self) -> _AssertWarnsContext:
         # The __warningregistry__'s need to be in a pristine state for tests
         # to work properly.
         # pylint: disable=invalid-name, attribute-defined-outside-init
@@ -291,7 +323,12 @@ class _AssertWarnsContext(_AssertRaisesBaseContext):
         return self
 
     # Added in 0.4.0.
-    def __exit__(self, exc_type, exc_value, tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        tb: Any,  # noqa: ANN401
+    ) -> None:
         # pylint: disable=invalid-name, attribute-defined-outside-init
         self.warnings_manager.__exit__(exc_type, exc_value, tb)
         if exc_type is not None:
@@ -330,7 +367,12 @@ class _AssertWarnsContext(_AssertRaisesBaseContext):
 # https://github.com/python/cpython/blob/master/Lib/unittest/case.py
 # at commit 293dd23 (Nov 19, 2019).
 # Required at least to enable assertWarns() in python <3.2.
-def assertWarns(testcase, expected_warning, *args, **kwargs):
+def assertWarns(
+    testcase: unittest.TestCase,
+    expected_warning: type[Warning] | tuple[type[Warning], ...],
+    *args: Any,  # noqa: ANN401
+    **kwargs: Any,  # noqa: ANN401
+) -> Any:  # noqa: ANN401
     """Context with same functionality as ``assertWarns`` in ``unittest``.
 
     Note that unittest's ``assertWarns`` is only available in python 3.2+.
@@ -360,7 +402,7 @@ class temporary_constants:
 
     UNCHANGED = object()
 
-    def __init__(self, paths, values):
+    def __init__(self, paths: str | list[str], values: Any | list[Any]) -> None:  # noqa: ANN401
         if ia.is_string(paths):
             paths = [paths]
             values = [values]
@@ -370,23 +412,28 @@ class temporary_constants:
         self.values = values
         self.old_values = None
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         old_values = []
-        for path, cname, value in zip(self.paths, self.cnames, self.values):
+        for path, cname, value in zip(self.paths, self.cnames, self.values, strict=True):
             module = importlib.import_module(path)
             old_values.append(getattr(module, cname))
             if value is not temporary_constants.UNCHANGED:
                 setattr(module, cname, value)
         self.old_values = old_values
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        gen = zip(self.paths, self.cnames, self.old_values)
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,  # noqa: ANN401
+    ) -> None:
+        gen = zip(self.paths, self.cnames, self.old_values, strict=True)
         for path, cname, old_value in gen:
             module = importlib.import_module(path)
             setattr(module, cname, old_value)
 
 
-def is_parameter_instance(param, param_type):
+def is_parameter_instance(param: iap.StochasticParameter, param_type: type) -> bool:
     """Perform an isinstance check on a parameter while ignoring prefetching.
 
     This is identical to ``isinstance(param, param_type)``, unless `param`
@@ -414,7 +461,7 @@ def is_parameter_instance(param, param_type):
     return isinstance(remove_prefetching(param), param_type)
 
 
-def remove_prefetching(param):
+def remove_prefetching(param: iap.StochasticParameter) -> iap.StochasticParameter:
     """Convert a possibly-prefetched parameter into a not-prefetched one.
 
     Added in 0.5.0.
@@ -437,7 +484,7 @@ def remove_prefetching(param):
     return param
 
 
-def ensure_deprecation_warning(expected_text):
+def ensure_deprecation_warning(expected_text: str) -> Callable[..., Callable[..., None]]:
     """Ensure that a decorated function raises a deprecation warning.
 
     Added in 0.5.0.
@@ -454,9 +501,9 @@ def ensure_deprecation_warning(expected_text):
 
     """
 
-    def _wrapper_with_args(func):
+    def _wrapper_with_args(func: Callable[..., Any]) -> Callable[..., None]:
         @functools.wraps(func)
-        def _wrapper(*args, **kwargs):
+        def _wrapper(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
             with warnings.catch_warnings(record=True) as caught_warnings:
                 func(*args, **kwargs)
 

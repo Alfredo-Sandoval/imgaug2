@@ -419,7 +419,18 @@ class HeatmapsOnImage(IAugmentable):
             max_value=self.max_value,
         )
         if return_pad_amounts:
-            return heatmaps, pad_amounts
+            if isinstance(pad_amounts, np.ndarray):
+                pad_amounts_vals = tuple(int(v) for v in pad_amounts.tolist())
+            else:
+                pad_amounts_vals = tuple(int(v) for v in pad_amounts)
+            assert len(pad_amounts_vals) == 4
+            pad_amounts_4 = (
+                pad_amounts_vals[0],
+                pad_amounts_vals[1],
+                pad_amounts_vals[2],
+                pad_amounts_vals[3],
+            )
+            return heatmaps, pad_amounts_4
         return heatmaps
 
     def avg_pool(self, block_size: int | tuple[int, int]) -> HeatmapsOnImage:

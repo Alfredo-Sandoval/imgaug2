@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import tempfile
 from collections.abc import Sequence
-from typing import cast, Literal, TypeAlias
+from typing import Literal, TypeAlias, cast
 
 import cv2
 import imageio
@@ -244,7 +244,7 @@ def _add_scalar_to_non_uint8(image: Array, value: ScalarInput) -> Array:
     # the image's max value to the lowest possible value, e.g. for
     # uint8 it must allow for -255 to 255.
     itemsize = image.dtype.itemsize * 2
-    dtype_target = np.dtype("%s%d" % (value.dtype.kind, itemsize))
+    dtype_target = np.dtype(f"{value.dtype.kind}{itemsize}")
     value = iadt.clip_to_dtype_value_range_(value, dtype_target, validate=True)
 
     # Itemsize is currently reduced from 2 to 1 due to clip no
@@ -337,9 +337,8 @@ def _add_elementwise_cv2_to_uint8(image: Array, values: Array) -> Array:
     ind, vnd = image.ndim, values.ndim
     valid_vnd = [ind] if ind == 2 else [ind - 1, ind]
     assert vnd in valid_vnd, (
-        "Expected values with any of %s dimensions, "
-        "got %d dimensions (shape %s vs. image shape %s)."
-        % (valid_vnd, vnd, values.shape, image.shape)
+        f"Expected values with any of {valid_vnd} dimensions, "
+        f"got {vnd} dimensions (shape {values.shape} vs. image shape {image.shape})."
     )
 
     if vnd == ind - 1:
@@ -400,7 +399,7 @@ def _add_elementwise_np_to_non_uint8(image: Array, values: Array) -> Array:
     nb_channels = image.shape[-1]
 
     itemsize = image.dtype.itemsize * 2
-    dtype_target = np.dtype("%s%d" % (values.dtype.kind, itemsize))
+    dtype_target = np.dtype(f"{values.dtype.kind}{itemsize}")
     values = iadt.clip_to_dtype_value_range_(values, dtype_target, validate=100)
 
     if values.shape[2] == 1:
@@ -577,16 +576,16 @@ def _multiply_scalar_to_uint8_lut_(image: Array, multiplier: ScalarInput) -> Arr
 
     if is_channelwise:
         assert multiplier.ndim == 1, (
-            "Expected `multiplier` to be 1-dimensional, got %d-dimensional "
-            "data with shape %s." % (multiplier.ndim, multiplier.shape)
+            f"Expected `multiplier` to be 1-dimensional, got {multiplier.ndim}-dimensional "
+            f"data with shape {multiplier.shape}."
         )
         assert image.ndim == 3, (
             "Expected `image` to be 3-dimensional when multiplying by one "
-            "value per channel, got %d-dimensional data with shape %s." % (image.ndim, image.shape)
+            f"value per channel, got {image.ndim}-dimensional data with shape {image.shape}."
         )
         assert image.shape[-1] == multiplier.size, (
             "Expected number of channels in `image` and number of components "
-            "in `multiplier` to be identical. Got %d vs. %d." % (image.shape[-1], multiplier.size)
+            f"in `multiplier` to be identical. Got {image.shape[-1]} vs. {multiplier.size}."
         )
 
         value_range = np.broadcast_to(value_range[:, np.newaxis], (256, nb_channels))
@@ -646,7 +645,7 @@ def _multiply_scalar_to_non_uint8(image: Array, multiplier: ScalarInput) -> Arra
     itemsize = max(
         image.dtype.itemsize, 2 if multiplier.dtype.kind == "f" else 1
     )  # float min itemsize is 2 not 1
-    dtype_target = np.dtype("%s%d" % (multiplier.dtype.kind, itemsize))
+    dtype_target = np.dtype(f"{multiplier.dtype.kind}{itemsize}")
     multiplier = iadt.clip_to_dtype_value_range_(multiplier, dtype_target, validate=True)
 
     image, multiplier = iadt.promote_array_dtypes_(
@@ -845,7 +844,7 @@ def _multiply_elementwise_to_non_uint8(image: Array, multipliers: Array) -> Arra
     itemsize = max(
         image.dtype.itemsize, 2 if multipliers.dtype.kind == "f" else 1
     )  # float min itemsize is 2
-    dtype_target = np.dtype("%s%d" % (multipliers.dtype.kind, itemsize))
+    dtype_target = np.dtype(f"{multipliers.dtype.kind}{itemsize}")
     multipliers = iadt.clip_to_dtype_value_range_(
         multipliers, dtype_target, validate=True, validate_values=(mul_min, mul_max)
     )
@@ -1945,7 +1944,7 @@ class Add(meta.Augmenter):
         per_channel_samples = self.per_channel.draw_samples((nb_images,), random_state=rss[0])
         value_samples = self.value.draw_samples((nb_images, nb_channels_max), random_state=rss[1])
 
-        gen = enumerate(zip(images, value_samples, per_channel_samples))
+        gen = enumerate(zip(images, value_samples, per_channel_samples, strict=True))
         for i, (image, value_samples_i, per_channel_samples_i) in gen:
             nb_channels = image.shape[2]
 
@@ -2097,7 +2096,7 @@ class AddElementwise(meta.Augmenter):
         rss = random_state.duplicate(1 + nb_images)
         per_channel_samples = self.per_channel.draw_samples((nb_images,), random_state=rss[0])
 
-        gen = enumerate(zip(images, per_channel_samples, rss[1:]))
+        gen = enumerate(zip(images, per_channel_samples, rss[1:], strict=True))
         for i, (image, per_channel_samples_i, rs) in gen:
             height, width, nb_channels = image.shape
             sample_shape = (height, width, nb_channels if per_channel_samples_i > 0.5 else 1)
@@ -2609,7 +2608,7 @@ class Multiply(meta.Augmenter):
         per_channel_samples = self.per_channel.draw_samples((nb_images,), random_state=rss[0])
         mul_samples = self.mul.draw_samples((nb_images, nb_channels_max), random_state=rss[1])
 
-        gen = enumerate(zip(images, mul_samples, per_channel_samples))
+        gen = enumerate(zip(images, mul_samples, per_channel_samples, strict=True))
         for i, (image, mul_samples_i, per_channel_samples_i) in gen:
             nb_channels = image.shape[2]
 
@@ -2764,7 +2763,7 @@ class MultiplyElementwise(meta.Augmenter):
             and isinstance(self.mul.other_param, iap.Binomial)
         )
 
-        gen = enumerate(zip(images, per_channel_samples, rss[1:]))
+        gen = enumerate(zip(images, per_channel_samples, rss[1:], strict=True))
         for i, (image, per_channel_samples_i, rs) in gen:
             height, width, nb_channels = image.shape
             sample_shape = (height, width, nb_channels if per_channel_samples_i > 0.5 else 1)
@@ -3057,7 +3056,7 @@ class Cutout(meta.Augmenter):
         y2_rel = samples.pos_y + cutout_height_half
 
         nb_iterations_sum = 0
-        gen = enumerate(zip(batch.images, samples.nb_iterations))
+        gen = enumerate(zip(batch.images, samples.nb_iterations, strict=True))
         for i, (image, nb_iterations) in gen:
             start = nb_iterations_sum
             end = start + nb_iterations
@@ -3281,12 +3280,8 @@ def _handle_dropout_probability_param(p: ParamInput, name: str) -> iap.Stochasti
         p_param = iap.Binomial(1 - p)
     elif isinstance(p, tuple):
         assert len(p) == 2, (
-            "Expected `%s` to be given as a tuple containing exactly 2 values, "
-            "got %d values."
-            % (
-                name,
-                len(p),
-            )
+            f"Expected `{name}` to be given as a tuple containing exactly 2 values, "
+            f"got {len(p)} values."
         )
         assert p[0] < p[1], (
             f"Expected `{name}` to be given as a tuple containing exactly 2 values "
@@ -3643,7 +3638,7 @@ class Dropout2d(meta.Augmenter):
         imagewise_drop_channel_ids, all_dropped_ids = self._draw_samples(batch, random_state)
 
         if batch.images is not None:
-            for image, drop_ids in zip(batch.images, imagewise_drop_channel_ids):
+            for image, drop_ids in zip(batch.images, imagewise_drop_channel_ids, strict=True):
                 image[:, :, drop_ids] = 0
 
         # Skip the non-image data steps below if we won't modify non-image
@@ -4029,7 +4024,7 @@ class ReplaceElementwise(meta.Augmenter):
         rss = random_state.duplicate(1 + 2 * nb_images)
         per_channel_samples = self.per_channel.draw_samples((nb_images,), random_state=rss[0])
 
-        gen = enumerate(zip(images, per_channel_samples, rss[1::2], rss[2::2]))
+        gen = enumerate(zip(images, per_channel_samples, rss[1::2], rss[2::2], strict=True))
         for i, (image, per_channel_i, rs_mask, rs_replacement) in gen:
             height, width, nb_channels = image.shape
             sampling_shape = (height, width, nb_channels if per_channel_i > 0.5 else 1)
@@ -5404,7 +5399,7 @@ class JpegCompression(meta.Augmenter):
         nb_images = len(images)
         samples = self.compression.draw_samples((nb_images,), random_state=random_state)
 
-        for i, (image, sample) in enumerate(zip(images, samples)):
+        for i, (image, sample) in enumerate(zip(images, samples, strict=True)):
             batch.images[i] = compress_jpeg(image, int(sample))
 
         return batch

@@ -45,6 +45,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+mlx = ["mlx"]
 numba = ["numba"]
 dev = [
   "coverage",
@@ -62,11 +63,14 @@ dev = [
   "xdoctest>=0.7.2",
 ]
 
+[project.scripts]
+imgaug2-bench = "benchmarks.run_all:main"
+
 [tool.setuptools]
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ["imgaug2*"]
+include = ["imgaug2*", "benchmarks*"]
 exclude = ["checks*", "changelogs*", "test*"]
 
 [tool.setuptools.package-data]

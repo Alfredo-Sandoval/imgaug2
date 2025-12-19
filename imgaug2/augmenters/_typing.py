@@ -53,7 +53,14 @@ Shape: TypeAlias = tuple[int, int] | tuple[int, int, int]
 Matrix: TypeAlias = NDArray[np.floating]
 
 if TYPE_CHECKING:
+    from imgaug2.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+    from imgaug2.augmentables.heatmaps import HeatmapsOnImage
+    from imgaug2.augmentables.kps import Keypoint, KeypointsOnImage
+    from imgaug2.augmentables.lines import LineString, LineStringsOnImage
+    from imgaug2.augmentables.polys import Polygon, PolygonsOnImage
+    from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
     from imgaug2.augmenters.geometric import _AffineSamplingResult
+
     _AffineSamplingResultVar = _AffineSamplingResult
 else:
     _AffineSamplingResultVar = object

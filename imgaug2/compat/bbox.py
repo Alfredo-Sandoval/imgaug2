@@ -1,9 +1,15 @@
-"""Bounding box helpers for the `imgaug2.compat` layer."""
+"""Bounding box conversion and filtering utilities for compatibility layer.
+
+This module provides format conversion between common bounding box representations
+(Pascal VOC, COCO, YOLO, normalized xyxy) and imgaug2's native BoundingBoxesOnImage
+format. It supports inline labels and external label fields with synchronized filtering.
+"""
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Literal, Sequence, TypeAlias, overload
+from typing import Any, Literal, TypeAlias, overload
 
 import numpy as np
 
@@ -14,18 +20,32 @@ BboxFormat: TypeAlias = Literal["pascal_voc", "coco", "yolo", "xyxy_norm"]
 
 @dataclass(frozen=True, slots=True)
 class BboxParams:
-    """Parameters for bbox handling in `compat.Compose`.
+    """Parameters for bounding box handling in Compose transforms.
 
-    Formats:
-    - "pascal_voc": (x_min, y_min, x_max, y_max) in absolute pixels
-    - "coco": (x_min, y_min, width, height) in absolute pixels
-    - "yolo": (x_center, y_center, width, height) normalized to [0, 1]
-    - "xyxy_norm": (x_min, y_min, x_max, y_max) normalized to [0, 1]
+    Parameters
+    ----------
+    format : {'pascal_voc', 'coco', 'yolo', 'xyxy_norm'}, default='pascal_voc'
+        Bounding box format specification:
+        - 'pascal_voc': (x_min, y_min, x_max, y_max) in absolute pixels
+        - 'coco': (x_min, y_min, width, height) in absolute pixels
+        - 'yolo': (x_center, y_center, width, height) normalized to [0, 1]
+        - 'xyxy_norm': (x_min, y_min, x_max, y_max) normalized to [0, 1]
+    label_fields : tuple of str, default=()
+        Names of fields containing bbox labels (e.g., ('category_ids', 'labels')).
+        Labels are stored in separate lists instead of inline in bbox tuples.
+    min_area : float, default=0.0
+        Minimum visible area in pixels to keep bbox after augmentation.
+    min_visibility : float, default=0.0
+        Minimum fraction of bbox area visible [0, 1] to keep bbox.
+    min_width : float, default=0.0
+        Minimum bbox width in pixels to keep bbox.
+    min_height : float, default=0.0
+        Minimum bbox height in pixels to keep bbox.
 
-    Notes:
-    - `label_fields` stores labels in separate lists (e.g. `category_ids`)
-      instead of embedding them in the bbox tuples.
-    - Filtering is applied after augmentation based on `min_*` settings.
+    Notes
+    -----
+    Filtering is applied after augmentation based on min_* settings.
+    Bboxes failing any criterion are removed along with their labels.
     """
 
     format: BboxFormat = "pascal_voc"
@@ -39,6 +59,25 @@ class BboxParams:
 def _split_inline_labels(
     bboxes: Sequence[Sequence[Any]],
 ) -> tuple[list[tuple[float, float, float, float]], list[Any] | None]:
+    """Split bbox coordinates from inline labels.
+
+    Parameters
+    ----------
+    bboxes : sequence of sequence
+        Bounding boxes with at least 4 values. Optional 5th value is label.
+
+    Returns
+    -------
+    coords : list of tuple
+        Bbox coordinates as (x1, y1, x2, y2) tuples.
+    labels : list or None
+        Inline labels if any bbox has 5+ values, otherwise None.
+
+    Raises
+    ------
+    ValueError
+        If any bbox has fewer than 4 values.
+    """
     coords: list[tuple[float, float, float, float]] = []
     labels: list[Any] = []
     has_any_label = False
@@ -61,6 +100,25 @@ def _join_inline_labels(
     coords: Sequence[tuple[float, float, float, float]],
     labels: Sequence[Any] | None,
 ) -> list[tuple[Any, ...]]:
+    """Combine bbox coordinates with inline labels.
+
+    Parameters
+    ----------
+    coords : sequence of tuple
+        Bbox coordinates as (x1, y1, x2, y2) tuples.
+    labels : sequence or None
+        Optional inline labels to append as 5th element.
+
+    Returns
+    -------
+    list of tuple
+        Bboxes with labels appended if provided, otherwise just coords.
+
+    Raises
+    ------
+    ValueError
+        If coords and labels have mismatched lengths.
+    """
     if labels is None:
         return [tuple(c) for c in coords]
     if len(coords) != len(labels):
@@ -74,13 +132,34 @@ def convert_bboxes_to_imgaug(
     *,
     format: BboxFormat = "pascal_voc",
 ) -> tuple[BoundingBoxesOnImage, list[Any] | None]:
-    """Convert bbox sequences to `BoundingBoxesOnImage`.
+    """Convert bbox sequences to BoundingBoxesOnImage format.
 
-    Returns `(bbs_on_image, inline_labels_or_none)`.
+    Parameters
+    ----------
+    bboxes : sequence of sequence
+        Bounding boxes in specified format. Each bbox has 4+ values.
+    image_shape : tuple of int
+        Image shape as (height, width) or (height, width, channels).
+    format : {'pascal_voc', 'coco', 'yolo', 'xyxy_norm'}, default='pascal_voc'
+        Format of input bboxes.
 
-    The compat layer supports either:
-    - inline labels (bbox tuples have 5th element), or
-    - external label fields (handled by Compose).
+    Returns
+    -------
+    bbs_on_image : BoundingBoxesOnImage
+        Converted bounding boxes in imgaug2 format.
+    inline_labels : list or None
+        Inline labels extracted from 5th element, or None if not present.
+        Only supported for pascal_voc and xyxy_norm formats.
+
+    Raises
+    ------
+    ValueError
+        If bbox format is unknown or inline labels used with unsupported format.
+
+    Notes
+    -----
+    Inline labels (5th element) are only supported for pascal_voc and xyxy_norm
+    formats. For COCO/YOLO, use label_fields instead.
     """
 
     h, w = int(image_shape[0]), int(image_shape[1])
@@ -97,8 +176,6 @@ def convert_bboxes_to_imgaug(
             if len(bbox) < 4:
                 raise ValueError(f"Expected bbox with >=4 values, got {bbox!r}")
             if len(bbox) >= 5:
-                # Inline bbox labels are only supported for xyxy-style formats.
-                # Keep this explicit to avoid silent label dropping.
                 raise ValueError(
                     "Inline bbox labels are only supported for format='pascal_voc' or "
                     "'xyxy_norm'. For COCO/YOLO, pass labels via label_fields."
@@ -139,10 +216,27 @@ def convert_bboxes_from_imgaug(
     format: BboxFormat = "pascal_voc",
     inline_labels: Sequence[Any] | None = None,
 ) -> list[tuple[Any, ...]]:
-    """Convert `BoundingBoxesOnImage` back to a list format.
+    """Convert BoundingBoxesOnImage back to list format.
 
-    If `inline_labels` is provided, it is appended as the 5th element of each
-    bbox tuple (Pascal VOC / normalized xyxy formats only).
+    Parameters
+    ----------
+    bbs : BoundingBoxesOnImage
+        Bounding boxes in imgaug2 format.
+    format : {'pascal_voc', 'coco', 'yolo', 'xyxy_norm'}, default='pascal_voc'
+        Target format for output bboxes.
+    inline_labels : sequence or None, default=None
+        Labels to append as 5th element. Only supported for pascal_voc
+        and xyxy_norm formats.
+
+    Returns
+    -------
+    list of tuple
+        Bboxes in specified format, with optional labels as 5th element.
+
+    Raises
+    ------
+    ValueError
+        If format is unknown or inline_labels used with unsupported format.
     """
 
     h, w = int(bbs.shape[0]), int(bbs.shape[1])
@@ -165,7 +259,6 @@ def convert_bboxes_from_imgaug(
             raise ValueError(f"Unknown bbox format: {format!r}")
 
     if format not in ("pascal_voc", "xyxy_norm"):
-        # Inline labels only supported for xyxy-style formats.
         if inline_labels is not None:
             raise ValueError("inline_labels only supported for pascal_voc/xyxy_norm output")
         return [tuple(c) for c in coords]
@@ -179,9 +272,35 @@ def filter_bboxes(
     *,
     inline_labels: list[Any] | None = None,
 ) -> tuple[BoundingBoxesOnImage, list[Any] | None, list[bool]]:
-    """Filter + clip bboxes and keep labels in sync.
+    """Filter and clip bboxes based on size and visibility criteria.
 
-    Returns `(filtered_bbs, filtered_inline_labels, keep_mask)`.
+    Parameters
+    ----------
+    bbs : BoundingBoxesOnImage
+        Bounding boxes to filter.
+    params : BboxParams
+        Filtering parameters with min_* thresholds.
+    inline_labels : list or None, default=None
+        Labels synchronized with bboxes. Filtered along with bboxes.
+
+    Returns
+    -------
+    filtered_bbs : BoundingBoxesOnImage
+        Bboxes that pass all filtering criteria, clipped to image bounds.
+    filtered_labels : list or None
+        Labels for kept bboxes, or None if no labels provided.
+    keep_mask : list of bool
+        Boolean mask indicating which bboxes were kept.
+
+    Raises
+    ------
+    ValueError
+        If inline_labels length doesn't match number of bboxes.
+
+    Notes
+    -----
+    Filtering criteria are applied in order: area > 0, visibility, min_area,
+    min_width, min_height. All criteria must pass for bbox to be kept.
     """
 
     if inline_labels is not None and len(inline_labels) != len(bbs.bounding_boxes):
@@ -200,7 +319,6 @@ def filter_bboxes(
             keep.append(False)
             continue
 
-        # Visibility: fraction of bbox area that remains inside the image.
         out_frac = float(bb.compute_out_of_image_fraction(image_shape))
         visible_frac = 1.0 - out_frac
 
@@ -209,7 +327,6 @@ def filter_bboxes(
             continue
 
         if params.min_area > 0.0:
-            # Approximate visible area using clipped bbox.
             bb_clipped = bb.clip_out_of_image(image_shape)
             if float(bb_clipped.area) < params.min_area:
                 keep.append(False)

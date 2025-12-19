@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from collections.abc import Sequence
-from typing import Any, cast, Literal, TypeAlias, Union
+from typing import Any, Literal, TypeAlias, Union, cast
 
 import cv2
 import numpy as np
@@ -284,15 +284,11 @@ def change_colorspace_(
 
     assert image.ndim == 3, (
         "Expected image shape to be three-dimensional, i.e. (H,W,C), "
-        "got %d dimensions with shape %s." % (image.ndim, image.shape)
+        f"got {image.ndim} dimensions with shape {image.shape}."
     )
     assert image.shape[2] == 3, (
         "Expected number of channels to be three, "
-        "got %d channels (shape %s)."
-        % (
-            image.shape[2],
-            image.shape,
-        )
+        f"got {image.shape[2]} channels (shape {image.shape})."
     )
 
     if from_colorspace == to_colorspace:
@@ -400,8 +396,8 @@ def change_colorspaces_(
                 f"string. Got type: {type(arg).__name__}."
             )
             assert len(arg) == len(images), (
-                "If `%s` is provided as a list it must have the same length "
-                "as `images`. Got length %d, expected %d." % (arg_name, len(arg), len(images))
+                f"If `{arg_name}` is provided as a list it must have the same length "
+                f"as `images`. Got length {len(arg)}, expected {len(images)}."
             )
 
         return cast(Sequence[ColorSpace], arg)
@@ -409,7 +405,7 @@ def change_colorspaces_(
     to_colorspaces = _validate(to_colorspaces, "to_colorspaces")
     from_colorspaces = _validate(from_colorspaces, "from_colorspaces")
 
-    gen = zip(images, to_colorspaces, from_colorspaces)
+    gen = zip(images, to_colorspaces, from_colorspaces, strict=True)
     for i, (image, to_colorspace, from_colorspace) in enumerate(gen):
         images[i] = change_colorspace_(image, to_colorspace, from_colorspace)
     return images
@@ -926,9 +922,8 @@ def change_color_temperatures_(
     ) -> Array | Sequence[ColorSpace] | Sequence[float | int]:
         if ia.is_iterable(arg) and not ia.is_string(arg):
             assert len(arg) == len(images), (
-                "If `%s` is provided as an iterable it must have the same "
-                "length as `images`. Got length %d, expected %d."
-                % (arg_name, len(arg), len(images))
+                f"If `{arg_name}` is provided as an iterable it must have the same "
+                f"length as `images`. Got length {len(arg)}, expected {len(images)}."
             )
         elif datatype == "str":
             assert ia.is_string(arg), (
@@ -943,7 +938,7 @@ def change_color_temperatures_(
             )
             arg = np.tile(np.float32([arg]), (len(images),))
         return cast(
-            Union[Array, Sequence[ColorSpace], Sequence[Union[float, int]]],
+            Array | Sequence[ColorSpace] | Sequence[float | int],
             arg,
         )
 
@@ -966,7 +961,7 @@ def change_color_temperatures_(
     rgb_multipliers = table.transform_kelvins_to_rgb_multipliers(kelvins)
     rgb_multipliers_nhwc = rgb_multipliers.reshape((-1, 1, 1, 3))
 
-    gen = enumerate(zip(images, rgb_multipliers_nhwc, from_colorspaces))
+    gen = enumerate(zip(images, rgb_multipliers_nhwc, from_colorspaces, strict=True))
     for i, (image, rgb_multiplier_hwc, from_colorspace) in gen:
         image_rgb = change_colorspace_(
             image, to_colorspace=CSPACE_RGB, from_colorspace=from_colorspace
@@ -1346,7 +1341,7 @@ class WithBrightnessChannels(meta.Augmenter):
         self, images: Images, colorspaces: Sequence[ColorSpace]
     ) -> list[Array]:
         result = []
-        for image, colorspace in zip(images, colorspaces):
+        for image, colorspace in zip(images, colorspaces, strict=True):
             channel_id = self._CSPACE_TO_CHANNEL_ID[colorspace]
             # Note that augmenters expect (H,W,C) and not (H,W), so cannot
             # just use image[:, :, channel_id] here.
@@ -1358,7 +1353,7 @@ class WithBrightnessChannels(meta.Augmenter):
     def _invert_extract_brightness_channels(
         self, channels: Sequence[Array], images: Images, colorspaces: Sequence[ColorSpace]
     ) -> Images:
-        for channel, image, colorspace in zip(channels, images, colorspaces):
+        for channel, image, colorspace in zip(channels, images, colorspaces, strict=True):
             channel_id = self._CSPACE_TO_CHANNEL_ID[colorspace]
             image[:, :, channel_id : channel_id + 1] = channel
         return images
@@ -2618,7 +2613,7 @@ class AddToHueAndSaturation(meta.Augmenter):
         # this is needed if no cache for LUT is used:
         # value_range = np.arange(0, 256, dtype=np.int16)
 
-        gen = enumerate(zip(images_hsv, hues, saturations))
+        gen = enumerate(zip(images_hsv, hues, saturations, strict=True))
         for i, (image_hsv, hue_i, saturation_i) in gen:
             if image_hsv.size == 0:
                 continue
@@ -3390,7 +3385,7 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
         # pylint: disable=protected-access, invalid-name
         assert image.shape[-1] in [1, 3, 4], (
             "Expected image with 1, 3 or 4 channels, "
-            "got %d (shape: %s)." % (image.shape[-1], image.shape)
+            f"got {image.shape[-1]} (shape: {image.shape})."
         )
 
         orig_shape = image.shape
@@ -3733,7 +3728,7 @@ def quantize_kmeans(arr: Array, nb_clusters: int, nb_max_iter: int = 10, eps: fl
     )
     assert 2 <= nb_clusters <= 256, (
         "Expected nb_clusters to be in the discrete interval [2..256]. "
-        "Got a value of %d instead." % (nb_clusters,)
+        f"Got a value of {nb_clusters} instead."
     )
 
     # without this check, kmeans throws an exception
@@ -4218,7 +4213,7 @@ def quantize_uniform_(arr: Array, nb_bins: int, to_bin_centers: bool = True) -> 
     iadt.allow_only_uint8({arr.dtype})
     assert 2 <= nb_bins <= 256, (
         "Expected nb_bins to be in the discrete interval [2..256]. "
-        "Got a value of %d instead." % (nb_bins,)
+        f"Got a value of {nb_bins} instead."
     )
 
     table_class = (
@@ -4389,7 +4384,7 @@ def quantize_uniform_to_n_bits_(arr: Array, nb_bits: int) -> Array:
     """
     assert 1 <= nb_bits <= 8, (
         "Expected nb_bits to be in the discrete interval [1..8]. "
-        "Got a value of %d instead." % (nb_bits,)
+        f"Got a value of {nb_bits} instead."
     )
     return quantize_uniform_(arr, nb_bins=2**nb_bits, to_bin_centers=False)
 

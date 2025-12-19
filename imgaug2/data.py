@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING, Literal, TypeAlias
 
 import imageio.v2 as imageio
 import numpy as np
+from numpy.typing import NDArray
 
 # filepath to the quokka image, its annotations and depth map
 # Added in 0.5.0.
@@ -22,8 +24,32 @@ _QUOKKA_ANNOTATIONS_FP = _FILE_DIR / "quokka_annotations.json"
 # Added in 0.5.0.
 _QUOKKA_DEPTH_MAP_HALFRES_FP = _FILE_DIR / "quokka_depth_map_halfres.png"
 
+if TYPE_CHECKING:
+    from imgaug2.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+    from imgaug2.augmentables.heatmaps import HeatmapsOnImage
+    from imgaug2.augmentables.kps import KeypointsOnImage
+    from imgaug2.augmentables.polys import PolygonsOnImage
+    from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
 
-def _quokka_normalize_extract(extract):
+Array: TypeAlias = NDArray[np.generic]
+ImageArray: TypeAlias = NDArray[np.uint8]
+Number: TypeAlias = float | int
+Shape2D: TypeAlias = tuple[Number, Number]
+Shape3D: TypeAlias = tuple[Number, Number, Number]
+Shape: TypeAlias = Shape2D | Shape3D
+ShapeMaybe2D: TypeAlias = tuple[Number | None, Number | None]
+ShapeMaybe3D: TypeAlias = tuple[Number | None, Number | None, Number | None]
+ShapeMaybe: TypeAlias = ShapeMaybe2D | ShapeMaybe3D
+ResizeInput: TypeAlias = None | Number | ShapeMaybe | Array
+QuokkaExtract: TypeAlias = (
+    Literal["square"]
+    | tuple[Number, Number, Number, Number]
+    | "BoundingBox"
+    | "BoundingBoxesOnImage"
+)
+
+
+def _quokka_normalize_extract(extract: QuokkaExtract) -> BoundingBox:
     """Generate a normalized rectangle for the standard quokka image.
 
     Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
@@ -82,7 +108,7 @@ def _quokka_normalize_extract(extract):
 
 
 # TODO is this the same as the project functions in augmentables?
-def _compute_resized_shape(from_shape, to_shape):
+def _compute_resized_shape(from_shape: Shape | Array, to_shape: ResizeInput) -> Shape:
     """Compute the intended new shape of an image-like array after resizing.
 
     Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
@@ -160,7 +186,7 @@ def _compute_resized_shape(from_shape, to_shape):
     return tuple(to_shape_computed)
 
 
-def quokka(size=None, extract=None):
+def quokka(size: ResizeInput = None, extract: QuokkaExtract | None = None) -> ImageArray:
     """Return an image of a quokka as a numpy array.
 
     Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
@@ -208,7 +234,7 @@ def quokka(size=None, extract=None):
     return img
 
 
-def quokka_square(size=None):
+def quokka_square(size: ResizeInput = None) -> ImageArray:
     """Return an (square) image of a quokka as a numpy array.
 
     Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
@@ -230,7 +256,10 @@ def quokka_square(size=None):
     return quokka(size=size, extract="square")
 
 
-def quokka_heatmap(size=None, extract=None):
+def quokka_heatmap(
+    size: ResizeInput = None,
+    extract: QuokkaExtract | None = None,
+) -> HeatmapsOnImage:
     """Return a heatmap (here: depth map) for the standard example quokka image.
 
     Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
@@ -273,7 +302,10 @@ def quokka_heatmap(size=None, extract=None):
     return HeatmapsOnImage(img_0to1, shape=img_0to1.shape[0:2] + (3,))
 
 
-def quokka_segmentation_map(size=None, extract=None):
+def quokka_segmentation_map(
+    size: ResizeInput = None,
+    extract: QuokkaExtract | None = None,
+) -> SegmentationMapsOnImage:
     """Return a segmentation map for the standard example quokka image.
 
     Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
@@ -327,7 +359,10 @@ def quokka_segmentation_map(size=None, extract=None):
     return segmap
 
 
-def quokka_keypoints(size=None, extract=None):
+def quokka_keypoints(
+    size: ResizeInput = None,
+    extract: QuokkaExtract | None = None,
+) -> KeypointsOnImage:
     """Return example keypoints on the standard example quokke image.
 
     The keypoints cover the eyes, ears, nose and paws.
@@ -375,7 +410,10 @@ def quokka_keypoints(size=None, extract=None):
     return kpsoi
 
 
-def quokka_bounding_boxes(size=None, extract=None):
+def quokka_bounding_boxes(
+    size: ResizeInput = None,
+    extract: QuokkaExtract | None = None,
+) -> BoundingBoxesOnImage:
     """Return example bounding boxes on the standard example quokke image.
 
     Currently only a single bounding box is returned that covers the quokka.
@@ -430,7 +468,10 @@ def quokka_bounding_boxes(size=None, extract=None):
     return bbsoi
 
 
-def quokka_polygons(size=None, extract=None):
+def quokka_polygons(
+    size: ResizeInput = None,
+    extract: QuokkaExtract | None = None,
+) -> PolygonsOnImage:
     """
     Returns example polygons on the standard example quokke image.
 

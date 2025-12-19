@@ -1,16 +1,29 @@
-"""Keypoint helpers for the `imgaug2.compat` layer."""
+"""Keypoint conversion and filtering utilities for compatibility layer.
+
+This module provides conversion between list-based keypoint representations and
+imgaug2's native KeypointsOnImage format. It preserves extra fields beyond (x, y)
+coordinates and supports filtering of out-of-bounds keypoints.
+"""
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any
 
 from imgaug2.augmentables.kps import Keypoint, KeypointsOnImage
 
 
 @dataclass(frozen=True, slots=True)
 class KeypointParams:
-    """Parameters for keypoint handling in `compat.Compose`."""
+    """Parameters for keypoint handling in Compose transforms.
+
+    Parameters
+    ----------
+    remove_invisible : bool, default=True
+        If True, keypoints outside image bounds are removed after augmentation.
+        Coordinates must satisfy 0 <= x < width and 0 <= y < height.
+    """
 
     remove_invisible: bool = True
 
@@ -19,11 +32,26 @@ def convert_keypoints_to_imgaug(
     keypoints: Sequence[Sequence[Any]],
     image_shape: tuple[int, int, int] | tuple[int, int],
 ) -> tuple[KeypointsOnImage, list[tuple[Any, ...]]]:
-    """Convert keypoints to `KeypointsOnImage`.
+    """Convert keypoint sequences to KeypointsOnImage format.
 
-    Supports keypoints with >=2 values:
-    - first two are interpreted as (x, y)
-    - remaining values are preserved and returned unchanged
+    Parameters
+    ----------
+    keypoints : sequence of sequence
+        Keypoints with at least 2 values (x, y). Additional values preserved.
+    image_shape : tuple of int
+        Image shape as (height, width) or (height, width, channels).
+
+    Returns
+    -------
+    kps_on_image : KeypointsOnImage
+        Converted keypoints in imgaug2 format.
+    extras : list of tuple
+        Additional fields from each keypoint (elements beyond x, y).
+
+    Raises
+    ------
+    ValueError
+        If any keypoint has fewer than 2 values.
     """
 
     h, w = int(image_shape[0]), int(image_shape[1])
@@ -46,6 +74,25 @@ def convert_keypoints_from_imgaug(
     *,
     extras: Sequence[tuple[Any, ...]] | None = None,
 ) -> list[tuple[Any, ...]]:
+    """Convert KeypointsOnImage back to list format.
+
+    Parameters
+    ----------
+    kps : KeypointsOnImage
+        Keypoints in imgaug2 format.
+    extras : sequence of tuple or None, default=None
+        Additional fields to append to each keypoint tuple.
+
+    Returns
+    -------
+    list of tuple
+        Keypoints as (x, y, *extras) tuples.
+
+    Raises
+    ------
+    ValueError
+        If extras length doesn't match number of keypoints.
+    """
     if extras is not None and len(extras) != len(kps.keypoints):
         raise ValueError("extras length mismatch with keypoints")
 
@@ -62,7 +109,33 @@ def filter_keypoints(
     *,
     extras: list[tuple[Any, ...]] | None = None,
 ) -> tuple[KeypointsOnImage, list[tuple[Any, ...]] | None]:
-    """Optionally remove invisible keypoints and keep extras in sync."""
+    """Filter out-of-bounds keypoints based on visibility.
+
+    Parameters
+    ----------
+    kps : KeypointsOnImage
+        Keypoints to filter.
+    params : KeypointParams
+        Filtering parameters.
+    extras : list of tuple or None, default=None
+        Extra fields synchronized with keypoints. Filtered along with keypoints.
+
+    Returns
+    -------
+    filtered_kps : KeypointsOnImage
+        Keypoints within image bounds if remove_invisible=True.
+    filtered_extras : list of tuple or None
+        Extras for kept keypoints, or None if no extras provided.
+
+    Raises
+    ------
+    ValueError
+        If extras length doesn't match number of keypoints.
+
+    Notes
+    -----
+    Keypoints are considered visible if 0 <= x < width and 0 <= y < height.
+    """
 
     if extras is not None and len(extras) != len(kps.keypoints):
         raise ValueError("extras length mismatch with keypoints")

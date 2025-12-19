@@ -74,7 +74,7 @@ import inspect
 import warnings
 from collections.abc import Callable, Sequence
 from types import ModuleType
-from typing import Any, cast, Literal, Protocol, TypeAlias
+from typing import Any, Literal, Protocol, TypeAlias, cast
 
 import numpy as np
 import skimage.filters
@@ -123,7 +123,7 @@ def _patch_imagecorruptions_modules_() -> tuple[ModuleType, ModuleType]:
             import imagecorruptions
             import imagecorruptions.corruptions as corruptions
     except ImportError:
-        raise ImportError(_MISSING_PACKAGE_ERROR_MSG)
+        raise ImportError(_MISSING_PACKAGE_ERROR_MSG) from None
 
     # Patch only once per process.
     if getattr(imagecorruptions, "__imgaug2_patched__", False):
@@ -351,7 +351,7 @@ def get_corruption_names(
         with warnings.catch_warnings():
             import imagecorruptions
     except ImportError:
-        raise ImportError(_MISSING_PACKAGE_ERROR_MSG)
+        raise ImportError(_MISSING_PACKAGE_ERROR_MSG) from None
 
     cnames = imagecorruptions.get_corruption_names(subset)
     funcs = [globals()[f"apply_{cname}"] for cname in cnames]

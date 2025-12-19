@@ -27,7 +27,7 @@ def convert_iterable_to_string_of_types(iterable_var: Iterable[Any]) -> str:
     return ", ".join(types)
 
 
-def is_iterable_of(iterable_var: Any, classes: type | Iterable[type]) -> bool:
+def is_iterable_of(iterable_var: object, classes: type | Iterable[type]) -> bool:
     """Check whether `iterable_var` contains only instances of given classes.
 
     Parameters
@@ -58,7 +58,7 @@ def is_iterable_of(iterable_var: Any, classes: type | Iterable[type]) -> bool:
     return True
 
 
-def assert_is_iterable_of(iterable_var: Any, classes: type | Iterable[type]) -> None:
+def assert_is_iterable_of(iterable_var: object, classes: type | Iterable[type]) -> None:
     """Assert that `iterable_var` only contains instances of given classes.
 
     Parameters

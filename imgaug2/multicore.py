@@ -10,8 +10,10 @@ import threading
 import time
 import traceback
 import warnings
+from collections.abc import Callable, Generator, Iterable, Sequence
 from queue import Empty as QueueEmpty
 from queue import Full as QueueFull
+from typing import TYPE_CHECKING, Any
 
 import cv2
 import numpy as np
@@ -20,11 +22,14 @@ import imgaug2.imgaug as ia
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import Batch, UnnormalizedBatch
 
+if TYPE_CHECKING:
+    from imgaug2.augmenters.meta import Augmenter
+
 _CONTEXT = None
 
 
 # Added in 0.4.0.
-def _get_context_method():
+def _get_context_method() -> str | None:
     method = None
     # Fix random hanging code in NixOS by switching to spawn method,
     # see issue #414
@@ -40,22 +45,22 @@ def _get_context_method():
 
 
 # Added in 0.4.0.
-def _set_context(method):
+def _set_context(method: str | None) -> None:
     globals()["_CONTEXT"] = multiprocessing.get_context(method)
 
 
 # Added in 0.4.0.
-def _reset_context():
+def _reset_context() -> None:
     globals()["_CONTEXT"] = None
 
 
 # Added in 0.4.0.
-def _autoset_context():
+def _autoset_context() -> None:
     _set_context(_get_context_method())
 
 
 # Added in 0.4.0.
-def _get_context():
+def _get_context() -> Any:  # noqa: ANN401
     if _CONTEXT is None:
         _autoset_context()
     return _CONTEXT
@@ -105,7 +110,13 @@ class Pool:
     # attribute.
     _WORKER_SEED_START = None
 
-    def __init__(self, augseq, processes=None, maxtasksperchild=None, seed=None):
+    def __init__(
+        self,
+        augseq: Augmenter,
+        processes: int | None = None,
+        maxtasksperchild: int | None = None,
+        seed: int | None = None,
+    ) -> None:
         # make sure that don't call pool again in a child process
         assert Pool._WORKER_AUGSEQ is None, (
             "_WORKER_AUGSEQ was already set when calling Pool.__init__(). "
@@ -140,7 +151,7 @@ class Pool:
         self._batch_idx = 0
 
     @property
-    def pool(self):
+    def pool(self) -> multiprocessing.pool.Pool:
         """Return or create the ``multiprocessing.Pool`` instance.
 
         This creates a new instance upon the first call and afterwards
@@ -188,7 +199,9 @@ class Pool:
             )
         return self._pool
 
-    def map_batches(self, batches, chunksize=None):
+    def map_batches(
+        self, batches: list[Batch], chunksize: int | None = None
+    ) -> list[Batch]:
         """
         Augment a list of batches.
 
@@ -210,7 +223,13 @@ class Pool:
         self._assert_batches_is_list(batches)
         return self.pool.map(_Pool_starworker, self._handle_batch_ids(batches), chunksize=chunksize)
 
-    def map_batches_async(self, batches, chunksize=None, callback=None, error_callback=None):
+    def map_batches_async(
+        self,
+        batches: list[Batch],
+        chunksize: int | None = None,
+        callback: Callable[[Any], Any] | None = None,
+        error_callback: Callable[[Any], Any] | None = None,
+    ) -> multiprocessing.pool.MapResult:
         """
         Augment batches asynchonously.
 
@@ -245,13 +264,18 @@ class Pool:
         )
 
     @classmethod
-    def _assert_batches_is_list(cls, batches):
+    def _assert_batches_is_list(cls, batches: Any) -> None:  # noqa: ANN401
         assert isinstance(batches, list), (
             f"Expected `batches` to be a list, got type {type(batches)}. Call "
             "imap_batches() if you use generators."
         )
 
-    def imap_batches(self, batches, chunksize=1, output_buffer_size=None):
+    def imap_batches(
+        self,
+        batches: Generator[Batch, None, None],
+        chunksize: int = 1,
+        output_buffer_size: int | None = None,
+    ) -> Generator[Batch, None, None]:
         """
         Augment batches from a generator.
 
@@ -303,7 +327,12 @@ class Pool:
             if output_buffer_left is not None:
                 output_buffer_left.release()
 
-    def imap_batches_unordered(self, batches, chunksize=1, output_buffer_size=None):
+    def imap_batches_unordered(
+        self,
+        batches: Generator[Batch, None, None],
+        chunksize: int = 1,
+        output_buffer_size: int | None = None,
+    ) -> Generator[Batch, None, None]:
         """Augment batches from a generator (without preservation of order).
 
         Pattern for output buffer constraint is from
@@ -354,28 +383,33 @@ class Pool:
                 output_buffer_left.release()
 
     @classmethod
-    def _assert_batches_is_generator(cls, batches):
+    def _assert_batches_is_generator(cls, batches: Any) -> None:  # noqa: ANN401
         assert ia.is_generator(batches), (
             f"Expected `batches` to be generator, got type {type(batches)}. Call "
             "map_batches() if you use lists."
         )
 
-    def __enter__(self):
+    def __enter__(self) -> Pool:
         assert self._pool is None, "Tried to __enter__ a pool that has already been initialized."
         _ = self.pool  # initialize internal multiprocessing pool instance
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any | None,  # noqa: ANN401
+    ) -> None:
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         """Close the pool gracefully."""
         if self._pool is not None:
             self._pool.close()
             self._pool.join()
             self._pool = None
 
-    def terminate(self):
+    def terminate(self) -> None:
         """Terminate the pool immediately."""
         if self._pool is not None:
             self._pool.terminate()
@@ -384,7 +418,7 @@ class Pool:
 
     # TODO why does this function exist if it may only be called after
     #      close/terminate and both of these two already call join() themselves
-    def join(self):
+    def join(self) -> None:
         """
         Wait for the workers to exit.
 
@@ -396,27 +430,31 @@ class Pool:
         if self._pool is not None:
             self._pool.join()
 
-    def _handle_batch_ids(self, batches):
+    def _handle_batch_ids(self, batches: list[Batch]) -> list[tuple[int, Batch]]:
         ids = np.arange(self._batch_idx, self._batch_idx + len(batches))
-        inputs = list(zip(ids, batches))
+        inputs = list(zip(ids, batches, strict=True))
         self._batch_idx += len(batches)
         return inputs
 
-    def _handle_batch_ids_gen(self, batches):
+    def _handle_batch_ids_gen(
+        self, batches: Generator[Batch, None, None]
+    ) -> Generator[tuple[int, Batch], None, None]:
         for batch in batches:
             batch_idx = self._batch_idx
             yield batch_idx, batch
             self._batch_idx += 1
 
     @classmethod
-    def _ibuffer_batch_loading(cls, batches, output_buffer_left):
+    def _ibuffer_batch_loading(
+        cls, batches: Generator[Batch, None, None], output_buffer_left: Any  # noqa: ANN401
+    ) -> Generator[Batch, None, None]:
         for batch in batches:
             if output_buffer_left is not None:
                 output_buffer_left.acquire()
             yield batch
 
 
-def _create_output_buffer_left(output_buffer_size):
+def _create_output_buffer_left(output_buffer_size: int | None) -> Any:  # noqa: ANN401
     output_buffer_left = None
     if output_buffer_size:
         assert output_buffer_size > 0, (
@@ -427,7 +465,7 @@ def _create_output_buffer_left(output_buffer_size):
     return output_buffer_left
 
 
-def _Pool_initialize_worker(augseq, seed_start):
+def _Pool_initialize_worker(augseq: Augmenter, seed_start: int | None) -> None:
     # pylint: disable=invalid-name, protected-access
 
     # Not using this seems to have caused infinite hanging in the case
@@ -453,7 +491,7 @@ def _Pool_initialize_worker(augseq, seed_start):
     Pool._WORKER_AUGSEQ.localize_random_state_()
 
 
-def _Pool_worker(batch_idx, batch):
+def _Pool_worker(batch_idx: int, batch: Batch | UnnormalizedBatch) -> Batch | UnnormalizedBatch:
     # pylint: disable=invalid-name, protected-access
     assert ia.is_single_integer(batch_idx), (
         f"Expected `batch_idx` to be an integer. Got type {type(batch_idx)} instead."
@@ -476,19 +514,19 @@ def _Pool_worker(batch_idx, batch):
     return result
 
 
-def _Pool_starworker(inputs):
+def _Pool_starworker(inputs: tuple[int, Batch | UnnormalizedBatch]) -> Batch | UnnormalizedBatch:
     # pylint: disable=invalid-name
     return _Pool_worker(*inputs)
 
 
-def _reseed_global_local(base_seed, augseq):
+def _reseed_global_local(base_seed: int, augseq: Augmenter) -> None:
     seed_global = _derive_seed(base_seed, -(10**9))
     seed_local = _derive_seed(base_seed)
     iarandom.seed(seed_global)
     augseq.seed_(seed_local)
 
 
-def _derive_seed(base_seed, offset=0):
+def _derive_seed(base_seed: int, offset: int = 0) -> int:
     return iarandom.SEED_MIN_VALUE + (base_seed + offset) % (
         iarandom.SEED_MAX_VALUE - iarandom.SEED_MIN_VALUE
     )
@@ -523,7 +561,13 @@ class BatchLoader:
     """
 
     @ia.deprecated(alt_func="imgaug2.multicore.Pool")
-    def __init__(self, load_batch_func, queue_size=50, nb_workers=1, threaded=True):
+    def __init__(
+        self,
+        load_batch_func: Callable[[], Batch | list[Batch]] | Generator[Batch, None, None],
+        queue_size: int = 50,
+        nb_workers: int = 1,
+        threaded: bool = True,
+    ) -> None:
         assert queue_size >= 2, f"Queue size for BatchLoader must be at least 2, got {queue_size}."
         assert nb_workers >= 1, (
             f"Number of workers for BatchLoader must be at least 1, got {nb_workers}"
@@ -575,10 +619,10 @@ class BatchLoader:
         self.main_worker_thread.daemon = True
         self.main_worker_thread.start()
 
-    def count_workers_alive(self):
+    def count_workers_alive(self) -> int:
         return sum([int(worker.is_alive()) for worker in self.workers])
 
-    def all_finished(self):
+    def all_finished(self) -> bool:
         """
         Determine whether the workers have finished the loading process.
 
@@ -590,7 +634,7 @@ class BatchLoader:
         """
         return self.count_workers_alive() == 0
 
-    def _main_worker(self):
+    def _main_worker(self) -> None:
         workers_running = self.count_workers_alive()
 
         while workers_running > 0 and not self.join_signal.is_set():
@@ -624,7 +668,13 @@ class BatchLoader:
         time.sleep(0.01)
 
     @classmethod
-    def _load_batches(cls, load_batch_func, queue_internal, join_signal, seedval):
+    def _load_batches(
+        cls,
+        load_batch_func: Callable[[], Batch | list[Batch]] | Generator[Batch, None, None],
+        queue_internal: Any,  # noqa: ANN401
+        join_signal: Any,  # noqa: ANN401
+        seedval: int | None,
+    ) -> None:
         # pylint: disable=broad-except
         if seedval is not None:
             seedval_int = int(seedval)
@@ -654,7 +704,7 @@ class BatchLoader:
             queue_internal.put("")
         time.sleep(0.01)
 
-    def terminate(self):
+    def terminate(self) -> None:
         """Stop all workers."""
         # pylint: disable=protected-access
         if not self.join_signal.is_set():
@@ -702,7 +752,7 @@ class BatchLoader:
         self.queue.join_thread()
         time.sleep(0.025)
 
-    def __del__(self):
+    def __del__(self) -> None:
         if not self.join_signal.is_set():
             self.join_signal.set()
 
@@ -743,7 +793,13 @@ class BackgroundAugmenter:
     """
 
     @ia.deprecated(alt_func="imgaug2.multicore.Pool")
-    def __init__(self, batch_loader, augseq, queue_size=50, nb_workers="auto"):
+    def __init__(
+        self,
+        batch_loader: BatchLoader | Any,  # noqa: ANN401
+        augseq: Augmenter,
+        queue_size: int = 50,
+        nb_workers: str | int = "auto",
+    ) -> None:
         assert queue_size > 0, f"Expected 'queue_size' to be at least 1, got {queue_size}."
         self.augseq = augseq
         self.queue_source = (
@@ -779,10 +835,10 @@ class BackgroundAugmenter:
             worker.start()
             self.workers.append(worker)
 
-    def all_finished(self):
+    def all_finished(self) -> bool:
         return self.nb_workers_finished == self.nb_workers
 
-    def get_batch(self):
+    def get_batch(self) -> Batch | None:
         """
         Returns a batch from the queue of augmented batches.
 
@@ -817,7 +873,13 @@ class BackgroundAugmenter:
         return self.get_batch()
 
     @classmethod
-    def _augment_images_worker(cls, augseq, queue_source, queue_result, seedval):
+    def _augment_images_worker(
+        cls,
+        augseq: Augmenter,
+        queue_source: Any,  # noqa: ANN401
+        queue_result: Any,  # noqa: ANN401
+        seedval: int,
+    ) -> None:
         """
         Augment endlessly images in the source queue.
 
@@ -856,7 +918,7 @@ class BackgroundAugmenter:
         queue_result.put(pickle.dumps(None, protocol=-1))
         time.sleep(0.01)
 
-    def terminate(self):
+    def terminate(self) -> None:
         """
         Terminates all background processes immediately.
 
@@ -873,6 +935,6 @@ class BackgroundAugmenter:
             self.queue_result.close()
         time.sleep(0.01)
 
-    def __del__(self):
+    def __del__(self) -> None:
         time.sleep(0.1)
         self.terminate()

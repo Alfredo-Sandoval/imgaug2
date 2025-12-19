@@ -1,40 +1,49 @@
-"""Decorators for marking function origins (legacy vs new).
+"""Function origin markers for tracking legacy and new code.
 
-These decorators help track which functions are from the original imgaug
-codebase and which are new additions in imgaug2. They can be used for:
-- Documentation generation
-- Deprecation warnings
-- Code auditing
-- IDE hints (via function metadata)
+This module provides decorators to mark functions and classes by their origin:
+legacy code from the original imgaug library or new additions in imgaug2.
+Markers support deprecation warnings, version tracking, and metadata for
+documentation generation and code auditing.
 
-Usage:
-    from imgaug2.compat.markers import legacy, new
+Examples
+--------
+Mark legacy function without deprecation:
 
-    @legacy
-    def old_function():
-        ...
+    >>> @legacy
+    ... def old_function():
+    ...     pass
 
-    @legacy(version="0.2.0", deprecated=True, replacement="new_function")
-    def old_function_with_details():
-        ...
+Mark deprecated legacy function with replacement:
 
-    @new
-    def modern_function():
-        ...
+    >>> @legacy(version="0.2.0", deprecated=True, replacement="new_function")
+    ... def old_function_with_details():
+    ...     pass
 
-    @new(version="0.5.0")
-    def modern_function_with_version():
-        ...
+Mark new function with version:
+
+    >>> @new(version="0.5.0")
+    ... def modern_function():
+    ...     pass
+
+Check function origin:
+
+    >>> marker = get_marker(old_function)
+    >>> marker.origin
+    'legacy'
+    >>> is_legacy(old_function)
+    True
 """
 
 from __future__ import annotations
 
 import functools
 import warnings
-from typing import Callable, ParamSpec, Protocol, TypeVar, overload
+from collections.abc import Callable
+from typing import ParamSpec, Protocol, TypeVar, overload
 
 P = ParamSpec("P")
 R = TypeVar("R")
+T = TypeVar("T")
 
 
 class _NamedCallable(Protocol[P, R]):
@@ -44,7 +53,21 @@ class _NamedCallable(Protocol[P, R]):
 
 
 class FunctionMarker:
-    """Metadata container for function origin markers."""
+    """Metadata container for function origin markers.
+
+    Attributes
+    ----------
+    origin : str
+        Origin of the function ('legacy' or 'new').
+    version : str or None
+        Version when function was introduced or deprecated.
+    deprecated : bool
+        Whether function is deprecated.
+    replacement : str or None
+        Name of replacement function if deprecated.
+    notes : str or None
+        Additional notes about the function.
+    """
 
     __slots__ = ("origin", "version", "deprecated", "replacement", "notes")
 
@@ -56,7 +79,22 @@ class FunctionMarker:
         replacement: str | None = None,
         notes: str | None = None,
     ) -> None:
-        self.origin = origin  # "legacy" or "new"
+        """Initialize function marker.
+
+        Parameters
+        ----------
+        origin : str
+            Origin of the function ('legacy' or 'new').
+        version : str or None, default=None
+            Version when function was introduced or deprecated.
+        deprecated : bool, default=False
+            Whether function is deprecated.
+        replacement : str or None, default=None
+            Name of replacement function if deprecated.
+        notes : str or None, default=None
+            Additional notes about the function.
+        """
+        self.origin = origin
         self.version = version
         self.deprecated = deprecated
         self.replacement = replacement
@@ -81,7 +119,28 @@ def _apply_marker(
     replacement: str | None,
     notes: str | None,
 ) -> Callable[P, R]:
-    """Apply marker metadata to a function."""
+    """Apply marker metadata to a function.
+
+    Parameters
+    ----------
+    func : callable
+        Function to mark.
+    origin : str
+        Origin identifier ('legacy' or 'new').
+    version : str or None
+        Version information.
+    deprecated : bool
+        Whether function is deprecated.
+    replacement : str or None
+        Replacement function name.
+    notes : str or None
+        Additional notes.
+
+    Returns
+    -------
+    callable
+        Marked function, wrapped with deprecation warning if deprecated.
+    """
     marker = FunctionMarker(
         origin=origin,
         version=version,
@@ -90,10 +149,8 @@ def _apply_marker(
         notes=notes,
     )
 
-    # Store marker as function attribute
     setattr(func, "__imgaug2_marker__", marker)
 
-    # Add deprecation warning if needed
     if deprecated:
 
         @functools.wraps(func)
@@ -116,7 +173,21 @@ def _apply_marker(
 
 
 @overload
+def legacy(func: type[T]) -> type[T]: ...
+
+
+@overload
 def legacy(func: Callable[P, R]) -> Callable[P, R]: ...
+
+
+@overload
+def legacy(
+    *,
+    version: str | None = None,
+    deprecated: bool = False,
+    replacement: str | None = None,
+    notes: str | None = None,
+) -> Callable[[type[T]], type[T]]: ...
 
 
 @overload
@@ -137,39 +208,54 @@ def legacy(
     replacement: str | None = None,
     notes: str | None = None,
 ) -> Callable[P, R] | Callable[[Callable[P, R]], Callable[P, R]]:
-    """Mark a function as legacy (from original imgaug).
+    """Mark a function as legacy code from original imgaug.
 
-    Can be used with or without arguments:
-        @legacy
-        def my_func(): ...
-
-        @legacy(version="0.2.0", deprecated=True)
-        def old_func(): ...
+    This decorator can be used with or without arguments to mark functions
+    from the original imgaug codebase. Optionally marks them as deprecated.
 
     Parameters
     ----------
-    version : str, optional
+    func : callable or None, default=None
+        Function to mark (when used without arguments).
+    version : str or None, default=None
         Version when this function was introduced in original imgaug.
-    deprecated : bool, default False
-        If True, emits a DeprecationWarning when called.
-    replacement : str, optional
+    deprecated : bool, default=False
+        If True, emits DeprecationWarning when called.
+    replacement : str or None, default=None
         Name of the function that should be used instead.
-    notes : str, optional
+    notes : str or None, default=None
         Additional notes about the function.
 
+    Returns
+    -------
+    callable or decorator
+        Marked function if used without arguments, decorator otherwise.
+
+    Examples
+    --------
+    Simple usage without arguments:
+
+        >>> @legacy
+        ... def old_function():
+        ...     pass
+
+    With deprecation:
+
+        >>> @legacy(version="0.2.0", deprecated=True, replacement="new_func")
+        ... def old_func():
+        ...     pass
     """
     if func is not None:
-        # Called without arguments: @legacy
         return _apply_marker(func, "legacy", version, deprecated, replacement, notes)
 
-    # Called with arguments: @legacy(...)
     def decorator(fn: Callable[P, R]) -> Callable[P, R]:
         return _apply_marker(fn, "legacy", version, deprecated, replacement, notes)
 
     return decorator
 
 
-# --- New decorator ---
+@overload
+def new(func: type[T]) -> type[T]: ...
 
 
 @overload
@@ -181,6 +267,14 @@ def new(
     *,
     version: str | None = None,
     notes: str | None = None,
+) -> Callable[[type[T]], type[T]]: ...
+
+
+@overload
+def new(
+    *,
+    version: str | None = None,
+    notes: str | None = None,
 ) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
 
 
@@ -190,50 +284,94 @@ def new(
     version: str | None = None,
     notes: str | None = None,
 ) -> Callable[P, R] | Callable[[Callable[P, R]], Callable[P, R]]:
-    """Mark a function as new (added in imgaug2).
+    """Mark a function as new code added in imgaug2.
 
-    Can be used with or without arguments:
-        @new
-        def my_func(): ...
-
-        @new(version="0.5.0")
-        def added_in_05(): ...
+    This decorator marks functions that are new additions in imgaug2, not
+    present in the original imgaug library.
 
     Parameters
     ----------
-    version : str, optional
+    func : callable or None, default=None
+        Function to mark (when used without arguments).
+    version : str or None, default=None
         Version when this function was added to imgaug2.
-    notes : str, optional
+    notes : str or None, default=None
         Additional notes about the function.
 
+    Returns
+    -------
+    callable or decorator
+        Marked function if used without arguments, decorator otherwise.
+
+    Examples
+    --------
+    Simple usage:
+
+        >>> @new
+        ... def modern_function():
+        ...     pass
+
+    With version tracking:
+
+        >>> @new(version="0.5.0")
+        ... def added_in_05():
+        ...     pass
     """
     if func is not None:
-        # Called without arguments: @new
         return _apply_marker(func, "new", version, False, None, notes)
 
-    # Called with arguments: @new(...)
     def decorator(fn: Callable[P, R]) -> Callable[P, R]:
         return _apply_marker(fn, "new", version, False, None, notes)
 
     return decorator
 
 
-# --- Utility functions ---
-
-
 def get_marker(func: Callable[..., object]) -> FunctionMarker | None:
-    """Get the marker for a function, if any."""
+    """Get the marker metadata for a function.
+
+    Parameters
+    ----------
+    func : callable
+        Function to inspect.
+
+    Returns
+    -------
+    FunctionMarker or None
+        Marker metadata if present, otherwise None.
+    """
     return getattr(func, "__imgaug2_marker__", None)
 
 
 def is_legacy(func: Callable[..., object]) -> bool:
-    """Check if a function is marked as legacy."""
+    """Check if a function is marked as legacy.
+
+    Parameters
+    ----------
+    func : callable
+        Function to check.
+
+    Returns
+    -------
+    bool
+        True if function has legacy marker, False otherwise.
+    """
     marker = get_marker(func)
     return marker is not None and marker.origin == "legacy"
 
 
 def is_new(func: Callable[..., object]) -> bool:
-    """Check if a function is marked as new."""
+    """Check if a function is marked as new.
+
+    Parameters
+    ----------
+    func : callable
+        Function to check.
+
+    Returns
+    -------
+    bool
+        True if function has new marker, False otherwise.
+    """
     marker = get_marker(func)
     return marker is not None and marker.origin == "new"
 

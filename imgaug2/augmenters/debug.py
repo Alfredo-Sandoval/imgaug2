@@ -11,9 +11,9 @@ Added in 0.4.0.
 from __future__ import annotations
 
 import collections
+from abc import ABCMeta, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
-from abc import ABCMeta, abstractmethod
 from typing import Literal, Protocol, TypeAlias, TypeVar
 
 import imageio
@@ -840,7 +840,7 @@ def _generate_cbasois_description(
 
     coords_ooi = []
     dists = []
-    for cbasoi, image in zip(cbasois, images):
+    for cbasoi, image in zip(cbasois, images, strict=True):
         h, w = image.shape[0:2]
         for cba in cbasoi.items:
             coords = cba.coords
@@ -1061,6 +1061,7 @@ class _ListOfArraysStats:
 class _IImageDestination(metaclass=ABCMeta):
     """A destination which receives images to save."""
 
+    @abstractmethod
     def on_batch(self, batch: _BatchInAugmentation) -> None:
         """Signal to the destination that a new batch is processed.
 
@@ -1075,6 +1076,7 @@ class _IImageDestination(metaclass=ABCMeta):
 
         """
 
+    @abstractmethod
     def receive(self, image: ImageArray) -> None:
         """Receive and handle an image.
 

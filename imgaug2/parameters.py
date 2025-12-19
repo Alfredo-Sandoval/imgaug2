@@ -12,21 +12,27 @@ import copy as copy_module
 import tempfile
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
+from collections.abc import Callable, Iterable, Sequence
 from functools import reduce, wraps
 from operator import mul as mul_op
-from typing import NoReturn
+from typing import Any, NoReturn, TypeVar, Union, overload
 
 import cv2
 import imageio
 import numpy as np
 import scipy
 import scipy.stats
+from numpy.typing import NDArray
+from opensimplex import OpenSimplex
 
 import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.random as iarandom
 from imgaug2.compat.markers import legacy, new
-from opensimplex import OpenSimplex
+
+# Type aliases
+Numberish = Union[float, int, "StochasticParameter"]
+ParamInput = Union[float, tuple[float, float], list[float], "StochasticParameter"]
 
 # Added in 0.5.0.
 _PREFETCHING_ENABLED = True
@@ -38,9 +44,9 @@ _NB_PREFETCH_STRINGS = 1000
 
 # Added in 0.5.0.
 @legacy(version="0.5.0")
-def _prefetchable(func):
+def _prefetchable(func: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(func)
-    def _inner(*args, **kwargs):
+    def _inner(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
         param = func(*args, **kwargs)
         return _wrap_leafs_of_param_in_prefetchers(param, _NB_PREFETCH)
 
@@ -49,9 +55,9 @@ def _prefetchable(func):
 
 # Added in 0.5.0.
 @legacy(version="0.5.0")
-def _prefetchable_str(func):
+def _prefetchable_str(func: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(func)
-    def _inner(*args, **kwargs):
+    def _inner(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
         param = func(*args, **kwargs)
         return _wrap_leafs_of_param_in_prefetchers(param, _NB_PREFETCH_STRINGS)
 
@@ -60,7 +66,7 @@ def _prefetchable_str(func):
 
 # Added in 0.5.0.
 @legacy(version="0.5.0")
-def _wrap_param_in_prefetchers(param, nb_prefetch):
+def _wrap_param_in_prefetchers(param: Any, nb_prefetch: int) -> Any:  # noqa: ANN401
     for key, value in param.__dict__.items():
         if isinstance(value, StochasticParameter):
             param.__dict__[key] = _wrap_param_in_prefetchers(value, nb_prefetch)
@@ -72,7 +78,7 @@ def _wrap_param_in_prefetchers(param, nb_prefetch):
 
 # Added in 0.5.0.
 @legacy(version="0.5.0")
-def _wrap_leafs_of_param_in_prefetchers(param, nb_prefetch):
+def _wrap_leafs_of_param_in_prefetchers(param: Any, nb_prefetch: int) -> Any:  # noqa: ANN401
     param_wrapped, _did_wrap_any_child = _wrap_leafs_of_param_in_prefetchers_recursive(
         param, nb_prefetch
     )
@@ -81,7 +87,9 @@ def _wrap_leafs_of_param_in_prefetchers(param, nb_prefetch):
 
 # Added in 0.5.0.
 @legacy(version="0.5.0")
-def _wrap_leafs_of_param_in_prefetchers_recursive(param, nb_prefetch):
+def _wrap_leafs_of_param_in_prefetchers_recursive(
+    param: Any, nb_prefetch: int  # noqa: ANN401
+) -> tuple[Any, bool]:  # noqa: ANN401
     # Do not descent into AutoPrefetcher, otherwise we risk turning an
     # AutoPrefetcher(X) into AutoPrefetcher(AutoPrefetcher(X)) if X is
     # prefetchable
@@ -125,7 +133,7 @@ def _wrap_leafs_of_param_in_prefetchers_recursive(param, nb_prefetch):
 
 
 @legacy(version="0.5.0")
-def toggle_prefetching(enabled) -> None:
+def toggle_prefetching(enabled: bool) -> None:
     """Toggle prefetching on or off.
 
     Added in 0.5.0.
@@ -155,19 +163,24 @@ class toggled_prefetching:  # pylint: disable=invalid-name
     """
 
     # Added in 0.5.0.
-    def __init__(self, enabled) -> None:
+    def __init__(self, enabled: bool) -> None:
         self.enabled = enabled
         self._old_state = None
 
     # Added in 0.5.0.
-    def __enter__(self):
+    def __enter__(self) -> None:
         # pylint: disable=global-statement
         global _PREFETCHING_ENABLED
         self._old_state = _PREFETCHING_ENABLED
         _PREFETCHING_ENABLED = self.enabled
 
     # Added in 0.5.0.
-    def __exit__(self, exception_type, exception_value, exception_traceback):
+    def __exit__(
+        self,
+        exception_type: Any,  # noqa: ANN401
+        exception_value: Any,  # noqa: ANN401
+        exception_traceback: Any,  # noqa: ANN401
+    ) -> None:
         # pylint: disable=global-statement
         global _PREFETCHING_ENABLED
         _PREFETCHING_ENABLED = self._old_state
@@ -187,7 +200,11 @@ class no_prefetching(toggled_prefetching):  # pylint: disable=invalid-name
 
 
 @legacy
-def _check_value_range(value, name, value_range) -> bool:
+def _check_value_range(
+    value: float | int,
+    name: str,
+    value_range: tuple[float | None, float | None] | Callable[[float | int], Any] | None,
+) -> bool:
     if value_range is None:
         return True
 
@@ -201,20 +218,20 @@ def _check_value_range(value, name, value_range) -> bool:
             return True
 
         if value_range[0] is None:
-            assert value <= value_range[1], (
+            assert value <= value_range[1], (  # type: ignore
                 f"Parameter '{name}' is outside of the expected value "
                 f"range (x <= {value_range[1]:.4f})"
             )
             return True
 
         if value_range[1] is None:
-            assert value_range[0] <= value, (
+            assert value_range[0] <= value, (  # type: ignore
                 f"Parameter '{name}' is outside of the expected value "
                 f"range ({value_range[0]:.4f} <= x)"
             )
             return True
 
-        assert value_range[0] <= value <= value_range[1], (
+        assert value_range[0] <= value <= value_range[1], (  # type: ignore
             f"Parameter '{name}' is outside of the expected value "
             f"range ({value_range[0]:.4f} <= x <= {value_range[1]:.4f})"
         )
@@ -232,12 +249,17 @@ def _check_value_range(value, name, value_range) -> bool:
 #       Uniform parameter has value range a<=x<b.
 @legacy
 def handle_continuous_param(
-    param, name, value_range=None, tuple_to_uniform=True, list_to_choice=True, prefetch=True
-):
+    param: float | tuple[float, float] | list[float] | StochasticParameter,
+    name: str,
+    value_range: tuple[float | None, float | None] | Callable[[float | int], Any] | None = None,
+    tuple_to_uniform: bool = True,
+    list_to_choice: bool = True,
+    prefetch: bool = True,
+) -> StochasticParameter:
     result = None
 
     if ia.is_single_number(param):
-        _check_value_range(param, name, value_range)
+        _check_value_range(param, name, value_range)  # type: ignore
         result = Deterministic(param)
     elif tuple_to_uniform and isinstance(param, tuple):
         assert len(param) == 2, (
@@ -252,13 +274,13 @@ def handle_continuous_param(
         _check_value_range(param[1], name, value_range)
         result = Uniform(param[0], param[1])
     elif list_to_choice and ia.is_iterable(param) and not isinstance(param, tuple):
-        assert all([ia.is_single_number(v) for v in param]), (
+        assert all([ia.is_single_number(v) for v in param]), (  # type: ignore
             f"Expected iterable parameter '{name}' to only contain numbers, "
             f"got {[type(v) for v in param]}."
         )
-        for param_i in param:
+        for param_i in param:  # type: ignore
             _check_value_range(param_i, name, value_range)
-        result = Choice(param)
+        result = Choice(param)  # type: ignore
     elif isinstance(param, StochasticParameter):
         result = param
 
@@ -277,19 +299,23 @@ def handle_continuous_param(
 
 @legacy
 def handle_discrete_param(
-    param,
-    name,
-    value_range=None,
-    tuple_to_uniform=True,
-    list_to_choice=True,
-    allow_floats=True,
-    prefetch=True,
-):
+    param: int
+    | float
+    | tuple[int | float, int | float]
+    | list[int | float]
+    | StochasticParameter,
+    name: str,
+    value_range: tuple[float | None, float | None] | Callable[[float | int], Any] | None = None,
+    tuple_to_uniform: bool = True,
+    list_to_choice: bool = True,
+    allow_floats: bool = True,
+    prefetch: bool = True,
+) -> StochasticParameter:
     result = None
 
     if ia.is_single_integer(param) or (allow_floats and ia.is_single_float(param)):
-        _check_value_range(param, name, value_range)
-        result = Deterministic(int(param))
+        _check_value_range(param, name, value_range)  # type: ignore
+        result = Deterministic(int(param))  # type: ignore
     elif tuple_to_uniform and isinstance(param, tuple):
         assert len(param) == 2, (
             f"Expected parameter '{name}' with type tuple to have exactly two "
@@ -342,7 +368,12 @@ def handle_discrete_param(
 
 # Added in 0.4.0.
 @legacy(version="0.4.0")
-def handle_categorical_string_param(param, name, valid_values=None, prefetch=True):
+def handle_categorical_string_param(
+    param: str | list[str] | StochasticParameter | Any,  # noqa: ANN401
+    name: str,
+    valid_values: Sequence[str] | None = None,
+    prefetch: bool = True,
+) -> StochasticParameter:
     result = None
 
     if param == ia.ALL and valid_values is not None:
@@ -390,14 +421,25 @@ def handle_categorical_string_param(param, name, valid_values=None, prefetch=Tru
 
 @legacy
 def handle_discrete_kernel_size_param(
-    param, name, value_range=(1, None), allow_floats=True, prefetch=True
-):
+    param: int
+    | float
+    | tuple[int | float, int | float]
+    | list[int | float]
+    | StochasticParameter,
+    name: str,
+    value_range: tuple[float | None, float | None] | Callable[[float | int], Any] | None = (
+        1,
+        None,
+    ),
+    allow_floats: bool = True,
+    prefetch: bool = True,
+) -> tuple[StochasticParameter | None, StochasticParameter | None]:
     # pylint: disable=invalid-name
 
-    result = None, None
+    result: tuple[StochasticParameter | None, StochasticParameter | None] = None, None
     if ia.is_single_integer(param) or (allow_floats and ia.is_single_float(param)):
-        _check_value_range(param, name, value_range)
-        result = Deterministic(int(param)), None
+        _check_value_range(param, name, value_range)  # type: ignore
+        result = Deterministic(int(param)), None  # type: ignore
     elif isinstance(param, tuple):
         assert len(param) == 2, (
             f"Expected parameter '{name}' with type tuple to have exactly two "
@@ -406,37 +448,37 @@ def handle_discrete_kernel_size_param(
         if all([ia.is_single_integer(param_i) for param_i in param]) or (
             allow_floats and all([ia.is_single_float(param_i) for param_i in param])
         ):
-            _check_value_range(param[0], name, value_range)
-            _check_value_range(param[1], name, value_range)
-            result = DiscreteUniform(int(param[0]), int(param[1])), None
+            _check_value_range(param[0], name, value_range)  # type: ignore
+            _check_value_range(param[1], name, value_range)  # type: ignore
+            result = DiscreteUniform(int(param[0]), int(param[1])), None  # type: ignore
         elif all([isinstance(param_i, StochasticParameter) for param_i in param]):
-            result = param[0], param[1]
+            result = param[0], param[1]  # type: ignore
         else:
             handled = (
                 handle_discrete_param(
-                    param[0], f"{name}[0]", value_range, allow_floats=allow_floats
+                    param[0], f"{name}[0]", value_range, allow_floats=allow_floats  # type: ignore
                 ),
                 handle_discrete_param(
-                    param[1], f"{name}[1]", value_range, allow_floats=allow_floats
+                    param[1], f"{name}[1]", value_range, allow_floats=allow_floats  # type: ignore
                 ),
             )
 
             result = handled
     elif ia.is_iterable(param) and not isinstance(param, tuple):
         is_valid_types = all(
-            [ia.is_single_number(v) if allow_floats else ia.is_single_integer(v) for v in param]
+            [ia.is_single_number(v) if allow_floats else ia.is_single_integer(v) for v in param]  # type: ignore
         )
         assert is_valid_types, (
             "Expected iterable parameter '{}' to only contain {}, got {}.".format(
                 name,
                 "number" if allow_floats else "integer",
-                [type(v) for v in param],
+                [type(v) for v in param],  # type: ignore
             )
         )
 
-        for param_i in param:
+        for param_i in param:  # type: ignore
             _check_value_range(param_i, name, value_range)
-        result = Choice([int(param_i) for param_i in param]), None
+        result = Choice([int(param_i) for param_i in param]), None  # type: ignore
     elif isinstance(param, StochasticParameter):
         result = param, None
 
@@ -447,7 +489,7 @@ def handle_discrete_kernel_size_param(
         result_pf.append(v)
 
     if result_pf != [None, None]:
-        return tuple(result_pf)
+        return tuple(result_pf)  # type: ignore
 
     raise Exception(
         f"Expected int, tuple/list with 2 entries or StochasticParameter. Got {type(param)}."
@@ -456,8 +498,12 @@ def handle_discrete_kernel_size_param(
 
 @legacy
 def handle_probability_param(
-    param, name, tuple_to_uniform=False, list_to_choice=False, prefetch=True
-):
+    param: float | int | bool | tuple[float, float] | list[float] | StochasticParameter,
+    name: str,
+    tuple_to_uniform: bool = False,
+    list_to_choice: bool = False,
+    prefetch: bool = True,
+) -> StochasticParameter:
     eps = 1e-6
 
     result = None
@@ -465,13 +511,13 @@ def handle_probability_param(
     if param in [True, False, 0, 1]:
         result = Deterministic(int(param))
     elif ia.is_single_number(param):
-        assert 0.0 <= param <= 1.0, (
+        assert 0.0 <= param <= 1.0, (  # type: ignore
             f"Expected probability of parameter '{name}' to be in the interval "
             f"[0.0, 1.0], got {param:.4f}."
         )
-        if 0.0 - eps < param < 0.0 + eps or 1.0 - eps < param < 1.0 + eps:
-            return Deterministic(int(np.round(param)))
-        result = Binomial(param)
+        if 0.0 - eps < param < 0.0 + eps or 1.0 - eps < param < 1.0 + eps:  # type: ignore
+            return Deterministic(int(np.round(param)))  # type: ignore
+        result = Binomial(param)  # type: ignore
     elif tuple_to_uniform and isinstance(param, tuple):
         assert all([ia.is_single_number(v) for v in param]), (
             f"Expected parameter '{name}' of type tuple to only contain numbers, "
@@ -488,17 +534,17 @@ def handle_probability_param(
         )
         result = Binomial(Uniform(param[0], param[1]))
     elif list_to_choice and ia.is_iterable(param):
-        assert all([ia.is_single_number(v) for v in param]), (
+        assert all([ia.is_single_number(v) for v in param]), (  # type: ignore
             f"Expected iterable parameter '{name}' to only contain numbers, "
             f"got {[type(v) for v in param]}."
         )
-        assert all([0 <= p_i <= 1.0 for p_i in param]), (
+        assert all([0 <= p_i <= 1.0 for p_i in param]), (  # type: ignore
             "Expected iterable parameter '{}' to only contain probabilities "
             "in the interval [0.0, 1.0], got values {}.".format(
-                name, ", ".join([f"{p_i:.4f}" for p_i in param])
+                name, ", ".join([f"{p_i:.4f}" for p_i in param])  # type: ignore
             )
         )
-        result = Binomial(Choice(param))
+        result = Binomial(Choice(param))  # type: ignore
     elif isinstance(param, StochasticParameter):
         result = param
 
@@ -513,14 +559,14 @@ def handle_probability_param(
 
 
 @legacy
-def force_np_float_dtype(val):
+def force_np_float_dtype(val: NDArray) -> NDArray:
     if val.dtype.kind == "f":
         return val
     return val.astype(np.float64)
 
 
 @legacy
-def both_np_float_if_one_is_float(a, b):
+def both_np_float_if_one_is_float(a: NDArray, b: NDArray) -> tuple[NDArray, NDArray]:
     # pylint: disable=invalid-name
     a_f = a.dtype.type in ia.NP_FLOAT_TYPES
     b_f = b.dtype.type in ia.NP_FLOAT_TYPES
@@ -535,22 +581,29 @@ def both_np_float_if_one_is_float(a, b):
 
 @legacy
 def draw_distributions_grid(
-    params, rows=None, cols=None, graph_sizes=(350, 350), sample_sizes=None, titles=None
-):
+    params: Sequence[StochasticParameter],
+    rows: int | None = None,
+    cols: int | None = None,
+    graph_sizes: tuple[int, int] = (350, 350),
+    sample_sizes: Sequence[int] | None = None,
+    titles: Sequence[str | None] | bool | None = None,
+) -> NDArray:
     if titles is None:
         titles = [None] * len(params)
     elif titles is False:
-        titles = [False] * len(params)
+        titles = [False] * len(params)  # type: ignore
 
     if sample_sizes is not None:
         images = [
             param_i.draw_distribution_graph(size=size_i, title=title_i)
-            for param_i, size_i, title_i in zip(params, sample_sizes, titles)
+            for param_i, size_i, title_i in zip(
+                params, sample_sizes, titles, strict=False
+            )  # type: ignore
         ]
     else:
         images = [
             param_i.draw_distribution_graph(title=title_i)
-            for param_i, title_i in zip(params, titles)
+            for param_i, title_i in zip(params, titles, strict=False)  # type: ignore
         ]
 
     images_rs = ia.imresize_many_images(images, sizes=graph_sizes)
@@ -560,7 +613,12 @@ def draw_distributions_grid(
 
 @legacy
 def show_distributions_grid(
-    params, rows=None, cols=None, graph_sizes=(350, 350), sample_sizes=None, titles=None
+    params: Sequence[StochasticParameter],
+    rows: int | None = None,
+    cols: int | None = None,
+    graph_sizes: tuple[int, int] = (350, 350),
+    sample_sizes: Sequence[int] | None = None,
+    titles: Sequence[str | None] | bool | None = None,
 ) -> None:
     ia.imshow(
         draw_distributions_grid(
@@ -586,7 +644,7 @@ class StochasticParameter(metaclass=ABCMeta):
 
     """
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: B027
         pass
 
     @property
@@ -605,7 +663,16 @@ class StochasticParameter(metaclass=ABCMeta):
         """
         return False
 
-    def draw_sample(self, random_state=None):
+    def draw_sample(
+        self,
+        random_state: int
+        | iarandom.RNG
+        | np.random.Generator
+        | np.random.BitGenerator
+        | np.random.SeedSequence
+        | np.random.RandomState
+        | None = None,
+    ) -> Any:  # noqa: ANN401
         """
         Draws a single sample value from this parameter.
 
@@ -628,7 +695,17 @@ class StochasticParameter(metaclass=ABCMeta):
             return sample.item()
         return sample
 
-    def draw_samples(self, size, random_state=None):
+    def draw_samples(
+        self,
+        size: int | tuple[int, ...],
+        random_state: int
+        | iarandom.RNG
+        | np.random.Generator
+        | np.random.BitGenerator
+        | np.random.SeedSequence
+        | np.random.RandomState
+        | None = None,
+    ) -> Any:  # noqa: ANN401
         """Draw one or more samples from the parameter.
 
         Parameters
@@ -653,16 +730,18 @@ class StochasticParameter(metaclass=ABCMeta):
         if not isinstance(random_state, iarandom.RNG):
             random_state = iarandom.RNG(random_state)
         samples = self._draw_samples(
-            size if not ia.is_single_integer(size) else tuple([size]), random_state
+            size if not ia.is_single_integer(size) else tuple([size]), random_state  # type: ignore
         )
         random_state.advance_()
         return samples
 
     @abstractmethod
-    def _draw_samples(self, size, random_state) -> NoReturn:
+    def _draw_samples(
+        self, size: tuple[int, ...], random_state: iarandom.RNG
+    ) -> Any:  # noqa: ANN401
         raise NotImplementedError()
 
-    def __add__(self, other):
+    def __add__(self, other: float | int | StochasticParameter) -> StochasticParameter:
         if ia.is_single_number(other) or isinstance(other, StochasticParameter):
             return Add(self, other)
         raise Exception(
@@ -671,7 +750,7 @@ class StochasticParameter(metaclass=ABCMeta):
             "StochasticParameter."
         )
 
-    def __sub__(self, other):
+    def __sub__(self, other: float | int | StochasticParameter) -> StochasticParameter:
         if ia.is_single_number(other) or isinstance(other, StochasticParameter):
             return Subtract(self, other)
         raise Exception(
@@ -680,7 +759,7 @@ class StochasticParameter(metaclass=ABCMeta):
             "StochasticParameter."
         )
 
-    def __mul__(self, other):
+    def __mul__(self, other: float | int | StochasticParameter) -> StochasticParameter:
         if ia.is_single_number(other) or isinstance(other, StochasticParameter):
             return Multiply(self, other)
         raise Exception(
@@ -689,7 +768,9 @@ class StochasticParameter(metaclass=ABCMeta):
             "StochasticParameter."
         )
 
-    def __pow__(self, other, z=None):
+    def __pow__(
+        self, other: float | int | StochasticParameter, z: Any | None = None  # noqa: ANN401
+    ) -> StochasticParameter:
         if z is not None:
             raise NotImplementedError(
                 "Modulo power is currently not supported by StochasticParameter."
@@ -702,7 +783,7 @@ class StochasticParameter(metaclass=ABCMeta):
             "StochasticParameter."
         )
 
-    def __div__(self, other):
+    def __div__(self, other: float | int | StochasticParameter) -> StochasticParameter:
         if ia.is_single_number(other) or isinstance(other, StochasticParameter):
             return Divide(self, other)
         raise Exception(
@@ -711,7 +792,7 @@ class StochasticParameter(metaclass=ABCMeta):
             "StochasticParameter."
         )
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: float | int | StochasticParameter) -> StochasticParameter:
         if ia.is_single_number(other) or isinstance(other, StochasticParameter):
             return Divide(self, other)
         raise Exception(
@@ -720,7 +801,7 @@ class StochasticParameter(metaclass=ABCMeta):
             "StochasticParameter."
         )
 
-    def __floordiv__(self, other):
+    def __floordiv__(self, other: float | int | StochasticParameter) -> StochasticParameter:
         if ia.is_single_number(other) or isinstance(other, StochasticParameter):
             return Discretize(Divide(self, other))
         raise Exception(
@@ -729,7 +810,7 @@ class StochasticParameter(metaclass=ABCMeta):
             "StochasticParameter."
         )
 
-    def __radd__(self, other):
+    def __radd__(self, other: float | int | StochasticParameter) -> StochasticParameter:
         if ia.is_single_number(other) or isinstance(other, StochasticParameter):
             return Add(other, self)
         raise Exception(
@@ -738,7 +819,7 @@ class StochasticParameter(metaclass=ABCMeta):
             "StochasticParameter."
         )
 
-    def __rsub__(self, other):
+    def __rsub__(self, other: float | int | StochasticParameter) -> StochasticParameter:
         if ia.is_single_number(other) or isinstance(other, StochasticParameter):
             return Subtract(other, self)
         raise Exception(
@@ -747,7 +828,7 @@ class StochasticParameter(metaclass=ABCMeta):
             "StochasticParameter."
         )
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: float | int | StochasticParameter) -> StochasticParameter:
         if ia.is_single_number(other) or isinstance(other, StochasticParameter):
             return Multiply(other, self)
         raise Exception(
@@ -756,7 +837,9 @@ class StochasticParameter(metaclass=ABCMeta):
             "StochasticParameter."
         )
 
-    def __rpow__(self, other, z=None):
+    def __rpow__(
+        self, other: float | int | StochasticParameter, z: Any | None = None  # noqa: ANN401
+    ) -> StochasticParameter:
         if z is not None:
             raise NotImplementedError(
                 "Modulo power is currently not supported by StochasticParameter."
@@ -769,7 +852,7 @@ class StochasticParameter(metaclass=ABCMeta):
             "StochasticParameter."
         )
 
-    def __rdiv__(self, other):
+    def __rdiv__(self, other: float | int | StochasticParameter) -> StochasticParameter:
         if ia.is_single_number(other) or isinstance(other, StochasticParameter):
             return Divide(other, self)
         raise Exception(
@@ -778,7 +861,7 @@ class StochasticParameter(metaclass=ABCMeta):
             "StochasticParameter."
         )
 
-    def __rtruediv__(self, other):
+    def __rtruediv__(self, other: float | int | StochasticParameter) -> StochasticParameter:
         if ia.is_single_number(other) or isinstance(other, StochasticParameter):
             return Divide(other, self)
         raise Exception(
@@ -787,7 +870,7 @@ class StochasticParameter(metaclass=ABCMeta):
             "StochasticParameter."
         )
 
-    def __rfloordiv__(self, other):
+    def __rfloordiv__(self, other: float | int | StochasticParameter) -> StochasticParameter:
         if ia.is_single_number(other) or isinstance(other, StochasticParameter):
             return Discretize(Divide(other, self))
         raise Exception(
@@ -796,7 +879,7 @@ class StochasticParameter(metaclass=ABCMeta):
             "StochasticParameter."
         )
 
-    def copy(self):
+    def copy(self) -> StochasticParameter:
         """Create a shallow copy of this parameter.
 
         Returns
@@ -807,7 +890,7 @@ class StochasticParameter(metaclass=ABCMeta):
         """
         return copy_module.copy(self)
 
-    def deepcopy(self):
+    def deepcopy(self) -> StochasticParameter:
         """Create a deep copy of this parameter.
 
         Returns
@@ -818,7 +901,12 @@ class StochasticParameter(metaclass=ABCMeta):
         """
         return copy_module.deepcopy(self)
 
-    def draw_distribution_graph(self, title=None, size=(1000, 1000), bins=100):
+    def draw_distribution_graph(
+        self,
+        title: str | bool | None = None,
+        size: tuple[int, ...] = (1000, 1000),
+        bins: int = 100,
+    ) -> NDArray:
         """Generate an image visualizing the parameter's sample distribution.
 
         Parameters
@@ -922,17 +1010,17 @@ class AutoPrefetcher(StochasticParameter):
     """
 
     # Added in 0.5.0.
-    def __init__(self, other_param, nb_prefetch) -> None:
+    def __init__(self, other_param: StochasticParameter, nb_prefetch: int) -> None:
         super().__init__()
         self.other_param = other_param
         self.nb_prefetch = nb_prefetch
 
-        self.samples = None
+        self.samples: NDArray | None = None
         self.index = 0
-        self.last_rng_idx = None
+        self.last_rng_idx: int | None = None
 
     # Added in 0.5.0.
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         # pylint: disable=protected-access
         if not _PREFETCHING_ENABLED:
             return self.other_param.draw_samples(size, random_state)
@@ -952,17 +1040,17 @@ class AutoPrefetcher(StochasticParameter):
         if self.samples is None:
             self._prefetch(random_state)
 
-        leftover = len(self.samples) - self.index - nb_components
+        leftover = len(self.samples) - self.index - nb_components  # type: ignore
         if leftover <= 0:
             self._prefetch(random_state)
 
-        samples = self.samples[self.index : self.index + nb_components]
+        samples = self.samples[self.index : self.index + nb_components]  # type: ignore
         self.index += nb_components
 
         return samples.reshape(size)
 
     # Added in 0.5.0.
-    def _prefetch(self, random_state) -> None:
+    def _prefetch(self, random_state: iarandom.RNG) -> None:
         samples = self.other_param.draw_samples((self.nb_prefetch,), random_state)
         if self.samples is None:
             self.samples = samples
@@ -971,7 +1059,7 @@ class AutoPrefetcher(StochasticParameter):
         self.index = 0
 
     # Added in 0.5.0.
-    def __getattr__(self, attr):
+    def __getattr__(self, attr: str) -> Any:  # noqa: ANN401
         other_param = super().__getattribute__("other_param")
         return getattr(other_param, attr)
 
@@ -982,8 +1070,8 @@ class AutoPrefetcher(StochasticParameter):
     # Added in 0.5.0.
     def __str__(self) -> str:
         has_samples = self.samples is not None
-        samples_shape = self.samples.shape if has_samples else "None"
-        samples_dtype = self.samples.dtype.name if has_samples else "None"
+        samples_shape = self.samples.shape if has_samples else "None"  # type: ignore
+        samples_dtype = self.samples.dtype.name if has_samples else "None"  # type: ignore
         return (
             f"AutoPrefetcher("
             f"nb_prefetch={self.nb_prefetch:d}, "
@@ -1021,7 +1109,7 @@ class Deterministic(StochasticParameter):
 
     """
 
-    def __init__(self, value) -> None:
+    def __init__(self, value: float | int | str | StochasticParameter) -> None:
         super().__init__()
 
         if isinstance(value, StochasticParameter):
@@ -1033,7 +1121,7 @@ class Deterministic(StochasticParameter):
                 f"Expected StochasticParameter object or number or string, got {type(value)}."
             )
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         kwargs = {}
         if ia.is_single_integer(self.value):
             kwargs = {"dtype": np.int32}
@@ -1073,7 +1161,7 @@ class DeterministicList(StochasticParameter):
     """
 
     # Added in 0.4.0.
-    def __init__(self, values) -> None:
+    def __init__(self, values: NDArray | Iterable[Numberish]) -> None:
         super().__init__()
 
         assert ia.is_iterable(values), (
@@ -1085,7 +1173,8 @@ class DeterministicList(StochasticParameter):
             # this would not be able to handle e.g. [[1, 2], [3]] and output
             # dtype object due to the non-regular shape, hence we have the
             # else block
-            self.values = values.flatten()
+            values_arr = np.asarray(values)
+            self.values = values_arr.flatten()
         else:
             self.values = np.array(list(ia.flatten(values)))
             kind = self.values.dtype.kind
@@ -1097,7 +1186,7 @@ class DeterministicList(StochasticParameter):
                 self.values = self.values.astype(np.float32)
 
     # Added in 0.4.0.
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         nb_requested = int(np.prod(size))
         values = self.values
         if nb_requested > self.values.size:
@@ -1154,7 +1243,12 @@ class Choice(StochasticParameter):
 
     """
 
-    def __init__(self, a, replace=True, p=None) -> None:
+    def __init__(
+        self,
+        a: Iterable[Any],
+        replace: bool = True,
+        p: Iterable[float] | None = None,
+    ) -> None:
         # pylint: disable=invalid-name
         super().__init__()
 
@@ -1170,11 +1264,11 @@ class Choice(StochasticParameter):
 
     # Added in 0.5.0.
     @property
-    def prefetchable(self):
+    def prefetchable(self) -> bool:
         """See :func:`StochasticParameter.prefetchable`."""
         return self.replace
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         if any([isinstance(a_i, StochasticParameter) for a_i in self.a]):
             rngs = random_state.duplicate(1 + len(self.a))
             samples = rngs[0].choice(self.a, np.prod(size), replace=self.replace, p=self.p)
@@ -1268,7 +1362,7 @@ class Binomial(StochasticParameter):
 
     """
 
-    def __init__(self, p) -> None:
+    def __init__(self, p: ParamInput) -> None:
         super().__init__()
         self.p = handle_continuous_param(p, "p")
 
@@ -1278,7 +1372,7 @@ class Binomial(StochasticParameter):
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         p = self.p.draw_sample(random_state=random_state)
         assert 0 <= p <= 1.0, (
             f"Expected probability p to be in the interval [0.0, 1.0], got {p:.4f}."
@@ -1330,7 +1424,7 @@ class DiscreteUniform(StochasticParameter):
 
     """
 
-    def __init__(self, a, b) -> None:
+    def __init__(self, a: ParamInput, b: ParamInput) -> None:
         # pylint: disable=invalid-name
         super().__init__()
 
@@ -1343,7 +1437,7 @@ class DiscreteUniform(StochasticParameter):
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         # pylint: disable=invalid-name
         a = self.a.draw_sample(random_state=random_state)
         b = self.b.draw_sample(random_state=random_state)
@@ -1397,7 +1491,7 @@ class Poisson(StochasticParameter):
 
     """
 
-    def __init__(self, lam) -> None:
+    def __init__(self, lam: ParamInput) -> None:
         super().__init__()
 
         self.lam = handle_continuous_param(lam, "lam")
@@ -1408,7 +1502,7 @@ class Poisson(StochasticParameter):
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         lam = self.lam.draw_sample(random_state=random_state)
         lam = max(lam, 0)
 
@@ -1459,7 +1553,7 @@ class Normal(StochasticParameter):
 
     """
 
-    def __init__(self, loc, scale) -> None:
+    def __init__(self, loc: ParamInput, scale: ParamInput) -> None:
         super().__init__()
 
         self.loc = handle_continuous_param(loc, "loc")
@@ -1471,7 +1565,7 @@ class Normal(StochasticParameter):
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         loc = self.loc.draw_sample(random_state=random_state)
         scale = self.scale.draw_sample(random_state=random_state)
         assert scale >= 0, f"Expected scale to be >=0, got {scale:.4f}."
@@ -1540,7 +1634,13 @@ class TruncatedNormal(StochasticParameter):
 
     """
 
-    def __init__(self, loc, scale, low=-np.inf, high=np.inf) -> None:
+    def __init__(
+        self,
+        loc: ParamInput,
+        scale: ParamInput,
+        low: ParamInput = -np.inf,
+        high: ParamInput = np.inf,
+    ) -> None:
         super().__init__()
 
         self.loc = handle_continuous_param(loc, "loc")
@@ -1554,7 +1654,7 @@ class TruncatedNormal(StochasticParameter):
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         # pylint: disable=invalid-name
         loc = self.loc.draw_sample(random_state=random_state)
         scale = self.scale.draw_sample(random_state=random_state)
@@ -1625,7 +1725,7 @@ class Laplace(StochasticParameter):
 
     """
 
-    def __init__(self, loc, scale) -> None:
+    def __init__(self, loc: ParamInput, scale: ParamInput) -> None:
         super().__init__()
 
         self.loc = handle_continuous_param(loc, "loc")
@@ -1637,7 +1737,7 @@ class Laplace(StochasticParameter):
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         loc = self.loc.draw_sample(random_state=random_state)
         scale = self.scale.draw_sample(random_state=random_state)
         assert scale >= 0, f"Expected scale to be >=0, got {scale}."
@@ -1684,7 +1784,7 @@ class ChiSquare(StochasticParameter):
 
     """
 
-    def __init__(self, df) -> None:
+    def __init__(self, df: ParamInput) -> None:
         # pylint: disable=invalid-name
         super().__init__()
 
@@ -1696,7 +1796,7 @@ class ChiSquare(StochasticParameter):
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         # pylint: disable=invalid-name
         df = self.df.draw_sample(random_state=random_state)
         assert df >= 1, f"Expected df to be >=1, got {df:d}."
@@ -1742,7 +1842,7 @@ class Weibull(StochasticParameter):
 
     """
 
-    def __init__(self, a) -> None:
+    def __init__(self, a: ParamInput) -> None:
         # pylint: disable=invalid-name
         super().__init__()
 
@@ -1754,7 +1854,7 @@ class Weibull(StochasticParameter):
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         # pylint: disable=invalid-name
         a = self.a.draw_sample(random_state=random_state)
         assert a > 0, f"Expected a to be >0, got {a:.4f}."
@@ -1806,7 +1906,7 @@ class Uniform(StochasticParameter):
 
     """
 
-    def __init__(self, a, b) -> None:
+    def __init__(self, a: ParamInput, b: ParamInput) -> None:
         # pylint: disable=invalid-name
         super().__init__()
 
@@ -1819,7 +1919,7 @@ class Uniform(StochasticParameter):
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         # pylint: disable=invalid-name
         a = self.a.draw_sample(random_state=random_state)
         b = self.b.draw_sample(random_state=random_state)
@@ -1874,7 +1974,9 @@ class Beta(StochasticParameter):
 
     """
 
-    def __init__(self, alpha, beta, epsilon=0.0001) -> None:
+    def __init__(
+        self, alpha: ParamInput, beta: ParamInput, epsilon: float = 0.0001
+    ) -> None:
         super().__init__()
 
         self.alpha = handle_continuous_param(alpha, "alpha")
@@ -1891,7 +1993,7 @@ class Beta(StochasticParameter):
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         alpha = self.alpha.draw_sample(random_state=random_state)
         beta = self.beta.draw_sample(random_state=random_state)
         alpha = max(alpha, self.epsilon)
@@ -1983,7 +2085,12 @@ class FromLowerResolution(StochasticParameter):
     """
 
     def __init__(
-        self, other_param, size_percent=None, size_px=None, method="nearest", min_size=1
+        self,
+        other_param: StochasticParameter,
+        size_percent: ParamInput | None = None,
+        size_px: ParamInput | None = None,
+        method: str | int | StochasticParameter = "nearest",
+        min_size: int = 1,
     ) -> None:
         super().__init__()
 
@@ -2040,7 +2147,7 @@ class FromLowerResolution(StochasticParameter):
 
         self.min_size = min_size
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         if len(size) == 3:
             n = 1
             h, w, c = size
@@ -2061,7 +2168,7 @@ class FromLowerResolution(StochasticParameter):
 
         methods = self.method.draw_samples((n,), random_state=random_state)
         result = None
-        for i, (hw_px, method) in enumerate(zip(hw_pxs, methods)):
+        for i, (hw_px, method) in enumerate(zip(hw_pxs, methods, strict=False)):
             h_small = max(hw_px[0], self.min_size)
             w_small = max(hw_px[1], self.min_size)
             samples = self.other_param.draw_samples(
@@ -2146,7 +2253,12 @@ class Clip(StochasticParameter):
 
     """
 
-    def __init__(self, other_param, minval=None, maxval=None) -> None:
+    def __init__(
+        self,
+        other_param: StochasticParameter,
+        minval: float | None = None,
+        maxval: float | None = None,
+    ) -> None:
         super().__init__()
 
         _assert_arg_is_stoch_param("other_param", other_param)
@@ -2161,7 +2273,7 @@ class Clip(StochasticParameter):
         self.minval = minval
         self.maxval = maxval
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         samples = self.other_param.draw_samples(size, random_state=random_state)
         if self.minval is not None or self.maxval is not None:
             # Note that this would produce a warning if 'samples' is int64
@@ -2209,14 +2321,14 @@ class Discretize(StochasticParameter):
 
     """
 
-    def __init__(self, other_param, round=True) -> None:
+    def __init__(self, other_param: StochasticParameter, round: bool = True) -> None:
         # pylint: disable=redefined-builtin
         super().__init__()
         _assert_arg_is_stoch_param("other_param", other_param)
         self.other_param = other_param
         self.round = round
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         samples = self.other_param.draw_samples(size, random_state=random_state)
         assert samples.dtype.kind in ["u", "i", "b", "f"], (
             "Expected to get uint, int, bool or float dtype as samples in "
@@ -2292,14 +2404,16 @@ class Multiply(StochasticParameter):
 
     """
 
-    def __init__(self, other_param, val, elementwise=False) -> None:
+    def __init__(
+        self, other_param: ParamInput, val: ParamInput, elementwise: bool = False
+    ) -> None:
         super().__init__()
 
         self.other_param = handle_continuous_param(other_param, "other_param", prefetch=False)
         self.val = handle_continuous_param(val, "val", prefetch=False)
         self.elementwise = elementwise
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         rngs = random_state.duplicate(2)
         samples = self.other_param.draw_samples(size, random_state=rngs[0])
 
@@ -2370,14 +2484,16 @@ class Divide(StochasticParameter):
 
     """
 
-    def __init__(self, other_param, val, elementwise=False) -> None:
+    def __init__(
+        self, other_param: ParamInput, val: ParamInput, elementwise: bool = False
+    ) -> None:
         super().__init__()
 
         self.other_param = handle_continuous_param(other_param, "other_param", prefetch=False)
         self.val = handle_continuous_param(val, "val", prefetch=False)
         self.elementwise = elementwise
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         # pylint: disable=no-else-return
         rngs = random_state.duplicate(2)
         samples = self.other_param.draw_samples(size, random_state=rngs[0])
@@ -2457,14 +2573,16 @@ class Add(StochasticParameter):
 
     """
 
-    def __init__(self, other_param, val, elementwise=False) -> None:
+    def __init__(
+        self, other_param: ParamInput, val: ParamInput, elementwise: bool = False
+    ) -> None:
         super().__init__()
 
         self.other_param = handle_continuous_param(other_param, "other_param", prefetch=False)
         self.val = handle_continuous_param(val, "val", prefetch=False)
         self.elementwise = elementwise
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         rngs = random_state.duplicate(2)
         samples = self.other_param.draw_samples(size, random_state=rngs[0])
 
@@ -2532,14 +2650,16 @@ class Subtract(StochasticParameter):
 
     """
 
-    def __init__(self, other_param, val, elementwise=False) -> None:
+    def __init__(
+        self, other_param: ParamInput, val: ParamInput, elementwise: bool = False
+    ) -> None:
         super().__init__()
 
         self.other_param = handle_continuous_param(other_param, "other_param", prefetch=False)
         self.val = handle_continuous_param(val, "val", prefetch=False)
         self.elementwise = elementwise
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         rngs = random_state.duplicate(2)
         samples = self.other_param.draw_samples(size, random_state=rngs[0])
 
@@ -2608,14 +2728,16 @@ class Power(StochasticParameter):
 
     """
 
-    def __init__(self, other_param, val, elementwise=False) -> None:
+    def __init__(
+        self, other_param: ParamInput, val: ParamInput, elementwise: bool = False
+    ) -> None:
         super().__init__()
 
         self.other_param = handle_continuous_param(other_param, "other_param", prefetch=False)
         self.val = handle_continuous_param(val, "val", prefetch=False)
         self.elementwise = elementwise
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         rngs = random_state.duplicate(2)
         samples = self.other_param.draw_samples(size, random_state=rngs[0])
 
@@ -2667,14 +2789,14 @@ class Absolute(StochasticParameter):
 
     """
 
-    def __init__(self, other_param) -> None:
+    def __init__(self, other_param: StochasticParameter) -> None:
         super().__init__()
 
         _assert_arg_is_stoch_param("other_param", other_param)
 
         self.other_param = other_param
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         samples = self.other_param.draw_samples(size, random_state=random_state)
         return np.absolute(samples)
 
@@ -2708,7 +2830,7 @@ class RandomSign(StochasticParameter):
 
     """
 
-    def __init__(self, other_param, p_positive=0.5) -> None:
+    def __init__(self, other_param: StochasticParameter, p_positive: float = 0.5) -> None:
         super().__init__()
 
         _assert_arg_is_stoch_param("other_param", other_param)
@@ -2722,7 +2844,7 @@ class RandomSign(StochasticParameter):
         self.other_param = other_param
         self.p_positive = p_positive
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         rss = random_state.duplicate(2)
         samples = self.other_param.draw_samples(size, random_state=rss[0])
         # TODO add method to change from uint to int here instead of assert
@@ -2786,7 +2908,13 @@ class ForceSign(StochasticParameter):
 
     """
 
-    def __init__(self, other_param, positive, mode="invert", reroll_count_max=2) -> None:
+    def __init__(
+        self,
+        other_param: StochasticParameter,
+        positive: bool,
+        mode: str = "invert",
+        reroll_count_max: int = 2,
+    ) -> None:
         super().__init__()
 
         _assert_arg_is_stoch_param("other_param", other_param)
@@ -2807,7 +2935,7 @@ class ForceSign(StochasticParameter):
         )
         self.reroll_count_max = reroll_count_max
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         rngs = random_state.duplicate(1 + self.reroll_count_max)
         samples = self.other_param.draw_samples(size, random_state=rngs[0])
 
@@ -2855,7 +2983,9 @@ class ForceSign(StochasticParameter):
 
 
 @legacy
-def Positive(other_param, mode="invert", reroll_count_max=2):
+def Positive(
+    other_param: StochasticParameter, mode: str = "invert", reroll_count_max: int = 2
+) -> ForceSign:
     """Convert another parameter's results to positive values.
 
     Parameters
@@ -2895,7 +3025,9 @@ def Positive(other_param, mode="invert", reroll_count_max=2):
 
 
 @legacy
-def Negative(other_param, mode="invert", reroll_count_max=2):
+def Negative(
+    other_param: StochasticParameter, mode: str = "invert", reroll_count_max: int = 2
+) -> ForceSign:
     """Convert another parameter's results to negative values.
 
     Parameters
@@ -3003,13 +3135,21 @@ class IterativeNoiseAggregator(StochasticParameter):
 
     """
 
-    def __init__(self, other_param, iterations=(1, 3), aggregation_method=["max", "avg"]) -> None:
+    def __init__(
+        self,
+        other_param: StochasticParameter,
+        iterations: ParamInput = (1, 3),
+        aggregation_method: ParamInput | str | list[str] | None = None,
+    ) -> None:
         # pylint: disable=dangerous-default-value
         super().__init__()
+        if aggregation_method is None:
+            aggregation_method = ["max", "avg"]
+
         _assert_arg_is_stoch_param("other_param", other_param)
         self.other_param = other_param
 
-        def _assert_within_bounds(_iterations) -> None:
+        def _assert_within_bounds(_iterations: Iterable[int]) -> None:
             assert all([1 <= val <= 10000 for val in _iterations]), (
                 "Expected 'iterations' to only contain values within "
                 "the interval [1, 1000], got values {}.".format(
@@ -3070,7 +3210,7 @@ class IterativeNoiseAggregator(StochasticParameter):
                 f"or StochasticParameter, got {type(aggregation_method)}."
             )
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         rngs = random_state.duplicate(2)
         aggregation_method = self.aggregation_method.draw_sample(random_state=rngs[0])
         iterations = self.iterations.draw_sample(random_state=rngs[1])
@@ -3170,7 +3310,14 @@ class Sigmoid(StochasticParameter):
 
     """
 
-    def __init__(self, other_param, threshold=(-10, 10), activated=True, mul=1, add=0) -> None:
+    def __init__(
+        self,
+        other_param: StochasticParameter,
+        threshold: ParamInput = (-10, 10),
+        activated: ParamInput = True,
+        mul: float = 1,
+        add: float = 0,
+    ) -> None:
         super().__init__()
         _assert_arg_is_stoch_param("other_param", other_param)
         self.other_param = other_param
@@ -3186,7 +3333,11 @@ class Sigmoid(StochasticParameter):
         self.add = add
 
     @staticmethod
-    def create_for_noise(other_param, threshold=(-10, 10), activated=True):
+    def create_for_noise(
+        other_param: StochasticParameter,
+        threshold: ParamInput = (-10, 10),
+        activated: ParamInput = True,
+    ) -> Sigmoid:
         """Create a Sigmoid adjusted for noise parameters.
 
         "noise" here denotes :class:`SimplexNoise` and :class:`FrequencyNoise`.
@@ -3210,7 +3361,7 @@ class Sigmoid(StochasticParameter):
         """
         return Sigmoid(other_param, threshold, activated, mul=20, add=-10)
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         rngs = random_state.duplicate(3)
         result = self.other_param.draw_samples(size, random_state=rngs[0])
         if result.dtype.kind != "f":
@@ -3303,9 +3454,16 @@ class SimplexNoise(StochasticParameter):
 
     """
 
-    def __init__(self, size_px_max=(2, 16), upscale_method=["linear", "nearest"]) -> None:
+    def __init__(
+        self,
+        size_px_max: ParamInput = (2, 16),
+        upscale_method: ParamInput | str | list[str] | None = None,
+    ) -> None:
         # pylint: disable=dangerous-default-value
         super().__init__()
+        if upscale_method is None:
+            upscale_method = ["linear", "nearest"]
+
         self.size_px_max = handle_discrete_param(size_px_max, "size_px_max", value_range=(1, 10000))
 
         if upscale_method == ia.ALL:
@@ -3330,7 +3488,7 @@ class SimplexNoise(StochasticParameter):
                 f"StochasticParameter, got {type(upscale_method)}."
             )
 
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         assert len(size) in [2, 3], (
             f"Expected requested noise to have shape (H, W) or (H, W, C), got shape {size}."
         )
@@ -3345,7 +3503,7 @@ class SimplexNoise(StochasticParameter):
             return channels[0]
         return np.stack(channels, axis=-1)
 
-    def _draw_samples_hw(self, height, width, random_state):
+    def _draw_samples_hw(self, height: int, width: int, random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         iterations = 1
         rngs = random_state.duplicate(1 + iterations)
         aggregation_method = "max"
@@ -3373,7 +3531,9 @@ class SimplexNoise(StochasticParameter):
 
         return result
 
-    def _draw_samples_iteration(self, height, width, rng, upscale_method):
+    def _draw_samples_iteration(
+        self, height: int, width: int, rng: iarandom.RNG, upscale_method: str
+    ) -> Any:  # noqa: ANN401
         opensimplex_seed = rng.generate_seed_()
 
         # we have to use int(.) here, otherwise we can get warnings about
@@ -3505,10 +3665,16 @@ class FrequencyNoise(StochasticParameter):
     """
 
     def __init__(
-        self, exponent=(-4, 4), size_px_max=(4, 32), upscale_method=["linear", "nearest"]
+        self,
+        exponent: ParamInput = (-4, 4),
+        size_px_max: ParamInput = (4, 32),
+        upscale_method: ParamInput | str | list[str] | None = None,
     ) -> None:
         # pylint: disable=dangerous-default-value
         super().__init__()
+        if upscale_method is None:
+            upscale_method = ["linear", "nearest"]
+
         self.exponent = handle_continuous_param(exponent, "exponent")
         self.size_px_max = handle_discrete_param(size_px_max, "size_px_max", value_range=(1, 10000))
 
@@ -3538,7 +3704,7 @@ class FrequencyNoise(StochasticParameter):
         self._distance_matrix_cache = np.zeros((0, 0), dtype=np.float32)
 
     # TODO this is the same as in SimplexNoise, make DRY
-    def _draw_samples(self, size, random_state):
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         # code here is similar to:
         #   http://www.redblobgames.com/articles/noise/2d/
         #   http://www.redblobgames.com/articles/noise/2d/2d-noise.js
@@ -3557,7 +3723,7 @@ class FrequencyNoise(StochasticParameter):
             return channels[0]
         return np.stack(channels, axis=-1)
 
-    def _draw_samples_hw(self, height, width, random_state):
+    def _draw_samples_hw(self, height: int, width: int, random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         maxlen = max(height, width)
         size_px_max = self.size_px_max.draw_sample(random_state=random_state)
         h_small, w_small = height, width
@@ -3632,7 +3798,7 @@ class FrequencyNoise(StochasticParameter):
 
         return noise_0to1
 
-    def _get_distance_matrix_cached(self, size):
+    def _get_distance_matrix_cached(self, size: tuple[int, int]) -> NDArray[np.float32]:
         cache = self._distance_matrix_cache
         height, width = cache.shape
         if height < size[0] or width < size[1]:
@@ -3643,7 +3809,9 @@ class FrequencyNoise(StochasticParameter):
         return self._extract_distance_matrix(self._distance_matrix_cache, size)
 
     @classmethod
-    def _extract_distance_matrix(cls, matrix, size):
+    def _extract_distance_matrix(
+        cls, matrix: NDArray[np.float32], size: tuple[int, int]
+    ) -> NDArray[np.float32]:
         height, width = matrix.shape[0:2]
         leftover_y = (height - size[0]) / 2
         leftover_x = (width - size[1]) / 2
@@ -3654,8 +3822,8 @@ class FrequencyNoise(StochasticParameter):
         return matrix[y1:y2, x1:x2]
 
     @classmethod
-    def _create_distance_matrix(cls, size):
-        def _create_line(line_size):
+    def _create_distance_matrix(cls, size: tuple[int, int]) -> NDArray[np.float32]:
+        def _create_line(line_size: int) -> NDArray[np.int64]:
             start = np.arange(line_size // 2)
             middle = [line_size // 2] if line_size % 2 == 1 else []
             end = start[::-1]
@@ -3667,7 +3835,7 @@ class FrequencyNoise(StochasticParameter):
         ydist_2d = np.broadcast_to(ydist[:, np.newaxis], size)
         xdist_2d = np.broadcast_to(xdist[np.newaxis, :], size)
         dist = np.sqrt(ydist_2d + xdist_2d)
-        return dist
+        return dist.astype(np.float32)
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -3676,7 +3844,7 @@ class FrequencyNoise(StochasticParameter):
         return f"FrequencyNoise({str(self.exponent)}, {str(self.size_px_max)}, {str(self.upscale_method)})"
 
 
-def _assert_arg_is_stoch_param(arg_name, arg_value) -> None:
+def _assert_arg_is_stoch_param(arg_name: str, arg_value: Any) -> None:  # noqa: ANN401
     assert isinstance(arg_value, StochasticParameter), (
         f"Expected '{arg_name}' to be a StochasticParameter, got type {arg_value}."
     )

@@ -36,7 +36,7 @@ from __future__ import annotations
 import functools
 import re
 from collections.abc import Sequence
-from typing import Any, cast, Literal, TypeAlias, overload
+from typing import Any, Literal, TypeAlias, cast, overload
 
 import cv2
 import numpy as np
@@ -3094,7 +3094,7 @@ class PadToFixedSize(meta.Augmenter):
     ) -> list[Array]:
         result = []
         sizes, pad_xs, pad_ys, pad_modes, pad_cvals = samples
-        for i, (image, size) in enumerate(zip(images, sizes)):
+        for i, (image, size) in enumerate(zip(images, sizes, strict=True)):
             width_min, height_min = size
             height_image, width_image = image.shape[:2]
             paddings = self._calculate_paddings(
@@ -3118,7 +3118,7 @@ class PadToFixedSize(meta.Augmenter):
     ) -> list[ia.KeypointsOnImage]:
         result = []
         sizes, pad_xs, pad_ys, _, _ = samples
-        for i, (kpsoi, size) in enumerate(zip(keypoints_on_images, sizes)):
+        for i, (kpsoi, size) in enumerate(zip(keypoints_on_images, sizes, strict=True)):
             width_min, height_min = size
             height_image, width_image = kpsoi.shape[:2]
             paddings_img = self._calculate_paddings(
@@ -3143,7 +3143,7 @@ class PadToFixedSize(meta.Augmenter):
     ) -> list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage]:
         sizes, pad_xs, pad_ys, pad_modes, pad_cvals = samples
 
-        for i, (augmentable, size) in enumerate(zip(augmentables, sizes)):
+        for i, (augmentable, size) in enumerate(zip(augmentables, sizes, strict=True)):
             width_min, height_min = size
             height_img, width_img = augmentable.shape[:2]
             paddings_img = self._calculate_paddings(
@@ -3495,7 +3495,7 @@ class CropToFixedSize(meta.Augmenter):
     ) -> list[Array]:
         result = []
         sizes, offset_xs, offset_ys = samples
-        for i, (image, size) in enumerate(zip(images, sizes)):
+        for i, (image, size) in enumerate(zip(images, sizes, strict=True)):
             w, h = size
             height_image, width_image = image.shape[0:2]
 
@@ -3515,7 +3515,7 @@ class CropToFixedSize(meta.Augmenter):
     ) -> list[ia.KeypointsOnImage]:
         result = []
         sizes, offset_xs, offset_ys = samples
-        for i, (kpsoi, size) in enumerate(zip(kpsois, sizes)):
+        for i, (kpsoi, size) in enumerate(zip(kpsois, sizes, strict=True)):
             w, h = size
             height_image, width_image = kpsoi.shape[0:2]
 
@@ -3538,7 +3538,7 @@ class CropToFixedSize(meta.Augmenter):
         samples: CropToFixedSizeSamplingResult,
     ) -> list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage]:
         sizes, offset_xs, offset_ys = samples
-        for i, (augmentable, size) in enumerate(zip(augmentables, sizes)):
+        for i, (augmentable, size) in enumerate(zip(augmentables, sizes, strict=True)):
             w, h = size
             height_image, width_image = augmentable.shape[0:2]
 
@@ -5349,7 +5349,7 @@ class KeepSizeByResize(meta.Augmenter):
     ) -> Images:
         interpolations, _, _ = samples
 
-        gen = zip(images, interpolations, shapes_orig)
+        gen = zip(images, interpolations, shapes_orig, strict=True)
         result = []
         for image, interpolation, input_shape in gen:
             if interpolation == KeepSizeByResize.NO_RESIZE:
@@ -5377,7 +5377,7 @@ class KeepSizeByResize(meta.Augmenter):
         interpolations: Array,
     ) -> list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage]:
         result = []
-        gen = zip(augmentables, interpolations, shapes_orig_arrs, shapes_orig_images)
+        gen = zip(augmentables, interpolations, shapes_orig_arrs, shapes_orig_images, strict=True)
         for augmentable, interpolation, arr_shape_orig, img_shape_orig in gen:
             if interpolation == "NO_RESIZE":
                 result.append(augmentable)
@@ -5394,7 +5394,7 @@ class KeepSizeByResize(meta.Augmenter):
         cls, kpsois_aug: list[ia.KeypointsOnImage], shapes_orig: list[Shape], interpolations: Array
     ) -> list[ia.KeypointsOnImage]:
         result = []
-        gen = zip(kpsois_aug, interpolations, shapes_orig)
+        gen = zip(kpsois_aug, interpolations, shapes_orig, strict=True)
         for kpsoi_aug, interpolation, input_shape in gen:
             if interpolation == KeepSizeByResize.NO_RESIZE:
                 result.append(kpsoi_aug)

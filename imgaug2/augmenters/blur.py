@@ -14,12 +14,12 @@ List of augmenters:
 
 from __future__ import annotations
 
-from typing import Any, cast, Literal, Protocol, TypeAlias, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overload
 
 import cv2
 import numpy as np
-from numpy.typing import NDArray
 import scipy.ndimage as ndimage
+from numpy.typing import NDArray
 
 import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
@@ -34,6 +34,15 @@ from imgaug2.imgaug import _normalize_cv2_input_arr_
 Backend: TypeAlias = Literal["auto", "cv2", "scipy"]
 FloatArray: TypeAlias = NDArray[np.floating]
 
+if TYPE_CHECKING:
+    import mlx.core as _mx
+
+    MlxArray: TypeAlias = _mx.array
+else:
+    MlxArray: TypeAlias = object
+
+ArrayOrMlx: TypeAlias = Array | MlxArray
+
 DiscreteParamInput: TypeAlias = int | tuple[int, int] | list[int] | iap.StochasticParameter
 
 # `AverageBlur` historically supports an unusually flexible kernel-size parameter,
@@ -43,13 +52,33 @@ KernelSizeInput: TypeAlias = KernelSizeComponent | tuple[KernelSizeComponent, Ke
 
 
 # TODO add border mode, cval
+@overload
 def blur_gaussian_(
     image: Array,
     sigma: float,
     ksize: int | None = None,
     backend: Backend = "auto",
     eps: float = 1e-3,
-) -> Array:
+) -> Array: ...
+
+
+@overload
+def blur_gaussian_(
+    image: MlxArray,
+    sigma: float,
+    ksize: int | None = None,
+    backend: Backend = "auto",
+    eps: float = 1e-3,
+) -> MlxArray: ...
+
+
+def blur_gaussian_(
+    image: ArrayOrMlx,
+    sigma: float,
+    ksize: int | None = None,
+    backend: Backend = "auto",
+    eps: float = 1e-3,
+) -> ArrayOrMlx:
     """Blur an image using gaussian blurring in-place.
 
     This operation *may* change the input image in-place.
@@ -183,9 +212,8 @@ def blur_gaussian_(
 
     if is_mlx_array(image):
         import imgaug2.mlx as mlx
-        from imgaug2.mlx._core import to_numpy
 
-        return to_numpy(mlx.gaussian_blur(image, sigma=float(sigma), kernel_size=ksize))
+        return mlx.gaussian_blur(image, sigma=float(sigma), kernel_size=ksize)
 
     iadt.gate_dtypes_strs(
         {image.dtype},

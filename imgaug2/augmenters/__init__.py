@@ -129,6 +129,7 @@ from .blur import (
     iaa_convolutional,
 )
 from .collections import (
+    PosePreset,
     RandAugment,
 )
 from .color import (
@@ -522,6 +523,7 @@ __all__ = [
     "Rain",
     "RainLayer",
     "RandAugment",
+    "PosePreset",
     "RandomColorsBinaryImageColorizer",
     "RegularGridMaskGen",
     "RegularGridPointsSampler",

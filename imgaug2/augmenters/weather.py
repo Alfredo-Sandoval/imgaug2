@@ -991,11 +991,11 @@ class SnowflakesLayer(meta.Augmenter):
 
     def draw_on_image(self, image: Array, random_state: iarandom.RNG) -> Array:
         assert image.ndim == 3, (
-            "Expected input image to be three-dimensional, got %d dimensions." % (image.ndim,)
+            f"Expected input image to be three-dimensional, got {image.ndim} dimensions."
         )
         assert image.shape[2] in [1, 3], (
             "Expected to get image with a channel axis of size 1 or 3, "
-            "got %d (shape: %s)" % (image.shape[2], image.shape)
+            f"got {image.shape[2]} (shape: {image.shape})"
         )
 
         rss = random_state.duplicate(2)

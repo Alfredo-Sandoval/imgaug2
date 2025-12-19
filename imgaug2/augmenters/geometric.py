@@ -26,12 +26,12 @@ import functools
 import itertools
 import math
 from collections.abc import Callable, Iterator, Sequence
-from typing import Any, cast, Literal, TypeAlias
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast, overload
 
 import cv2
 import numpy as np
-from numpy.typing import NDArray
 import scipy.ndimage as ndimage
+from numpy.typing import NDArray
 from skimage import transform as tf
 
 import imgaug2.dtypes as iadt
@@ -43,11 +43,8 @@ from imgaug2.augmentables.polys import _ConcavePolygonRecoverer
 from imgaug2.augmenters._typing import (
     Array,
     Images,
-    Matrix,
     ParamInput,
     RNGInput,
-    Shape,
-    Shape2D,
     _AffineSamplingResultType,
 )
 from imgaug2.imgaug import _normalize_cv2_input_arr_
@@ -56,12 +53,22 @@ from . import blur as blur_lib
 from . import meta
 from . import size as size_lib
 
+if TYPE_CHECKING:
+    import mlx.core as _mx
+
+    MlxArray: TypeAlias = _mx.array
+else:
+    MlxArray: TypeAlias = object
+
+ArrayOrMlx: TypeAlias = Array | MlxArray
+
+# Local type aliases (more specific than _typing versions for this module)
 Shape: TypeAlias = tuple[int, ...]
 Shape2D: TypeAlias = tuple[int, int]
 Shape3D: TypeAlias = tuple[int, int, int]
 Backend: TypeAlias = Literal["auto", "skimage", "cv2"]
-Matrix: TypeAlias = NDArray[np.floating]
-Coords: TypeAlias = NDArray[np.floating]
+Matrix: TypeAlias = NDArray[np.floating[Any]]
+Coords: TypeAlias = NDArray[np.floating[Any]]
 
 ScaleInput: TypeAlias = ParamInput | dict[str, ParamInput]
 TranslatePercentInput: TypeAlias = ParamInput | dict[str, ParamInput]
@@ -195,20 +202,20 @@ def _handle_mode_arg(
 
 
 def _warp_affine_arr(
-    arr: Array,
+    arr: ArrayOrMlx,
     matrix: Matrix,
     order: int = 1,
     mode: str = "constant",
     cval: float | int | Sequence[float | int] | Array = 0,
     output_shape: Shape2D | Shape3D | None = None,
     backend: str = "auto",
-) -> Array:
+) -> ArrayOrMlx:
     # no changes to zero-sized arrays
     if arr.size == 0:
         return arr
 
     # MLX fast-path (B1): only when input is already on device.
-    from imgaug2.mlx._core import is_mlx_array, to_numpy
+    from imgaug2.mlx._core import is_mlx_array
 
     if is_mlx_array(arr):
         import imgaug2.mlx as mlx
@@ -244,7 +251,7 @@ def _warp_affine_arr(
             cval=cval_mlx,
             mode=mode,
         )
-        return to_numpy(warped)
+        return warped
 
     if ia.is_single_integer(cval) or ia.is_single_float(cval):
         cval = [cval] * len(arr.shape[2])
@@ -1631,7 +1638,9 @@ class Affine(meta.Augmenter):
         input_dtype = None if not input_was_array else images.dtype
         result = []
         matrices = []
-        gen = enumerate(zip(images, image_shapes, samples.cval, samples.mode, samples.order))
+        gen = enumerate(
+            zip(images, image_shapes, samples.cval, samples.mode, samples.order, strict=True)
+        )
         for i, (image, image_shape, cval, mode, order) in gen:
             matrix, output_shape = samples.to_matrix(i, image.shape, image_shape, self.fit_output)
 
@@ -1690,7 +1699,7 @@ class Affine(meta.Augmenter):
             arrs, samples, image_shapes=image_shapes, return_matrices=True
         )
 
-        gen = zip(augmentables, arrs_aug, matrices, samples.order)
+        gen = zip(augmentables, arrs_aug, matrices, samples.order, strict=True)
         for augmentable_i, arr_aug, matrix, order_i in gen:
             # skip augmented HM/SM arrs for which the images were not
             # augmented due to being zero-sized
@@ -3111,7 +3120,7 @@ class AffineCv2(meta.Augmenter):
             mode_samples,
             order_samples,
         )
-        for heatmap_i, arr_aug in zip(heatmaps, arrs_aug):
+        for heatmap_i, arr_aug in zip(heatmaps, arrs_aug, strict=True):
             heatmap_i.arr_0to1 = arr_aug
         return heatmaps
 
@@ -3146,7 +3155,7 @@ class AffineCv2(meta.Augmenter):
             mode_samples,
             order_samples,
         )
-        for segmaps_i, arr_aug in zip(segmaps, arrs_aug):
+        for segmaps_i, arr_aug in zip(segmaps, arrs_aug, strict=True):
             segmaps_i.arr = arr_aug
         return segmaps
 
@@ -3216,7 +3225,7 @@ class AffineCv2(meta.Augmenter):
                 coords_aug = tf.matrix_transform(coords, matrix.params)
                 kps_new = [
                     kp.deepcopy(x=coords[0], y=coords[1])
-                    for kp, coords in zip(keypoints_on_image.keypoints, coords_aug)
+                    for kp, coords in zip(keypoints_on_image.keypoints, coords_aug, strict=True)
                 ]
                 result.append(
                     keypoints_on_image.deepcopy(keypoints=kps_new, shape=keypoints_on_image.shape)
@@ -3820,7 +3829,7 @@ class PiecewiseAffine(meta.Augmenter):
                     nb_channels=(None if len(kpsoi.shape) < 3 else kpsoi.shape[2]),
                 )
 
-                for kp, kp_aug in zip(kpsoi.keypoints, kps_aug.keypoints):
+                for kp, kp_aug in zip(kpsoi.keypoints, kps_aug.keypoints, strict=True):
                     # Keypoints that were outside of the image plane before the
                     # augmentation were replaced with (-1, -1) by default (as
                     # they can't be drawn on the keypoint images).
@@ -4319,6 +4328,7 @@ class PerspectiveTransform(meta.Augmenter):
                 samples.max_widths,
                 samples.cvals,
                 samples.modes,
+                strict=True,
             )
         )
 
@@ -4437,7 +4447,7 @@ class PerspectiveTransform(meta.Augmenter):
             max_widths_imgs = samples_images.max_widths
 
         gen = enumerate(
-            zip(augmentables, samples.matrices, samples.max_heights, samples.max_widths)
+            zip(augmentables, samples.matrices, samples.max_heights, samples.max_widths, strict=True)
         )
 
         for i, (augmentable_i, matrix, max_height, max_width) in gen:
@@ -4495,6 +4505,7 @@ class PerspectiveTransform(meta.Augmenter):
                 samples_images.matrices,
                 samples_images.max_heights,
                 samples_images.max_widths,
+                strict=True,
             )
         )
 
@@ -4509,7 +4520,7 @@ class PerspectiveTransform(meta.Augmenter):
                     kps_arr = kpsoi.to_xy_array()
                     warped = cv2.perspectiveTransform(np.array([kps_arr], dtype=np.float32), matrix)
                     warped = warped[0]
-                    for kp, coords in zip(kpsoi.keypoints, warped):
+                    for kp, coords in zip(kpsoi.keypoints, warped, strict=True):
                         kp.x = coords[0]
                         kp.y = coords[1]
                 if self.keep_size:
@@ -4557,7 +4568,7 @@ class PerspectiveTransform(meta.Augmenter):
         # bottom left
         points[:, 3, 1] = 1.0 - points[:, 3, 1]  # h = 1.0 - jitter
 
-        for shape, points_i in zip(shapes, points):
+        for shape, points_i in zip(shapes, points, strict=True):
             h, w = shape[0:2]
 
             points_i[:, 0] *= w
@@ -5009,7 +5020,7 @@ class ElasticTransformation(meta.Augmenter):
         smgen = _ElasticTfShiftMapGenerator()
         shift_maps = smgen.generate(shapes, samples.alphas, samples.sigmas, samples.random_state)
 
-        for i, (shape, (dx, dy)) in enumerate(zip(shapes, shift_maps)):
+        for i, (_shape, (dx, dy)) in enumerate(zip(shapes, shift_maps, strict=True)):
             if batch.images is not None:
                 batch.images[i] = self._augment_image_by_samples(
                     batch.images[i], i, samples, dx, dy
@@ -5281,6 +5292,7 @@ class ElasticTransformation(meta.Augmenter):
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.alpha, self.sigma, self.order, self.cval, self.mode]
 
+    @overload
     def _map_coordinates(
         self,
         image: Array,
@@ -5289,7 +5301,28 @@ class ElasticTransformation(meta.Augmenter):
         order: int = 1,
         cval: float | int = 0,
         mode: str = "constant",
-    ) -> Array:
+    ) -> Array: ...
+
+    @overload
+    def _map_coordinates(
+        self,
+        image: MlxArray,
+        dx: Array,
+        dy: Array,
+        order: int = 1,
+        cval: float | int = 0,
+        mode: str = "constant",
+    ) -> MlxArray: ...
+
+    def _map_coordinates(
+        self,
+        image: ArrayOrMlx,
+        dx: Array,
+        dy: Array,
+        order: int = 1,
+        cval: float | int = 0,
+        mode: str = "constant",
+    ) -> ArrayOrMlx:
         """Remap pixels in an image according to x/y shift maps.
 
         **Supported dtypes**:
@@ -5653,6 +5686,7 @@ class _ElasticTfShiftMapGenerator:
             self._split_chunks(areas, nb_chunks),
             self._split_chunks(alphas, nb_chunks),
             self._split_chunks(sigmas, nb_chunks),
+            strict=True,
         )
         # "_c" denotes a chunk here
         for shapes_c, areas_c, alphas_c, sigmas_c in gen:
@@ -6132,7 +6166,7 @@ class GridDistortion(_GeometricWarpMixin, meta.Augmenter):
         gen = _GridDistortionShiftMapGenerator()
         shift_maps = gen.generate(shapes, num_steps_s, limits_s, samples.random_state)
 
-        for i, (shape, (dx, dy)) in enumerate(zip(shapes, shift_maps)):
+        for i, (_shape, (dx, dy)) in enumerate(zip(shapes, shift_maps, strict=True)):
             if batch.images is not None:
                 batch.images[i] = self._augment_image_by_samples(
                     batch.images[i], i, samples, dx, dy
@@ -6540,7 +6574,7 @@ class Rot90(meta.Augmenter):
         input_was_array = ia.is_np_array(arrs)
         input_dtype = arrs.dtype if input_was_array else None
         arrs_aug = []
-        for arr, k_i in zip(arrs, ks):
+        for arr, k_i in zip(arrs, ks, strict=True):
             if is_mlx_array(arr):
                 import imgaug2.mlx as mlx
 
@@ -6579,7 +6613,7 @@ class Rot90(meta.Augmenter):
         arrs_aug = self._augment_arrays_by_samples(arrs, ks, self.keep_size, None)
 
         maps_aug = []
-        gen = zip(augmentables, arrs, arrs_aug, ks)
+        gen = zip(augmentables, arrs, arrs_aug, ks, strict=True)
         for augmentable_i, arr, arr_aug, k_i in gen:
             shape_orig = arr.shape
             setattr(augmentable_i, arr_attr_name, arr_aug)
@@ -6600,7 +6634,7 @@ class Rot90(meta.Augmenter):
         self, keypoints_on_images: list[ia.KeypointsOnImage], ks: Array
     ) -> list[ia.KeypointsOnImage]:
         result = []
-        for kpsoi_i, k_i in zip(keypoints_on_images, ks):
+        for kpsoi_i, k_i in zip(keypoints_on_images, ks, strict=True):
             shape_orig = kpsoi_i.shape
 
             if (k_i % 4) == 0:
@@ -6838,7 +6872,7 @@ class WithPolarWarping(meta.Augmenter):
         if batch.polygons is None:
             batch.polygons = psois
         else:
-            for psoi, bbs_as_psoi in zip(batch.polygons, psois):
+            for psoi, bbs_as_psoi in zip(batch.polygons, psois, strict=True):
                 assert psoi.shape == bbs_as_psoi.shape, (
                     "Expected polygons and bounding boxes to have the same "
                     f".shape value, got {psoi.shape} and {bbs_as_psoi.shape}."
@@ -7072,7 +7106,7 @@ class WithPolarWarping(meta.Augmenter):
         # TODO this does per iteration almost the same as _warp_arrays()
         #      make DRY
         arrays_inv = []
-        for arr_warped, shape_orig in zip(arrays_warped, shapes_orig):
+        for arr_warped, shape_orig in zip(arrays_warped, shapes_orig, strict=True):
             if 0 in arr_warped.shape:
                 arrays_inv.append(arr_warped)
                 continue
@@ -7201,7 +7235,7 @@ class WithPolarWarping(meta.Augmenter):
         flags = cv2.WARP_POLAR_LINEAR
 
         coords_warped = []
-        for coords_i, shape, shape_warped in zip(coords, image_shapes, image_shapes_warped):
+        for coords_i, shape, shape_warped in zip(coords, image_shapes, image_shapes_warped, strict=True):
             if 0 in shape:
                 coords_warped.append(coords_i)
                 continue
@@ -7227,7 +7261,7 @@ class WithPolarWarping(meta.Augmenter):
 
         flags = cv2.WARP_POLAR_LINEAR + cv2.WARP_INVERSE_MAP
         coords_inv = []
-        gen = enumerate(zip(coords_warped, image_shapes_orig))
+        gen = enumerate(zip(coords_warped, image_shapes_orig, strict=True))
         for i, (coords_i_warped, shape_orig) in gen:
             if 0 in shape_orig:
                 coords_inv.append(coords_i_warped)
@@ -7257,7 +7291,7 @@ class WithPolarWarping(meta.Augmenter):
         image_shapes_warped = cls._warp_shape_tuples(image_shapes)
 
         coords_warped, inv_data = cls._warp_coords(coords, image_shapes)
-        for i, (cbaoi, coords_i_warped) in enumerate(zip(cbaois, coords_warped)):
+        for i, (cbaoi, coords_i_warped) in enumerate(zip(cbaois, coords_warped, strict=True)):
             cbaoi = cbaoi.fill_from_xy_array_(coords_i_warped)
             cbaoi.shape = image_shapes_warped[i]
             cbaois[i] = cbaoi
@@ -7278,7 +7312,7 @@ class WithPolarWarping(meta.Augmenter):
         coords_warped = cls._invert_warp_coords(coords, image_shapes_after_aug, image_shapes_orig)
 
         cbaois = cbaois_warped
-        for i, (cbaoi, coords_i_warped) in enumerate(zip(cbaois, coords_warped)):
+        for i, (cbaoi, coords_i_warped) in enumerate(zip(cbaois, coords_warped, strict=True)):
             cbaoi = cbaoi.fill_from_xy_array_(coords_i_warped)
             cbaoi.shape = image_shapes_orig[i]
             cbaois[i] = cbaoi
@@ -7676,7 +7710,7 @@ class Jigsaw(meta.Augmenter):
 
         shapes_orig = []
         augms_resized = []
-        for augmentable, image_shape in zip(augmentables, image_shapes):
+        for augmentable, image_shape in zip(augmentables, image_shapes, strict=True):
             shape_orig = getattr(augmentable, arr_attr_name).shape
             augm_rs = augmentable.resize(image_shape[0:2])
             augms_resized.append(augm_rs)
@@ -7706,7 +7740,7 @@ class Jigsaw(meta.Augmenter):
             return None
 
         augms_resized = []
-        for augmentable, shape_orig in zip(augmentables, shapes_orig):
+        for augmentable, shape_orig in zip(augmentables, shapes_orig, strict=True):
             augms_resized.append(augmentable.resize(shape_orig[0:2]))
         return augms_resized
 

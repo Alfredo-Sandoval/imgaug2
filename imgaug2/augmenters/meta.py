@@ -53,13 +53,16 @@ class _HasShape(Protocol):
 @ia.deprecated("imgaug2.dtypes.clip_")
 def clip_augmented_image_(image: Array, min_value: Number, max_value: Number) -> Array:
     """Clip image in-place."""
-    return clip_augmented_images_(image, min_value, max_value)
+    np.clip(image, min_value, max_value, out=image)
+    return image
 
 
 @ia.deprecated("imgaug2.dtypes.clip_")
 def clip_augmented_image(image: Array, min_value: Number, max_value: Number) -> Array:
     """Clip image."""
-    return clip_augmented_images(image, min_value, max_value)
+    image_copy = np.copy(image)
+    np.clip(image_copy, min_value, max_value, out=image_copy)
+    return image_copy
 
 
 @ia.deprecated("imgaug2.dtypes.clip_")

@@ -171,7 +171,7 @@ def _find_edges_canny(image: Image, edge_multiplier: float, from_colorspace: str
     image_gray = image_gray[..., 0]
     thresh = min(int(200 * (1 / edge_multiplier)), 254)
     edges = cv2.Canny(_normalize_cv2_input_arr_(image_gray), thresh, thresh)
-    return edges
+    return edges.astype(np.uint8, copy=False)
 
 
 # Added in 0.4.0.
@@ -198,7 +198,8 @@ def _blur_median(image: Image, ksize: int) -> Image:
         ksize += 1
     if ksize <= 1:
         return image
-    return cv2.medianBlur(_normalize_cv2_input_arr_(image), ksize)
+    blurred = cv2.medianBlur(_normalize_cv2_input_arr_(image), ksize)
+    return blurred.astype(np.uint8, copy=False)
 
 
 # Added in 0.4.0.
