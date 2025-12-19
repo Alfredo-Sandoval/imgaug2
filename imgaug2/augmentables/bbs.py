@@ -36,7 +36,6 @@ _TDefault = TypeVar("_TDefault")
 ShapeLike = tuple[int, ...] | np.ndarray
 
 
-# TODO functions: square(), to_aspect_ratio(), contains_point()
 class BoundingBox:
     """Class representing bounding boxes.
 
@@ -219,6 +218,101 @@ class BoundingBox:
         """
         return self.height * self.width
 
+    def square(self) -> BoundingBox:
+        """Convert this bounding box to a square shape.
+
+        The shorter side is expanded equally on both ends so that width and
+        height match, while keeping the center point fixed.
+
+        Returns
+        -------
+        imgaug2.augmentables.bbs.BoundingBox
+            Squared bounding box.
+
+        """
+        return self.to_aspect_ratio(1.0)
+
+    def to_aspect_ratio(self, aspect_ratio: float) -> BoundingBox:
+        """Convert this bounding box to a target aspect ratio.
+
+        The bounding box is expanded equally on both sides of the smaller
+        dimension so that the resulting width/height equals `aspect_ratio`.
+
+        Parameters
+        ----------
+        aspect_ratio : float
+            Target aspect ratio, given as ``width / height``.
+
+        Returns
+        -------
+        imgaug2.augmentables.bbs.BoundingBox
+            Bounding box adjusted to the target aspect ratio.
+
+        """
+        assert aspect_ratio > 0, f"Expected aspect_ratio > 0, got {aspect_ratio}."
+
+        x1 = self.x1
+        y1 = self.y1
+        x2 = self.x2
+        y2 = self.y2
+
+        width = x2 - x1
+        height = y2 - y1
+
+        if width == 0 and height == 0:
+            return BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2, label=self.label)
+
+        cx = x1 + width / 2
+        cy = y1 + height / 2
+
+        if height == 0:
+            new_height = width / aspect_ratio
+            half_h = new_height / 2
+            return BoundingBox(
+                x1=x1,
+                y1=cy - half_h,
+                x2=x2,
+                y2=cy + half_h,
+                label=self.label,
+            )
+
+        if width == 0:
+            new_width = aspect_ratio * height
+            half_w = new_width / 2
+            return BoundingBox(
+                x1=cx - half_w,
+                y1=y1,
+                x2=cx + half_w,
+                y2=y2,
+                label=self.label,
+            )
+
+        aspect_ratio_current = width / height
+
+        if aspect_ratio_current < aspect_ratio:
+            new_width = aspect_ratio * height
+            half_w = new_width / 2
+            return BoundingBox(
+                x1=cx - half_w,
+                y1=y1,
+                x2=cx + half_w,
+                y2=y2,
+                label=self.label,
+            )
+
+        if aspect_ratio_current > aspect_ratio:
+            new_height = width / aspect_ratio
+            half_h = new_height / 2
+            return BoundingBox(
+                x1=x1,
+                y1=cy - half_h,
+                x2=x2,
+                y2=cy + half_h,
+                label=self.label,
+            )
+
+        return BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2, label=self.label)
+
     def contains(self, other: tuple[float, float] | list[float] | np.ndarray | _HasXY) -> bool:
         """Estimate whether the bounding box contains a given point.
 
@@ -243,6 +337,23 @@ class BoundingBox:
         x2 = self.x2
         y2 = self.y2
         return x1 <= x <= x2 and y1 <= y <= y2
+
+    def contains_point(self, point: tuple[float, float] | list[float] | np.ndarray | _HasXY) -> bool:
+        """Estimate whether the bounding box contains a given point.
+
+        Parameters
+        ----------
+        point : tuple/list/ndarray of number or imgaug2.augmentables.kps.Keypoint
+            Point to check for.
+
+        Returns
+        -------
+        bool
+            ``True`` if the point is contained in the bounding box,
+            ``False`` otherwise.
+
+        """
+        return self.contains(point)
 
     @legacy(version="0.4.0")
     def project_(self, from_shape: ShapeLike, to_shape: ShapeLike) -> BoundingBox:
