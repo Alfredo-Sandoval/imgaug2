@@ -2,7 +2,6 @@ import unittest
 
 import numpy as np
 
-
 try:
     import mlx.core as mx
 

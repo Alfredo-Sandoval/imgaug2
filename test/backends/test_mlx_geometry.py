@@ -4,7 +4,6 @@ from unittest import mock
 import cv2
 import numpy as np
 
-
 try:
     import mlx.core as mx
 

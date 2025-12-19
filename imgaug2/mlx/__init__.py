@@ -1,37 +1,217 @@
-"""Dummy MLX module to satisfy imports."""
+"""MLX backend exports."""
+
 from __future__ import annotations
-from typing import Any
-from ._core import is_mlx_array, to_numpy, mx, geometry
+
+from . import (
+    blur,
+    color,
+    compression,
+    crop,
+    flip,
+    geometry,
+    morphology,
+    noise,
+    pipeline,
+    pointwise,
+    pooling,
+    router,
+    sharpen,
+)
+from ._core import (
+    MLX_AVAILABLE,
+    ensure_float32,
+    is_available,
+    is_mlx_array,
+    mx,
+    require,
+    restore_dtype,
+    to_mlx,
+    to_numpy,
+)
+from .blur import (
+    average_blur,
+    defocus_blur,
+    downscale,
+    gaussian_blur,
+    glass_blur,
+    median_blur,
+    motion_blur,
+    zoom_blur,
+)
+from .color import (
+    autocontrast,
+    channel_dropout,
+    channel_shuffle,
+    clahe,
+    color_jitter,
+    denormalize,
+    equalize,
+    fancy_pca,
+    from_float,
+    grayscale,
+    hsv_to_rgb,
+    hue_saturation_value,
+    invert,
+    normalize,
+    planckian_jitter,
+    posterize,
+    rgb_shift,
+    rgb_to_hsv,
+    sepia,
+    solarize,
+    to_float,
+)
+from .compression import jpeg_compression
+from .crop import (
+    center_crop,
+    pad,
+    pad_if_needed,
+    random_crop,
+    random_resized_crop,
+)
+from .flip import fliplr, flipud, rot90
+from .geometry import (
+    affine_transform,
+    chromatic_aberration,
+    elastic_transform,
+    grid_distortion,
+    grid_sample,
+    optical_distortion,
+    perspective_transform,
+    piecewise_affine,
+    resize,
+)
+from .morphology import (
+    closing,
+    dilation,
+    erosion,
+    morphological_gradient,
+    opening,
+)
+from .noise import (
+    additive_gaussian_noise,
+    coarse_dropout,
+    cutout,
+    dropout,
+    grid_dropout,
+    iso_noise,
+    multiplicative_noise,
+    pixel_shuffle,
+    random_erasing,
+    salt_and_pepper,
+    shot_noise,
+    spatter,
+)
+from .pipeline import chain, to_device, to_host
+from .pointwise import add, gamma_contrast, linear_contrast, multiply
+from .pooling import avg_pool, max_pool, min_pool
+from .router import (
+    get_backend,
+    get_routing_info,
+    should_use_mlx,
+)
+from .sharpen import emboss, sharpen, unsharp_mask
 
 __all__ = [
-    "is_mlx_array", "to_numpy", "mx", "geometry",
-    "add", "multiply", "affine_transform", "perspective_transform",
-    "grid_sample", "rot90", "gaussian_blur", "fliplr", "flipud"
+    "MLX_AVAILABLE",
+    "add",
+    "additive_gaussian_noise",
+    "affine_transform",
+    "autocontrast",
+    "average_blur",
+    "avg_pool",
+    "blur",
+    "center_crop",
+    "chain",
+    "channel_dropout",
+    "channel_shuffle",
+    "chromatic_aberration",
+    "clahe",
+    "closing",
+    "coarse_dropout",
+    "color",
+    "color_jitter",
+    "compression",
+    "crop",
+    "cutout",
+    "defocus_blur",
+    "denormalize",
+    "dilation",
+    "downscale",
+    "dropout",
+    "elastic_transform",
+    "emboss",
+    "ensure_float32",
+    "equalize",
+    "erosion",
+    "fancy_pca",
+    "flip",
+    "fliplr",
+    "flipud",
+    "from_float",
+    "gamma_contrast",
+    "gaussian_blur",
+    "geometry",
+    "glass_blur",
+    "grayscale",
+    "grid_distortion",
+    "grid_dropout",
+    "grid_sample",
+    "hsv_to_rgb",
+    "hue_saturation_value",
+    "invert",
+    "is_available",
+    "is_mlx_array",
+    "iso_noise",
+    "jpeg_compression",
+    "linear_contrast",
+    "max_pool",
+    "median_blur",
+    "min_pool",
+    "morphological_gradient",
+    "morphology",
+    "motion_blur",
+    "multiplicative_noise",
+    "multiply",
+    "mx",
+    "noise",
+    "normalize",
+    "opening",
+    "optical_distortion",
+    "pad",
+    "pad_if_needed",
+    "perspective_transform",
+    "piecewise_affine",
+    "pipeline",
+    "pixel_shuffle",
+    "planckian_jitter",
+    "pointwise",
+    "pooling",
+    "posterize",
+    "random_crop",
+    "random_erasing",
+    "random_resized_crop",
+    "require",
+    "resize",
+    "restore_dtype",
+    "router",
+    "get_backend",
+    "get_routing_info",
+    "should_use_mlx",
+    "rgb_shift",
+    "rgb_to_hsv",
+    "rot90",
+    "salt_and_pepper",
+    "sepia",
+    "sharpen",
+    "shot_noise",
+    "solarize",
+    "spatter",
+    "to_device",
+    "to_float",
+    "to_host",
+    "to_mlx",
+    "to_numpy",
+    "unsharp_mask",
+    "zoom_blur",
 ]
-
-def add(a: Any, b: Any) -> Any:
-    return a
-
-def multiply(a: Any, b: Any) -> Any:
-    return a
-
-def affine_transform(*args: Any, **kwargs: Any) -> Any:
-    return args[0]
-
-def perspective_transform(*args: Any, **kwargs: Any) -> Any:
-    return args[0]
-
-def grid_sample(*args: Any, **kwargs: Any) -> Any:
-    return args[0]
-
-def rot90(*args: Any, **kwargs: Any) -> Any:
-    return args[0]
-
-def gaussian_blur(*args: Any, **kwargs: Any) -> Any:
-    return args[0]
-
-def fliplr(arr: Any) -> Any:
-    return arr
-
-def flipud(arr: Any) -> Any:
-    return arr

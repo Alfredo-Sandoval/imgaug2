@@ -3,7 +3,6 @@ from unittest import mock
 
 import numpy as np
 
-
 try:
     import mlx.core as mx
 
