@@ -67,7 +67,7 @@ class Test_blur_gaussian_(unittest.TestCase):
         sigmas = [5.0, 5.0]
         ksizes = [None, 3]
         ksizes_expected = [2.6 * 5.0, 3]
-        gen = zip(sigmas, ksizes, ksizes_expected)
+        gen = zip(sigmas, ksizes, ksizes_expected, strict=False)
 
         for sigma, ksize, ksize_expected in gen:
             with self.subTest(sigma=sigma, ksize=ksize):
@@ -247,7 +247,7 @@ class Test_blur_gaussian_(unittest.TestCase):
             ]
             + f128,
         ]
-        gen = zip(["scipy", "cv2"], dtypes_to_test_list)
+        gen = zip(["scipy", "cv2"], dtypes_to_test_list, strict=False)
 
         for backend, dtypes_to_test in gen:
             # bool
@@ -320,7 +320,7 @@ class Test_blur_gaussian_(unittest.TestCase):
             # cv2
             ["bool", "uint8", "uint16", "int8", "int16", "int32", "float16", "float32", "float64"],
         ]
-        gen = zip(["scipy", "cv2"], dtypes_to_test_list)
+        gen = zip(["scipy", "cv2"], dtypes_to_test_list, strict=False)
 
         for backend, dtypes_to_test in gen:
             # bool
@@ -358,7 +358,7 @@ class Test_blur_gaussian_(unittest.TestCase):
             # float
             float_dts = [np.float16, np.float32, np.float64]
             values = [5000, 1000**1, 1000**2, 1000**3]
-            for dtype, value in zip(float_dts, values):
+            for dtype, value in zip(float_dts, values, strict=False):
                 dtype = np.dtype(dtype)
                 if dtype.name in dtypes_to_test:
                     with self.subTest(backend=backend, dtype=dtype.name):
@@ -881,7 +881,7 @@ class TestGaussianBlur(unittest.TestCase):
         # float
         float_dts = [np.float16, np.float32, np.float64]
         values = [5000, 1000 * 1000, 1000 * 1000 * 1000]
-        for dtype, value in zip(float_dts, values):
+        for dtype, value in zip(float_dts, values, strict=False):
             image = np.zeros((5, 5), dtype=dtype)
             image[2, 2] = value
             image_aug = aug.augment_image(image)
@@ -1003,7 +1003,7 @@ class TestAverageBlur(unittest.TestCase):
         aug = iaa.AverageBlur(k=(3, 4))
         nb_iterations = 100
         nb_seen = [0, 0]
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             observed = aug.augment_image(self.base_img)
             if np.array_equal(observed, self.blur3x3):
                 nb_seen[0] += 1
@@ -1020,7 +1020,7 @@ class TestAverageBlur(unittest.TestCase):
         aug = iaa.AverageBlur(k=(3, 5))
         nb_iterations = 200
         nb_seen = [0, 0, 0]
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             observed = aug.augment_image(self.base_img)
             if np.array_equal(observed, self.blur3x3):
                 nb_seen[0] += 1
@@ -1040,7 +1040,7 @@ class TestAverageBlur(unittest.TestCase):
         aug = iaa.AverageBlur(k=iap.Choice([3, 5]))
         nb_iterations = 100
         nb_seen = [0, 0]
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             observed = aug.augment_image(self.base_img)
             if np.array_equal(observed, self.blur3x3):
                 nb_seen[0] += 1
@@ -1067,7 +1067,7 @@ class TestAverageBlur(unittest.TestCase):
 
         nb_iterations = 250
         nb_seen = dict([(key, 0) for key, val in possible.items()])
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             observed = aug.augment_image(self.base_img)
             for key, img_aug in possible.items():
                 if np.array_equal(observed, img_aug):
@@ -1139,7 +1139,7 @@ class TestAverageBlur(unittest.TestCase):
         float_dts = [np.float16, np.float32, np.float64]
         values = [5000, 1000 * 1000, 1000 * 1000 * 1000]
 
-        for dtype, value in zip(float_dts, values):
+        for dtype, value in zip(float_dts, values, strict=False):
             image = np.zeros((3, 3), dtype=dtype)
             image[1, 1] = value
             image[2, 2] = value
@@ -1241,7 +1241,7 @@ class TestAverageBlur(unittest.TestCase):
         float_dts = [np.float16, np.float32, np.float64]
         values = [5000, 1000 * 1000, 1000 * 1000 * 1000]
 
-        for dtype, value in zip(float_dts, values):
+        for dtype, value in zip(float_dts, values, strict=False):
             image = np.zeros((3, 3), dtype=dtype)
             image[1, 1] = value
             image[2, 2] = value
@@ -1331,7 +1331,7 @@ class TestMedianBlur(unittest.TestCase):
         # k as (3, 5)
         aug = iaa.MedianBlur(k=(3, 5))
         seen = [False, False]
-        for i in range(100):
+        for _i in range(100):
             observed = aug.augment_image(self.base_img)
             if np.array_equal(observed, self.blur3x3):
                 seen[0] = True
@@ -1347,7 +1347,7 @@ class TestMedianBlur(unittest.TestCase):
         # k as stochastic parameter
         aug = iaa.MedianBlur(k=iap.Choice([3, 5]))
         seen = [False, False]
-        for i in range(100):
+        for _i in range(100):
             observed = aug.augment_image(self.base_img)
             if np.array_equal(observed, self.blur3x3):
                 seen[0] += True

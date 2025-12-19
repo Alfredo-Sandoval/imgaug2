@@ -1,6 +1,5 @@
 import unittest
 
-
 try:
     import torch
 except Exception:

@@ -49,7 +49,9 @@ def main():
 
 
 # TODO why was this used here?
-def keypoints_draw_on_image(kps, image, color=[0, 255, 0], size=3, copy=True, raise_if_out_of_image=False, border=50):
+def keypoints_draw_on_image(kps, image, color=None, size=3, copy=True, raise_if_out_of_image=False, border=50):
+    if color is None:
+        color = [0, 255, 0]
     if copy:
         image = np.copy(image)
 
@@ -72,7 +74,7 @@ def keypoints_draw_on_image(kps, image, color=[0, 255, 0], size=3, copy=True, ra
             image[y1:y2, x1:x2] = color
         else:
             if raise_if_out_of_image:
-                raise Exception("Cannot draw keypoint x=%d, y=%d on image with shape %s." % (y, x, image.shape))
+                raise Exception("Cannot draw keypoint x=%d, y=%d on image with shape %s." % (y, x, image.shape))  # noqa: UP031
 
     return image
 

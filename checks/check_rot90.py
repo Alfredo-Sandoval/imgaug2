@@ -36,7 +36,7 @@ def main():
         images_aug = aug_det.augment_images([image] * 16)
         kps_aug = aug_det.augment_keypoints([kps] * 16)
         images_aug = [kps_aug_i.draw_on_image(image_aug_i, size=5)
-                      for image_aug_i, kps_aug_i in zip(images_aug, kps_aug)]
+                      for image_aug_i, kps_aug_i in zip(images_aug, kps_aug, strict=False)]
         ia.imshow(ia.draw_grid(images_aug))
 
     print("--------")
@@ -49,7 +49,7 @@ def main():
         images_aug = aug_det.augment_images([image] * 16)
         hms_aug = aug_det.augment_heatmaps([hms] * 16)
         images_aug = [hms_aug_i.draw_on_image(image_aug_i)[0]
-                      for image_aug_i, hms_aug_i in zip(images_aug, hms_aug)]
+                      for image_aug_i, hms_aug_i in zip(images_aug, hms_aug, strict=False)]
         ia.imshow(ia.draw_grid(images_aug))
 
 

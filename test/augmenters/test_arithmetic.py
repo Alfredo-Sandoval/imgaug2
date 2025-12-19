@@ -167,7 +167,7 @@ class Test__add_elementwise_cv2_to_uint8(unittest.TestCase):
             [-1000.0, -255.0, -1.0, 0.0, 1.0, 255.0, 1000.0],
         ]
 
-        for dt, values_dt in zip(dtypes, values):
+        for dt, values_dt in zip(dtypes, values, strict=False):
             for value in values_dt:
                 with self.subTest(dtype=dt, value=value):
                     image = np.full(image_shape, 127, dtype=np.uint8)
@@ -1878,7 +1878,7 @@ class TestAddElementwise(unittest.TestCase):
         nb_same = 0
         nb_different = 0
         nb_iterations = 1000
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             observed_aug = aug.augment_images(images)
             observed_aug_flat = observed_aug.flatten()
             last = None
@@ -2221,7 +2221,7 @@ class AdditiveGaussianNoise(unittest.TestCase):
         images = np.ones((1, 1, 1, 1), dtype=np.uint8) * 128
         nb_iterations = 1000
         values = []
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             images_aug = aug.augment_images(images)
             values.append(images_aug[0, 0, 0, 0])
         values = np.array(values)
@@ -2236,7 +2236,7 @@ class AdditiveGaussianNoise(unittest.TestCase):
         images = np.ones((1, 1, 1, 1), dtype=np.uint8) * 128
         nb_iterations = 1000
         values = []
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             images_aug = aug.augment_images(images)
             values.append(images_aug[0, 0, 0, 0] - 128)
         values = np.array(values)
@@ -2277,7 +2277,7 @@ class AdditiveGaussianNoise(unittest.TestCase):
         aug = iaa.AdditiveGaussianNoise(loc=iap.Choice([-20, 20]), scale=0.0001 * 255)
         images = np.ones((1, 1, 1, 1), dtype=np.uint8) * 128
         seen = [0, 0]
-        for i in range(200):
+        for _i in range(200):
             observed = aug.augment_images(images)
             mean = np.mean(observed)
             diff_m20 = abs(mean - (128 - 20))
@@ -2287,7 +2287,7 @@ class AdditiveGaussianNoise(unittest.TestCase):
             elif diff_p20 <= 1:
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
         assert 75 < seen[0] < 125
         assert 75 < seen[1] < 125
 
@@ -2326,7 +2326,7 @@ class AdditiveGaussianNoise(unittest.TestCase):
         aug = iaa.AdditiveGaussianNoise(loc=0, scale=iap.Choice([1, 20]))
         images = np.ones((1, 20, 20, 1), dtype=np.uint8) * 128
         seen = [0, 0, 0]
-        for i in range(200):
+        for _i in range(200):
             observed = aug.augment_images(images)
             std = np.std(observed.astype(np.int32) - 128)
             diff_1 = abs(std - 1)
@@ -2665,7 +2665,7 @@ class _CutoutOfficial:
 
         mask = np.ones((h, w), np.float32)
 
-        for n in range(self.n_holes):
+        for _n in range(self.n_holes):
             y = np.random.randint(h)
             x = np.random.randint(w)
 
@@ -2796,7 +2796,7 @@ class TestDropout(unittest.TestCase):
         images = np.ones((1, 20, 20, 1), dtype=np.uint8) * 255
         nb_seen = [0, 0, 0, 0]
         nb_iterations = 1000
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             observed_aug = aug.augment_images(images)
 
             n_dropped = np.sum(observed_aug == 0)
@@ -2817,7 +2817,7 @@ class TestDropout(unittest.TestCase):
         aug = iaa.Dropout(p=iap.Binomial(1 - iap.Choice([0.0, 0.5])))
         images = np.ones((1, 20, 20, 1), dtype=np.uint8) * 255
         seen = [0, 0, 0]
-        for i in range(400):
+        for _i in range(400):
             observed = aug.augment_images(images)
             p = np.mean(observed == 0)
             if 0.4 < p < 0.6:
@@ -2908,7 +2908,7 @@ class TestCoarseDropout(unittest.TestCase):
         aug = iaa.CoarseDropout(p=iap.Binomial(1 - iap.Choice([0.0, 0.5])), size_px=50)
         images = np.ones((1, 100, 100, 1), dtype=np.uint8) * 255
         seen = [0, 0, 0]
-        for i in range(400):
+        for _i in range(400):
             observed = aug.augment_images(images)
             p = np.mean(observed == 0)
             if 0.4 < p < 0.6:
@@ -3017,7 +3017,7 @@ class TestDropout2d(unittest.TestCase):
         cbaoi_names = ["keypoints", "bounding_boxes", "polygons", "line_strings"]
 
         aug = iaa.Dropout2d(p=1.0, nb_keep_channels=0)
-        for name, cbaoi in zip(cbaoi_names, cbaois):
+        for name, cbaoi in zip(cbaoi_names, cbaois, strict=False):
             with self.subTest(datatype=name):
                 cbaoi_aug = aug(**{name: cbaoi})
 
@@ -3053,7 +3053,7 @@ class TestDropout2d(unittest.TestCase):
         cbaoi_names = ["keypoints", "bounding_boxes", "polygons", "line_strings"]
 
         aug = iaa.Dropout2d(p=1.0, nb_keep_channels=1)
-        for name, cbaoi in zip(cbaoi_names, cbaois):
+        for name, cbaoi in zip(cbaoi_names, cbaois, strict=False):
             with self.subTest(datatype=name):
                 cbaoi_aug = aug(**{name: cbaoi})
 
@@ -3099,7 +3099,7 @@ class TestDropout2d(unittest.TestCase):
         cbaoi_names = ["keypoints", "bounding_boxes", "polygons", "line_strings"]
 
         aug = iaa.Dropout2d(p=0.0, nb_keep_channels=0)
-        for name, cbaoi in zip(cbaoi_names, cbaois):
+        for name, cbaoi in zip(cbaoi_names, cbaois, strict=False):
             with self.subTest(datatype=name):
                 cbaoi_aug = aug(**{name: cbaoi})
 
@@ -3280,7 +3280,7 @@ class TestTotalDropout(unittest.TestCase):
 
         images_aug = aug(images=images)
 
-        for image_aug, image_ in zip(images_aug, images):
+        for image_aug, image_ in zip(images_aug, images, strict=False):
             assert image_aug.shape == image_.shape
             assert image_aug.dtype.name == image_.dtype.name
             assert np.sum(image_aug) == 0
@@ -3325,7 +3325,7 @@ class TestTotalDropout(unittest.TestCase):
         cbaoi_names = ["keypoints", "bounding_boxes", "polygons", "line_strings"]
 
         aug = iaa.TotalDropout(p=1.0)
-        for name, cbaoi in zip(cbaoi_names, cbaois):
+        for name, cbaoi in zip(cbaoi_names, cbaois, strict=False):
             with self.subTest(datatype=name):
                 cbaoi_aug = aug(**{name: cbaoi})
 
@@ -3349,7 +3349,7 @@ class TestTotalDropout(unittest.TestCase):
 
         images_aug = aug(images=images)
 
-        for image_aug, image_ in zip(images_aug, images):
+        for image_aug, image_ in zip(images_aug, images, strict=False):
             assert image_aug.shape == image_.shape
             assert image_aug.dtype.name == image_.dtype.name
             assert np.array_equal(image_aug, image_)
@@ -3361,7 +3361,7 @@ class TestTotalDropout(unittest.TestCase):
 
         images_aug = aug(images=images)
 
-        for image_aug, image_ in zip(images_aug, images):
+        for image_aug, image_ in zip(images_aug, images, strict=False):
             assert image_aug.shape == image_.shape
             assert image_aug.dtype.name == image_.dtype.name
             assert np.array_equal(image_aug, image_)
@@ -3395,7 +3395,7 @@ class TestTotalDropout(unittest.TestCase):
         cbaoi_names = ["keypoints", "bounding_boxes", "polygons", "line_strings"]
 
         aug = iaa.TotalDropout(p=0.0)
-        for name, cbaoi in zip(cbaoi_names, cbaois):
+        for name, cbaoi in zip(cbaoi_names, cbaois, strict=False):
             with self.subTest(datatype=name):
                 cbaoi_aug = aug(**{name: cbaoi})
 
@@ -4141,7 +4141,7 @@ class TestMultiplyElementwise(unittest.TestCase):
         nb_same = 0
         nb_different = 0
         nb_iterations = 1000
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             observed_aug = aug.augment_images(images)
             observed_aug_flat = observed_aug.flatten()
             last = None
@@ -4561,7 +4561,7 @@ class TestReplaceElementwise(unittest.TestCase):
 
         nb_iterations = 100
         nb_diff_all = 0
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             observed = aug.augment_image(img)
             nb_diff = np.sum(img != observed)
             nb_diff_all += nb_diff
@@ -4574,7 +4574,7 @@ class TestReplaceElementwise(unittest.TestCase):
         img = np.zeros((20, 20, 1), dtype=np.uint8)
 
         seen = [0, 0, 0]
-        for i in range(400):
+        for _i in range(400):
             observed = aug.augment_image(img)
             p = np.mean(observed)
             if 0.1 < p < 0.3:
@@ -5810,7 +5810,7 @@ class TestInvert(unittest.TestCase):
         aug = iaa.Invert(p=0.8)
         img = np.zeros((1, 1, 1), dtype=np.uint8) + 255
         expected = np.zeros((1, 1, 1), dtype=np.uint8)
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             observed = aug.augment_image(img)
             if np.array_equal(observed, expected):
                 nb_inverted += 1
@@ -5822,7 +5822,7 @@ class TestInvert(unittest.TestCase):
         aug = iaa.Invert(p=iap.Binomial(0.8))
         img = np.zeros((1, 1, 1), dtype=np.uint8) + 255
         expected = np.zeros((1, 1, 1), dtype=np.uint8)
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             observed = aug.augment_image(img)
             if np.array_equal(observed, expected):
                 nb_inverted += 1
@@ -5841,7 +5841,7 @@ class TestInvert(unittest.TestCase):
         aug = iaa.Invert(p=iap.Binomial(0.8), per_channel=0.7)
         img = np.zeros((1, 1, 20), dtype=np.uint8) + 255
         seen = [0, 0]
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             observed = aug.augment_image(img)
             uq = np.unique(observed)
             if len(uq) == 1:
@@ -5849,7 +5849,7 @@ class TestInvert(unittest.TestCase):
             elif len(uq) == 2:
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
         assert 300 - 75 < seen[0] < 300 + 75
         assert 700 - 75 < seen[1] < 700 + 75
 
@@ -6398,7 +6398,7 @@ class TestJpegCompression(unittest.TestCase):
         aug = iaa.JpegCompression(50)
         kps = ia.data.quokka_keypoints()
         kps_aug = aug.augment_keypoints([kps])[0]
-        for kp, kp_aug in zip(kps.keypoints, kps_aug.keypoints):
+        for kp, kp_aug in zip(kps.keypoints, kps_aug.keypoints, strict=False):
             assert np.allclose([kp.x, kp.y], [kp_aug.x, kp_aug.y])
 
     def test_heatmaps_dont_change(self):

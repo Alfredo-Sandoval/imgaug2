@@ -12,7 +12,7 @@ TIME_PER_STEP = 10000
 def main():
     image = data.astronaut()
     print("image shape:", image.shape)
-    print("Press ENTER or wait %d ms to proceed to the next image." % (TIME_PER_STEP,))
+    print("Press ENTER or wait %d ms to proceed to the next image." % (TIME_PER_STEP,))  # noqa: UP031
 
     children_all = [
         ("hflip", iaa.Fliplr(1)),
@@ -41,7 +41,7 @@ def main():
             img_aug = aug.augment_image(image)
             print("dtype", img_aug.dtype, "averages", np.average(img_aug, axis=tuple(range(0, img_aug.ndim-1))))
 
-            title = "children=%s | channels=%s" % (children_title, channels)
+            title = f"children={children_title} | channels={channels}"
             img_aug = ia.draw_text(img_aug, x=5, y=5, text=title)
 
             cv2.imshow("aug", img_aug[..., ::-1])  # here with rgb2bgr

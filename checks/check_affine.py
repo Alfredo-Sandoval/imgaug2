@@ -92,7 +92,7 @@ def main():
     seqs_skimage = [iaa.Affine(backend="skimage", **p) for p in params]
     seqs_cv2 = [iaa.Affine(backend="auto", **p) for p in params]
 
-    for seq_skimage, seq_cv2 in zip(seqs_skimage, seqs_cv2):
+    for seq_skimage, seq_cv2 in zip(seqs_skimage, seqs_cv2, strict=False):
         seq_skimage_det = seq_skimage.to_deterministic()
         seq_cv2_det = seq_cv2.to_deterministic()
 

@@ -1,5 +1,6 @@
-import timeit
 import argparse
+import timeit
+
 import numpy as np
 
 COMMANDS_HORIZONTAL_FLIPS = [
@@ -107,30 +108,28 @@ def main():
                 if "arr2" not in commands_i:
                     arr_name = "arr"
                 _ = timeit.repeat(
-                    "%s assert %s.dtype.name == '%s', ('Got dtype ' + %s.dtype.name)" % (
-                        commands_i, arr_name, dt, arr_name),
+                    f"{commands_i} assert {arr_name}.dtype.name == '{dt}', ('Got dtype ' + {arr_name}.dtype.name)",
                     setup="import cv2; "
                           "import numpy as np; "
-                          "arr = np.ones((224, 224, 3), dtype=np.%s)" % (dt,),
+                          f"arr = np.ones((224, 224, 3), dtype=np.{dt})",
                     repeat=1, number=1)
 
                 times = timeit.repeat(
                     commands_i,
                     setup="import cv2; "
                           "import numpy as np; "
-                          "arr = np.ones((224, 224, 3), dtype=np.%s)" % (dt,),
+                          f"arr = np.ones((224, 224, 3), dtype=np.{dt})",
                     repeat=number, number=1)
                 time = np.average(times) * 1000
                 if command_i_title == "slice, contig":
                     last_fliplr_time = time
                 if "cv2" not in command_i_title:
-                    print("{:>20s} {:.5f}ms".format(command_i_title, time))
+                    print(f"{command_i_title:>20s} {time:.5f}ms")
                 else:
                     rel_time = last_fliplr_time / time
-                    print("{:>20s} {:.5f}ms ({:.2f}x)".format(
-                        command_i_title, time, rel_time))
+                    print(f"{command_i_title:>20s} {time:.5f}ms ({rel_time:.2f}x)")
             except (AssertionError, AttributeError, TypeError) as exc:
-                print("{:>20s} Error: {}".format(command_i_title, str(exc)))
+                print(f"{command_i_title:>20s} Error: {str(exc)}")
                 # import traceback
                 # traceback.print_exc()
 
@@ -142,7 +141,7 @@ def main():
     for aug_name, aug_command in augs:
         print("")
         print("==============================")
-        print("flip method followed by %s" % (aug_name,))
+        print(f"flip method followed by {aug_name}")
         print("==============================")
 
         number = 5000
@@ -155,25 +154,24 @@ def main():
                     arr_name = "arr2"
 
                 _ = timeit.repeat(
-                        "%s assert %s.dtype.name == '%s', ('Got dtype ' + %s.dtype.name)" % (
-                            commands_i, arr_name, dt, arr_name),
+                        f"{commands_i} assert {arr_name}.dtype.name == '{dt}', ('Got dtype ' + {arr_name}.dtype.name)",
                         setup="import cv2; "
                               "import numpy as np; "
-                              "arr = np.ones((224, 224, 3), dtype=np.%s)" % (dt,),
+                              f"arr = np.ones((224, 224, 3), dtype=np.{dt})",
                         repeat=1, number=1)
 
                 times = timeit.repeat(
-                    "%s _ = aug(image=%s);" % (commands_i, arr_name),
+                    f"{commands_i} _ = aug(image={arr_name});",
                     setup="import cv2; "
                           "import numpy as np; "
                           "import imgaug2.augmenters as iaa; "
-                          "arr = np.ones((224, 224, 3), dtype=np.%s); "
-                          "aug = %s" % (dt, aug_command),
+                          f"arr = np.ones((224, 224, 3), dtype=np.{dt}); "
+                          f"aug = {aug_command}",
                     repeat=number, number=1)
                 time = np.average(times) * 1000
-                print("{:>20s} {:.5f}ms".format(command_i_title, time))
+                print(f"{command_i_title:>20s} {time:.5f}ms")
             except (AssertionError, AttributeError, TypeError) as exc:
-                print("{:>20s} Error: {}".format(command_i_title, str(exc)))
+                print(f"{command_i_title:>20s} Error: {str(exc)}")
 
 
 if __name__ == "__main__":

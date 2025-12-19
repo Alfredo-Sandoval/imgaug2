@@ -1,14 +1,14 @@
 
+import cv2
 import imageio
 import numpy as np
-from skimage import data
 from scipy import ndimage
-import cv2
+from skimage import data
 
 import imgaug2 as ia
+import imgaug2.random as iarandom
 from imgaug2 import augmenters as iaa
 from imgaug2.augmenters import meta
-import imgaug2.random as iarandom
 
 
 def main():
@@ -135,7 +135,7 @@ class ElasticTransformationScipy(iaa.ElasticTransformation):
 
         if order == 0 and image.dtype.name in ["uint64", "int64"]:
             raise Exception(("dtypes uint64 and int64 are only supported in ElasticTransformation for order=0, "
-                             + "got order=%d with dtype=%s.") % (order, image.dtype.name))
+                             + "got order=%d with dtype=%s.") % (order, image.dtype.name))  # noqa: UP031
 
         input_dtype = image.dtype
         if image.dtype.name == "bool":
@@ -230,7 +230,7 @@ class ElasticTransformationCv2(iaa.ElasticTransformation):
 
         if order == 0 and image.dtype.name in ["uint64", "int64"]:
             raise Exception(("dtypes uint64 and int64 are only supported in ElasticTransformation for order=0, "
-                             + "got order=%d with dtype=%s.") % (order, image.dtype.name))
+                             + "got order=%d with dtype=%s.") % (order, image.dtype.name))  # noqa: UP031
 
         input_dtype = image.dtype
         if image.dtype.name == "bool":

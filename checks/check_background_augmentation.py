@@ -100,7 +100,7 @@ def main():
     i = 0
     while True:
         if i % 100 == 0:
-            print("batch=%d..." % (i,))
+            print(f"batch={i}...")
         batch = bg_augmenter.get_batch()
         if batch is None:
             print("Finished.")
@@ -115,7 +115,7 @@ def main():
     i = 0
     while True:
         if i % 100 == 0:
-            print("batch=%d..." % (i,))
+            print(f"batch={i}...")
         batch = bg_augmenter.get_batch()
         if batch is None:
             print("Finished.")
@@ -130,7 +130,7 @@ def main():
     i = 0
     while True:
         if i % 10 == 0:
-            print("batch=%d..." % (i,))
+            print(f"batch={i}...")
         batch = bg_augmenter.get_batch()
         if batch is None:
             print("Finished.")
@@ -145,7 +145,7 @@ def main():
     i = 0
     while True:
         if i % 10 == 0:
-            print("batch=%d..." % (i,))
+            print(f"batch={i}...")
         batch = bg_augmenter.get_batch()
         if batch is None:
             print("Finished.")
@@ -160,7 +160,7 @@ def main():
     i = 0
     while True:
         if i % 10 == 0:
-            print("batch=%d..." % (i,))
+            print(f"batch={i}...")
         batch = bg_augmenter.get_batch()
         if batch is None:
             print("Finished.")
@@ -177,7 +177,7 @@ def main():
             while True:
                 batch = bg_augmenter.get_batch()
                 if batch is None:
-                    print("Finished (%d/%d)." % (i+1, 100))
+                    print(f"Finished ({i+1}/100).")
                     break
 
         print("------------------")
@@ -189,14 +189,14 @@ def main():
             while True:
                 batch = bg_augmenter.get_batch()
                 if batch is None:
-                    print("Finished (%d/%d)." % (i+1, 100))
+                    print(f"Finished ({i+1}/100).")
                     break
 
         print("------------------")
         print("Many very small runs, separate function (batches=1)")
         print("------------------")
 
-        def _augment_small_1():
+        def _augment_small_1(augseq_i=augseq_i):
             batch_loader = multicore.BatchLoader(load_images(n_batches=1), queue_size=100)
             bg_augmenter = multicore.BackgroundAugmenter(batch_loader, augseq_i)
             i = 0
@@ -208,13 +208,13 @@ def main():
 
         for i in range(100):
             _augment_small_1()
-            print("Finished (%d/%d)." % (i+1, 100))
+            print(f"Finished ({i+1}/100).")
 
         print("------------------")
         print("Many very small runs, separate function (batches=2)")
         print("------------------")
 
-        def _augment_small_2():
+        def _augment_small_2(augseq_i=augseq_i):
             batch_loader = multicore.BatchLoader(load_images(n_batches=2), queue_size=100)
             bg_augmenter = multicore.BackgroundAugmenter(batch_loader, augseq_i)
             i = 0
@@ -226,27 +226,27 @@ def main():
 
         for i in range(100):
             _augment_small_2()
-            print("Finished (%d/%d)." % (i+1, 100))
+            print(f"Finished ({i+1}/100).")
 
         print("------------------")
         print("Many very small runs, separate function, incomplete fetching (batches=2)")
         print("------------------")
 
-        def _augment_small_3():
+        def _augment_small_3(augseq_i=augseq_i):
             batch_loader = multicore.BatchLoader(load_images(n_batches=2), queue_size=100)
             bg_augmenter = multicore.BackgroundAugmenter(batch_loader, augseq_i)
             batch = bg_augmenter.get_batch()
 
         for i in range(100):
             _augment_small_3()
-            print("Finished (%d/%d)." % (i+1, 100))
+            print(f"Finished ({i+1}/100).")
 
     #for augseq_i in [augseq, augseq_slow]:
         print("------------------")
         print("Many very small runs, separate function, incomplete fetching (batches=10)")
         print("------------------")
 
-        def _augment_small_4():
+        def _augment_small_4(augseq_i=augseq_i):
             batch_loader = multicore.BatchLoader(load_images(n_batches=10), queue_size=100)
             bg_augmenter = multicore.BackgroundAugmenter(batch_loader, augseq_i)
             batch = bg_augmenter.get_batch()
@@ -254,7 +254,7 @@ def main():
 
         for i in range(100):
             _augment_small_4()
-            print("Finished (%d/%d)." % (i+1, 100))
+            print(f"Finished ({i+1}/100).")
 
 
 def load_images(n_batches=10, sleep=0.0):
@@ -263,11 +263,11 @@ def load_images(n_batches=10, sleep=0.0):
     astronaut = ia.imresize_single_image(astronaut, (64, 64))
     kps = ia.KeypointsOnImage([ia.Keypoint(x=15, y=25)], shape=astronaut.shape)
     counter = 0
-    for i in range(n_batches):
+    for _i in range(n_batches):
         batch_images = []
         batch_kps = []
-        for b in range(batch_size):
-            astronaut_text = ia.draw_text(astronaut, x=0, y=0, text="%d" % (counter,), color=[0, 255, 0], size=16)
+        for _b in range(batch_size):
+            astronaut_text = ia.draw_text(astronaut, x=0, y=0, text="%d" % (counter,), color=[0, 255, 0], size=16)  # noqa: UP031
             batch_images.append(astronaut_text)
             batch_kps.append(kps)
             counter += 1
@@ -289,7 +289,7 @@ def draw_grid(images_aug, keypoints_aug):
     images_kps_batches = []
     for bidx in range(len(images_aug)):
         images_kps_batch = []
-        for image, kps in zip(images_aug[bidx], keypoints_aug[bidx]):
+        for image, kps in zip(images_aug[bidx], keypoints_aug[bidx], strict=False):
             if kps is None:
                 image_kps = image
             else:

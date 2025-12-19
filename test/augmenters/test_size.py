@@ -128,7 +128,7 @@ class Test__prevent_zero_sizes_after_crops_(unittest.TestCase):
 
                 expected_start = np.zeros((batch_size,), dtype=np.int32)
                 expected_end = np.zeros((batch_size,), dtype=np.int32)
-                gen = enumerate(zip(axis_sizes, crops_start, crops_end))
+                gen = enumerate(zip(axis_sizes, crops_start, crops_end, strict=False))
                 for i, (axs, csi, cei) in gen:
                     if axs in [0, 1]:
                         csi = 0
@@ -417,7 +417,7 @@ def test_pad():
     for dtype in dtypes:
         arr = np.zeros((3, 3), dtype=dtype) + 1.0
 
-        def _allclose(a, b):
+        def _allclose(a, b, dtype=dtype):
             atol = 1e-3 if dtype == np.float16 else 1e-7
             return np.allclose(a, b, atol=atol, rtol=0)
 
@@ -776,7 +776,7 @@ class Test_compute_paddings_to_reach_multiples_of(unittest.TestCase):
             (0, 2, 0, 2),
         ]
 
-        for amount, expected in zip(amounts, expecteds):
+        for amount, expected in zip(amounts, expecteds, strict=False):
             for nb_channels in nb_channels_lst:
                 with self.subTest(width_multiple=amount, nb_channels=nb_channels):
                     if nb_channels is None:
@@ -801,7 +801,7 @@ class Test_compute_paddings_to_reach_multiples_of(unittest.TestCase):
             (1, 0, 2, 0),
             (2, 0, 2, 0),
         ]
-        for amount, expected in zip(amounts, expecteds):
+        for amount, expected in zip(amounts, expecteds, strict=False):
             for nb_channels in nb_channels_lst:
                 with self.subTest(height_multiple=amount, nb_channels=nb_channels):
                     if nb_channels is None:
@@ -1802,7 +1802,7 @@ class TestPad(unittest.TestCase):
 
                 movements = []
                 movements_det = []
-                for i in range(100):
+                for _i in range(100):
                     observed = aug.augment_images(self.images)
 
                     matches = [
@@ -1871,7 +1871,7 @@ class TestPad(unittest.TestCase):
 
             movements = []
             movements_det = []
-            for i in range(100):
+            for _i in range(100):
                 observed = aug.augment_images(self.images)
                 matches = [
                     (1 if np.array_equal(observed, np.array([base_img_padded])) else 0)
@@ -2177,7 +2177,7 @@ class TestPad(unittest.TestCase):
             elif observed[0, 2] == 50:
                 seen[2] += 1
             else:
-                assert False
+                raise AssertionError()
         assert np.all([100 - 50 < v < 100 + 50 for v in seen])
 
     def test_bad_datatype_for_pad_mode_causes_failure(self):
@@ -2229,7 +2229,7 @@ class TestPad(unittest.TestCase):
             elif observed[0, 1] == 100:
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
         assert np.all([100 - 50 < v < 100 + 50 for v in seen])
 
     def test_pad_cval_is_tuple(self):
@@ -2247,7 +2247,7 @@ class TestPad(unittest.TestCase):
             elif observed[0, 1] == 52:
                 seen[2] += 1
             else:
-                assert False
+                raise AssertionError()
         assert np.all([100 - 50 < v < 100 + 50 for v in seen])
 
     def test_invalid_pad_cval_datatype_leads_to_failure(self):
@@ -2856,7 +2856,7 @@ class TestPad(unittest.TestCase):
             with self.subTest(dtype=dtype):
                 min_value, center_value, max_value = iadt.get_value_range_of_dtype(dtype)
 
-                def _isclose(a, b):
+                def _isclose(a, b, dtype=dtype):
                     atol = 1e-4 if np.dtype(dtype) == np.float16 else 1e-8
                     return np.isclose(a, b, atol=atol, rtol=0)
 
@@ -3014,7 +3014,7 @@ class TestCrop(unittest.TestCase):
 
                 movements = []
                 movements_det = []
-                for i in range(100):
+                for _i in range(100):
                     observed = aug.augment_images(self.images)
 
                     matches = [
@@ -3085,7 +3085,7 @@ class TestCrop(unittest.TestCase):
 
                 movements = []
                 movements_det = []
-                for i in range(100):
+                for _i in range(100):
                     observed = aug.augment_images(self.images)
                     matches = [
                         (1 if np.array_equal(observed, np.array([base_img_cropped])) else 0)
@@ -3960,7 +3960,7 @@ class TestCrop(unittest.TestCase):
             with self.subTest(dtype=dtype):
                 min_value, center_value, max_value = iadt.get_value_range_of_dtype(dtype)
 
-                def _isclose(a, b):
+                def _isclose(a, b, dtype=dtype):
                     atol = 1e-4 if np.dtype(dtype) == np.float16 else 1e-8
                     return np.isclose(a, b, atol=atol, rtol=0)
 
@@ -4590,7 +4590,7 @@ class TestPadToFixedSize(unittest.TestCase):
         for dtype in dtypes:
             min_value, center_value, max_value = iadt.get_value_range_of_dtype(dtype)
 
-            def _isclose(a, b):
+            def _isclose(a, b, dtype=dtype):
                 atol = 1e-4 if dtype == "float16" else 1e-8
                 return np.isclose(a, b, atol=atol, rtol=0)
 
@@ -5187,7 +5187,7 @@ class TestCropToFixedSize(unittest.TestCase):
         for dtype in dtypes:
             min_value, center_value, max_value = iadt.get_value_range_of_dtype(dtype)
 
-            def _isclose(a, b):
+            def _isclose(a, b, dtype=dtype):
                 atol = 1e-4 if dtype == "float16" else 1e-8
                 return np.isclose(a, b, atol=atol, rtol=0)
 

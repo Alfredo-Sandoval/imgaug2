@@ -416,7 +416,7 @@ class _TestPoolingAugmentersBase:
     ):
         def _same_coords(cbaoi1, coords):
             assert len(cbaoi1.items) == len(coords)
-            for item, coords_i in zip(cbaoi1.items, coords):
+            for item, coords_i in zip(cbaoi1.items, coords, strict=False):
                 if not np.allclose(item.coords, coords_i, atol=1e-4, rtol=0):
                     return False
             return True

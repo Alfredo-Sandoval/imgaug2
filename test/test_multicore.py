@@ -220,7 +220,7 @@ class TestPool(unittest.TestCase):
         for clazz in [Batch, UnnormalizedBatch]:
             batches = [clazz(images=[ia.data.quokka()]), clazz(images=[ia.data.quokka() + 1])]
 
-            def _generate_batches():
+            def _generate_batches(batches=batches):
                 yield from batches
 
             augseq = iaa.Identity()
@@ -379,7 +379,7 @@ class TestPool(unittest.TestCase):
         assert len(batches_aug2) == nb_batches
         assert len(batches_aug3) == nb_batches
 
-        for b1, b2, b3 in zip(batches_aug1, batches_aug2, batches_aug3):
+        for b1, b2, b3 in zip(batches_aug1, batches_aug2, batches_aug3, strict=False):
             # images were augmented
             assert not np.array_equal(b1.images_unaug, b1.images_aug)
             assert not np.array_equal(b2.images_unaug, b2.images_aug)
@@ -431,7 +431,7 @@ class TestPool(unittest.TestCase):
                     assert keypoints_aug.keypoints[0].x == 2
                     assert keypoints_aug.keypoints[0].y == 0
 
-        for b1, b2, b3 in zip(batches_aug1, batches_aug2, batches_aug3):
+        for b1, b2, b3 in zip(batches_aug1, batches_aug2, batches_aug3, strict=False):
             # images were augmented
             assert not np.array_equal(b1.images_unaug, b1.images_aug)
             assert not np.array_equal(b2.images_unaug, b2.images_aug)
@@ -626,8 +626,7 @@ class Test_Pool_initialize_worker(unittest.TestCase):
         seed_global_call_2 = mock_ia_seed.call_args_list[0][0][0]
         seed_local_call_2 = augseq.seed_.call_args_list[0][0][0]
         assert seed_global_call_1 != seed_local_call_1 != seed_global_call_2 != seed_local_call_2, (
-            "Got seeds: %d, %d, %d, %d"
-            % (seed_global_call_1, seed_local_call_1, seed_global_call_2, seed_local_call_2)
+            f"Got seeds: {seed_global_call_1}, {seed_local_call_1}, {seed_global_call_2}, {seed_local_call_2}"
         )
         assert mock_ia_seed.call_count == 2
         assert augseq.seed_.call_count == 2
@@ -671,10 +670,10 @@ class Test_Pool_worker(unittest.TestCase):
 
         # expected seeds used
         seed = seed_start + batch_idx
-        seed_global_expected = iarandom.SEED_MIN_VALUE + (seed - 10**9) % (
+        seed_global_expected = iarandom.SEED_MIN_VALUE + (seed - 10**9) % (  # noqa: UP031
             iarandom.SEED_MAX_VALUE - iarandom.SEED_MIN_VALUE
         )
-        seed_local_expected = iarandom.SEED_MIN_VALUE + seed % (
+        seed_local_expected = iarandom.SEED_MIN_VALUE + seed % (  # noqa: UP031
             iarandom.SEED_MAX_VALUE - iarandom.SEED_MIN_VALUE
         )
 
@@ -746,9 +745,8 @@ class TestBatchLoader(unittest.TestCase):
                             pass
                         counter += 1
                     assert len(loaded) == 20 * nb_workers, (
-                        "Expected %d to be loaded by threads, got %d for %d "
-                        "workers at counter %d."
-                        % (20 * nb_workers, len(loaded), nb_workers, counter)
+                        f"Expected {20 * nb_workers} to be loaded by threads, got {len(loaded)} for {nb_workers} "
+                        f"workers at counter {counter}."
                     )
 
                     loader = multicore.BatchLoader(
@@ -775,9 +773,8 @@ class TestBatchLoader(unittest.TestCase):
                             pass
                         counter += 1
                     assert len(loaded) == 20 * nb_workers, (
-                        "Expected %d to be loaded by background processes, "
-                        "got %d for %d workers at counter %d."
-                        % (20 * nb_workers, len(loaded), nb_workers, counter)
+                        f"Expected {20 * nb_workers} to be loaded by background processes, "
+                        f"got {len(loaded)} for {nb_workers} workers at counter {counter}."
                     )
 
                     loader = multicore.BatchLoader(

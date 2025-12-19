@@ -554,7 +554,7 @@ class TestCanny(unittest.TestCase):
             image_canny_uint8 = np.tile(image_canny[:, :, np.newaxis], (1, 1, 3))
 
             similar = 0
-            for key, image_expected in images_canny_uint8.items():
+            for _key, image_expected in images_canny_uint8.items():
                 if np.array_equal(image_canny_uint8, image_expected):
                     similar += 1
             assert similar == 0

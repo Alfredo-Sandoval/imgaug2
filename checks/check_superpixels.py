@@ -26,8 +26,8 @@ def main():
         aug = iaa.Superpixels(p_replace=0.75, n_segments=n_segments)
         time_start = time.time()
         img_aug = aug.augment_image(image)
-        print("augmented %d in %.4fs" % (n_segments, time.time() - time_start))
-        img_aug = ia.draw_text(img_aug, x=5, y=5, text="%d" % (n_segments,))
+        print("augmented %d in %.4fs" % (n_segments, time.time() - time_start))  # noqa: UP031
+        img_aug = ia.draw_text(img_aug, x=5, y=5, text="%d" % (n_segments,))  # noqa: UP031
 
         cv2.imshow("aug", img_aug)
         cv2.waitKey(TIME_PER_STEP)

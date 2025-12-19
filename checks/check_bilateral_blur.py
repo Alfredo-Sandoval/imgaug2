@@ -1,8 +1,9 @@
-import imgaug2 as ia
-from imgaug2 import augmenters as iaa
+import cv2
 import numpy as np
 from skimage import data
-import cv2
+
+import imgaug2 as ia
+from imgaug2 import augmenters as iaa
 
 TIME_PER_STEP = 5000
 NB_AUGS_PER_IMAGE = 10
@@ -12,7 +13,7 @@ def main():
     image = data.astronaut()
     image = ia.imresize_single_image(image, (128, 128))
     print("image shape:", image.shape)
-    print("Press any key or wait %d ms to proceed to the next image." % (TIME_PER_STEP,))
+    print(f"Press any key or wait {TIME_PER_STEP} ms to proceed to the next image.")
 
     configs = [
         (1, 75, 75),
@@ -43,7 +44,7 @@ def main():
         img_aug = np.hstack(img_aug)
         print("dtype", img_aug.dtype, "averages", np.average(img_aug, axis=tuple(range(0, img_aug.ndim-1))))
 
-        title = "d=%s, sc=%s, ss=%s" % (str(d), str(sigma_color), str(sigma_space))
+        title = f"d={str(d)}, sc={str(sigma_color)}, ss={str(sigma_space)}"
         img_aug = ia.draw_text(img_aug, x=5, y=5, text=title)
 
         cv2.imshow("aug", img_aug[..., ::-1]) # here with rgb2bgr

@@ -1,8 +1,8 @@
 from itertools import cycle
 
+import cv2
 import numpy as np
 from skimage import data
-import cv2
 
 from imgaug2 import augmenters as iaa
 

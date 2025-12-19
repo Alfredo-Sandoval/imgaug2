@@ -17,7 +17,7 @@ def main():
          "Kukle%2CCzech_Republic..jpg"),
         format="jpg")
 
-    for aug, size in zip(augs, [0.1, 0.2, 1.0]):
+    for aug, size in zip(augs, [0.1, 0.2, 1.0], strict=False):
         image_rs = ia.imresize_single_image(image, size, "cubic")
         print(image_rs.shape)
 

@@ -1,6 +1,7 @@
+import imageio
+
 import imgaug2 as ia
 import imgaug2.augmenters as iaa
-import imageio
 
 
 def main():

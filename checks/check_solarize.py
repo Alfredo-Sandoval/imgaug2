@@ -1,33 +1,33 @@
+import timeit
+
 import imgaug2 as ia
 import imgaug2.augmenters as iaa
-import timeit
 
 
 def main():
     for size in [64, 128, 256, 512, 1024]:
         for threshold in [64, 128, 192]:
             time_iaa = timeit.timeit(
-                "iaa.solarize(image, %d)" % (threshold,),
+                f"iaa.solarize(image, {threshold})",
                 number=1000,
                 setup=(
                     "import imgaug2 as ia; "
                     "import imgaug2.augmenters as iaa; "
-                    "image = ia.quokka_square((%d, %d))" % (size, size))
+                    f"image = ia.quokka_square(({size}, {size}))")
             )
             time_pil = timeit.timeit(
                 "np.asarray("
-                "PIL.ImageOps.solarize(PIL.Image.fromarray(image), %d)"
-                ")" % (threshold,),
+                f"PIL.ImageOps.solarize(PIL.Image.fromarray(image), {threshold})"
+                ")",
                 number=1000,
                 setup=(
                     "import numpy as np; "
                     "import PIL.Image; "
                     "import PIL.ImageOps; "
                     "import imgaug2 as ia; "
-                    "image = ia.quokka_square((%d, %d))" % (size, size))
+                    f"image = ia.quokka_square(({size}, {size}))")
             )
-            print("[size=%04d, thresh=%03d] iaa=%.4f pil=%.4f" % (
-                size, threshold, time_iaa, time_pil))
+            print(f"[size={size:04d}, thresh={threshold:03d}] iaa={time_iaa:.4f} pil={time_pil:.4f}")
 
     image = ia.quokka_square((128, 128))
     images_aug = iaa.Solarize(1.0)(images=[image] * (5*5))

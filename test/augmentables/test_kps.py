@@ -393,7 +393,7 @@ class TestKeypointsOnImage_items_setter(unittest.TestCase):
         kpsoi = ia.KeypointsOnImage(keypoints=[], shape=(10, 20, 3))
         kpsoi.items = kps
         assert np.all(
-            [kp_i.x == kp_j.x and kp_i.y == kp_j.y for kp_i, kp_j in zip(kpsoi.keypoints, kps)]
+            [kp_i.x == kp_j.x and kp_i.y == kp_j.y for kp_i, kp_j in zip(kpsoi.keypoints, kps, strict=False)]
         )
 
 
@@ -414,7 +414,7 @@ class TestKeypointsOnImage_on_(unittest.TestCase):
         assert np.all(
             [
                 kp_i.x == kp_j.x and kp_i.y == kp_j.y
-                for kp_i, kp_j in zip(kpi.keypoints, kpi2.keypoints)
+                for kp_i, kp_j in zip(kpi.keypoints, kpi2.keypoints, strict=False)
             ]
         )
         assert kpi2.shape == (10, 20, 3)

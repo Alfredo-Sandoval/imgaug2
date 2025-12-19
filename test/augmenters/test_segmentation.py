@@ -256,7 +256,7 @@ class TestSuperpixels(unittest.TestCase):
         # currently, no float dtype is actually accepted
         for dtype in []:
 
-            def _allclose(a, b):
+            def _allclose(a, b, dtype=dtype):
                 atol = 1e-4 if dtype == np.float16 else 1e-8
                 return np.allclose(a, b, atol=atol, rtol=0)
 
@@ -697,7 +697,7 @@ def _all_arrays_identical(arrs):
 
 
 def _array_lists_elementwise_identical(arrs1, arrs2):
-    return np.all([np.array_equal(arr1, arr2) for arr1, arr2 in zip(arrs1, arrs2)])
+    return np.all([np.array_equal(arr1, arr2) for arr1, arr2 in zip(arrs1, arrs2, strict=False)])
 
 
 class TestUniformVoronoi(unittest.TestCase):

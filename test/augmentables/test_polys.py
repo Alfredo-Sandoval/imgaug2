@@ -298,7 +298,7 @@ class TestPolygon_find_closest_point_idx(unittest.TestCase):
         coords = [(0, 0), (1, 0), (1.0001, -0.001), (0.2, 0.2)]
         expected_indices = [0, 1, 1, 0]
 
-        for (x, y), expected_index in zip(coords, expected_indices):
+        for (x, y), expected_index in zip(coords, expected_indices, strict=False):
             with self.subTest(x=x, y=0):
                 closest_idx = poly.find_closest_point_index(x=x, y=y)
                 assert closest_idx == expected_index
@@ -313,7 +313,7 @@ class TestPolygon_find_closest_point_idx(unittest.TestCase):
             np.sqrt(((1.0 - 0.9) ** 2) + (0.15**2)),
         ]
 
-        gen = zip(coords, expected_indices, expected_distances)
+        gen = zip(coords, expected_indices, expected_distances, strict=False)
         for (x, y), expected_index, expected_dist in gen:
             with self.subTest(x=x, y=y):
                 closest_idx, distance = poly.find_closest_point_index(
@@ -456,7 +456,7 @@ class TestPolygon_is_fully_within_image(unittest.TestCase):
 
     def test_exterior_empty_fails(self):
         poly = ia.Polygon([])
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             _ = poly.is_fully_within_image((1, 1, 3))
 
 
@@ -499,7 +499,7 @@ class TestPolygon_is_partly_within_image(unittest.TestCase):
 
     def test_exterior_empty_fails(self):
         poly = ia.Polygon([])
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             _ = poly.is_partly_within_image((1, 1, 3))
 
 
@@ -1595,7 +1595,7 @@ class TestPolygon_to_shapely_polygon(unittest.TestCase):
         exterior = [(0, 0), (1, 0), (1, 1), (0, 1)]
         poly = ia.Polygon(exterior)
         poly_shapely = poly.to_shapely_polygon()
-        gen = zip(exterior, poly_shapely.exterior.coords)
+        gen = zip(exterior, poly_shapely.exterior.coords, strict=False)
         for (x_exp, y_exp), (x_obs, y_obs) in gen:
             assert np.isclose(x_obs, x_exp, rtol=0, atol=1e-8)
             assert np.isclose(y_obs, y_exp, rtol=0, atol=1e-8)
@@ -1696,14 +1696,14 @@ class TestPolygon_from_shapely(unittest.TestCase):
 
         # shapely messes up the point ordering, so we try to correct it here
         start_idx = 0
-        for i, (x, y) in enumerate(poly.exterior):
+        for i, (x, _y) in enumerate(poly.exterior):
             dist = np.sqrt((exterior[0][0] - x) ** 2 + (exterior[0][1] - x) ** 2)
             if dist < 1e-4:
                 start_idx = i
                 break
         poly = poly.change_first_point_by_index(start_idx)
 
-        for (x_exp, y_exp), (x_obs, y_obs) in zip(exterior, poly.exterior):
+        for (x_exp, y_exp), (x_obs, y_obs) in zip(exterior, poly.exterior, strict=False):
             assert x_exp - 1e-8 < x_obs < x_exp + 1e-8
             assert y_exp - 1e-8 < y_obs < y_exp + 1e-8
 
@@ -2103,7 +2103,7 @@ class TestPolygon___iter__(unittest.TestCase):
     def test_with_zero_points(self):
         cba = ia.Polygon([])
         i = 0
-        for xy in cba:
+        for _xy in cba:
             i += 1
         assert i == 0
 
@@ -2202,7 +2202,7 @@ class TestPolygonsOnImage_items_setter(unittest.TestCase):
         psoi = ia.PolygonsOnImage([], shape=(10, 20, 3))
         psoi.items = ps
         assert np.all(
-            [(np.allclose(ps_i.coords, ps_j.coords)) for ps_i, ps_j in zip(psoi.polygons, ps)]
+            [(np.allclose(ps_i.coords, ps_j.coords)) for ps_i, ps_j in zip(psoi.polygons, ps, strict=False)]
         )
 
 
@@ -3103,13 +3103,13 @@ class Test_ConcavePolygonRecoverer(unittest.TestCase):
     @classmethod
     def _assert_points_are_identical(cls, observed, expected, atol=1e-8, rtol=0):
         assert len(observed) == len(expected)
-        for i, (ps_obs, ps_exp) in enumerate(zip(observed, expected)):
-            assert len(ps_obs) == len(ps_exp), "Failed at point %d" % (i,)
-            for p_obs, p_exp in zip(ps_obs, ps_exp):
+        for i, (ps_obs, ps_exp) in enumerate(zip(observed, expected, strict=False)):
+            assert len(ps_obs) == len(ps_exp), "Failed at point %d" % (i,)  # noqa: UP031
+            for p_obs, p_exp in zip(ps_obs, ps_exp, strict=False):
                 assert len(p_obs) == 2
                 assert len(p_exp) == 2
                 assert np.allclose(p_obs, p_exp, atol=atol, rtol=rtol), (
-                    "Unexpected coords at %d" % (i,)
+                    "Unexpected coords at %d" % (i,)  # noqa: UP031
                 )
 
     # TODO split into multiple tests
@@ -3242,7 +3242,7 @@ class Test_ConcavePolygonRecoverer(unittest.TestCase):
             [(0, 0), (1, 0), (2, 0)],
         ]
 
-        for points_i, expected_i in zip(points, expected):
+        for points_i, expected_i in zip(points, expected, strict=False):
             with self.subTest(points=points_i):
                 points_deduplicated = recoverer._remove_consecutive_duplicate_points(points_i)
                 assert np.allclose(points_deduplicated, expected_i)
@@ -3368,7 +3368,7 @@ class Test_ConcavePolygonRecoverer(unittest.TestCase):
     # TODO split into multiple tests
     def test__fit_best_valid_polygon(self):
         def _assert_ids_match(observed, expected):
-            assert len(observed) == len(expected), "len mismatch: %d vs %d" % (
+            assert len(observed) == len(expected), "len mismatch: %d vs %d" % (  # noqa: UP031
                 len(observed),
                 len(expected),
             )
@@ -3386,7 +3386,7 @@ class Test_ConcavePolygonRecoverer(unittest.TestCase):
 
                 max_count = max(max_count, counter)
 
-            assert max_count == len(expected), "count mismatch: %d vs %d" % (
+            assert max_count == len(expected), "count mismatch: %d vs %d" % (  # noqa: UP031
                 max_count,
                 len(expected),
             )

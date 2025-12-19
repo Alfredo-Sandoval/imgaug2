@@ -307,7 +307,7 @@ class TestLineString(unittest.TestCase):
         points = [(0, 0), (1, 0), (0, 1), (-0.5, -0.6)]
         expecteds = [0, 0, 1, np.sqrt(0.5**2 + 0.6**2)]
 
-        for point, expected in zip(points, expecteds):
+        for point, expected in zip(points, expecteds, strict=False):
             with self.subTest(point=point):
                 assert np.isclose(ls.compute_distance(point), expected)
 
@@ -316,7 +316,7 @@ class TestLineString(unittest.TestCase):
         points = [(0, 0), (-0.5, -0.6)]
         expecteds = [0, np.sqrt(0.5**2 + 0.6**2)]
 
-        for point, expected in zip(points, expecteds):
+        for point, expected in zip(points, expecteds, strict=False):
             with self.subTest(point=point):
                 assert np.isclose(ls.compute_distance(point), expected)
 
@@ -337,7 +337,7 @@ class TestLineString(unittest.TestCase):
         points = [[(0, 0)], [(0, 1)], [(0, 0), (0, 1)], [(-1, -1), (-1, 1)]]
         expecteds = [0, 1, 0, 1]
 
-        for point, expected in zip(points, expecteds):
+        for point, expected in zip(points, expecteds, strict=False):
             with self.subTest(point=point):
                 assert np.isclose(ls.compute_distance(LineString(point)), expected)
 
@@ -351,7 +351,7 @@ class TestLineString(unittest.TestCase):
         points = [(100, 0), (0, 0), (1, 0), (2, 1), (0 + 1e-8, 0), (0 - 1, 0)]
         expecteds = [False, True, True, True, True, False]
 
-        for point, expected in zip(points, expecteds):
+        for point, expected in zip(points, expecteds, strict=False):
             with self.subTest(point=point):
                 assert ls.contains(point) is expected
 
@@ -361,7 +361,7 @@ class TestLineString(unittest.TestCase):
         max_distances = [0, 2]
         expecteds = [False, True]
 
-        for point, max_distance, expected in zip(points, max_distances, expecteds):
+        for point, max_distance, expected in zip(points, max_distances, expecteds, strict=False):
             with self.subTest(point=point, max_distance=max_distance):
                 assert ls.contains(point, max_distance=max_distance) is expected
 
@@ -370,7 +370,7 @@ class TestLineString(unittest.TestCase):
         points = [(100, 0), (0, 0), (1, 0), (2, 1), (0 + 1e-8, 0), (0 - 1, 0)]
         expecteds = [False, True, True, True, True, False]
 
-        for point, expected in zip(points, expecteds):
+        for point, expected in zip(points, expecteds, strict=False):
             with self.subTest(point=point):
                 assert ls.contains(Keypoint(x=point[0], y=point[1])) is expected
 
@@ -1698,7 +1698,7 @@ class TestLineString(unittest.TestCase):
         ]
         labels = [None, None, None, None, "foo"]
 
-        for coords_i, label in zip(coords, labels):
+        for coords_i, label in zip(coords, labels, strict=False):
             with self.subTest(coords=coords_i, label=label):
                 ls = LineString(coords_i, label=label)
                 observed = ls.copy()
@@ -1728,7 +1728,7 @@ class TestLineString(unittest.TestCase):
         ]
         labels = [None, None, None, None, "foo"]
 
-        for coords_i, label in zip(coords, labels):
+        for coords_i, label in zip(coords, labels, strict=False):
             with self.subTest(coords=coords_i, label=label):
                 ls = LineString(coords_i, label=label)
                 observed = ls.deepcopy()
@@ -1758,7 +1758,7 @@ class TestLineString(unittest.TestCase):
         ]
         labels = [None, None, None, None, "foo"]
 
-        for coords_i, label in zip(coords, labels):
+        for coords_i, label in zip(coords, labels, strict=False):
             with self.subTest(coords=coords_i, label=label):
                 ls = LineString(coords_i, label=label)
                 # __str__() is tested more thoroughly in other tests
@@ -1786,7 +1786,7 @@ class TestLineString(unittest.TestCase):
     def test___iter___zero_points(self):
         cba = LineString([])
         i = 0
-        for xy in cba:
+        for _xy in cba:
             i += 1
         assert i == 0
 
@@ -1807,7 +1807,7 @@ class TestLineString(unittest.TestCase):
             "LineString([(0.00, 0.00), (1.00, 0.00), (1.00, 1.00)], label=foo)",
         ]
 
-        for coords_i, label, expected in zip(coords, labels, expecteds):
+        for coords_i, label, expected in zip(coords, labels, expecteds, strict=False):
             with self.subTest(coords=coords_i, label=label):
                 ls = LineString(coords_i, label=label)
                 observed = ls.__str__()
@@ -1820,7 +1820,7 @@ class TestLineStringsOnImage_items_setter(unittest.TestCase):
         lsoi = ia.LineStringsOnImage([], shape=(10, 20, 3))
         lsoi.items = ls
         assert np.all(
-            [(np.allclose(ls_i.coords, ls_j.coords)) for ls_i, ls_j in zip(lsoi.line_strings, ls)]
+            [(np.allclose(ls_i.coords, ls_j.coords)) for ls_i, ls_j in zip(lsoi.line_strings, ls, strict=False)]
         )
 
 
@@ -1842,7 +1842,7 @@ class TestLineStringsOnImage_on_(unittest.TestCase):
         assert np.all(
             [
                 ls_a.coords_almost_equals(ls_b)
-                for ls_a, ls_b in zip(lsoi.line_strings, lsoi_proj.line_strings)
+                for ls_a, ls_b in zip(lsoi.line_strings, lsoi_proj.line_strings, strict=False)
             ]
         )
         assert lsoi_proj.shape == (100, 100, 3)
@@ -2000,7 +2000,7 @@ class TestLineStringsOnImage_clip_out_of_image_(unittest.TestCase):
         expected.extend(ls1.clip_out_of_image((100, 100, 3)))
         expected.extend(ls2.clip_out_of_image((100, 100, 3)))
         assert len(lsoi.line_strings) == len(expected)
-        for ls_obs, ls_exp in zip(observed.line_strings, expected):
+        for ls_obs, ls_exp in zip(observed.line_strings, expected, strict=False):
             assert ls_obs.coords_almost_equals(ls_exp)
         assert observed.shape == (100, 100, 3)
 

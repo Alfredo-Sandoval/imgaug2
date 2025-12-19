@@ -1,12 +1,34 @@
+import numpy as np
+
 import imgaug2 as ia
+
 # TODO ForceSign
 from imgaug2.parameters import (
-    Binomial, Choice, DiscreteUniform, Poisson, Normal, Laplace, ChiSquare,
-    Weibull, Uniform, Beta, Deterministic, Clip, Discretize, Multiply, Add,
-    Divide, Power, Absolute, RandomSign, Positive, Negative,
-    SimplexNoise, FrequencyNoise, Sigmoid
+    Absolute,
+    Add,
+    Beta,
+    Binomial,
+    ChiSquare,
+    Choice,
+    Clip,
+    Deterministic,
+    DiscreteUniform,
+    Discretize,
+    Divide,
+    FrequencyNoise,
+    Laplace,
+    Multiply,
+    Negative,
+    Normal,
+    Poisson,
+    Positive,
+    Power,
+    RandomSign,
+    Sigmoid,
+    SimplexNoise,
+    Uniform,
+    Weibull,
 )
-import numpy as np
 
 
 def main():

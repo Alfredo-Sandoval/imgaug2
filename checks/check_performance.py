@@ -3,11 +3,13 @@ Tests to measure the performance of each augmenter.
 Run these checks from the project directory (i.e. parent directory) via
     python check_performance.py
 """
+import random
+import time
+
+import numpy as np
+
 import imgaug2 as ia
 from imgaug2 import augmenters as iaa
-import numpy as np
-import time
-import random
 
 """
 ---------------------------
@@ -192,7 +194,7 @@ def main():
                 order=order,
                 cval=(0, 255),
                 mode=ia.ALL,
-                name="AffineOrder%d" % (order,)
+                name="AffineOrder%d" % (order,)  # noqa: UP031
             )
         )
 
@@ -230,35 +232,33 @@ def main():
     print("Keypoints")
     print("---------------------------")
     for augmenter in augmenters:
-        print("[Augmenter: %s]" % (augmenter.name,))
+        print(f"[Augmenter: {augmenter.name}]")
         for keypoints in [small_keypoints, medium_keypoints, large_keypoints]:
             times = []
-            for i in range(100):
+            for _i in range(100):
                 time_start = time.time()
                 _img_aug = augmenter.augment_keypoints(keypoints)
                 time_end = time.time()
                 times.append(time_end - time_start)
             times = np.array(times)
-            img_str = "{:20s}".format(keypoints[0].shape)
-            print("%s | SUM %.5fs | PER ITER avg %.5fs, min %.5fs, max %.5fs" % (
-                img_str, float(np.sum(times)), np.average(times), np.min(times), np.max(times)))
+            img_str = f"{keypoints[0].shape:20s}"
+            print(f"{img_str} | SUM {float(np.sum(times)):.5f}s | PER ITER avg {np.average(times):.5f}s, min {np.min(times):.5f}s, max {np.max(times):.5f}s")
 
     print("---------------------------")
     print("Images")
     print("---------------------------")
     for augmenter in augmenters:
-        print("[Augmenter: %s]" % (augmenter.name,))
+        print(f"[Augmenter: {augmenter.name}]")
         for images in [small_images, medium_images, large_images]:
             times = []
-            for i in range(100):
+            for _i in range(100):
                 time_start = time.time()
                 _img_aug = augmenter.augment_images(images)
                 time_end = time.time()
                 times.append(time_end - time_start)
             times = np.array(times)
-            img_str = "{:20s}".format(images.shape)
-            print("%s | SUM %.5fs | PER ITER avg %.5fs, min %.5fs, max %.5fs" % (
-                img_str, float(np.sum(times)), np.average(times), np.min(times), np.max(times)))
+            img_str = f"{images.shape:20s}"
+            print(f"{img_str} | SUM {float(np.sum(times)):.5f}s | PER ITER avg {np.average(times):.5f}s, min {np.min(times):.5f}s, max {np.max(times):.5f}s")
 
 
 if __name__ == "__main__":

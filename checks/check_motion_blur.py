@@ -1,7 +1,7 @@
 from itertools import cycle
 
-import numpy as np
 import cv2
+import numpy as np
 
 import imgaug2 as ia
 from imgaug2 import augmenters as iaa

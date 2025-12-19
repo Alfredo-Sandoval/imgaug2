@@ -1,9 +1,10 @@
-import imgaug2 as ia
-from imgaug2 import augmenters as iaa
+import cv2
 import imageio
 import numpy as np
 from skimage import data
-import cv2
+
+import imgaug2 as ia
+from imgaug2 import augmenters as iaa
 
 NB_ROWS = 10
 NB_COLS = 10

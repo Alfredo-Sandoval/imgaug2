@@ -1290,7 +1290,7 @@ class TestBoundingBoxesOnImage_items_setter(unittest.TestCase):
                     and bb_i.x2 == bb_j.x2
                     and bb_i.y2 == bb_j.y2
                 )
-                for bb_i, bb_j in zip(bbsoi.bounding_boxes, bbs)
+                for bb_i, bb_j in zip(bbsoi.bounding_boxes, bbs, strict=False)
             ]
         )
 
@@ -2158,7 +2158,7 @@ class Test_LabelOnImageDrawer(unittest.TestCase):
         image = np.zeros((20, 30, 3), dtype=np.uint8)
         bb = ia.BoundingBox(x1=30 + 1, x2=30 + 6, y1=2, y2=10)
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             drawer._do_raise_if_out_of_image(image, bb)
 
     def test__preprocess_colors__only_main_color_set(self):

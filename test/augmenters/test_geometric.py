@@ -178,36 +178,36 @@ class TestAffine___init__(unittest.TestCase):
     # exceptions for bad inputs
     # ------------
     def test___init___bad_datatype_for_scale_fails(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             _ = iaa.Affine(scale=False)
 
     def test___init___bad_datatype_for_translate_px_fails(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             _ = iaa.Affine(translate_px=False)
 
     def test___init___bad_datatype_for_translate_percent_fails(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             _ = iaa.Affine(translate_percent=False)
 
     def test___init___bad_datatype_for_rotate_fails(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             _ = iaa.Affine(scale=1.0, translate_px=0, rotate=False, shear=0, cval=0)
 
     def test___init___bad_datatype_for_shear_fails(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             _ = iaa.Affine(scale=1.0, translate_px=0, rotate=0, shear=False, cval=0)
 
     def test___init___bad_datatype_for_cval_fails(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             _ = iaa.Affine(scale=1.0, translate_px=100, rotate=0, shear=0, cval=None)
 
     def test___init___bad_datatype_for_mode_fails(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             _ = iaa.Affine(scale=1.0, translate_px=100, rotate=0, shear=0, cval=0, mode=False)
 
     def test___init___bad_datatype_for_order_fails(self):
         # bad order datatype in case of backend=cv2
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             _ = iaa.Affine(backend="cv2", order="test")
 
     def test___init___nonexistent_order_for_cv2_fails(self):
@@ -944,7 +944,7 @@ class TestAffine_scale(unittest.TestCase):
 
         aug = iaa.Affine(scale=[0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7], order=0)
 
-        for iter in range(40):
+        for _iter in range(40):
             images_aug, kpsois_aug = aug(images=images, keypoints=kpsois)
 
             assert kpsois_aug[1].empty
@@ -1407,7 +1407,7 @@ class TestAffine_translate(unittest.TestCase):
     # translate: fraction of the image size (towards the bottom)
     # ---------------------
     def test_image_translate_33percent_bottom(self):
-        # move 33% (one pixel) to the bottom
+        # move 33% (one pixel) to the bottom  # noqa: UP031
         aug = iaa.Affine(scale=1.0, translate_percent={"x": 0, "y": 0.3333}, rotate=0, shear=0)
 
         observed = aug.augment_images(self.images)
@@ -2521,7 +2521,7 @@ class TestAffine_alignment(unittest.TestCase):
                 elif np.array_equal(img_aug, img_rot[1]):
                     img_aug_indices.append(1)
                 else:
-                    assert False
+                    raise AssertionError()
             for kpsoi_aug in kpsois_aug:
                 similar_to_rot_0 = np.allclose(
                     [kpsoi_aug.keypoints[0].x, kpsoi_aug.keypoints[0].y], kpsoi_rot[0]
@@ -2534,7 +2534,7 @@ class TestAffine_alignment(unittest.TestCase):
                 elif similar_to_rot_180:
                     kpsois_aug_indices.append(1)
                 else:
-                    assert False
+                    raise AssertionError()
         assert np.array_equal(img_aug_indices, kpsois_aug_indices)
         assert len(set(img_aug_indices)) == 2
         assert len(set(kpsois_aug_indices)) == 2
@@ -2566,14 +2566,14 @@ class TestAffine_alignment(unittest.TestCase):
                 elif np.array_equal(img_aug, img_rot[1]):
                     img_aug_indices.append(1)
                 else:
-                    assert False
+                    raise AssertionError()
             for cbaoi_aug in cbaois_aug:
                 if cbaoi_aug.items[0].coords_almost_equals(cbaoi_rot[0]):
                     cbaois_aug_indices.append(0)
                 elif cbaoi_aug.items[0].coords_almost_equals(cbaoi_rot[1]):
                     cbaois_aug_indices.append(1)
                 else:
-                    assert False
+                    raise AssertionError()
         assert np.array_equal(img_aug_indices, cbaois_aug_indices)
         assert len(set(img_aug_indices)) == 2
         assert len(set(cbaois_aug_indices)) == 2
@@ -2703,7 +2703,7 @@ class TestAffine_other_dtypes(unittest.TestCase):
 
             min_value, center_value, max_value = iadt.get_value_range_of_dtype(dtype)
 
-            def _isclose(a, b):
+            def _isclose(a, b, dtype=dtype):
                 atol = 1e-4 if dtype == "float16" else 1e-8
                 return np.isclose(a, b, atol=atol, rtol=0)
 
@@ -2819,7 +2819,7 @@ class TestAffine_other_dtypes(unittest.TestCase):
 
                 min_value, center_value, max_value = iadt.get_value_range_of_dtype(dtype)
 
-                def _isclose(a, b):
+                def _isclose(a, b, dtype=dtype, order=order):
                     atol = 1e-4 if dtype == "float16" else 1e-8
                     if order not in [0, 1]:
                         atol = 1e-2
@@ -2910,7 +2910,7 @@ class TestAffine_other_dtypes(unittest.TestCase):
         for dtype in dtypes:
             min_value, center_value, max_value = iadt.get_value_range_of_dtype(dtype)
 
-            def _isclose(a, b):
+            def _isclose(a, b, dtype=dtype):
                 atol = 1e-4 if dtype == "float16" else 1e-8
                 return np.isclose(a, b, atol=atol, rtol=0)
 
@@ -3009,7 +3009,7 @@ class TestAffine_other_dtypes(unittest.TestCase):
             for dtype in dtypes:
                 min_value, center_value, max_value = iadt.get_value_range_of_dtype(dtype)
 
-                def _isclose(a, b):
+                def _isclose(a, b, dtype=dtype):
                     atol = 1e-4 if dtype == "float16" else 1e-8
                     return np.isclose(a, b, atol=atol, rtol=0)
 
@@ -3763,7 +3763,7 @@ def test_AffineCv2():
         observed = aug_det.augment_keypoints(keypoints)
         assert keypoints_equal(observed, keypoints_aug)
 
-        # move 33% (one pixel) to the right
+        # move 33% (one pixel) to the right  # noqa: UP031
         aug = iaa.AffineCv2(scale=1.0, translate_percent={"x": 0.3333, "y": 0}, rotate=0, shear=0)
         aug_det = aug.to_deterministic()
 
@@ -3796,7 +3796,7 @@ def test_AffineCv2():
         observed = aug_det.augment_keypoints(keypoints)
         assert keypoints_equal(observed, keypoints_aug)
 
-        # move 33% (one pixel) to the bottom
+        # move 33% (one pixel) to the bottom  # noqa: UP031
         aug = iaa.AffineCv2(scale=1.0, translate_percent={"x": 0, "y": 0.3333}, rotate=0, shear=0)
         aug_det = aug.to_deterministic()
 
@@ -4942,7 +4942,7 @@ class TestPiecewiseAffine(unittest.TestCase):
         observed_imgs = aug_det.augment_images([img, img])
         observed_cbaois = getattr(aug_det, augf_name)([cbaoi, cbaoi])
 
-        for observed_img, observed_cbaoi in zip(observed_imgs, observed_cbaois):
+        for observed_img, observed_cbaoi in zip(observed_imgs, observed_cbaois, strict=False):
             assert observed_cbaoi.shape == img.shape
             for cba_aug in observed_cbaoi.items:
                 if hasattr(cba_aug, "is_valid"):
@@ -4974,7 +4974,7 @@ class TestPiecewiseAffine(unittest.TestCase):
 
         observed_imgs, observed_bbsois = aug(images=[img], bounding_boxes=[bbsoi])
 
-        for observed_img, observed_bbsoi in zip(observed_imgs, observed_bbsois):
+        for observed_img, observed_bbsoi in zip(observed_imgs, observed_bbsois, strict=False):
             assert observed_bbsoi.shape == img.shape
 
             observed_img_x = np.max(observed_img, axis=0)
@@ -5383,7 +5383,7 @@ class TestPiecewiseAffine(unittest.TestCase):
         for dtype in dtypes:
             min_value, center_value, max_value = iadt.get_value_range_of_dtype(dtype)
 
-            def _isclose(a, b):
+            def _isclose(a, b, dtype=dtype):
                 atol = 1e-4 if dtype == "float16" else 1e-8
                 return np.isclose(a, b, atol=atol, rtol=0)
 
@@ -5507,7 +5507,7 @@ class TestPerspectiveTransform(unittest.TestCase):
         x2 = int(30 * 0.8)
 
         expected = self.image[y1:y2, x1:x2]
-        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(observed.shape, expected.shape)])
+        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(observed.shape, expected.shape, strict=False)])
         if observed.shape != expected.shape:
             observed = ia.imresize_single_image(
                 observed, expected.shape[0:2], interpolation="cubic"
@@ -5530,8 +5530,8 @@ class TestPerspectiveTransform(unittest.TestCase):
         x2 = int(30 * 0.8)
 
         expected = (y2 - y1, x2 - x1)
-        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(hm_aug.shape, expected)])
-        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(hm_aug.arr_0to1.shape, expected + (1,))])
+        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(hm_aug.shape, expected, strict=False)])
+        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(hm_aug.arr_0to1.shape, expected + (1,), strict=False)])
         img_aug_mask = observed > 255 * 0.1
         hm_aug_mask = hm_aug.arr_0to1 > 0.1
         same = np.sum(img_aug_mask == hm_aug_mask[:, :, 0])
@@ -5551,8 +5551,8 @@ class TestPerspectiveTransform(unittest.TestCase):
         x2 = int(30 * 0.8)
 
         expected = (y2 - y1, x2 - x1)
-        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(segmaps_aug.shape, expected)])
-        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(segmaps_aug.arr.shape, expected + (1,))])
+        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(segmaps_aug.shape, expected, strict=False)])
+        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(segmaps_aug.arr.shape, expected + (1,), strict=False)])
         img_aug_mask = observed > 255 * 0.5
         segmaps_aug_mask = segmaps_aug.arr > 0
         same = np.sum(img_aug_mask == segmaps_aug_mask[:, :, 0])
@@ -5597,8 +5597,8 @@ class TestPerspectiveTransform(unittest.TestCase):
 
         expected = (y2 - y1, x2 - x1)
         expected_small = (y2_small - y1_small, x2_small - x1_small, 1)
-        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(hm_aug.shape, expected)])
-        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(hm_aug.arr_0to1.shape, expected_small)])
+        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(hm_aug.shape, expected, strict=False)])
+        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(hm_aug.arr_0to1.shape, expected_small, strict=False)])
         img_aug_mask = img_aug > 255 * 0.1
         hm_aug_mask = (
             ia.imresize_single_image(hm_aug.arr_0to1, img_aug.shape[0:2], interpolation="linear")
@@ -5629,8 +5629,8 @@ class TestPerspectiveTransform(unittest.TestCase):
 
         expected = (y2 - y1, x2 - x1)
         expected_small = (y2_small - y1_small, x2_small - x1_small, 1)
-        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(seg_aug.shape, expected)])
-        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(seg_aug.arr.shape, expected_small)])
+        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(seg_aug.shape, expected, strict=False)])
+        assert all([abs(s1 - s2) <= 1 for s1, s2 in zip(seg_aug.arr.shape, expected_small, strict=False)])
         img_aug_mask = img_aug > 255 * 0.5
         seg_aug_mask = (
             ia.imresize_single_image(seg_aug.arr, img_aug.shape[0:2], interpolation="nearest") > 0
@@ -5730,7 +5730,7 @@ class TestPerspectiveTransform(unittest.TestCase):
             ia.Keypoint(x=10 - 0.2 * 30, y=10 - 0.2 * 30),
             ia.Keypoint(x=14 - 0.2 * 30, y=11 - 0.2 * 30),
         ]
-        gen = zip(observed[0].keypoints, kps_expected)
+        gen = zip(observed[0].keypoints, kps_expected, strict=False)
         # TODO deviations of around 0.5 here from expected values, why?
         for kp_observed, kp_expected in gen:
             assert kp_observed.coords_almost_equals(kp_expected, max_distance=1.5)
@@ -5752,7 +5752,7 @@ class TestPerspectiveTransform(unittest.TestCase):
                 x=((14 - 0.2 * 30) / (30 * 0.6)) * 30, y=((11 - 0.2 * 30) / (30 * 0.6)) * 30
             ),
         ]
-        gen = zip(observed[0].keypoints, kps_expected)
+        gen = zip(observed[0].keypoints, kps_expected, strict=False)
         # TODO deviations of around 0.5 here from expected values, why?
         for kp_observed, kp_expected in gen:
             assert kp_observed.coords_almost_equals(kp_expected, max_distance=1.5)
@@ -5783,7 +5783,7 @@ class TestPerspectiveTransform(unittest.TestCase):
             imgs_aug = aug_det.augment_images([img, img])
             kpsois_aug = aug_det.augment_keypoints([kpsoi, kpsoi])
 
-            for img_aug, kpsoi_aug in zip(imgs_aug, kpsois_aug):
+            for img_aug, kpsoi_aug in zip(imgs_aug, kpsois_aug, strict=False):
                 assert kpsoi_aug.shape == img.shape
                 for kp_aug in kpsoi_aug.keypoints:
                     x, y = int(np.round(kp_aug.x)), int(np.round(kp_aug.y))
@@ -5861,7 +5861,7 @@ class TestPerspectiveTransform(unittest.TestCase):
             imgs_aug = aug_det.augment_images([img] * 4)
             cbaois_aug = getattr(aug_det, augf_name)([cbaoi] * 4)
 
-            for img_aug, cbaoi_aug in zip(imgs_aug, cbaois_aug):
+            for img_aug, cbaoi_aug in zip(imgs_aug, cbaois_aug, strict=False):
                 assert cbaoi_aug.shape == img.shape
                 for cba_aug in cbaoi_aug.items:
                     if hasattr(cba_aug, "is_valid"):
@@ -5969,7 +5969,7 @@ class TestPerspectiveTransform(unittest.TestCase):
         bbs_expected = [
             ia.BoundingBox(x1=0 - 0.2 * 30, y1=10 - 0.2 * 30, x2=20 - 0.2 * 30, y2=20 - 0.2 * 30)
         ]
-        gen = zip(observed[0].bounding_boxes, bbs_expected)
+        gen = zip(observed[0].bounding_boxes, bbs_expected, strict=False)
         # TODO deviations of around 0.5 here from expected values, why?
         for bb_observed, bb_expected in gen:
             assert bb_observed.coords_almost_equals(bb_expected, max_distance=1.5)
@@ -5991,7 +5991,7 @@ class TestPerspectiveTransform(unittest.TestCase):
                 y2=((20 - 0.2 * 30) / (30 * 0.6)) * 30,
             )
         ]
-        gen = zip(observed[0].bounding_boxes, bbs_expected)
+        gen = zip(observed[0].bounding_boxes, bbs_expected, strict=False)
         # TODO deviations of around 0.5 here from expected values, why?
         for bb_observed, bb_expected in gen:
             assert bb_observed.coords_almost_equals(bb_expected, max_distance=1.5)
@@ -6014,7 +6014,7 @@ class TestPerspectiveTransform(unittest.TestCase):
             )
 
             nb_skipped = 0
-            for img_aug, bbsoi_aug in zip(imgs_aug, bbsois_aug):
+            for img_aug, bbsoi_aug in zip(imgs_aug, bbsois_aug, strict=False):
                 assert bbsoi_aug.shape == img_aug.shape
                 for bb_aug in bbsoi_aug.bounding_boxes:
                     if bb_aug.is_fully_within_image(img_aug):
@@ -6153,7 +6153,7 @@ class TestPerspectiveTransform(unittest.TestCase):
         bbsoi = ia.BoundingBoxesOnImage([bb], shape=image.shape)
 
         i = 0
-        for jitter, coords_i in zip(jitters, coords):
+        for jitter, coords_i in zip(jitters, coords, strict=False):
             with self.subTest(jitter=jitter.__class__.__name__):
                 aug = iaa.PerspectiveTransform(scale=0.2, keep_size=True)
                 aug.jitter = jitter
@@ -6356,10 +6356,10 @@ class TestPerspectiveTransform(unittest.TestCase):
             x_min = min([x0, x1, x2, x3])
             x_max = max([x0, x1, x2, x3])
             tol = 0.5
-            assert 0 - tol <= y_min <= tol, "Got y_min=%.4f at %d" % (y_min, i)
-            assert 0 - tol <= x_min <= tol, "Got x_min=%.4f at %d" % (x_min, i)
-            assert h - tol <= y_max <= h + tol, "Got y_max=%.4f for h=%.2f at %d" % (y_max, h, i)
-            assert w - tol <= x_max <= w + tol, "Got x_max=%.4f for w=%.2f at %d" % (x_max, w, i)
+            assert 0 - tol <= y_min <= tol, "Got y_min=%.4f at %d" % (y_min, i)  # noqa: UP031
+            assert 0 - tol <= x_min <= tol, "Got x_min=%.4f at %d" % (x_min, i)  # noqa: UP031
+            assert h - tol <= y_max <= h + tol, "Got y_max=%.4f for h=%.2f at %d" % (y_max, h, i)  # noqa: UP031
+            assert w - tol <= x_max <= w + tol, "Got x_max=%.4f for w=%.2f at %d" % (x_max, w, i)  # noqa: UP031
 
     # ---------
     # unusual channel numbers
@@ -6500,7 +6500,7 @@ class TestPerspectiveTransform(unittest.TestCase):
         dtypes = ["float16", "float32", "float64"]
         for dtype in dtypes:
 
-            def _isclose(a, b):
+            def _isclose(a, b, dtype=dtype):
                 atol = 1e-4 if dtype == "float16" else 1e-8
                 return np.isclose(a, b, atol=atol, rtol=0)
 
@@ -7065,7 +7065,7 @@ class TestElasticTransformation(unittest.TestCase):
         kpsois_aug = aug_det.augment_keypoints([kpsoi, kpsoi])
 
         count_bad = 0
-        for image_aug, kpsoi_aug in zip(images_aug, kpsois_aug):
+        for image_aug, kpsoi_aug in zip(images_aug, kpsois_aug, strict=False):
             assert kpsoi_aug.shape == (120, 70)
             assert len(kpsoi_aug.keypoints) == 5
             for kp_aug in kpsoi_aug.keypoints:
@@ -7177,7 +7177,7 @@ class TestElasticTransformation(unittest.TestCase):
         cbaois_aug = getattr(aug_det, augf_name)([cbaoi, cbaoi])
 
         count_bad = 0
-        for image_aug, cbaoi_aug in zip(images_aug, cbaois_aug):
+        for image_aug, cbaoi_aug in zip(images_aug, cbaois_aug, strict=False):
             assert cbaoi_aug.shape == image.shape
             assert len(cbaoi_aug.items) == 1
             for cba_aug in cbaoi_aug.items:
@@ -7331,7 +7331,7 @@ class TestElasticTransformation(unittest.TestCase):
         images_aug, bbsois_aug = aug(images=[image, image], bounding_boxes=[bbsoi, bbsoi])
 
         count_bad = 0
-        for image_aug, bbsoi_aug in zip(images_aug, bbsois_aug):
+        for image_aug, bbsoi_aug in zip(images_aug, bbsois_aug, strict=False):
             assert bbsoi_aug.shape == (100, 100)
             assert len(bbsoi_aug.bounding_boxes) == 1
             for bb_aug in bbsoi_aug.bounding_boxes:
@@ -7554,7 +7554,7 @@ class TestElasticTransformation(unittest.TestCase):
 
         for dtype in ["float16", "float32", "float64"]:
 
-            def _isclose(a, b):
+            def _isclose(a, b, dtype=dtype):
                 atol = 1e-4 if dtype == "float16" else 1e-8
                 return np.isclose(a, b, atol=atol, rtol=0)
 
@@ -7637,7 +7637,7 @@ class TestElasticTransformation(unittest.TestCase):
                 with self.subTest(dtype=dtype):
                     min_value, center_value, max_value = iadt.get_value_range_of_dtype(dtype)
 
-                    def _isclose(a, b):
+                    def _isclose(a, b, dtype=dtype):
                         atol = 1e-4 if dtype == "float16" else 1e-8
                         return np.isclose(a, b, atol=atol, rtol=0)
 
@@ -8320,7 +8320,7 @@ class TestRot90(unittest.TestCase):
         expected = [(4 - 2 + kp_offset, 1), (4 - 3 + kp_offset, 2)]
         expected = [(8 * x / 4, 4 * y / 8) for x, y in expected]
         assert kpsoi_aug.shape == (4, 8, 3)
-        for kp_aug, kp in zip(kpsoi_aug.keypoints, expected):
+        for kp_aug, kp in zip(kpsoi_aug.keypoints, expected, strict=False):
             assert np.allclose([kp_aug.x, kp_aug.y], [kp[0], kp[1]])
 
     def test_polygons_k_is_1_keep_size_is_true(self):
@@ -8612,7 +8612,7 @@ class TestRot90(unittest.TestCase):
 
         for dtype in dtypes:
 
-            def _allclose(a, b):
+            def _allclose(a, b, dtype=dtype):
                 atol = 1e-4 if dtype == "float16" else 1e-8
                 return np.allclose(a, b, atol=atol, rtol=0)
 
@@ -9705,7 +9705,7 @@ class TestJigsaw(unittest.TestCase):
 
             images_aug, hms_aug = aug(images=[image, image, image], heatmaps=[hm, hm, hm])
 
-            for image_aug, hm_aug in zip(images_aug, hms_aug):
+            for image_aug, hm_aug in zip(images_aug, hms_aug, strict=False):
                 # TODO added squeeze here because get_arr() falsely returns
                 #      (H,W,1) for 2D inputs
                 arr = np.squeeze(hm_aug.get_arr())
@@ -9734,7 +9734,7 @@ class TestJigsaw(unittest.TestCase):
                 images=[image, image, image], segmentation_maps=[segm, segm, segm]
             )
 
-            for image_aug, sm_aug in zip(images_aug, sms_aug):
+            for image_aug, sm_aug in zip(images_aug, sms_aug, strict=False):
                 arr = sm_aug.get_arr()
                 image_aug_rs = ia.imresize_single_image(
                     image_aug, arr.shape[0:2], interpolation="nearest"
@@ -9761,7 +9761,7 @@ class TestJigsaw(unittest.TestCase):
                 images=[image, image, image], keypoints=[kpsoi, kpsoi, kpsoi]
             )
 
-            for image_aug, kpsoi_aug in zip(images_aug, kpsois_aug):
+            for image_aug, kpsoi_aug in zip(images_aug, kpsois_aug, strict=False):
                 x_aug = kpsoi_aug.keypoints[0].x
                 y_aug = kpsoi_aug.keypoints[0].y
                 idx = np.argmax(image_aug)

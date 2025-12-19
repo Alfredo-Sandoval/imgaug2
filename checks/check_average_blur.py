@@ -1,7 +1,7 @@
 
+import cv2
 import numpy as np
 from skimage import data
-import cv2
 
 import imgaug2 as ia
 from imgaug2 import augmenters as iaa
@@ -14,7 +14,7 @@ def main():
     image = data.astronaut()
     image = ia.imresize_single_image(image, (64, 64))
     print("image shape:", image.shape)
-    print("Press any key or wait %d ms to proceed to the next image." % (TIME_PER_STEP,))
+    print(f"Press any key or wait {TIME_PER_STEP} ms to proceed to the next image.")
 
     k = [
         1,
@@ -38,7 +38,7 @@ def main():
         img_aug = np.hstack(img_aug)
         print("dtype", img_aug.dtype, "averages", np.average(img_aug, axis=tuple(range(0, img_aug.ndim-1))))
 
-        title = "k=%s" % (str(ki),)
+        title = f"k={str(ki)}"
         img_aug = ia.draw_text(img_aug, x=5, y=5, text=title)
 
         cv2.imshow("aug", img_aug[..., ::-1])  # here with rgb2bgr

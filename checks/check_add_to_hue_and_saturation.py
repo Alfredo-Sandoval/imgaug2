@@ -1,7 +1,7 @@
 
+import cv2
 import numpy as np
 from skimage import data
-import cv2
 
 import imgaug2 as ia
 from imgaug2 import augmenters as iaa
@@ -22,7 +22,7 @@ def main():
         aug = iaa.AddToHueAndSaturation(value=value)
         img_aug = aug.augment_image(image)
         img_aug = iaa.pad(img_aug, bottom=40)
-        img_aug = ia.draw_text(img_aug, x=0, y=img_aug.shape[0]-38, text="value=%d" % (value,), size=30)
+        img_aug = ia.draw_text(img_aug, x=0, y=img_aug.shape[0]-38, text="value=%d" % (value,), size=30)  # noqa: UP031
 
         cv2.imshow("aug", img_aug)
         cv2.waitKey(TIME_PER_STEP)

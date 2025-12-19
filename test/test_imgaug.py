@@ -716,7 +716,7 @@ def test_imresize_many_images():
                 images_same_observed = ia.imresize_many_images(
                     images_this_iter, (16, 16), interpolation=interpolation
                 )
-                for image_expected, image_observed in zip(images_this_iter, images_same_observed):
+                for image_expected, image_observed in zip(images_this_iter, images_same_observed, strict=False):
                     diff = np.abs(image_expected.astype(np.int32) - image_observed.astype(np.int32))
                     assert np.sum(diff) == 0
 
@@ -724,7 +724,7 @@ def test_imresize_many_images():
                 images_small_observed = ia.imresize_many_images(
                     images_this_iter, (8, 8), interpolation=interpolation
                 )
-                for image_expected, image_observed in zip(images_small, images_small_observed):
+                for image_expected, image_observed in zip(images_small, images_small_observed, strict=False):
                     diff = np.abs(image_expected.astype(np.int32) - image_observed.astype(np.int32))
                     diff_fraction = np.sum(diff) / (image_observed.size * 255)
                     assert diff_fraction < 0.5
@@ -733,7 +733,7 @@ def test_imresize_many_images():
                 images_large_observed = ia.imresize_many_images(
                     images_this_iter, (32, 32), interpolation=interpolation
                 )
-                for image_expected, image_observed in zip(images_large, images_large_observed):
+                for image_expected, image_observed in zip(images_large, images_large_observed, strict=False):
                     diff = np.abs(image_expected.astype(np.int32) - image_observed.astype(np.int32))
                     diff_fraction = np.sum(diff) / (image_observed.size * 255)
                     assert diff_fraction < 0.5
@@ -1023,7 +1023,7 @@ def test_imresize_single_image():
                 assert np.sum(diff) == 0
 
         for interpolation in interpolations:
-            for image, image_expected in zip(images, images_small):
+            for image, image_expected in zip(images, images_small, strict=False):
                 image_observed = ia.imresize_single_image(
                     image, (8, 8), interpolation=interpolation
                 )
@@ -1032,7 +1032,7 @@ def test_imresize_single_image():
                 assert diff_fraction < 0.5
 
         for interpolation in interpolations:
-            for image, image_expected in zip(images, images_large):
+            for image, image_expected in zip(images, images_large, strict=False):
                 image_observed = ia.imresize_single_image(
                     image, (32, 32), interpolation=interpolation
                 )
@@ -1112,7 +1112,7 @@ def test_pool():
     for dtype in dtypes:
         dtype = np.dtype(dtype)
 
-        def _allclose(a, b):
+        def _allclose(a, b, dtype=dtype):
             atol = 1e-4 if dtype == np.float16 else 1e-8
             return np.allclose(a, b, atol=atol, rtol=0)
 
@@ -1522,7 +1522,7 @@ def test_draw_grid():
     for dtype in dtypes:
         dtype = np.dtype(dtype)
 
-        def _allclose(a, b):
+        def _allclose(a, b, dtype=dtype):
             atol = 1e-4 if dtype == np.float16 else 1e-8
             return np.allclose(a, b, atol=atol, rtol=0)
 

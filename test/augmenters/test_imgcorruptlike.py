@@ -30,7 +30,7 @@ class Test_get_imgcorrupt_subset(unittest.TestCase):
                 func_names_exp = imagecorruptions.get_corruption_names(subset)
 
                 assert func_names == func_names_exp
-                for func_name, func in zip(func_names, funcs):
+                for func_name, func in zip(func_names, funcs, strict=False):
                     assert getattr(iaa.imgcorruptlike, f"apply_{func_name}") is func
 
     @unittest.skipUnless(SUPPORTS_LIBRARY, "imagecorruptions is not installed")
@@ -40,7 +40,7 @@ class Test_get_imgcorrupt_subset(unittest.TestCase):
             func_names, funcs = iaa.imgcorruptlike.get_corruption_names(subset)
             image = np.mod(np.arange(32 * 32 * 3), 256).reshape((32, 32, 3)).astype(np.uint8)
 
-            for func_name, func in zip(func_names, funcs):
+            for func_name, func in zip(func_names, funcs, strict=False):
                 with self.subTest(subset=subset, name=func_name):
                     # don't verify here whether e.g. only seed 2 produces
                     # different results from seed 1, because some methods

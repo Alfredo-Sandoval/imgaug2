@@ -257,7 +257,7 @@ class Test_quokka_keypoints(unittest.TestCase):
 
         assert len(kpsoi.keypoints) == len(kpsoi_square.keypoints)
         assert kpsoi_square.shape == (643, 643, 3)
-        for kp, patch in zip(kpsoi_square.keypoints, patches):
+        for kp, patch in zip(kpsoi_square.keypoints, patches, strict=False):
             bb = ia.BoundingBox(x1=kp.x - 1, x2=kp.x + 2, y1=kp.y - 1, y2=kp.y + 2)
             patch_square = bb.extract_from_image(img_square)
             assert (
@@ -269,7 +269,7 @@ class Test_quokka_keypoints(unittest.TestCase):
         kpsoi_resized = iadata.quokka_keypoints(size=(642, 959))
         assert kpsoi_resized.shape == (642, 959, 3)
         assert len(kpsoi.keypoints) == len(kpsoi_resized.keypoints)
-        for kp, kp_resized in zip(kpsoi.keypoints, kpsoi_resized.keypoints):
+        for kp, kp_resized in zip(kpsoi.keypoints, kpsoi_resized.keypoints, strict=False):
             d = np.sqrt((kp.x - kp_resized.x) ** 2 + (kp.y - kp_resized.y) ** 2)
             assert d < 1.0
 
@@ -297,7 +297,7 @@ class Test_quokka_bounding_boxes(unittest.TestCase):
         assert len(bbsoi.bounding_boxes) == len(bbsoi_square.bounding_boxes)
         assert bbsoi_square.shape == (643, 643, 3)
 
-        for bb, patch in zip(bbsoi_square.bounding_boxes, patches):
+        for bb, patch in zip(bbsoi_square.bounding_boxes, patches, strict=False):
             patch_square = bb.extract_from_image(img_square)
             assert (
                 np.average(np.abs(patch.astype(np.float32) - patch_square.astype(np.float32))) < 1.0
@@ -308,7 +308,7 @@ class Test_quokka_bounding_boxes(unittest.TestCase):
         bbsoi_resized = iadata.quokka_bounding_boxes(size=(642, 959))
         assert bbsoi_resized.shape == (642, 959, 3)
         assert len(bbsoi.bounding_boxes) == len(bbsoi_resized.bounding_boxes)
-        for bb, bb_resized in zip(bbsoi.bounding_boxes, bbsoi_resized.bounding_boxes):
+        for bb, bb_resized in zip(bbsoi.bounding_boxes, bbsoi_resized.bounding_boxes, strict=False):
             d = np.sqrt(
                 (bb.center_x - bb_resized.center_x) ** 2 + (bb.center_y - bb_resized.center_y) ** 2
             )

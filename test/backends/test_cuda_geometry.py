@@ -3,7 +3,6 @@ import unittest
 import cv2
 import numpy as np
 
-
 try:
     import cupy as cp
 
@@ -55,7 +54,7 @@ class TestCudaGeometryAffineTransform(unittest.TestCase):
                 dsize=(64, 64),
                 flags=cv2.INTER_LINEAR,
                 borderMode=cv2_mode,
-                borderValue=float(0.0),
+                borderValue=0.0,
             )
 
             diff = np.abs(observed_np.astype(np.int16) - expected.astype(np.int16))
@@ -87,6 +86,6 @@ class TestCudaGeometryAffineTransform(unittest.TestCase):
             dsize=(48, 32),
             flags=cv2.INTER_NEAREST,
             borderMode=cv2.BORDER_REPLICATE,
-            borderValue=float(0.0),
+            borderValue=0.0,
         )
         np.testing.assert_array_equal(observed_np, expected)

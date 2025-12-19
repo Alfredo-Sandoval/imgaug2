@@ -499,7 +499,7 @@ class TestConvolve(unittest.TestCase):
         aug = iaa.Convolve(matrix=matrix)
 
         for dtype, value in zip(
-            [np.float16, np.float32, np.float64], [5000, 1000 * 1000, 1000 * 1000 * 1000]
+            [np.float16, np.float32, np.float64], [5000, 1000 * 1000, 1000 * 1000 * 1000], strict=False
         ):
             image = np.zeros((3, 3), dtype=dtype)
             image[1, 1] = value

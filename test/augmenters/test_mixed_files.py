@@ -197,7 +197,7 @@ class TestKeypointAugmentation(unittest.TestCase):
 
         for aug in augs:
             dss = []
-            for i in range(10):
+            for _i in range(10):
                 aug_det = aug.to_deterministic()
 
                 kp_fully_empty_aug = aug_det.augment_keypoints([])
@@ -215,11 +215,10 @@ class TestKeypointAugmentation(unittest.TestCase):
                 kp_aug = aug_det.augment_keypoints([keypoints_oi])[0]
                 ds = []
                 assert len(kp_image_aug_rev.keypoints) == len(kp_aug.keypoints), (
-                    "Lost keypoints for '%s' (%d vs expected %d)"
-                    % (aug.name, len(kp_aug.keypoints), len(kp_image_aug_rev.keypoints))
+                    f"Lost keypoints for '{aug.name}' ({len(kp_aug.keypoints)} vs expected {len(kp_image_aug_rev.keypoints)})"
                 )
 
-                gen = zip(kp_aug.keypoints, kp_image_aug_rev.keypoints)
+                gen = zip(kp_aug.keypoints, kp_image_aug_rev.keypoints, strict=False)
                 for kp_pred, kp_pred_img in gen:
                     kp_pred_lost = kp_pred.x == -9999 and kp_pred.y == -9999
                     kp_pred_img_lost = kp_pred_img.x == -9999 and kp_pred_img.y == -9999

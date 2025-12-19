@@ -1259,9 +1259,9 @@ class TestAutoPrefetcher(unittest.TestCase):
             "nb_prefetch=10, "
             "samples=(10,) (dtype int64), "
             "index=2, "
-            "last_rng_idx=%d, "
-            "other_param=%s"
-            ")" % (rng._idx, other_param_str)
+            f"last_rng_idx={rng._idx}, "
+            f"other_param={other_param_str}"
+            ")"
         )
         assert str(param) == repr(param) == expected
 
@@ -1315,13 +1315,13 @@ class TestBinomial(unittest.TestCase):
         assert samples.shape == (10000,)
         assert sample in [0, 1]
         assert len(unique) == 2
-        for val, count in zip(unique, counts):
+        for val, count in zip(unique, counts, strict=False):
             if val == 0:
                 assert 5000 - 500 < count < 5000 + 500
             elif val == 1:
                 assert 5000 - 500 < count < 5000 + 500
             else:
-                assert False
+                raise AssertionError()
 
     def test_p_is_list(self):
         param = iap.Binomial(iap.Choice([0.25, 0.75]))
@@ -1443,13 +1443,13 @@ class TestChoice(unittest.TestCase):
         unique, counts = np.unique(samples, return_counts=True)
 
         assert len(unique) == 2
-        for val, count in zip(unique, counts):
+        for val, count in zip(unique, counts, strict=False):
             if val == 0:
                 assert 2500 - 500 < count < 2500 + 500
             elif val == 1:
                 assert 7500 - 500 < count < 7500 + 500
             else:
-                assert False
+                raise AssertionError()
 
     def test_list_contains_stochastic_parameter(self):
         param = iap.Choice([iap.Choice([0, 1]), 2])
@@ -1458,13 +1458,13 @@ class TestChoice(unittest.TestCase):
         unique, counts = np.unique(samples, return_counts=True)
 
         assert len(unique) == 3
-        for val, count in zip(unique, counts):
+        for val, count in zip(unique, counts, strict=False):
             if val in [0, 1]:
                 assert 2500 - 500 < count < 2500 + 500
             elif val == 2:
                 assert 5000 - 500 < count < 5000 + 500
             else:
-                assert False
+                raise AssertionError()
 
     def test_samples_same_values_for_same_seeds(self):
         param = iap.Choice([-1, 0, 1, 2, 3])
@@ -1650,7 +1650,7 @@ class TestNormal(unittest.TestCase):
             samples_direct, bins=nb_bins, range=(-1.0, 1.0), density=False
         )
         tolerance = 0.05
-        for nb_samples, nb_samples_direct in zip(hist, hist_direct):
+        for nb_samples, nb_samples_direct in zip(hist, hist_direct, strict=False):
             density = nb_samples / samples.size
             density_direct = nb_samples_direct / samples_direct.size
             assert density_direct - tolerance < density < density_direct + tolerance
@@ -1668,7 +1668,7 @@ class TestNormal(unittest.TestCase):
             elif 100 - 10 < exp < 100 + 10:
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
         assert 500 - 100 < seen[0] < 500 + 100
         assert 500 - 100 < seen[1] < 500 + 100
 
@@ -1757,7 +1757,7 @@ class TestTruncatedNormal(unittest.TestCase):
             elif dist2 < 1:
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
         assert np.isclose(seen[0], 100, rtol=0, atol=20)
         assert np.isclose(seen[1], 100, rtol=0, atol=20)
 
@@ -1828,7 +1828,7 @@ class TestLaplace(unittest.TestCase):
             samples_direct, bins=nb_bins, range=(-1.0, 1.0), density=False
         )
         tolerance = 0.05
-        for nb_samples, nb_samples_direct in zip(hist, hist_direct):
+        for nb_samples, nb_samples_direct in zip(hist, hist_direct, strict=False):
             density = nb_samples / samples.size
             density_direct = nb_samples_direct / samples_direct.size
             assert density_direct - tolerance < density < density_direct + tolerance
@@ -1846,7 +1846,7 @@ class TestLaplace(unittest.TestCase):
             elif 100 - 10 < exp < 100 + 10:
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
 
         assert 500 - 100 < seen[0] < 500 + 100
         assert 500 - 100 < seen[1] < 500 + 100
@@ -1909,7 +1909,7 @@ class TestChiSquare(unittest.TestCase):
         hist, _ = np.histogram(samples, bins=nb_bins, range=(0, 3.0), density=False)
         hist_direct, _ = np.histogram(samples_direct, bins=nb_bins, range=(0, 3.0), density=False)
         tolerance = 0.05
-        for nb_samples, nb_samples_direct in zip(hist, hist_direct):
+        for nb_samples, nb_samples_direct in zip(hist, hist_direct, strict=False):
             density = nb_samples / samples.size
             density_direct = nb_samples_direct / samples_direct.size
             assert density_direct - tolerance < density < density_direct + tolerance
@@ -1927,7 +1927,7 @@ class TestChiSquare(unittest.TestCase):
             elif 10 - 4.0 < exp < 10 + 4.0:
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
 
         assert 500 - 100 < seen[0] < 500 + 100
         assert 500 - 100 < seen[1] < 500 + 100
@@ -1985,7 +1985,7 @@ class TestWeibull(unittest.TestCase):
         hist, _ = np.histogram(samples, bins=nb_bins, range=(0, 2.0), density=False)
         hist_direct, _ = np.histogram(samples_direct, bins=nb_bins, range=(0, 2.0), density=False)
         tolerance = 0.05
-        for nb_samples, nb_samples_direct in zip(hist, hist_direct):
+        for nb_samples, nb_samples_direct in zip(hist, hist_direct, strict=False):
             density = nb_samples / samples.size
             density_direct = nb_samples_direct / samples_direct.size
             assert density_direct - tolerance < density < density_direct + tolerance
@@ -2016,7 +2016,7 @@ class TestWeibull(unittest.TestCase):
             elif matches_second:
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
 
         assert 50 - 25 < seen[0] < 50 + 25
         assert 50 - 25 < seen[1] < 50 + 25
@@ -2191,7 +2191,7 @@ class TestBeta(unittest.TestCase):
         hist, _ = np.histogram(samples, bins=nb_bins, range=(0, 1.0), density=False)
         hist_direct, _ = np.histogram(samples_direct, bins=nb_bins, range=(0, 1.0), density=False)
         tolerance = 0.05
-        for nb_samples, nb_samples_direct in zip(hist, hist_direct):
+        for nb_samples, nb_samples_direct in zip(hist, hist_direct, strict=False):
             density = nb_samples / samples.size
             density_direct = nb_samples_direct / samples_direct.size
             assert density_direct - tolerance < density < density_direct + tolerance
@@ -2211,7 +2211,7 @@ class TestBeta(unittest.TestCase):
             elif expected_second - 0.05 < observed < expected_second + 0.05:
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
 
         assert 50 - 25 < seen[0] < 50 + 25
         assert 50 - 25 < seen[1] < 50 + 25
@@ -2423,7 +2423,7 @@ class TestDeterministicList(unittest.TestCase):
             [[[10], [20], [30]], [[40], [50], [60]]],
         ]
         param = iap.DeterministicList(values)
-        for shape, expected in zip(shapes, expecteds):
+        for shape, expected in zip(shapes, expecteds, strict=False):
             with self.subTest(shape=shape):
                 samples = param.draw_samples(shape)
 
@@ -2441,7 +2441,7 @@ class TestDeterministicList(unittest.TestCase):
             [[[10.1], [20.2], [30.3]], [[40.4], [50.5], [60.6]]],
         ]
         param = iap.DeterministicList(values)
-        for shape, expected in zip(shapes, expecteds):
+        for shape, expected in zip(shapes, expecteds, strict=False):
             with self.subTest(shape=shape):
                 samples = param.draw_samples(shape)
 
@@ -2463,7 +2463,7 @@ class TestDeterministicList(unittest.TestCase):
             [[10, 20, 30], [10, 20, 30], [10, 20, 30]],
         ]
 
-        for shape, expected in zip(shapes, expecteds):
+        for shape, expected in zip(shapes, expecteds, strict=False):
             with self.subTest(shape=shape):
                 samples = param.draw_samples(shape)
 
@@ -3944,7 +3944,7 @@ class TestIterativeNoiseAggregator(unittest.TestCase):
             elif diff_0 < _eps(samples):
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
 
         assert 300 - 50 < seen[0] < 300 + 50
         assert 100 - 50 < seen[1] < 100 + 50
@@ -4065,7 +4065,7 @@ class TestSigmoid(unittest.TestCase):
             elif diff_second < _eps(sample):
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
 
         assert 500 - 150 < seen[0] < 500 + 150
         assert 500 - 150 < seen[1] < 500 + 150
@@ -4085,7 +4085,7 @@ class TestSigmoid(unittest.TestCase):
             elif diff_second < _eps(sample):
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
 
         assert 500 - 150 < seen[0] < 500 + 150
         assert 500 - 150 < seen[1] < 500 + 150

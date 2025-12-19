@@ -18,7 +18,7 @@ def main():
     images_list = [image for _ in range(NB_AUGS_PER_IMAGE)]
     keypoints_on_images = [keypoints_on_image.deepcopy() for _ in range(NB_AUGS_PER_IMAGE)]
     print("image shape:", image.shape)
-    print("Press ENTER or wait %d ms to proceed to the next image." % (TIME_PER_STEP,))
+    print("Press ENTER or wait %d ms to proceed to the next image." % (TIME_PER_STEP,))  # noqa: UP031
 
     children = [
         iaa.CoarseDropout(p=0.5, size_percent=0.05),
@@ -50,7 +50,7 @@ def main():
 
     for ni in n:
         print("------------------------")
-        print("-- %s" % (str(ni),))
+        print(f"-- {str(ni)}")
         print("------------------------")
         aug = iaa.SomeOf(ni, children, random_order=False)
         aug_ro = iaa.SomeOf(ni, children, random_order=True)
@@ -78,7 +78,7 @@ def main():
 
         grid = to_grid(aug_rows, aug_kps)
 
-        title = "n=%s" % (str(ni),)
+        title = f"n={str(ni)}"
         grid = ia.draw_text(grid, x=5, y=5, text=title)
 
         cv2.imshow("aug", grid[..., ::-1]) # here with rgb2bgr
@@ -92,7 +92,7 @@ def to_grid(rows, rows_kps):
         return np.vstack(rows)
     else:
         rows_rendered = []
-        for row, row_kps in zip(rows, rows_kps):
+        for row, row_kps in zip(rows, rows_kps, strict=False):
             row_with_kps = []
             for i in range(len(row)):
                 img = row[i]

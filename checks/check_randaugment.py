@@ -9,7 +9,7 @@ def main():
     image = ia.data.quokka(0.25)
 
     for N in [1, 2]:
-        print("N=%d" % (N,))
+        print("N=%d" % (N,))  # noqa: UP031
 
         images_aug = []
         for M in [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20]:
@@ -19,7 +19,7 @@ def main():
         ia.imshow(ia.draw_grid(images_aug, cols=10))
 
     for M in [0, 1, 2, 4, 8, 10]:
-        print("M=%d" % (M,))
+        print("M=%d" % (M,))  # noqa: UP031
         aug = iaa.RandAugment(m=M, random_state=1)
 
         images_aug = []

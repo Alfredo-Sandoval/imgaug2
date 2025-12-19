@@ -325,7 +325,7 @@ class Test_blend_alpha(unittest.TestCase):
             with self.subTest(dtype=dtype):
                 dtype = np.dtype(dtype)
 
-                def _allclose(a, b):
+                def _allclose(a, b, dtype=dtype):
                     # For float32/float64, large magnitude values can only be
                     # represented with limited absolute precision (e.g. float32
                     # steps are ~O(1e2) around 1e9). Using rtol here keeps the
@@ -657,7 +657,7 @@ class TestBlendAlpha(unittest.TestCase):
             elif len(uq) > 1:
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
         assert 100 - 50 < seen[0] < 100 + 50
         assert 100 - 50 < seen[1] < 100 + 50
 
@@ -1320,7 +1320,7 @@ class TestBlendAlphaElementwise(unittest.TestCase):
             elif keypoints_equal([observed], [expected_bg_shifted]):
                 seen[3] += 1
             else:
-                assert False
+                raise AssertionError()
         assert 100 - 50 < seen[0] < 100 + 50
         assert 100 - 50 < seen[1] < 100 + 50
 
@@ -2586,7 +2586,7 @@ class TestRegularGridMaskGen(unittest.TestCase):
                 elif np.allclose(mask, expected4):
                     seen[3] = True
                 else:
-                    assert False
+                    raise AssertionError()
             if np.all(seen):
                 break
 
@@ -2926,7 +2926,7 @@ class TestSegMapClassIdsMaskGen(unittest.TestCase):
             elif np.allclose(mask, expected_class_3):
                 seen[1] = True
             else:
-                assert False
+                raise AssertionError()
 
             if np.all(seen):
                 break
@@ -3162,7 +3162,7 @@ class InvertMaskGen(unittest.TestCase):
             elif np.allclose(mask, expected2):
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
         assert np.allclose(seen, 0.5 * 200, rtol=0, atol=20)
 
     def test_zero_sized_axes(self):

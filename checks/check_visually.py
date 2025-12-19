@@ -186,15 +186,15 @@ def main():
 
     for augmenter in augmenters:
         if args.only is None or augmenter.name in [v.strip() for v in args.only.split(",")]:
-            print("Augmenter: %s" % (augmenter.name,))
+            print(f"Augmenter: {augmenter.name}")
             grid = []
-            for image, kps, bbs in zip(images, keypoints, bounding_boxes):
+            for image, kps, bbs in zip(images, keypoints, bounding_boxes, strict=False):
                 aug_det = augmenter.to_deterministic()
                 imgs_aug = aug_det.augment_images(np.tile(image[np.newaxis, ...], (16, 1, 1, 1)))
                 kps_aug = aug_det.augment_keypoints([kps] * 16)
                 bbs_aug = aug_det.augment_bounding_boxes([bbs] * 16)
-                imgs_aug_drawn = [kps_aug_one.draw_on_image(img_aug) for img_aug, kps_aug_one in zip(imgs_aug, kps_aug)]
-                imgs_aug_drawn = [bbs_aug_one.draw_on_image(img_aug) for img_aug, bbs_aug_one in zip(imgs_aug_drawn, bbs_aug)]
+                imgs_aug_drawn = [kps_aug_one.draw_on_image(img_aug) for img_aug, kps_aug_one in zip(imgs_aug, kps_aug, strict=False)]
+                imgs_aug_drawn = [bbs_aug_one.draw_on_image(img_aug) for img_aug, bbs_aug_one in zip(imgs_aug_drawn, bbs_aug, strict=False)]
                 grid.append(np.hstack(imgs_aug_drawn))
             ia.imshow(np.vstack(grid))
 

@@ -33,13 +33,13 @@ def main():
 
     for clip_limit in [0.1, 1, 5, 10]:
         for tile_grid_size_px in [3, 7]:
-            augs.append(("AllChannelsCLAHE %d %dx%d" % (clip_limit, tile_grid_size_px, tile_grid_size_px),
+            augs.append(("AllChannelsCLAHE %d %dx%d" % (clip_limit, tile_grid_size_px, tile_grid_size_px),  # noqa: UP031
                          iaa.AllChannelsCLAHE(clip_limit=clip_limit, tile_grid_size_px=tile_grid_size_px,
                                               per_channel=args.per_channel)))
 
     for clip_limit in [1, 5, 10, 100, 200]:
         for tile_grid_size_px in [3, 7, 15]:
-            augs.append(("CLAHE %d %dx%d" % (clip_limit, tile_grid_size_px, tile_grid_size_px),
+            augs.append(("CLAHE %d %dx%d" % (clip_limit, tile_grid_size_px, tile_grid_size_px),  # noqa: UP031
                          iaa.CLAHE(clip_limit=clip_limit, tile_grid_size_px=tile_grid_size_px)))
 
     images = [data.astronaut()] * 16

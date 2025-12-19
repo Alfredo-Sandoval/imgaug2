@@ -80,3 +80,34 @@ class TestRandAugment(unittest.TestCase):
     def test_pickleable(self):
         aug = iaa.RandAugment(m=(0, 10), n=(1, 2))
         runtest_pickleable_uint8_img(aug, iterations=50)
+
+
+class TestPosePreset(unittest.TestCase):
+    def setUp(self):
+        reseed()
+
+    def test_default_runs(self):
+        aug = iaa.PosePreset()
+        img = np.zeros((32, 32, 3), dtype=np.uint8)
+        img_aug = aug(image=img)
+        assert img_aug.shape == img.shape
+
+    def test_presets(self):
+        img = np.zeros((32, 32, 3), dtype=np.uint8)
+        presets = [
+            "lightning_pose_dlc",
+            "lightning_pose_dlc_lr",
+            "lightning_pose_dlc_top_down",
+            "deeplabcut_pytorch_default",
+            "sleap_default",
+            "mmpose_default",
+        ]
+        for preset in presets:
+            with self.subTest(preset=preset):
+                aug = iaa.PosePreset(preset=preset)
+                img_aug = aug(image=img)
+                assert img_aug.shape == img.shape
+
+    def test_pickleable(self):
+        aug = iaa.PosePreset()
+        runtest_pickleable_uint8_img(aug, iterations=20)

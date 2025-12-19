@@ -1,8 +1,9 @@
+import cv2
+import imageio
+import numpy as np
+
 import imgaug2 as ia
 import imgaug2.augmenters as iaa
-import imageio
-import cv2
-import numpy as np
 
 
 def main():

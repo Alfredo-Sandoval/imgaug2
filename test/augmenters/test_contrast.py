@@ -137,7 +137,7 @@ class TestGammaContrast(unittest.TestCase):
 
             for exp in exps:
                 aug = iaa.GammaContrast(exp)
-                for value, tolerance in zip(values, tolerances):
+                for value, tolerance in zip(values, tolerances, strict=False):
                     with self.subTest(dtype=dtype.name, exp=exp, nb_channels=None):
                         image = np.full((3, 3), value, dtype=dtype)
                         expected = (
@@ -180,7 +180,7 @@ class TestGammaContrast(unittest.TestCase):
         for dtype in dts:
             dtype = np.dtype(dtype)
 
-            def _allclose(a, b):
+            def _allclose(a, b, dtype=dtype):
                 atol = 1e-3 if dtype == np.float16 else 1e-8
                 return np.allclose(a, b, atol=atol, rtol=0)
 
@@ -250,7 +250,7 @@ class TestSigmoidContrast(unittest.TestCase):
         assert np.all(
             [
                 np.allclose(val, val_choice)
-                for val, val_choice in zip([0.25, 0.75], aug.params1d[1].a)
+                for val, val_choice in zip([0.25, 0.75], aug.params1d[1].a, strict=False)
             ]
         )
 
@@ -370,7 +370,7 @@ class TestSigmoidContrast(unittest.TestCase):
             for gain, cutoff in itertools.product(gains, cutoffs):
                 with self.subTest(dtype=dtype.name, gain=gain, cutoff=cutoff):
                     aug = iaa.SigmoidContrast(gain=gain, cutoff=cutoff)
-                    for value, tolerance in zip(values, tolerances):
+                    for value, tolerance in zip(values, tolerances, strict=False):
                         image = np.full((3, 3), value, dtype=dtype)
                         # TODO this looks like the equation commented out
                         #      should actually the correct one, but when using
@@ -402,7 +402,7 @@ class TestSigmoidContrast(unittest.TestCase):
         for dtype in dtypes:
             dtype = np.dtype(dtype)
 
-            def _allclose(a, b):
+            def _allclose(a, b, dtype=dtype):
                 atol = 1e-3 if dtype == np.float16 else 1e-8
                 return np.allclose(a, b, atol=atol, rtol=0)
 
@@ -542,7 +542,7 @@ class TestLogContrast(unittest.TestCase):
 
             for gain in gains:
                 aug = iaa.LogContrast(gain)
-                for value, tolerance in zip(values, tolerances):
+                for value, tolerance in zip(values, tolerances, strict=False):
                     with self.subTest(dtype=dtype.name, gain=gain):
                         image = np.full((3, 3), value, dtype=dtype)
                         expected = gain * np.log2(1 + (image.astype(np.float64) / max_value))
@@ -561,7 +561,7 @@ class TestLogContrast(unittest.TestCase):
         for dtype in dtypes:
             dtype = np.dtype(dtype)
 
-            def _allclose(a, b):
+            def _allclose(a, b, dtype=dtype):
                 # since numpy 1.17 this needs for some reason at least 1e-5 as
                 # the tolerance, previously 1e-8 worked
                 atol = 1e-2 if dtype == np.float16 else 1e-5
@@ -720,7 +720,7 @@ class Test_adjust_contrast_linear(unittest.TestCase):
             if kind in ["u", "i"]:
                 cv = int(cv)
 
-            def _compare(a, b):
+            def _compare(a, b, kind=kind, dtype=dtype):
                 if kind in ["u", "i"]:
                     return np.array_equal(a, b)
                 else:
@@ -928,7 +928,7 @@ class TestAllChannelsCLAHE(unittest.TestCase):
         tile_grid_min_sizes = [0, 1, 3, 0, 1, 3, 0, 1, 3]
         nb_calls_expected = [0, 0, 1, 0, 0, 1, 1, 1, 1]
 
-        gen = zip(tile_grid_sizes, tile_grid_min_sizes, nb_calls_expected)
+        gen = zip(tile_grid_sizes, tile_grid_min_sizes, nb_calls_expected, strict=False)
         for tile_grid_size_px, tile_grid_size_px_min, nb_calls_exp_i in gen:
             with self.subTest(
                 tile_grid_size_px=tile_grid_size_px,

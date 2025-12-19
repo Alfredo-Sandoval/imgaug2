@@ -370,11 +370,11 @@ class _TestFliplrAndFlipudBase(metaclass=ABCMeta):
             elif np.array_equal(observed, self.image_flipped):
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
         assert np.allclose(seen, [700, 300], rtol=0, atol=75)
 
     def test_invalid_datatype_for_p_results_in_failure(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             _ = self.create_aug(p="test")
 
     def test_zero_sized_axes(self):
@@ -440,7 +440,7 @@ class _TestFliplrAndFlipudBase(metaclass=ABCMeta):
             f128 = []  # float128 not known by user system
         dtypes = ["float16", "float32", "float64"] + f128
         values = [5000, 1000**2, 1000**3, 1000**4]
-        for dtype, value in zip(dtypes, values):
+        for dtype, value in zip(dtypes, values, strict=False):
             with self.subTest(dtype=dtype):
                 atol = 1e-9 * value if dtype != "float16" else 1e-3 * value
                 image = self.create_arr(value, dtype)
@@ -908,7 +908,7 @@ class Test_fliplr(unittest.TestCase):
             [0.01, 0.1, 1.0, 10.0**1, 10.0**2, 10.0**6, 10.0**10],  # float64
             [0.01, 0.1, 1.0, 10.0**1, 10.0**2, 10.0**7, 10.0**11],  # float128
         ]
-        for dt, values_i in zip(dts, values):
+        for dt, values_i in zip(dts, values, strict=False):
             for value in values_i:
                 with self.subTest(dtype=dt, value=value):
                     dt = np.dtype(dt)
@@ -1034,7 +1034,7 @@ class Test_flipud(unittest.TestCase):
             [0.01, 0.1, 1.0, 10.0**1, 10.0**2, 10.0**6, 10.0**10],  # float64
             [0.01, 0.1, 1.0, 10.0**1, 10.0**2, 10.0**7, 10.0**11],  # float128
         ]
-        for dt, values_i in zip(dts, values):
+        for dt, values_i in zip(dts, values, strict=False):
             for value in values_i:
                 with self.subTest(dtype=dt, value=value):
                     dt = np.dtype(dt)

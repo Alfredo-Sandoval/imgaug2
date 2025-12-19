@@ -5,6 +5,7 @@ import pickle
 import unittest
 import warnings
 from abc import ABCMeta, abstractmethod
+from pathlib import Path
 from unittest import mock
 
 import cv2
@@ -300,7 +301,7 @@ class TestIdentity(unittest.TestCase):
         dtypes = ["float16", "float32", "float64"] + f128
         values = [5000, 1000**2, 1000**3, 1000**4]
 
-        for dtype, value in zip(dtypes, values):
+        for dtype, value in zip(dtypes, values, strict=False):
             with self.subTest(dtype=dtype):
                 image = np.zeros((3, 3), dtype=dtype)
                 image[0, 0] = value
@@ -776,7 +777,7 @@ class TestLambda(unittest.TestCase):
         dtypes = ["float16", "float32", "float64"] + f128
         values = [5000, 1000**2, 1000**3, 1000**4]
 
-        for dtype, value in zip(dtypes, values):
+        for dtype, value in zip(dtypes, values, strict=False):
             with self.subTest(dtype=dtype):
                 image = np.zeros((3, 3), dtype=dtype)
                 image[0, 0] = value
@@ -1775,7 +1776,7 @@ class TestAssertShape(unittest.TestCase):
         aug = iaa.AssertShape((None, 3, 3, 1))
         values = [5000, 1000**2, 1000**3, 1000**4]
 
-        for dtype, value in zip(self.DTYPES_FLOAT, values):
+        for dtype, _value in zip(self.DTYPES_FLOAT, values, strict=False):
             with self.subTest(dtype=dtype):
                 image = np.zeros((3, 3, 1), dtype=dtype)
                 image[0, 0, 0] = 1
@@ -1806,7 +1807,7 @@ class TestAssertShape(unittest.TestCase):
         aug = iaa.AssertShape((None, 3, 4, 1))
         values = [5000, 1000**2, 1000**3, 1000**4]
 
-        for dtype, value in zip(self.DTYPES_FLOAT, values):
+        for dtype, value in zip(self.DTYPES_FLOAT, values, strict=False):
             image = np.zeros((3, 3, 1), dtype=dtype)
             image[0, 0, 0] = value
             with self.assertRaises(AssertionError):
@@ -2098,7 +2099,7 @@ class TestAugmenter(unittest.TestCase):
             else:
                 seen[1] += 1
 
-            for image, c in zip(observed, channels):
+            for image, c in zip(observed, channels, strict=False):
                 if c is None:
                     assert image.ndim == 2
                 else:
@@ -2295,12 +2296,12 @@ class TestAugmenter(unittest.TestCase):
         for _ in range(50):
             images_aug, kpsois_aug = augs(images=images, keypoints=[kpsoi] * len(images))
 
-            for image_aug, kpsoi_aug in zip(images_aug, kpsois_aug):
+            for image_aug, kpsoi_aug in zip(images_aug, kpsois_aug, strict=False):
                 kpsoi_recovered = ia.KeypointsOnImage.from_keypoint_image(
                     image_aug, nb_channels=4, threshold=100
                 )
 
-                for kp, kp_image in zip(kpsoi_aug.keypoints, kpsoi_recovered.keypoints):
+                for kp, kp_image in zip(kpsoi_aug.keypoints, kpsoi_recovered.keypoints, strict=False):
                     distance = np.sqrt((kp.x - kp_image.x) ** 2 + (kp.y - kp_image.y) ** 2)
                     assert distance <= 1
 
@@ -2343,7 +2344,7 @@ class TestAugmenter(unittest.TestCase):
 
         bbsoi_aug = aug.augment_bounding_boxes(bbsoi)
 
-        for bb_aug, bb in zip(bbsoi_aug.bounding_boxes, bbsoi.bounding_boxes):
+        for bb_aug, bb in zip(bbsoi_aug.bounding_boxes, bbsoi.bounding_boxes, strict=False):
             assert np.allclose(bb_aug.x1, bb.x1)
             assert np.allclose(bb_aug.x2, bb.x2)
             assert np.allclose(bb_aug.y1, bb.y1)
@@ -2656,7 +2657,7 @@ class TestAugmenter_augment_batches(unittest.TestCase):
 
     def test_augment_batches_invalid_datatype(self):
         aug = _DummyAugmenter()
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             _ = list(aug.augment_batches(None))
 
     def test_augment_batches_list_of_invalid_datatype(self):
@@ -3030,7 +3031,7 @@ class TestAugmenter_augment_batch_(unittest.TestCase):
 
         nb_equal = [0, 0, 0]
         for image_aug1, image_aug2, image_aug3 in zip(
-            batch_aug1.images_aug, batch_aug2.images_aug, batch_aug3.images_aug
+            batch_aug1.images_aug, batch_aug2.images_aug, batch_aug3.images_aug, strict=False
         ):
             nb_equal[0] += int(np.array_equal(image_aug1, image_aug2))
             nb_equal[1] += int(np.array_equal(image_aug1, image_aug3))
@@ -3205,7 +3206,7 @@ class TestAugmenter_draw_grid(unittest.TestCase):
         # list, shape (2,)
         aug = _DummyAugmenter()
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             _ = aug.draw_grid([np.zeros((2,), dtype=np.uint8)], rows=2, cols=2)
 
     def test_draw_grid_4d_array(self):
@@ -3257,7 +3258,7 @@ class TestAugmenter_draw_grid(unittest.TestCase):
         # array, shape (2,)
         aug = _DummyAugmenter()
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             _ = aug.draw_grid(np.zeros((2,), dtype=np.uint8), rows=2, cols=2)
 
 
@@ -3387,7 +3388,7 @@ class _TestAugmenter_augment_cbaois(metaclass=ABCMeta):
         cbas2 = [cba for cbaoi in cbaois_aug2 for cba in cbaoi.items]
         assert len(cbas1) == len(cbas2)
         same = []
-        for cba1, cba2 in zip(cbas1, cbas2):
+        for cba1, cba2 in zip(cbas1, cbas2, strict=False):
             points1 = np.float32(cba1.coords)
             points2 = np.float32(cba2.coords)
             same.append(self._compare_coords_of_cba(points1, points2, atol=1e-2, rtol=0))
@@ -3430,7 +3431,7 @@ class _TestAugmenter_augment_cbaois(metaclass=ABCMeta):
         cbas1 = [cba for cbaoi in cbaois_aug1 for cba in cbaoi.items]
         cbas2 = [cba for cbaoi in cbaois_aug2 for cba in cbaoi.items]
         assert len(cbas1) == len(cbas2)
-        for cba1, cba2 in zip(cbas1, cbas2):
+        for cba1, cba2 in zip(cbas1, cbas2, strict=False):
             points1 = np.float32(cba1.coords)
             points2 = np.float32(cba2.coords)
             assert self._compare_coords_of_cba(points1, points2, atol=1e-2, rtol=0)
@@ -3456,7 +3457,7 @@ class _TestAugmenter_augment_cbaois(metaclass=ABCMeta):
         cbaois_aug = self._augfunc(aug_det, cbaois)
 
         seen = set()
-        for image_aug, cbaoi_aug in zip(images_aug, cbaois_aug):
+        for image_aug, cbaoi_aug in zip(images_aug, cbaois_aug, strict=False):
             found_image = False
             for img_rot_idx, img_rot in enumerate(image_rots):
                 if image_aug.shape == img_rot.shape and np.allclose(image_aug, img_rot):
@@ -4083,7 +4084,7 @@ class TestAugmenter_augment(unittest.TestCase):
         polygons_aug = batch.polygons_aug
         assert np.allclose(segmaps_aug[0].arr, segmaps.arr)
         assert np.allclose(keypoints_aug[0].to_xy_array(), keypoints.to_xy_array())
-        for polygon_aug, polygon in zip(polygons_aug[0].polygons, polygons.polygons):
+        for polygon_aug, polygon in zip(polygons_aug[0].polygons, polygons.polygons, strict=False):
             assert polygon_aug.exterior_almost_equals(polygon)
 
     def test_with_affine(self):
@@ -5025,9 +5026,9 @@ class TestAugmenterWithLoadedImages(unittest.TestCase):
         aug_lists = _InplaceDummyAugmenterImgsList(1)
 
         with TemporaryDirectory() as dirpath:
-            imgpath = os.path.join(dirpath, "temp_cv2.png")
+            imgpath = Path(dirpath) / "temp_cv2.png"
             imageio.imwrite(imgpath, image)
-            image_reloaded = cv2.imread(imgpath)[:, :, ::-1]
+            image_reloaded = cv2.imread(str(imgpath))[:, :, ::-1]
             images_reloaded = image_reloaded[np.newaxis, :, :, :]
 
             image_aug = aug_lists(image=image_reloaded)
@@ -5064,7 +5065,7 @@ class TestAugmenterWithLoadedImages(unittest.TestCase):
         aug_lists = _InplaceDummyAugmenterImgsList(1)
 
         with TemporaryDirectory() as dirpath:
-            imgpath = os.path.join(dirpath, "temp_imageio.png")
+            imgpath = Path(dirpath) / "temp_imageio.png"
             imageio.imwrite(imgpath, image)
             image_reloaded = imageio.imread(imgpath)
             images_reloaded = image_reloaded[np.newaxis, :, :, :]
@@ -5106,7 +5107,7 @@ class TestAugmenterWithLoadedImages(unittest.TestCase):
                 aug_lists = _InplaceDummyAugmenterImgsList(1)
 
                 with TemporaryDirectory() as dirpath:
-                    imgpath = os.path.join(dirpath, f"temp_pil_{fname}.png")
+                    imgpath = Path(dirpath) / f"temp_pil_{fname}.png"
                     imageio.imwrite(imgpath, image)
                     image_reloaded = getattr(np, fname)(PIL.Image.open(imgpath))
                     images_reloaded = image_reloaded[np.newaxis, :, :, :]
@@ -5465,7 +5466,7 @@ class TestSequential(unittest.TestCase):
             elif np.array_equal(observed, image_21):
                 seen[1] = True
             else:
-                assert False
+                raise AssertionError()
 
         frac_12 = seen[0] / np.sum(seen)
         return frac_12
@@ -5486,7 +5487,7 @@ class TestSequential(unittest.TestCase):
             elif np.allclose(observed.get_arr(), heatmaps_arr_expected2):
                 seen[1] = True
             else:
-                assert False
+                raise AssertionError()
             if np.all(seen):
                 break
         assert np.all(seen)
@@ -5509,7 +5510,7 @@ class TestSequential(unittest.TestCase):
             elif np.array_equal(observed.get_arr(), segmaps_arr_expected2):
                 seen[1] = True
             else:
-                assert False
+                raise AssertionError()
             if np.all(seen):
                 break
         assert np.all(seen)
@@ -5549,7 +5550,7 @@ class TestSequential(unittest.TestCase):
             elif np.allclose(observed.to_xy_array(), kpsoi_21.to_xy_array()):
                 seen[1] = True
             else:
-                assert False
+                raise AssertionError()
             if np.all(seen):
                 break
         assert np.all(seen)
@@ -5586,7 +5587,7 @@ class TestSequential(unittest.TestCase):
             elif np.allclose(observed.items[0].coords, cba_21.coords):
                 seen[1] = True
             else:
-                assert False
+                raise AssertionError()
             if np.all(seen):
                 break
         assert np.all(seen)
@@ -5623,7 +5624,7 @@ class TestSequential(unittest.TestCase):
             elif np.allclose(observed.items[0].coords, cba_21.coords):
                 seen[1] = True
             else:
-                assert False
+                raise AssertionError()
             if np.all(seen):
                 break
         assert np.all(seen)
@@ -5662,7 +5663,7 @@ class TestSequential(unittest.TestCase):
             elif np.allclose(observed.to_xyxy_array(), bbsoi_21.to_xyxy_array()):
                 seen[1] = True
             else:
-                assert False
+                raise AssertionError()
             if np.all(seen):
                 break
         assert np.all(seen)
@@ -5774,7 +5775,7 @@ class TestSequential(unittest.TestCase):
         values = [5000, 1000**2, 1000**3, 1000**4]
 
         for random_order in [False, True]:
-            for dtype, value in zip(dtypes, values):
+            for dtype, value in zip(dtypes, values, strict=False):
                 with self.subTest(dtype=dtype, random_order=random_order):
                     aug = iaa.Sequential(
                         [iaa.Identity(), iaa.Identity()], random_order=random_order
@@ -5829,7 +5830,7 @@ class TestSequential(unittest.TestCase):
         values = [5000, 1000**2, 1000**3, 1000**4]
 
         for random_order in [False, True]:
-            for dtype, value in zip(dtypes, values):
+            for dtype, value in zip(dtypes, values, strict=False):
                 with self.subTest(dtype=dtype, random_order=random_order):
                     # note that we use 100% probabilities with square images
                     # here, so random_order does not influence the output
@@ -5885,7 +5886,7 @@ class TestSomeOf(unittest.TestCase):
             [9 * 1 + 9 * 2 + 9 * 3],
         ]  # Deterministic(3)
 
-        for n, expected in zip(ns, expecteds):
+        for n, expected in zip(ns, expecteds, strict=False):
             with self.subTest(n=n):
                 aug = iaa.SomeOf(n=n, children=children)
                 observed = aug.augment_image(zeros)
@@ -5898,7 +5899,7 @@ class TestSomeOf(unittest.TestCase):
 
         nb_iterations = 1000
         nb_observed = [0, 0, 0, 0]
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             observed = aug.augment_image(zeros)
             s = observed[0, 0, 0]
             if s == 0:
@@ -5938,7 +5939,7 @@ class TestSomeOf(unittest.TestCase):
             [heatmaps_arr3],
         ]
 
-        for n, expected in zip(ns, expecteds):
+        for n, expected in zip(ns, expecteds, strict=False):
             with self.subTest(n=n):
                 heatmaps = ia.HeatmapsOnImage(heatmaps_arr, shape=(3, 3, 3))
                 aug = iaa.SomeOf(n=n, children=augs)
@@ -5964,7 +5965,7 @@ class TestSomeOf(unittest.TestCase):
         ns = [0, 1, 2, 3, None]
         expecteds = [[segmaps_arr0], [segmaps_arr1], [segmaps_arr2], [segmaps_arr3], [segmaps_arr3]]
 
-        for n, expected in zip(ns, expecteds):
+        for n, expected in zip(ns, expecteds, strict=False):
             with self.subTest(n=n):
                 segmaps = SegmentationMapsOnImage(segmaps_arr, shape=(3, 3, 3))
                 aug = iaa.SomeOf(n=n, children=augs)
@@ -5985,7 +5986,7 @@ class TestSomeOf(unittest.TestCase):
         ns = [0, 1, 2, None]
         expecteds = [[cbaoi], [cbaoi_x, cbaoi_y], [cbaoi_xy], [cbaoi_xy]]
 
-        for n, expected in zip(ns, expecteds):
+        for n, expected in zip(ns, expecteds, strict=False):
             with self.subTest(n=n):
                 aug = iaa.SomeOf(n=n, children=augs)
                 cbaoi_aug = getattr(aug, augf_name)(cbaoi)
@@ -6061,7 +6062,7 @@ class TestSomeOf(unittest.TestCase):
         zeros = np.ones((1, 1, 1), dtype=np.uint8)
 
         nb_observed = [0, 0]
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             observed = aug.augment_image(zeros)
             s = np.sum(observed)
             if s == (1 * 2) + 100:
@@ -6112,7 +6113,7 @@ class TestSomeOf(unittest.TestCase):
                 assert_cbaois_equal(cbaoi_aug, cbaoi_xy)
                 seen[3] = True
             else:
-                assert False
+                raise AssertionError()
             if np.all(seen):
                 break
         assert np.all(seen)
@@ -6303,7 +6304,7 @@ class TestSomeOf(unittest.TestCase):
         random_orders = [False, True]
 
         for random_order in random_orders:
-            for dtype, value in zip(dtypes, values):
+            for dtype, value in zip(dtypes, values, strict=False):
                 with self.subTest(dtype=dtype, random_order=random_order):
                     aug = iaa.SomeOf(
                         2,
@@ -6372,7 +6373,7 @@ class TestSomeOf(unittest.TestCase):
         random_orders = [False, True]
 
         for random_order in random_orders:
-            for dtype, value in zip(dtypes, values):
+            for dtype, value in zip(dtypes, values, strict=False):
                 with self.subTest(dtype=dtype, random_order=random_order):
                     aug = iaa.SomeOf(
                         2,
@@ -6469,7 +6470,7 @@ class TestOneOf(unittest.TestCase):
 
         expected = int(nb_iterations / len(augs))
         tolerance = int(nb_iterations * 0.05)
-        for key, val in results.items():
+        for _key, val in results.items():
             assert np.isclose(val, expected, rtol=0, atol=tolerance)
         assert len(list(results.keys())) == 3
 
@@ -6892,7 +6893,7 @@ class TestSometimes(unittest.TestCase):
     def _test_two_branches_both_50_percent__cbaois(cls, cbaoi, cbaoi_lr, cbaoi_ud, augf_name):
         def _same_coords(cbaoi1, cbaoi2):
             assert len(cbaoi1.items) == len(cbaoi2.items)
-            for i1, i2 in zip(cbaoi1.items, cbaoi2.items):
+            for i1, i2 in zip(cbaoi1.items, cbaoi2.items, strict=False):
                 if not np.allclose(i1.coords, i2.coords, atol=1e-4, rtol=0):
                     return False
             return True
@@ -6901,7 +6902,7 @@ class TestSometimes(unittest.TestCase):
         nb_iterations = 250
         nb_if_branch = 0
         nb_else_branch = 0
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             cbaoi_aug = getattr(aug, augf_name)(cbaoi)
 
             # use allclose() instead of coords_almost_equals() for efficiency
@@ -6991,7 +6992,7 @@ class TestSometimes(unittest.TestCase):
     def _test_one_branch_50_percent__cbaois(cls, cbaoi, cbaoi_lr, augf_name):
         def _same_coords(cbaoi1, cbaoi2):
             assert len(cbaoi1.items) == len(cbaoi2.items)
-            for i1, i2 in zip(cbaoi1.items, cbaoi2.items):
+            for i1, i2 in zip(cbaoi1.items, cbaoi2.items, strict=False):
                 if not np.allclose(i1.coords, i2.coords, atol=1e-4, rtol=0):
                     return False
             return True
@@ -7000,7 +7001,7 @@ class TestSometimes(unittest.TestCase):
         nb_iterations = 250
         nb_if_branch = 0
         nb_else_branch = 0
-        for i in range(nb_iterations):
+        for _i in range(nb_iterations):
             cbaoi_aug = getattr(aug, augf_name)(cbaoi)
 
             # use allclose() instead of coords_almost_equals() for efficiency
@@ -7071,7 +7072,7 @@ class TestSometimes(unittest.TestCase):
             elif uq[0] == 110:
                 seen[1] += 1
             else:
-                assert False
+                raise AssertionError()
         assert seen[0] > 20
         assert seen[1] > 20
 
@@ -7367,7 +7368,7 @@ class TestSometimes(unittest.TestCase):
 
         dtypes = ["float16", "float32", "float64"] + f128
         values = [5000, 1000**2, 1000**3, 1000**4]
-        for dtype, value in zip(dtypes, values):
+        for dtype, value in zip(dtypes, values, strict=False):
             with self.subTest(dtype=dtype):
                 image = np.zeros((3, 3), dtype=dtype)
                 image[0, 0] = value
@@ -7394,7 +7395,7 @@ class TestSometimes(unittest.TestCase):
             elif np.all(image_aug == expected[1]):
                 seen[1] = True
             else:
-                assert False
+                raise AssertionError()
             if np.all(seen):
                 break
         assert np.all(seen)
@@ -7421,7 +7422,7 @@ class TestSometimes(unittest.TestCase):
                     elif np.all(image_aug == expected[1]):
                         seen[1] = True
                     else:
-                        assert False
+                        raise AssertionError()
                     if np.all(seen):
                         break
                 assert np.all(seen)
@@ -7437,7 +7438,7 @@ class TestSometimes(unittest.TestCase):
         dtypes = ["float16", "float32", "float64"] + f128
 
         values = [5000, 1000**2, 1000**3, 1000**4]
-        for dtype, value in zip(dtypes, values):
+        for dtype, value in zip(dtypes, values, strict=False):
             with self.subTest(dtype=dtype):
                 image = np.zeros((3, 3), dtype=dtype)
                 image[0, 0] = value
@@ -7454,7 +7455,7 @@ class TestSometimes(unittest.TestCase):
                     elif np.all(image_aug == expected[1]):
                         seen[1] = True
                     else:
-                        assert False
+                        raise AssertionError()
                     if np.all(seen):
                         break
                 assert np.all(seen)
@@ -7860,7 +7861,7 @@ class TestWithChannels(unittest.TestCase):
         dtypes = ["float16", "float32", "float64"] + f128
 
         values = [5000, 1000**2, 1000**3, 1000**4]
-        for dtype, value in zip(dtypes, values):
+        for dtype, value in zip(dtypes, values, strict=False):
             with self.subTest(dtype=dtype):
                 image = np.zeros((3, 3, 2), dtype=dtype)
                 image[0, 0, :] = value
@@ -7913,7 +7914,7 @@ class TestWithChannels(unittest.TestCase):
         dtypes = ["float16", "float32", "float64"] + f128
 
         values = [5000, 1000**2, 1000**3, 1000**4]
-        for dtype, value in zip(dtypes, values):
+        for dtype, value in zip(dtypes, values, strict=False):
             with self.subTest(dtype=dtype):
                 image = np.zeros((3, 3, 2), dtype=dtype)
                 image[0, 0, :] = value
@@ -7954,7 +7955,7 @@ class TestChannelShuffle(unittest.TestCase):
             elif np.array_equal(img_aug, expected[1]):
                 seen[1] = True
             else:
-                assert False
+                raise AssertionError()
             if np.all(seen):
                 break
         assert np.all(seen)
@@ -7978,7 +7979,7 @@ class TestChannelShuffle(unittest.TestCase):
             elif np.array_equal(img_aug, expected[1]):
                 seen[1] = True
             else:
-                assert False
+                raise AssertionError()
             if np.all(seen):
                 break
         assert np.all(seen)
@@ -8084,7 +8085,7 @@ class TestChannelShuffle(unittest.TestCase):
             elif np.all(image_aug == expected[1]):
                 seen[1] = True
             else:
-                assert False
+                raise AssertionError()
             if np.all(seen):
                 break
         assert np.all(seen)
@@ -8111,7 +8112,7 @@ class TestChannelShuffle(unittest.TestCase):
                     elif np.all(image_aug == expected[1]):
                         seen[1] = True
                     else:
-                        assert False
+                        raise AssertionError()
                     if np.all(seen):
                         break
                 assert np.all(seen)
@@ -8127,7 +8128,7 @@ class TestChannelShuffle(unittest.TestCase):
         dtypes = ["float16", "float32", "float64"] + f128
 
         values = [5000, 1000**2, 1000**3, 1000**4]
-        for dtype, value in zip(dtypes, values):
+        for dtype, value in zip(dtypes, values, strict=False):
             with self.subTest(dtype=dtype):
                 image = np.zeros((3, 3, 2), dtype=dtype)
                 image[0, 0, 0] = value
@@ -8144,7 +8145,7 @@ class TestChannelShuffle(unittest.TestCase):
                     elif np.all(image_aug == expected[1]):
                         seen[1] = True
                     else:
-                        assert False
+                        raise AssertionError()
                     if np.all(seen):
                         break
                 assert np.all(seen)
@@ -8206,7 +8207,7 @@ class TestRemoveCBAsByOutOfImageFraction(unittest.TestCase):
         cbaoi_aug = aug(keypoints=cbaoi)
 
         assert len(cbaoi_aug.items) == 1
-        for item_obs, item_exp in zip(cbaoi_aug.items, [item1]):
+        for item_obs, item_exp in zip(cbaoi_aug.items, [item1], strict=False):
             assert item_obs.coords_almost_equals(item_exp)
 
     def test_bounding_boxes(self):
@@ -8219,7 +8220,7 @@ class TestRemoveCBAsByOutOfImageFraction(unittest.TestCase):
         cbaoi_aug = aug(bounding_boxes=cbaoi)
 
         assert len(cbaoi_aug.items) == 2
-        for item_obs, item_exp in zip(cbaoi_aug.items, [item1, item2]):
+        for item_obs, item_exp in zip(cbaoi_aug.items, [item1, item2], strict=False):
             assert item_obs.coords_almost_equals(item_exp)
 
     def test_polygons(self):
@@ -8232,7 +8233,7 @@ class TestRemoveCBAsByOutOfImageFraction(unittest.TestCase):
         cbaoi_aug = aug(polygons=cbaoi)
 
         assert len(cbaoi_aug.items) == 2
-        for item_obs, item_exp in zip(cbaoi_aug.items, [item1, item2]):
+        for item_obs, item_exp in zip(cbaoi_aug.items, [item1, item2], strict=False):
             assert item_obs.coords_almost_equals(item_exp)
 
     def test_line_strings(self):
@@ -8245,7 +8246,7 @@ class TestRemoveCBAsByOutOfImageFraction(unittest.TestCase):
         cbaoi_aug = aug(line_strings=cbaoi)
 
         assert len(cbaoi_aug.items) == 2
-        for item_obs, item_exp in zip(cbaoi_aug.items, [item1, item2]):
+        for item_obs, item_exp in zip(cbaoi_aug.items, [item1, item2], strict=False):
             assert item_obs.coords_almost_equals(item_exp)
 
     def test_get_parameters(self):
@@ -8316,7 +8317,7 @@ class TestClipCBAsToImagePlanes(unittest.TestCase):
         cbaoi_aug = aug(keypoints=cbaoi)
 
         assert len(cbaoi_aug.items) == 1
-        for item_obs, item_exp in zip(cbaoi_aug.items, [item1]):
+        for item_obs, item_exp in zip(cbaoi_aug.items, [item1], strict=False):
             assert item_obs.coords_almost_equals(item_exp)
 
     def test_bounding_boxes(self):
@@ -8330,7 +8331,7 @@ class TestClipCBAsToImagePlanes(unittest.TestCase):
 
         expected = [ia.BoundingBox(y1=1, x1=5, y2=6, x2=9), ia.BoundingBox(y1=1, x1=5, y2=6, x2=10)]
         assert len(cbaoi_aug.items) == len(expected)
-        for item_obs, item_exp in zip(cbaoi_aug.items, expected):
+        for item_obs, item_exp in zip(cbaoi_aug.items, expected, strict=False):
             assert item_obs.coords_almost_equals(item_exp)
 
     def test_polygons(self):
@@ -8347,7 +8348,7 @@ class TestClipCBAsToImagePlanes(unittest.TestCase):
             ia.Polygon([(5, 1), (10, 1), (10, 2), (5, 2)]),
         ]
         assert len(cbaoi_aug.items) == len(expected)
-        for item_obs, item_exp in zip(cbaoi_aug.items, expected):
+        for item_obs, item_exp in zip(cbaoi_aug.items, expected, strict=False):
             assert item_obs.coords_almost_equals(item_exp)
 
     def test_line_strings(self):
@@ -8361,7 +8362,7 @@ class TestClipCBAsToImagePlanes(unittest.TestCase):
 
         expected = [ia.LineString([(5, 1), (9, 1)]), ia.LineString([(5, 1), (10, 1)])]
         assert len(cbaoi_aug.items) == len(expected)
-        for item_obs, item_exp in zip(cbaoi_aug.items, expected):
+        for item_obs, item_exp in zip(cbaoi_aug.items, expected, strict=False):
             assert item_obs.coords_almost_equals(item_exp, max_distance=1e-2)
 
     def test_get_parameters(self):

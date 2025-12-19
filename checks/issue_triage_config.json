@@ -1,0 +1,80 @@
+{
+  "repo": "Alfredo-Sandoval/imgaug2",
+  "labels": {
+    "close": "triage:close",
+    "review": "triage:review",
+    "keep": "triage:keep",
+    "untriaged": "triage:untriaged"
+  },
+  "explicit": {
+    "close": [
+      229,
+      233,
+      238,
+      239,
+      240,
+      242,
+      244,
+      248,
+      251,
+      253,
+      255,
+      263,
+      264,
+      268,
+      269,
+      270,
+      271,
+      274,
+      276,
+      283,
+      284,
+      286,
+      287,
+      288,
+      289,
+      291,
+      292,
+      295
+    ],
+    "review": [
+      227,
+      228,
+      236,
+      237,
+      241,
+      245,
+      246,
+      252,
+      254,
+      256,
+      258,
+      260,
+      261,
+      266,
+      267,
+      272,
+      293,
+      294
+    ],
+    "keep": []
+  },
+  "duplicates": [
+    {
+      "dupe": 295,
+      "canonical": 283
+    }
+  ],
+  "pattern_rules": {
+    "enabled_by_default": false,
+    "how_to_title_regex": "^(how(\\s+do|\\s+can|\\s+to)|can\\s+i|is\\s+it\\s+possible|question:)\\b",
+    "install_title_regex": "(install|setup\\.py|pip|conda|opencv|import error|module not found)",
+    "feature_request_title_regex": "(feature request|please add|add (support|augmentation)|support (for|to)|enhancement)",
+    "old_install_cutoff_year": 2020
+  },
+  "comments": {
+    "close": "Thanks for the report! This fork focuses on maintaining core compatibility and fixing reproducible bugs. This issue looks like a support/how-to question, an outdated install problem, or a feature request we are not planning to implement here, so I'm going to close it to keep the tracker focused.\n\nIf you can provide a minimal reproducible example and can show it's a bug in imgaug2 (not environment-specific), feel free to open a new issue with: versions, small code snippet, and expected vs actual behavior.",
+    "duplicate": "Thanks! Closing as a duplicate of #{canonical}.",
+    "review": "Marking for maintainer review: this may be a real bug or a docs gap. Please add a minimal reproducible example (inputs + augmenter + expected vs actual) and versions if you haven't already."
+  }
+}

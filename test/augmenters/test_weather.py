@@ -364,7 +364,7 @@ class TestSnowflakes(unittest.TestCase):
         points_y = np.random.randint(0, image.shape[0], size=(n_patches,))
         points_x = np.random.randint(0, image.shape[0], size=(n_patches,))
         stds = []
-        for y, x in zip(points_y, points_x):
+        for y, x in zip(points_y, points_x, strict=False):
             bb = ia.BoundingBox(x1=x - pshalf, y1=y - pshalf, x2=x + pshalf, y2=y + pshalf)
             patch = bb.extract_from_image(grad)
             stds.append(np.std(patch))

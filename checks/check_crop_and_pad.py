@@ -1,7 +1,8 @@
+import numpy as np
+
 import imgaug2 as ia
 from imgaug2 import augmenters as iaa
 from imgaug2 import parameters as iap
-import numpy as np
 
 
 def main():

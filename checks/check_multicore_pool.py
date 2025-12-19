@@ -1,6 +1,6 @@
 
-import time
 import multiprocessing
+import time
 
 import numpy as np
 from skimage import data
@@ -12,12 +12,12 @@ from imgaug2 import augmenters as iaa
 
 class PoolWithMarkedWorker(multicore.Pool):
     def __init__(self, *args, **kwargs):
-        super(PoolWithMarkedWorker, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     @classmethod
     def _worker(cls, batch_idx, batch):
         process_name = multiprocessing.current_process().name
-        # print("[_worker] called %s. images in batch: %d" % (process_name, len(batch.images_unaug),))
+        # print("[_worker] called %s. images in batch: %d" % (process_name, len(batch.images_unaug),))  # noqa: UP031
         if "-1" in process_name:
             for image in batch.images_unaug:
                 image[::4, ::4, :] = [255, 255, 255]
@@ -61,7 +61,7 @@ def main():
         for batch_aug in batches_aug:
             images_aug.append(batch_aug.images_aug)
             keypoints_aug.append(batch_aug.keypoints_aug)
-        print("Done in %.4fs" % (time.time() - time_start,))
+        print(f"Done in {time.time() - time_start:.4f}s")
     # ia.imshow(draw_grid(images_aug, keypoints_aug))
 
     print("------------------")
@@ -76,7 +76,7 @@ def main():
         for batch_aug in batches_aug:
             images_aug.append(batch_aug.images_aug)
             keypoints_aug.append(batch_aug.keypoints_aug)
-        print("Done in %.4fs" % (time.time() - time_start,))
+        print(f"Done in {time.time() - time_start:.4f}s")
     # ia.imshow(draw_grid(images_aug, keypoints_aug))
 
     print("------------------")
@@ -90,7 +90,7 @@ def main():
         for batch in batches_aug:
             images_aug.append(batch.images_aug)
             keypoints_aug.append(batch.keypoints_aug)
-        print("Done in %.4fs" % (time.time() - time_start,))
+        print(f"Done in {time.time() - time_start:.4f}s")
     # ia.imshow(draw_grid(images_aug, keypoints_aug))
 
     print("------------------")
@@ -100,10 +100,10 @@ def main():
         time_start = time.time()
         batches_aug = pool.imap_batches(load_images(n_batches=1000), chunksize=32)
         count = 0
-        for batch in batches_aug:
+        for _batch in batches_aug:
             count += 1
         assert count == 1000
-        print("Done in %.4fs" % (time.time() - time_start,))
+        print(f"Done in {time.time() - time_start:.4f}s")
 
     print("------------------")
     print("Pool.imap_batches(batches, chunksize=2)")
@@ -112,10 +112,10 @@ def main():
         time_start = time.time()
         batches_aug = pool.imap_batches(load_images(n_batches=1000), chunksize=2)
         count = 0
-        for batch in batches_aug:
+        for _batch in batches_aug:
             count += 1
         assert count == 1000
-        print("Done in %.4fs" % (time.time() - time_start,))
+        print(f"Done in {time.time() - time_start:.4f}s")
 
     print("------------------")
     print("Pool.imap_batches(batches, chunksize=1)")
@@ -124,10 +124,10 @@ def main():
         time_start = time.time()
         batches_aug = pool.imap_batches(load_images(n_batches=1000), chunksize=1)
         count = 0
-        for batch in batches_aug:
+        for _batch in batches_aug:
             count += 1
         assert count == 1000
-        print("Done in %.4fs" % (time.time() - time_start,))
+        print(f"Done in {time.time() - time_start:.4f}s")
 
     print("------------------")
     print("Pool.map_batches(batches, chunksize=32)")
@@ -136,7 +136,7 @@ def main():
         time_start = time.time()
         batches_aug = pool.map_batches(list(load_images(n_batches=1000)), chunksize=32)
         assert len(batches_aug) == 1000
-        print("Done in %.4fs" % (time.time() - time_start,))
+        print(f"Done in {time.time() - time_start:.4f}s")
 
     print("------------------")
     print("Pool.map_batches chunksize with fast aug")
@@ -148,7 +148,7 @@ def main():
             time_start = time.time()
             batches_aug = pool.map_batches(batches, chunksize=chunksize)
             assert len(batches_aug) == 10000
-            print("chunksize=%d, worker=%s, time=%.4fs" % (chunksize, processes, time.time() - time_start))
+            print(f"chunksize={chunksize}, worker={processes}, time={time.time() - time_start:.4f}s")
 
     test_fast(-4, 1)
     test_fast(1, 1)
@@ -168,7 +168,7 @@ def main():
             batches_aug = pool.imap_batches(load_images(n_batches=10000, draw_text=False), chunksize=chunksize)
             batches_aug = list(batches_aug)
             assert len(batches_aug) == 10000
-            print("chunksize=%d, worker=%s, time=%.4fs" % (chunksize, processes, time.time() - time_start))
+            print(f"chunksize={chunksize}, worker={processes}, time={time.time() - time_start:.4f}s")
 
     test_fast_imap(-4, 1)
     test_fast_imap(1, 1)
@@ -188,7 +188,7 @@ def main():
             time_start = time.time()
             batches_aug = pool.map_batches(batches, chunksize=chunksize)
             assert len(batches_aug) == 500
-            print("chunksize=%d, worker=%s, time=%.4fs" % (chunksize, processes, time.time() - time_start))
+            print(f"chunksize={chunksize}, worker={processes}, time={time.time() - time_start:.4f}s")
 
     test_heavy(-4, 1)
     test_heavy(1, 1)
@@ -209,7 +209,7 @@ def main():
         for batch in batches_aug:
             images_aug.append(batch.images_aug)
             keypoints_aug.append(batch.keypoints_aug)
-        print("Done in %.4fs" % (time.time() - time_start,))
+        print(f"Done in {time.time() - time_start:.4f}s")
 
     print("------------------")
     print("Pool.imap_batches(batches), maxtasksperchild=4")
@@ -222,7 +222,7 @@ def main():
         for batch in batches_aug:
             images_aug.append(batch.images_aug)
             keypoints_aug.append(batch.keypoints_aug)
-        print("Done in %.4fs" % (time.time() - time_start,))
+        print(f"Done in {time.time() - time_start:.4f}s")
     ia.imshow(draw_grid(images_aug, keypoints_aug))
 
     print("------------------")
@@ -237,7 +237,7 @@ def main():
         for batch in batches_aug:
             images_aug.append(batch.images_aug)
             keypoints_aug.append(batch.keypoints_aug)
-        print("Done in %.4fs" % (time.time() - time_start,))
+        print(f"Done in {time.time() - time_start:.4f}s")
     grid_a = draw_grid(images_aug, keypoints_aug)
 
     with multicore.Pool(augseq, seed=1) as pool:
@@ -248,7 +248,7 @@ def main():
         for batch in batches_aug:
             images_aug.append(batch.images_aug)
             keypoints_aug.append(batch.keypoints_aug)
-        print("Done in %.4fs" % (time.time() - time_start,))
+        print(f"Done in {time.time() - time_start:.4f}s")
     grid_b = draw_grid(images_aug, keypoints_aug)
 
     grid_b[:, 0:2, 0] = 0
@@ -267,7 +267,7 @@ def main():
         for batch in batches_aug:
             images_aug.append(batch.images_aug)
             keypoints_aug.append(batch.keypoints_aug)
-        print("Done in %.4fs" % (time.time() - time_start,))
+        print(f"Done in {time.time() - time_start:.4f}s")
     grid_a = draw_grid(images_aug, keypoints_aug)
 
     with multicore.Pool(augseq, seed=None) as pool:
@@ -278,7 +278,7 @@ def main():
         for batch in batches_aug:
             images_aug.append(batch.images_aug)
             keypoints_aug.append(batch.keypoints_aug)
-        print("Done in %.4fs" % (time.time() - time_start,))
+        print(f"Done in {time.time() - time_start:.4f}s")
     grid_b = draw_grid(images_aug, keypoints_aug)
 
     ia.imshow(np.hstack([grid_a, grid_b]))
@@ -294,7 +294,7 @@ def main():
         for batch in batches_aug:
             images_aug.append(batch.images_aug)
             keypoints_aug.append(batch.keypoints_aug)
-        print("Done in %.4fs" % (time.time() - time_start,))
+        print(f"Done in {time.time() - time_start:.4f}s")
     ia.imshow(draw_grid(images_aug, keypoints_aug))
 
     for augseq_i in [augseq, augseq_slow]:
@@ -303,18 +303,18 @@ def main():
         print("------------------")
         with multicore.Pool(augseq_i) as pool:
             time_start = time.time()
-            for i in range(100):
+            for _i in range(100):
                 _ = pool.map_batches(list(load_images(n_batches=1)))
-            print("Done in %.4fs" % (time.time() - time_start,))
+            print(f"Done in {time.time() - time_start:.4f}s")
 
         print("------------------")
         print("Many very small runs (batches=2)")
         print("------------------")
         with multicore.Pool(augseq_i) as pool:
             time_start = time.time()
-            for i in range(100):
+            for _i in range(100):
                 _ = pool.map_batches(list(load_images(n_batches=2)))
-            print("Done in %.4fs" % (time.time() - time_start,))
+            print(f"Done in {time.time() - time_start:.4f}s")
 
 
 def load_images(n_batches=10, sleep=0.0, draw_text=True):
@@ -328,8 +328,8 @@ def load_images(n_batches=10, sleep=0.0, draw_text=True):
         if draw_text:
             batch_images = []
             batch_kps = []
-            for b in range(batch_size):
-                astronaut_text = ia.draw_text(astronaut, x=0, y=0, text="%d" % (counter,), color=[0, 255, 0], size=16)
+            for _b in range(batch_size):
+                astronaut_text = ia.draw_text(astronaut, x=0, y=0, text=f"{counter}", color=[0, 255, 0], size=16)
                 batch_images.append(astronaut_text)
                 batch_kps.append(kps)
                 counter += 1
@@ -359,7 +359,7 @@ def draw_grid(images_aug, keypoints_aug):
     images_kps_batches = []
     for bidx in range(len(images_aug)):
         images_kps_batch = []
-        for image, kps in zip(images_aug[bidx], keypoints_aug[bidx]):
+        for image, kps in zip(images_aug[bidx], keypoints_aug[bidx], strict=False):
             if kps is None:
                 image_kps = image
             else:

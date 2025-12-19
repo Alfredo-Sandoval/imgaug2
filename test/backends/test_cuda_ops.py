@@ -2,7 +2,6 @@ import unittest
 
 import numpy as np
 
-
 try:
     import cupy as cp
 

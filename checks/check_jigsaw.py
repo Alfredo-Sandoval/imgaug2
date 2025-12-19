@@ -1,6 +1,7 @@
+import timeit
+
 import imgaug2 as ia
 import imgaug2.augmenters as iaa
-import timeit
 
 
 def main():
@@ -11,7 +12,7 @@ def main():
     images_aug, kpsois_aug = aug(images=[image] * 16,
                                  keypoints=[kpsoi] * 16)
     images_show = [kpsoi_aug.draw_on_image(image_aug)
-                   for image_aug, kpsoi_aug in zip(images_aug, kpsois_aug)]
+                   for image_aug, kpsoi_aug in zip(images_aug, kpsois_aug, strict=False)]
     ia.imshow(ia.draw_grid(images_show))
 
     gen_time = timeit.timeit(

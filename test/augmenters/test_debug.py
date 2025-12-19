@@ -1,6 +1,7 @@
 import os
 import pickle
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import cv2
@@ -255,6 +256,7 @@ class SaveDebugImageEveryNBatches(unittest.TestCase):
 
     def test_temp_directory(self):
         with TemporaryDirectory() as folder_path:
+            folder_path = Path(folder_path)
             image = iarandom.RNG(0).integers(0, 256, size=(256, 256, 3), dtype=np.uint8)
             aug = iaa.SaveDebugImageEveryNBatches(folder_path, 10)
 
@@ -262,13 +264,13 @@ class SaveDebugImageEveryNBatches(unittest.TestCase):
                 _ = aug(image=image)
 
             expected = iaa.draw_debug_image([image])
-            path1 = os.path.join(folder_path, "batch_000000.png")
-            path2 = os.path.join(folder_path, "batch_000010.png")
-            path_latest = os.path.join(folder_path, "batch_latest.png")
-            assert len(list(os.listdir(folder_path))) == 3
-            assert os.path.isfile(path1)
-            assert os.path.isfile(path2)
-            assert os.path.isfile(path_latest)
+            path1 = folder_path / "batch_000000.png"
+            path2 = folder_path / "batch_000010.png"
+            path_latest = folder_path / "batch_latest.png"
+            assert len(list(folder_path.iterdir())) == 3
+            assert path1.is_file()
+            assert path2.is_file()
+            assert path_latest.is_file()
             assert np.array_equal(imageio.imread(path1), expected)
             assert np.array_equal(imageio.imread(path2), expected)
             assert np.array_equal(imageio.imread(path_latest), expected)
@@ -279,8 +281,9 @@ class SaveDebugImageEveryNBatches(unittest.TestCase):
         image = image.reshape(shape)
 
         with TemporaryDirectory() as folder_path:
-            path1 = os.path.join(folder_path, "batch_000000.png")
-            path2 = os.path.join(folder_path, "batch_000010.png")
+            folder_path = Path(folder_path)
+            path1 = folder_path / "batch_000000.png"
+            path2 = folder_path / "batch_000010.png"
 
             augmenter = iaa.SaveDebugImageEveryNBatches(folder_path, 10)
             augmenter_pkl = pickle.loads(pickle.dumps(augmenter, protocol=-1))
@@ -293,8 +296,8 @@ class SaveDebugImageEveryNBatches(unittest.TestCase):
             img12 = imageio.imread(path2)
 
             # reset folder content
-            os.remove(path1)
-            os.remove(path2)
+            path1.unlink()
+            path2.unlink()
 
             # save two images via augmenter that was pickled
             for _ in np.arange(20):

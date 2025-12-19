@@ -738,7 +738,7 @@ class TestNormalization(unittest.TestCase):
         assert all(
             [
                 kp_after.x == kp_before.x and kp_after.y == kp_before.y
-                for kp_after, kp_before in zip(after, coords1_kps)
+                for kp_after, kp_before in zip(after, coords1_kps, strict=False)
             ]
         )
 
@@ -829,13 +829,13 @@ class TestNormalization(unittest.TestCase):
         assert all(
             [
                 kp_after.x == kp_before.x and kp_after.y == kp_before.y
-                for kp_after, kp_before in zip(after[0], coords1_kps)
+                for kp_after, kp_before in zip(after[0], coords1_kps, strict=False)
             ]
         )
         assert all(
             [
                 kp_after.x == kp_before.x and kp_after.y == kp_before.y
-                for kp_after, kp_before in zip(after[1], coords2_kps)
+                for kp_after, kp_before in zip(after[1], coords2_kps, strict=False)
             ]
         )
 
@@ -900,25 +900,25 @@ class TestNormalization(unittest.TestCase):
         assert all(
             [
                 kp_after.x == kp_before.x and kp_after.y == kp_before.y
-                for kp_after, kp_before in zip(after[0][0], coords1_kps)
+                for kp_after, kp_before in zip(after[0][0], coords1_kps, strict=False)
             ]
         )
         assert all(
             [
                 kp_after.x == kp_before.x and kp_after.y == kp_before.y
-                for kp_after, kp_before in zip(after[0][1], coords2_kps)
+                for kp_after, kp_before in zip(after[0][1], coords2_kps, strict=False)
             ]
         )
         assert all(
             [
                 kp_after.x == kp_before.x and kp_after.y == kp_before.y
-                for kp_after, kp_before in zip(after[1][0], coords3_kps)
+                for kp_after, kp_before in zip(after[1][0], coords3_kps, strict=False)
             ]
         )
         assert all(
             [
                 kp_after.x == kp_before.x and kp_after.y == kp_before.y
-                for kp_after, kp_before in zip(after[1][1], coords4_kps)
+                for kp_after, kp_before in zip(after[1][1], coords4_kps, strict=False)
             ]
         )
 
@@ -2776,7 +2776,7 @@ class TestNormalization(unittest.TestCase):
             ia.HeatmapsOnImage(np.zeros((1, 1, 1), dtype=np.float32), shape=(1, 1, 3)),
             ia.SegmentationMapsOnImage(np.zeros((1, 1, 1), dtype=np.int32), shape=(1, 1, 3)),
         ]
-        for cls_name, cls in zip(cls_names, clss):
+        for cls_name, cls in zip(cls_names, clss, strict=False):
             ntype = normalization._nonempty_info_to_type_str(cls, True, [])
             assert ntype == cls_name
 
@@ -2843,7 +2843,7 @@ class TestNormalization(unittest.TestCase):
         ntype = normalization.estimate_segmaps_norm_type(None)
         assert ntype == "None"
 
-        for name, dt in zip(["int", "uint", "bool"], [np.int32, np.uint16, bool]):
+        for name, dt in zip(["int", "uint", "bool"], [np.int32, np.uint16, bool], strict=False):
             ntype = normalization.estimate_segmaps_norm_type(np.zeros((1, 1, 1, 1), dtype=dt))
             assert ntype == f"array[{name}]"
 
@@ -2900,7 +2900,7 @@ class TestNormalization(unittest.TestCase):
         ntype = normalization.estimate_keypoints_norm_type(None)
         assert ntype == "None"
 
-        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16], strict=False):
             ntype = normalization.estimate_keypoints_norm_type(np.zeros((1, 5, 2), dtype=dt))
             assert ntype == f"array[{name}]"
 
@@ -2918,7 +2918,7 @@ class TestNormalization(unittest.TestCase):
         ntype = normalization.estimate_keypoints_norm_type([])
         assert ntype == "iterable[empty]"
 
-        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16], strict=False):
             ntype = normalization.estimate_keypoints_norm_type([np.zeros((5, 2), dtype=dt)])
             assert ntype == f"iterable-array[{name}]"
 
@@ -2972,7 +2972,7 @@ class TestNormalization(unittest.TestCase):
         ntype = normalization.estimate_bounding_boxes_norm_type(None)
         assert ntype == "None"
 
-        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16], strict=False):
             ntype = normalization.estimate_bounding_boxes_norm_type(np.zeros((1, 5, 4), dtype=dt))
             assert ntype == f"array[{name}]"
 
@@ -2992,7 +2992,7 @@ class TestNormalization(unittest.TestCase):
         ntype = normalization.estimate_bounding_boxes_norm_type([])
         assert ntype == "iterable[empty]"
 
-        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16], strict=False):
             ntype = normalization.estimate_bounding_boxes_norm_type([np.zeros((5, 4), dtype=dt)])
             assert ntype == f"iterable-array[{name}]"
 
@@ -3054,7 +3054,7 @@ class TestNormalization(unittest.TestCase):
         ntype = normalization.estimate_polygons_norm_type(None)
         assert ntype == "None"
 
-        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16], strict=False):
             ntype = normalization.estimate_polygons_norm_type(np.zeros((1, 2, 5, 2), dtype=dt))
             assert ntype == f"array[{name}]"
 
@@ -3069,7 +3069,7 @@ class TestNormalization(unittest.TestCase):
         ntype = normalization.estimate_polygons_norm_type([])
         assert ntype == "iterable[empty]"
 
-        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16], strict=False):
             ntype = normalization.estimate_polygons_norm_type([np.zeros((5, 4), dtype=dt)])
             assert ntype == f"iterable-array[{name}]"
 
@@ -3092,7 +3092,7 @@ class TestNormalization(unittest.TestCase):
         ntype = normalization.estimate_polygons_norm_type([[]])
         assert ntype == "iterable-iterable[empty]"
 
-        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16], strict=False):
             ntype = normalization.estimate_polygons_norm_type([[np.zeros((5, 4), dtype=dt)]])
             assert ntype == f"iterable-iterable-array[{name}]"
 
@@ -3150,7 +3150,7 @@ class TestNormalization(unittest.TestCase):
         ntype = normalization.estimate_line_strings_norm_type(None)
         assert ntype == "None"
 
-        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16], strict=False):
             ntype = normalization.estimate_line_strings_norm_type(np.zeros((1, 2, 5, 2), dtype=dt))
             assert ntype == f"array[{name}]"
 
@@ -3165,7 +3165,7 @@ class TestNormalization(unittest.TestCase):
         ntype = normalization.estimate_line_strings_norm_type([])
         assert ntype == "iterable[empty]"
 
-        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16], strict=False):
             ntype = normalization.estimate_line_strings_norm_type([np.zeros((5, 4), dtype=dt)])
             assert ntype == f"iterable-array[{name}]"
 
@@ -3188,7 +3188,7 @@ class TestNormalization(unittest.TestCase):
         ntype = normalization.estimate_line_strings_norm_type([[]])
         assert ntype == "iterable-iterable[empty]"
 
-        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16]):
+        for name, dt in zip(["float", "int", "uint"], [np.float32, np.int32, np.uint16], strict=False):
             ntype = normalization.estimate_line_strings_norm_type([[np.zeros((5, 4), dtype=dt)]])
             assert ntype == f"iterable-iterable-array[{name}]"
 

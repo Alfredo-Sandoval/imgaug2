@@ -44,6 +44,7 @@ def seeded(func):
 def example_simple_training_setting():
     print("Example: Simple Training Setting")
     import numpy as np
+
     import imgaug2.augmenters as iaa
 
     def load_batch(batch_idx):
@@ -86,6 +87,7 @@ def example_simple_training_setting():
 def example_very_complex_augmentation_pipeline():
     print("Example: Very Complex Augmentation Pipeline")
     import numpy as np
+
     import imgaug2 as ia
     import imgaug2.augmenters as iaa
 
@@ -179,6 +181,7 @@ def example_very_complex_augmentation_pipeline():
 def example_augment_images_and_keypoints():
     print("Example: Augment Images and Keypoints")
     import numpy as np
+
     import imgaug2.augmenters as iaa
 
     images = np.zeros((2, 128, 128, 3), dtype=np.uint8)  # two example images
@@ -206,6 +209,7 @@ def example_augment_images_and_keypoints():
 def example_augment_images_and_bounding_boxes():
     print("Example: Augment Images and Bounding Boxes")
     import numpy as np
+
     import imgaug2 as ia
     import imgaug2.augmenters as iaa
 
@@ -229,6 +233,7 @@ def example_augment_images_and_bounding_boxes():
 def example_augment_images_and_polygons():
     print("Example: Augment Images and Polygons")
     import numpy as np
+
     import imgaug2 as ia
     import imgaug2.augmenters as iaa
 
@@ -251,6 +256,7 @@ def example_augment_images_and_polygons():
 def example_augment_images_and_linestrings():
     print("Example: Augment Images and LineStrings")
     import numpy as np
+
     import imgaug2 as ia
     import imgaug2.augmenters as iaa
 
@@ -274,6 +280,7 @@ def example_augment_images_and_linestrings():
 def example_augment_images_and_heatmaps():
     print("Example: Augment Images and Heatmaps")
     import numpy as np
+
     import imgaug2.augmenters as iaa
 
     # Standard scenario: You have N RGB-images and additionally 21 heatmaps per
@@ -294,6 +301,7 @@ def example_augment_images_and_heatmaps():
 def example_augment_images_and_segmentation_maps():
     print("Example: Augment Images and Segmentation Maps")
     import numpy as np
+
     import imgaug2.augmenters as iaa
 
     # Standard scenario: You have N=16 RGB-images and additionally one segmentation
@@ -314,6 +322,7 @@ def example_augment_images_and_segmentation_maps():
 def example_visualize_augmented_images():
     print("Example: Visualize Augmented Images")
     import numpy as np
+
     import imgaug2.augmenters as iaa
 
     images = np.random.randint(0, 255, (16, 128, 128, 3), dtype=np.uint8)
@@ -329,6 +338,7 @@ def example_visualize_augmented_images():
 def example_visualize_augmented_non_image_data():
     print("Example: Visualize Augmented Non-Image Data")
     import numpy as np
+
     import imgaug2 as ia
 
     image = np.zeros((64, 64, 3), dtype=np.uint8)
@@ -369,8 +379,9 @@ def example_visualize_augmented_non_image_data():
 @seeded
 def example_using_augmenters_only_once():
     print("Example: Using Augmenters Only Once")
-    from imgaug2 import augmenters as iaa
     import numpy as np
+
+    from imgaug2 import augmenters as iaa
 
     images = np.random.randint(0, 255, (16, 128, 128, 3), dtype=np.uint8)
 
@@ -388,6 +399,7 @@ def example_using_augmenters_only_once():
 def example_multicore_augmentation():
     print("Example: Multicore Augmentation")
     import skimage.data
+
     import imgaug2 as ia
     import imgaug2.augmenters as iaa
     from imgaug2.augmentables.batches import UnnormalizedBatch
@@ -422,6 +434,7 @@ def example_multicore_augmentation():
 def example_probability_distributions_as_parameters():
     print("Example: Probability Distributions as Parameters")
     import numpy as np
+
     from imgaug2 import augmenters as iaa
     from imgaug2 import parameters as iap
 
@@ -444,6 +457,7 @@ def example_probability_distributions_as_parameters():
 def example_withchannels():
     print("Example: WithChannels")
     import numpy as np
+
     import imgaug2.augmenters as iaa
 
     # fake RGB images
@@ -463,6 +477,7 @@ def example_withchannels():
 def example_hooks():
     print("Example: Hooks")
     import numpy as np
+
     import imgaug2 as ia
     import imgaug2.augmenters as iaa
 

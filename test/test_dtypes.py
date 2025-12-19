@@ -357,7 +357,7 @@ class Test_copy_dtypes_for_restore(unittest.TestCase):
             [
                 dtype_observed.name == dtype_expected
                 for dtype_observed, dtype_expected in zip(
-                    dtypes_copy, ["uint8", "float32", "int32"]
+                    dtypes_copy, ["uint8", "float32", "int32"], strict=False
                 )
             ]
         )
@@ -414,7 +414,7 @@ class Test_increase_itemsize_of_dtype(unittest.TestCase):
             np.float32,
             np.float64,
         ]
-        for dt, expected in zip(dts, expecteds):
+        for dt, expected in zip(dts, expecteds, strict=False):
             dt = np.dtype(dt)
             expected = np.dtype(expected)
             with self.subTest(dtype=dt.name):
@@ -433,7 +433,7 @@ class Test_increase_itemsize_of_dtype(unittest.TestCase):
             np.float32,
             np.float64,
         ]
-        for dt_name, expected in zip(dt_names, expecteds):
+        for dt_name, expected in zip(dt_names, expecteds, strict=False):
             expected = np.dtype(expected)
             with self.subTest(dtype=dt_name):
                 dt_increased = iadt.increase_itemsize_of_dtype(dt_name, 2)
@@ -542,7 +542,7 @@ class Test_get_minimal_dtype(unittest.TestCase):
             np.int16,
             np.float32,
         ]
-        for dt_list, expected in zip(dt_lists, expecteds):
+        for dt_list, expected in zip(dt_lists, expecteds, strict=False):
             expected = np.dtype(expected)
             dt_list = [np.dtype(dt) for dt in dt_list]
             dt_names = ", ".join([dt.name for dt in dt_list])

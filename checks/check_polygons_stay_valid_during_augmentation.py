@@ -35,7 +35,7 @@ def main():
 
         nb_checked += 1
         if nb_checked % 100 == 0:
-            print("Checked %d..." % (nb_checked,))
+            print("Checked %d..." % (nb_checked,))  # noqa: UP031
         if nb_checked > 100000:
             break
 
