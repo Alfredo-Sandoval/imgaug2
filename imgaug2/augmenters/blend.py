@@ -40,8 +40,6 @@ if TYPE_CHECKING:
     from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
 
 AlphaInput: TypeAlias = blend_utils.AlphaInput
-blend_alpha = blend_utils.blend_alpha
-blend_alpha_ = blend_utils.blend_alpha_
 _blend_alpha_uint8_single_alpha_ = blend_utils._blend_alpha_uint8_single_alpha_
 _blend_alpha_uint8_channelwise_alphas_ = blend_utils._blend_alpha_uint8_channelwise_alphas_
 _blend_alpha_uint8_elementwise_ = blend_utils._blend_alpha_uint8_elementwise_
@@ -66,6 +64,35 @@ class _BranchAugmenter(Protocol):
 
     def copy(self) -> _BranchAugmenter: ...
 
+
+def blend_alpha(image_fg: Array, image_bg: Array, alpha: AlphaInput, eps: float = 1e-2) -> Array:
+    """Blend two images using an alpha blending.
+
+    See :func:`imgaug2.augmenters._blend_utils.blend_alpha` for details.
+    """
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(image_fg) or is_mlx_array(image_bg) or is_mlx_array(alpha):
+        from imgaug2.mlx import blend as mlx_blend
+
+        return cast(Array, mlx_blend.blend_alpha(image_fg, image_bg, alpha, eps=eps))
+
+    return blend_utils.blend_alpha(image_fg, image_bg, alpha, eps=eps)
+
+
+def blend_alpha_(image_fg: Array, image_bg: Array, alpha: AlphaInput, eps: float = 1e-2) -> Array:
+    """Blend two images in-place using an alpha blending.
+
+    See :func:`imgaug2.augmenters._blend_utils.blend_alpha_` for details.
+    """
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(image_fg) or is_mlx_array(image_bg) or is_mlx_array(alpha):
+        from imgaug2.mlx import blend as mlx_blend
+
+        return cast(Array, mlx_blend.blend_alpha(image_fg, image_bg, alpha, eps=eps))
+
+    return blend_utils.blend_alpha_(image_fg, image_bg, alpha, eps=eps)
 
 def _split_1d_array_to_list(arr: Array, sizes: Sequence[int]) -> list[Array]:
     result = []

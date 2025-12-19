@@ -465,7 +465,16 @@ class Canny(meta.Augmenter):
 
         images = batch.images
 
-        iadt.allow_only_uint8(images, augmenter=self)
+        from imgaug2.mlx._core import is_mlx_array, to_numpy
+
+        if any(is_mlx_array(image) for image in images):
+            for image in images:
+                if is_mlx_array(image):
+                    iadt.allow_only_uint8(to_numpy(image), augmenter=self)
+                else:
+                    iadt.allow_only_uint8(image, augmenter=self)
+        else:
+            iadt.allow_only_uint8(images, augmenter=self)
 
         rss = random_state.duplicate(len(images))
         samples = self._draw_samples(images, rss[-1])
@@ -483,22 +492,39 @@ class Canny(meta.Augmenter):
 
             has_zero_sized_axes = 0 in image.shape[0:2]
             if alpha > 0 and sobel > 1 and not has_zero_sized_axes:
-                image_canny = cv2.Canny(
-                    _normalize_cv2_input_arr_(image[:, :, 0:3]),
-                    threshold1=hthreshs[0],
-                    threshold2=hthreshs[1],
-                    apertureSize=sobel,
-                    L2gradient=True,
-                )
-                image_canny = image_canny > 0
+                if is_mlx_array(image):
+                    from imgaug2.mlx import blend as mlx_blend
+                    from imgaug2.mlx import edges as mlx_edges
 
-                # canny returns a boolean (H,W) image, so we change it to
-                # (H,W,C) and then uint8
-                image_canny_color = self.colorizer.colorize(
-                    image_canny, image, nth_image=i, random_state=rss[i]
-                )
+                    image_np = to_numpy(image)
+                    image_canny = mlx_edges.canny(
+                        image_np[:, :, 0:3],
+                        threshold1=hthreshs[0],
+                        threshold2=hthreshs[1],
+                        sobel_kernel_size=int(sobel),
+                        l2_gradient=True,
+                    )
+                    image_canny_color = self.colorizer.colorize(
+                        image_canny, image_np, nth_image=i, random_state=rss[i]
+                    )
+                    batch.images[i] = mlx_blend.blend_alpha(image_canny_color, image, alpha)
+                else:
+                    image_canny = cv2.Canny(
+                        _normalize_cv2_input_arr_(image[:, :, 0:3]),
+                        threshold1=hthreshs[0],
+                        threshold2=hthreshs[1],
+                        apertureSize=sobel,
+                        L2gradient=True,
+                    )
+                    image_canny = image_canny > 0
 
-                batch.images[i] = blend.blend_alpha(image_canny_color, image, alpha)
+                    # canny returns a boolean (H,W) image, so we change it to
+                    # (H,W,C) and then uint8
+                    image_canny_color = self.colorizer.colorize(
+                        image_canny, image, nth_image=i, random_state=rss[i]
+                    )
+
+                    batch.images[i] = blend.blend_alpha(image_canny_color, image, alpha)
 
         return batch
 

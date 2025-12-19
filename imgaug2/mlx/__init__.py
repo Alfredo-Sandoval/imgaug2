@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from . import (
+    blend,
     blur,
     color,
     compression,
+    convolutional,
     crop,
+    edges,
     flip,
     geometry,
     morphology,
@@ -28,6 +31,7 @@ from ._core import (
     to_mlx,
     to_numpy,
 )
+from .blend import blend_alpha
 from .blur import (
     average_blur,
     defocus_blur,
@@ -62,6 +66,7 @@ from .color import (
     to_float,
 )
 from .compression import jpeg_compression
+from .convolutional import convolve
 from .crop import (
     center_crop,
     pad,
@@ -69,6 +74,7 @@ from .crop import (
     random_crop,
     random_resized_crop,
 )
+from .edges import canny
 from .flip import fliplr, flipud, rot90
 from .geometry import (
     affine_transform,
@@ -120,7 +126,10 @@ __all__ = [
     "autocontrast",
     "average_blur",
     "avg_pool",
+    "blend",
+    "blend_alpha",
     "blur",
+    "canny",
     "center_crop",
     "chain",
     "channel_dropout",
@@ -132,6 +141,8 @@ __all__ = [
     "color",
     "color_jitter",
     "compression",
+    "convolutional",
+    "convolve",
     "crop",
     "cutout",
     "defocus_blur",
@@ -139,6 +150,7 @@ __all__ = [
     "dilation",
     "downscale",
     "dropout",
+    "edges",
     "elastic_transform",
     "emboss",
     "ensure_float32",

@@ -1384,3 +1384,243 @@ class TestMlxOpsDefocusBlur(unittest.TestCase):
 
         # Radius 0 should return original
         np.testing.assert_array_equal(result, image)
+
+
+@unittest.skipIf(not MLX_AVAILABLE, "mlx not installed")
+class TestMlxOpsAverageBlur(unittest.TestCase):
+    def test_matches_cv2_uint8(self):
+        from imgaug2.mlx import blur as mlx_blur
+
+        rng = np.random.default_rng(0)
+        image = rng.integers(0, 256, size=(32, 40, 3), dtype=np.uint8)
+
+        observed = mlx_blur.average_blur(image, ksize=(3, 5))
+        expected = cv2.blur(
+            image, (5, 3), borderType=cv2.BORDER_REFLECT_101  # cv2 uses (w, h)
+        )
+
+        diff = np.abs(observed.astype(np.int16) - expected.astype(np.int16))
+        assert observed.dtype == np.uint8
+        assert diff.max() <= 2
+
+
+@unittest.skipIf(not MLX_AVAILABLE, "mlx not installed")
+class TestMlxOpsNoiseExtras(unittest.TestCase):
+    def test_additive_gaussian_noise_is_deterministic(self):
+        from imgaug2.mlx import noise as mlx_noise
+
+        rng = np.random.default_rng(0)
+        image = rng.integers(0, 256, size=(32, 32, 3), dtype=np.uint8)
+
+        out1 = mlx_noise.additive_gaussian_noise(image, scale=5.0, seed=123)
+        out2 = mlx_noise.additive_gaussian_noise(image, scale=5.0, seed=123)
+
+        np.testing.assert_array_equal(out1, out2)
+        assert out1.dtype == np.uint8
+
+    def test_coarse_dropout_is_deterministic(self):
+        from imgaug2.mlx import noise as mlx_noise
+
+        rng = np.random.default_rng(1)
+        image = rng.integers(0, 256, size=(32, 32, 3), dtype=np.uint8)
+
+        out1 = mlx_noise.coarse_dropout(image, p=0.3, size_px=4, seed=7)
+        out2 = mlx_noise.coarse_dropout(image, p=0.3, size_px=4, seed=7)
+
+        np.testing.assert_array_equal(out1, out2)
+        assert out1.shape == image.shape
+
+    def test_salt_and_pepper_shape(self):
+        from imgaug2.mlx import noise as mlx_noise
+
+        rng = np.random.default_rng(2)
+        image = rng.integers(0, 256, size=(24, 24, 3), dtype=np.uint8)
+
+        out = mlx_noise.salt_and_pepper(image, p=0.2, seed=9)
+        assert out.shape == image.shape
+
+    def test_spatter_shape(self):
+        from imgaug2.mlx import noise as mlx_noise
+
+        rng = np.random.default_rng(3)
+        image = rng.integers(0, 256, size=(24, 24, 3), dtype=np.uint8)
+
+        out = mlx_noise.spatter(image, intensity=0.3, seed=11)
+        assert out.shape == image.shape
+
+    def test_pixel_shuffle_shape(self):
+        from imgaug2.mlx import noise as mlx_noise
+
+        rng = np.random.default_rng(4)
+        image = rng.integers(0, 256, size=(32, 32, 3), dtype=np.uint8)
+
+        out = mlx_noise.pixel_shuffle(image, block_size=4, seed=13)
+        assert out.shape == image.shape
+
+
+@unittest.skipIf(not MLX_AVAILABLE, "mlx not installed")
+class TestMlxOpsColorExtras(unittest.TestCase):
+    def test_planckian_jitter_shape(self):
+        from imgaug2.mlx import color as mlx_color
+
+        rng = np.random.default_rng(5)
+        image = rng.integers(0, 256, size=(16, 16, 3), dtype=np.uint8)
+
+        out = mlx_color.planckian_jitter(image, seed=42)
+        assert out.shape == image.shape
+
+
+@unittest.skipIf(not MLX_AVAILABLE, "mlx not installed")
+class TestMlxOpsPointwiseExtras(unittest.TestCase):
+    def test_linear_contrast_shape(self):
+        from imgaug2.mlx import pointwise as mlx_pointwise
+
+        rng = np.random.default_rng(6)
+        image = rng.integers(0, 256, size=(16, 16, 3), dtype=np.uint8)
+
+        out = mlx_pointwise.linear_contrast(image, factor=1.1)
+        assert out.shape == image.shape
+
+    def test_sigmoid_and_log_contrast_shape(self):
+        from imgaug2.mlx import pointwise as mlx_pointwise
+
+        rng = np.random.default_rng(7)
+        image = rng.integers(0, 256, size=(16, 16, 3), dtype=np.uint8)
+
+        out_sigmoid = mlx_pointwise.sigmoid_contrast(image, gain=5.0, cutoff=0.5)
+        out_log = mlx_pointwise.log_contrast(image, gain=1.2)
+
+        assert out_sigmoid.shape == image.shape
+        assert out_log.shape == image.shape
+
+
+@unittest.skipIf(not MLX_AVAILABLE, "mlx not installed")
+class TestMlxOpsGeometryExtras(unittest.TestCase):
+    def test_resize_shape(self):
+        from imgaug2.mlx import geometry as mlx_geom
+
+        image = mx.ones((10, 12, 3), dtype=mx.float32)
+        out = mlx_geom.resize(image, (20, 24), order=1)
+        assert out.shape == (20, 24, 3)
+
+    def test_grid_sample_shape(self):
+        from imgaug2.mlx import geometry as mlx_geom
+
+        image = mx.ones((1, 8, 8, 3), dtype=mx.float32)
+        coords = mx.ones((1, 8, 8, 2), dtype=mx.float32)
+        out = mlx_geom.grid_sample(image, coords, mode="bilinear", padding_mode="border")
+        assert out.shape == image.shape
+
+    def test_chromatic_aberration_shape(self):
+        from imgaug2.mlx import geometry as mlx_geom
+
+        image = mx.ones((16, 16, 3), dtype=mx.float32)
+        out = mlx_geom.chromatic_aberration(
+            image,
+            primary_distortion=0.01,
+            secondary_distortion=-0.01,
+        )
+        assert out.shape == image.shape
+
+
+@unittest.skipIf(not MLX_AVAILABLE, "mlx not installed")
+class TestMlxOpsCoreHelpers(unittest.TestCase):
+    def test_core_helpers(self):
+        from imgaug2.mlx import ensure_float32, is_mlx_array, require, restore_dtype
+
+        require()
+        image = mx.ones((4, 4, 3), dtype=mx.float16)
+        assert is_mlx_array(image)
+        image_f32 = ensure_float32(image)
+        assert image_f32.dtype == mx.float32
+
+        restored = restore_dtype(image_f32, np.dtype("uint8"), is_input_mlx=False)
+        assert isinstance(restored, np.ndarray)
+        assert restored.dtype == np.uint8
+
+
+@unittest.skipIf(not MLX_AVAILABLE, "mlx not installed")
+class TestMlxOpsBlend(unittest.TestCase):
+    def test_blend_alpha_matches_utils(self):
+        from imgaug2.augmenters import _blend_utils
+        from imgaug2.mlx import blend as mlx_blend
+
+        rng = np.random.default_rng(10)
+        image_fg = rng.integers(0, 256, size=(32, 32, 3), dtype=np.uint8)
+        image_bg = rng.integers(0, 256, size=(32, 32, 3), dtype=np.uint8)
+        alpha = 0.35
+
+        observed = mlx_blend.blend_alpha(image_fg, image_bg, alpha)
+        expected = _blend_utils.blend_alpha(image_fg, image_bg, alpha)
+
+        np.testing.assert_array_equal(observed, expected)
+
+    def test_blend_alpha_preserves_mlx(self):
+        from imgaug2.mlx import blend as mlx_blend
+
+        image_fg = mx.array(np.ones((8, 8, 3), dtype=np.uint8))
+        image_bg = mx.array(np.zeros((8, 8, 3), dtype=np.uint8))
+
+        out = mlx_blend.blend_alpha(image_fg, image_bg, 0.5)
+        assert isinstance(out, mx.array)
+        assert out.shape == image_fg.shape
+
+
+@unittest.skipIf(not MLX_AVAILABLE, "mlx not installed")
+class TestMlxOpsEdges(unittest.TestCase):
+    def test_canny_matches_cv2(self):
+        from imgaug2.mlx import edges as mlx_edges
+
+        rng = np.random.default_rng(11)
+        image = rng.integers(0, 256, size=(32, 32, 3), dtype=np.uint8)
+
+        observed = mlx_edges.canny(image, 50, 150, sobel_kernel_size=3)
+        expected = cv2.Canny(
+            image[:, :, 0:3],
+            threshold1=50.0,
+            threshold2=150.0,
+            apertureSize=3,
+            L2gradient=True,
+        )
+        expected = expected > 0
+
+        np.testing.assert_array_equal(observed, expected)
+
+    def test_canny_returns_mlx(self):
+        from imgaug2.mlx import edges as mlx_edges
+
+        image = mx.array(np.ones((16, 16, 3), dtype=np.uint8))
+
+        out = mlx_edges.canny(image, 10, 20)
+        assert isinstance(out, mx.array)
+        assert out.shape == (16, 16)
+
+
+@unittest.skipIf(not MLX_AVAILABLE, "mlx not installed")
+class TestMlxOpsConvolutional(unittest.TestCase):
+    def test_convolve_matches_cpu(self):
+        from imgaug2.augmenters import convolutional as conv_cpu
+        from imgaug2.mlx import convolutional as mlx_conv
+
+        rng = np.random.default_rng(12)
+        image = rng.integers(0, 256, size=(32, 32, 3), dtype=np.uint8)
+        kernel = np.array(
+            [[0.0, 1.0, 0.0], [1.0, 4.0, 1.0], [0.0, 1.0, 0.0]],
+            dtype=np.float32,
+        )
+        kernel /= kernel.sum()
+
+        observed = mlx_conv.convolve(image, kernel)
+        expected = conv_cpu.convolve(image, kernel)
+
+        np.testing.assert_array_equal(observed, expected)
+
+    def test_convolve_returns_mlx(self):
+        from imgaug2.mlx import convolutional as mlx_conv
+
+        image = mx.array(np.ones((8, 8, 3), dtype=np.uint8))
+        kernel = np.array([[0.0, 1.0, 0.0], [1.0, 4.0, 1.0], [0.0, 1.0, 0.0]], dtype=np.float32)
+
+        out = mlx_conv.convolve(image, kernel)
+        assert isinstance(out, mx.array)
+        assert out.shape == image.shape
