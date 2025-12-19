@@ -8,3 +8,4 @@ imageio
 Shapely
 # Optional extras:
 # - `pip install "imgaug2[numba]"` for numba acceleration hooks (where supported)
+# - `pip install "imgaug2[mlx]"` for Apple Silicon MLX acceleration

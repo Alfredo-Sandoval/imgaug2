@@ -103,6 +103,9 @@ scratch/
 tmp/
 temp/
 
+# Vendored third-party sources (do not commit)
+third_party/opencv/
+
 # MkDocs
 site/
 

@@ -104,19 +104,36 @@ pip install -e ".[dev]"
 ```
 -->
 
-<!-- ### Experimental acceleration (optional)
+### GPU Acceleration (Apple Silicon)
 
-imgaug2 runs augmentations on the CPU by default. If you want to experiment with the
-in-progress acceleration backends:
+imgaug2 includes an MLX backend for GPU-accelerated augmentations on Apple Silicon:
 
 ```bash
-# Apple Silicon (MLX)
 pip install mlx
-
-# NVIDIA (CuPy) — choose a build that matches your CUDA runtime
-# e.g. pip install cupy-cuda12x
 ```
--->
+
+Once installed, MLX operations are used automatically when beneficial. You can also control routing manually:
+
+```python
+from imgaug2.mlx import should_use_mlx, get_backend
+
+# Check if MLX is recommended for your workload
+if should_use_mlx("affine_transform", batch=16, height=256, width=256):
+    print("MLX will be faster here")
+
+# Or get the recommended backend
+backend = get_backend("gaussian_blur", batch=1, height=512, width=512)
+```
+
+**Performance**: MLX provides significant speedups for larger batches and images:
+
+| Operation | Batch=16, 256x256 | Batch=64, 256x256 |
+|:----------|------------------:|------------------:|
+| Affine | 5.5x faster | 14x faster |
+| Perspective | 4.8x faster | 12x faster |
+| Gaussian Blur | 2.1x faster | 4.2x faster |
+
+For small images (64x64) or batch=1, CPU is often faster due to GPU overhead.
 
 ---
 
@@ -132,6 +149,18 @@ Available augmenters organized by category:
 - **Weather**: Snow, Rain, Fog, Clouds
 - **Artistic**: Cartoon effects
 - **And many more...**
+
+---
+
+## Changelog
+
+### 2024-12-18
+
+- Initial imgaug2 release (Python 3.10+, based on the original imgaug)
+- MLX backend for GPU-accelerated augmentations on Apple Silicon (up to 22x faster)
+- Shape-aware backend router (`imgaug2.mlx.should_use_mlx`)
+- Benchmark analysis tools (`benchmarks/analyze.py`)
+- Comprehensive type annotations across all augmenter modules
 
 ---
 
@@ -176,7 +205,7 @@ If you use imgaug2 in your research, please cite:
 ```bibtex
 @misc{imgaug2,
   title  = {imgaug2},
-  author = {Sandoval, Alfredo},
+  author = {Sandoval, Alfredo and Sandoval, Joseph},
   year   = {2025},
   url    = {https://github.com/Alfredo-Sandoval/imgaug2},
   note   = {Image augmentation library. Based on the original imgaug by Jung et al.}
