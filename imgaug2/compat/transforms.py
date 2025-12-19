@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import cv2
 import numpy as np
 
 import imgaug2.augmenters as iaa
@@ -80,15 +81,10 @@ def _to_affine_mode(border_mode: str | int) -> str:
     Raises
     ------
     ValueError
-        If border_mode is unsupported or cv2 is unavailable for int conversion.
+        If border_mode is unsupported.
     """
     if isinstance(border_mode, str):
         return border_mode
-
-    try:
-        import cv2
-    except Exception as exc:  # pragma: no cover
-        raise ValueError("border_mode must be a string when cv2 is unavailable") from exc
 
     mapping = {
         cv2.BORDER_CONSTANT: "constant",

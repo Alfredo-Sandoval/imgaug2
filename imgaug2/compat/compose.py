@@ -69,10 +69,14 @@ class Compose:
     --------
     Basic usage with probability control:
 
+        >>> import numpy as np
+        >>> from imgaug2.compat import Compose, HorizontalFlip, Rotate
         >>> transform = Compose([
         ...     HorizontalFlip(p=0.5),
         ...     Rotate(limit=45, p=0.3)
         ... ], p=0.8)
+        >>> img = np.zeros((100, 100, 3), dtype=np.uint8)
+        >>> bboxes = []
         >>> result = transform(image=img, bboxes=bboxes)
 
     Notes

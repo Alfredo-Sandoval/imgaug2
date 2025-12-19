@@ -1,21 +1,14 @@
-"""
-Augmenters that blend two images with each other.
+"""Augmenters that blend two images with each other.
 
-List of augmenters:
+This module provides augmenters for alpha blending, frequency-domain blending,
+and other image combination techniques.
 
-    * :class:`BlendAlpha`
-    * :class:`BlendAlphaMask`
-    * :class:`BlendAlphaElementwise`
-    * :class:`BlendAlphaSimplexNoise`
-    * :class:`BlendAlphaFrequencyNoise`
-    * :class:`BlendAlphaSomeColors`
-    * :class:`BlendAlphaHorizontalLinearGradient`
-    * :class:`BlendAlphaVerticalLinearGradient`
-    * :class:`BlendAlphaSegMapClassIds`
-    * :class:`BlendAlphaBoundingBoxes`
-    * :class:`BlendAlphaRegularGrid`
-    * :class:`BlendAlphaCheckerboard`
-
+Key Augmenters:
+    - `BlendAlpha`, `BlendAlphaElementwise`: Blend with constant/per-pixel alpha.
+    - `BlendAlphaSimplexNoise`, `BlendAlphaFrequencyNoise`: Blend using noise masks.
+    - `BlendAlphaSomeColors`, `BlendAlphaRegularGrid`, `BlendAlphaCheckerboard`:
+      Blend based on colors, grids, or checkerboard patterns.
+    - `BlendAlphaBoundingBoxes`, `BlendAlphaSegMapClassIds`: Blend using augmentables.
 """
 
 from __future__ import annotations
@@ -37,14 +30,23 @@ from imgaug2.augmentables.bbs import BoundingBoxesOnImage
 from imgaug2.augmentables.kps import KeypointsOnImage
 from imgaug2.augmentables.lines import LineStringsOnImage
 from imgaug2.augmentables.polys import PolygonsOnImage
-from imgaug2.augmenters import meta
+from imgaug2.augmenters import color as colorlib, meta
+import imgaug2.augmenters._blend_utils as blend_utils
 from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
+from imgaug2.compat.markers import legacy
 
 if TYPE_CHECKING:
     from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
 
-AlphaInput: TypeAlias = float | int | Sequence[float | int] | Array
+AlphaInput: TypeAlias = blend_utils.AlphaInput
+blend_alpha = blend_utils.blend_alpha
+blend_alpha_ = blend_utils.blend_alpha_
+_blend_alpha_uint8_single_alpha_ = blend_utils._blend_alpha_uint8_single_alpha_
+_blend_alpha_uint8_channelwise_alphas_ = blend_utils._blend_alpha_uint8_channelwise_alphas_
+_blend_alpha_uint8_elementwise_ = blend_utils._blend_alpha_uint8_elementwise_
+_blend_alpha_non_uint8 = blend_utils._blend_alpha_non_uint8
+_merge_channels = blend_utils._merge_channels
 PerChannelInput: TypeAlias = bool | float | iap.StochasticParameter
 ChildrenInput: TypeAlias = meta.Augmenter | Sequence[meta.Augmenter] | None
 CoordinateAugmentable: TypeAlias = (
@@ -74,360 +76,7 @@ def _split_1d_array_to_list(arr: Array, sizes: Sequence[int]) -> list[Array]:
     return result
 
 
-def blend_alpha(image_fg: Array, image_bg: Array, alpha: AlphaInput, eps: float = 1e-2) -> Array:
-    """
-    Blend two images using an alpha blending.
-
-    In alpha blending, the two images are naively mixed using a multiplier.
-    Let ``A`` be the foreground image and ``B`` the background image and
-    ``a`` is the alpha value. Each pixel intensity is then computed as
-    ``a * A_ij + (1-a) * B_ij``.
-
-    **Supported dtypes**:
-
-    See :func:`imgaug2.augmenters.blend.blend_alpha_`.
-
-    Parameters
-    ----------
-    image_fg : (H,W,[C]) ndarray
-        Foreground image. Shape and dtype kind must match the one of the
-        background image.
-
-    image_bg : (H,W,[C]) ndarray
-        Background image. Shape and dtype kind must match the one of the
-        foreground image.
-
-    alpha : number or iterable of number or ndarray
-        The blending factor, between ``0.0`` and ``1.0``. Can be interpreted
-        as the opacity of the foreground image. Values around ``1.0`` result
-        in only the foreground image being visible. Values around ``0.0``
-        result in only the background image being visible. Multiple alphas
-        may be provided. In these cases, there must be exactly one alpha per
-        channel in the foreground/background image. Alternatively, for
-        ``(H,W,C)`` images, either one ``(H,W)`` array or an ``(H,W,C)``
-        array of alphas may be provided, denoting the elementwise alpha value.
-
-    eps : number, optional
-        Controls when an alpha is to be interpreted as exactly ``1.0`` or
-        exactly ``0.0``, resulting in only the foreground/background being
-        visible and skipping the actual computation.
-
-    Returns
-    -------
-    image_blend : (H,W,C) ndarray
-        Blend of foreground and background image.
-
-    """
-    return blend_alpha_(np.copy(image_fg), image_bg, alpha, eps=eps)
-
-
-def blend_alpha_(image_fg: Array, image_bg: Array, alpha: AlphaInput, eps: float = 1e-2) -> Array:
-    """
-    Blend two images in-place using an alpha blending.
-
-    In alpha blending, the two images are naively mixed using a multiplier.
-    Let ``A`` be the foreground image and ``B`` the background image and
-    ``a`` is the alpha value. Each pixel intensity is then computed as
-    ``a * A_ij + (1-a) * B_ij``.
-
-    Added in 0.5.0. (Extracted from :func:`blend_alpha`.)
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: yes; fully tested
-        * ``uint32``: yes; fully tested
-        * ``uint64``: limited; fully tested (1)
-        * ``int8``: yes; fully tested
-        * ``int16``: yes; fully tested
-        * ``int32``: yes; fully tested
-        * ``int64``: limited; fully tested (1)
-        * ``float16``: yes; fully tested
-        * ``float32``: yes; fully tested
-        * ``float64``: limited; fully tested (1)
-        * ``float128``: no (2)
-        * ``bool``: yes; fully tested (2)
-
-        - (1) Tests show that these dtypes work, but a conversion to
-              ``float128`` happens, which only has 96 bits of size instead of
-              true 128 bits and hence not twice as much resolution. It is
-              possible that these dtypes result in inaccuracies, though the
-              tests did not indicate that.
-              Note that ``float128`` support is required for these dtypes
-              and thus they are not expected to work on Windows machines.
-        - (2) Not available due to the input dtype having to be increased to
-              an equivalent float dtype with two times the input resolution.
-        - (3) Mapped internally to ``float16``.
-
-    Parameters
-    ----------
-    image_fg : (H,W,[C]) ndarray
-        Foreground image. Shape and dtype kind must match the one of the
-        background image.
-        This image might be modified in-place.
-
-    image_bg : (H,W,[C]) ndarray
-        Background image. Shape and dtype kind must match the one of the
-        foreground image.
-
-    alpha : number or iterable of number or ndarray
-        The blending factor, between ``0.0`` and ``1.0``. Can be interpreted
-        as the opacity of the foreground image. Values around ``1.0`` result
-        in only the foreground image being visible. Values around ``0.0``
-        result in only the background image being visible. Multiple alphas
-        may be provided. In these cases, there must be exactly one alpha per
-        channel in the foreground/background image. Alternatively, for
-        ``(H,W,C)`` images, either one ``(H,W)`` array or an ``(H,W,C)``
-        array of alphas may be provided, denoting the elementwise alpha value.
-
-    eps : number, optional
-        Controls when an alpha is to be interpreted as exactly ``1.0`` or
-        exactly ``0.0``, resulting in only the foreground/background being
-        visible and skipping the actual computation.
-
-    Returns
-    -------
-    image_blend : (H,W,C) ndarray
-        Blend of foreground and background image.
-        This might be an in-place modified version of `image_fg`.
-
-    """
-    assert image_fg.shape == image_bg.shape, (
-        "Expected foreground and background images to have the same shape. "
-        f"Got {image_fg.shape} and {image_bg.shape}."
-    )
-    assert image_fg.dtype.kind == image_bg.dtype.kind, (
-        "Expected foreground and background images to have the same dtype "
-        f"kind. Got {image_fg.dtype.kind} and {image_bg.dtype.kind}."
-    )
-
-    # Note: If float128 is not available on the system, _FLOAT128_DTYPE is
-    # None, but 'np.dtype("float64") == None' actually equates to True
-    # for whatever reason, so we check first if the constant is not None
-    # (i.e. if float128 exists).
-    if iadt._FLOAT128_DTYPE is not None:
-        assert image_fg.dtype != iadt._FLOAT128_DTYPE, (
-            "Foreground image was float128, but blend_alpha_() cannot handle that dtype."
-        )
-        assert image_bg.dtype != iadt._FLOAT128_DTYPE, (
-            "Background image was float128, but blend_alpha_() cannot handle that dtype."
-        )
-
-    if image_fg.size == 0:
-        return image_fg
-
-    input_was_2d = image_fg.ndim == 2
-    if input_was_2d:
-        image_fg = image_fg[..., np.newaxis]
-        image_bg = image_bg[..., np.newaxis]
-
-    input_was_bool = False
-    if image_fg.dtype.kind == "b":
-        input_was_bool = True
-        # use float32 instead of float16 here because it seems to be faster
-        image_fg = image_fg.astype(np.float32)
-        image_bg = image_bg.astype(np.float32)
-
-    alpha = np.array(alpha, dtype=np.float64)
-    if alpha.size == 1:
-        pass
-    else:
-        if alpha.ndim == 2:
-            assert alpha.shape == image_fg.shape[0:2], (
-                "'alpha' given as an array must match the height and width "
-                f"of the foreground and background image. Got shape {alpha.shape} vs "
-                f"foreground/background shape {image_fg.shape}."
-            )
-        elif alpha.ndim == 3:
-            assert alpha.shape == image_fg.shape or alpha.shape == image_fg.shape[0:2] + (1,), (
-                "'alpha' given as an array must match the height and "
-                "width of the foreground and background image. Got "
-                f"shape {alpha.shape} vs foreground/background shape {image_fg.shape}."
-            )
-        else:
-            alpha = alpha.reshape((1, 1, -1))
-
-    if not input_was_bool:
-        if np.all(alpha >= 1.0 - eps):
-            if input_was_2d:
-                image_fg = image_fg[..., 0]
-            return image_fg
-        if np.all(alpha <= eps):
-            if input_was_2d:
-                image_bg = image_bg[..., 0]
-            # use copy() here so that only image_fg has to be copied in
-            # blend_alpha()
-            return np.copy(image_bg)
-
-    # for efficiency reasons, only test one value of alpha here, even if alpha
-    # is much larger
-    if alpha.size > 0:
-        assert 0 <= alpha.item(0) <= 1.0, (
-            "Expected 'alpha' value(s) to be in the interval [0.0, 1.0]. "
-            f"Got min {np.min(alpha):.4f} and max {np.max(alpha):.4f}."
-        )
-
-    uint8 = iadt._UINT8_DTYPE
-    both_uint8 = (image_fg.dtype, image_bg.dtype) == (uint8, uint8)
-    if both_uint8:
-        if alpha.size == 1:
-            image_blend = _blend_alpha_uint8_single_alpha_(
-                image_fg, image_bg, float(alpha), inplace=True
-            )
-        elif alpha.shape == (1, 1, image_fg.shape[2]):
-            image_blend = _blend_alpha_uint8_channelwise_alphas_(image_fg, image_bg, alpha[0, 0, :])
-        else:
-            image_blend = _blend_alpha_uint8_elementwise_(image_fg, image_bg, alpha)
-    else:
-        image_blend = _blend_alpha_non_uint8(image_fg, image_bg, alpha)
-
-    if input_was_bool:
-        image_blend = image_blend > 0.5
-
-    if input_was_2d:
-        return image_blend[:, :, 0]
-    return image_blend
-
-
-# Added in 0.5.0.
-def _blend_alpha_uint8_single_alpha_(
-    image_fg: Array, image_bg: Array, alpha: float, inplace: bool
-) -> Array:
-    # here we are not guarantueed that inputs have ndim=3, can be ndim=2
-    result = cv2.addWeighted(
-        _normalize_cv2_input_arr_(image_fg),
-        alpha,
-        _normalize_cv2_input_arr_(image_bg),
-        beta=(1 - alpha),
-        gamma=0.0,
-        dst=image_fg if inplace else None,
-    )
-    if result.ndim == 2 and image_fg.ndim == 3:
-        return result[:, :, np.newaxis]
-    return result
-
-
-# Added in 0.5.0.
-def _blend_alpha_uint8_channelwise_alphas_(image_fg: Array, image_bg: Array, alphas: Array) -> Array:
-    # we are guarantueed here that image_fg and image_bg have ndim=3
-    result = []
-    for i, alpha in enumerate(alphas):
-        result.append(
-            _blend_alpha_uint8_single_alpha_(
-                image_fg[:, :, i], image_bg[:, :, i], float(alpha), inplace=False
-            )
-        )
-
-    image_blend = _merge_channels(result, image_fg.ndim == 3)
-    return image_blend
-
-
-# Added in 0.5.0.
-def _blend_alpha_uint8_elementwise_(image_fg: Array, image_bg: Array, alphas: Array) -> Array:
-    betas = 1.0 - alphas
-
-    is_2d = alphas.ndim == 2 or alphas.shape[2] == 1
-    area = image_fg.shape[0] * image_fg.shape[1]
-    if is_2d and area >= 64 * 64:
-        if alphas.ndim == 3:
-            alphas = alphas[:, :, 0]
-            betas = betas[:, :, 0]
-
-        result = []
-        for c in range(image_fg.shape[2]):
-            image_fg_mul = image_fg[:, :, c]
-            image_bg_mul = image_bg[:, :, c]
-            image_fg_mul = cv2.multiply(image_fg_mul, alphas, dtype=cv2.CV_8U)
-            image_bg_mul = cv2.multiply(image_bg_mul, betas, dtype=cv2.CV_8U)
-            image_fg_mul = cv2.add(image_fg_mul, image_bg_mul, dst=image_fg_mul)
-            result.append(image_fg_mul)
-
-        image_blend = _merge_channels(result, image_fg.ndim == 3)
-        return image_blend
-    else:
-        if alphas.ndim == 2:
-            alphas = alphas[..., np.newaxis]
-            betas = betas[..., np.newaxis]
-        if alphas.shape[2] != image_fg.shape[2]:
-            alphas = np.tile(alphas, (1, 1, image_fg.shape[2]))
-            betas = np.tile(betas, (1, 1, image_fg.shape[2]))
-
-        alphas = alphas.ravel()
-        betas = betas.ravel()
-        input_shape = image_fg.shape
-
-        image_fg_mul = image_fg.ravel()
-        image_bg_mul = image_bg.ravel()
-        image_fg_mul = cv2.multiply(image_fg_mul, alphas, dtype=cv2.CV_8U, dst=image_fg_mul)
-        image_bg_mul = cv2.multiply(image_bg_mul, betas, dtype=cv2.CV_8U, dst=image_bg_mul)
-
-        image_fg_mul = cv2.add(image_fg_mul, image_bg_mul, dst=image_fg_mul)
-
-        return image_fg_mul.reshape(input_shape)
-
-
-# Added in 0.5.0.
-# (Extracted from blend_alpha().)
-def _blend_alpha_non_uint8(image_fg: Array, image_bg: Array, alpha: Array) -> Array:
-    if alpha.ndim == 2:
-        alpha = alpha[:, :, np.newaxis]
-
-    dt_images = iadt.get_minimal_dtype([image_fg, image_bg])
-
-    # doing the below itemsize increase only for non-float images led to
-    # inaccuracies for large float values
-    # we also use a minimum of 4 bytes (=float32), as float32 tends to be
-    # faster than float16
-    isize = dt_images.itemsize * 2
-    isize = max(isize, 4)
-    dt_name = f"f{isize}"
-
-    # check if float128 (16*8=128) is supported
-    assert dt_name != "f16" or hasattr(np, "float128"), (
-        f"The input images use dtype '{image_fg.dtype.name}', for which alpha-blending "
-        "requires float128 support to compute accurately its output, "
-        "but float128 seems to not be available on the current "
-        "system."
-    )
-
-    dt_blend = np.dtype(dt_name)
-
-    if alpha.dtype != dt_blend:
-        alpha = alpha.astype(dt_blend)
-    if image_fg.dtype != dt_blend:
-        image_fg = image_fg.astype(dt_blend)
-    if image_bg.dtype != dt_blend:
-        image_bg = image_bg.astype(dt_blend)
-
-    # the following is
-    #     image_blend = image_bg + alpha * (image_fg - image_bg)
-    # which is equivalent to
-    #     image_blend = alpha * image_fg + (1 - alpha) * image_bg
-    # but supposedly faster
-    image_blend = image_fg - image_bg
-    image_blend *= alpha
-    image_blend += image_bg
-
-    # Skip clip, because alpha is expected to be in range [0.0, 1.0] and
-    # both images must have same dtype.
-    # Dont skip round, because otherwise it is very unlikely to hit the
-    # image's max possible value
-    image_blend = iadt.restore_dtypes_(image_blend, dt_images, clip=False, round=True)
-
-    return image_blend
-
-
-def _merge_channels(channels: Sequence[Array], input_was_3d: bool) -> Array:
-    if len(channels) <= 512:
-        image_blend = cv2.merge(channels)
-    else:
-        image_blend = np.stack(channels, axis=-1)
-    if image_blend.ndim == 2 and input_was_3d:
-        image_blend = image_blend[:, :, np.newaxis]
-    return image_blend
-
-
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _generate_branch_outputs(
     augmenter: _BranchAugmenter,
     batch: _BatchInAugmentation,
@@ -459,7 +108,7 @@ def _generate_branch_outputs(
     return cast(_BatchInAugmentation, outputs_fg), cast(_BatchInAugmentation, outputs_bg)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _to_deterministic(augmenter: _BranchAugmenter) -> _BranchAugmenter:
     aug = augmenter.copy()
     aug.foreground = aug.foreground.to_deterministic() if aug.foreground is not None else None
@@ -469,6 +118,7 @@ def _to_deterministic(augmenter: _BranchAugmenter) -> _BranchAugmenter:
     return aug
 
 
+@legacy(version="0.4.0")
 class BlendAlpha(meta.Augmenter):
     """
     Alpha-blend two image sources using an alpha/opacity value.
@@ -492,7 +142,7 @@ class BlendAlpha(meta.Augmenter):
         foreground branch are used as the new coordinates, otherwise the
         results of the background branch.
 
-    Added in 0.4.0. (Before that named `Alpha`.)
+    Before that named `Alpha`.
 
     **Supported dtypes**:
 
@@ -606,7 +256,7 @@ class BlendAlpha(meta.Augmenter):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         factor: ParamInput = (0.0, 1.0),
@@ -641,7 +291,7 @@ class BlendAlpha(meta.Augmenter):
 
         self.epsilon = 1e-2
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -694,21 +344,24 @@ class BlendAlpha(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _to_deterministic(self) -> meta.Augmenter:
         return cast(meta.Augmenter, _to_deterministic(self))
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.factor, self.per_channel]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
-        return cast(list[list[meta.Augmenter]], [lst for lst in [self.foreground, self.background] if lst is not None])
+        return cast(
+            list[list[meta.Augmenter]],
+            [lst for lst in [self.foreground, self.background] if lst is not None],
+        )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __str__(self) -> str:
         pattern = (
             "%s(factor=%s, per_channel=%s, name=%s, foreground=%s, background=%s, deterministic=%s)"
@@ -725,6 +378,7 @@ class BlendAlpha(meta.Augmenter):
 
 
 # tested indirectly via BlendAlphaElementwise for historic reasons
+@legacy(version="0.4.0")
 class BlendAlphaMask(meta.Augmenter):
     """
     Alpha-blend two image sources using non-binary masks generated per image.
@@ -757,7 +411,6 @@ class BlendAlphaMask(meta.Augmenter):
         (on an image) of the foreground or all of the background branch will
         be used, based on the average over the whole alpha mask.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -832,7 +485,7 @@ class BlendAlphaMask(meta.Augmenter):
     _MODE_POINTWISE = "pointwise"
     _MODES = [_MODE_POINTWISE, _MODE_EITHER_OR]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         mask_generator: IBatchwiseMaskGenerator,
@@ -880,7 +533,7 @@ class BlendAlphaMask(meta.Augmenter):
 
         self.epsilon = 1e-2
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -933,7 +586,7 @@ class BlendAlphaMask(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _binarize_mask(cls, mask: Array, arr_height: int, arr_width: int) -> Array:
         # Average over channels, resize to heatmap/segmap array size
@@ -953,7 +606,7 @@ class BlendAlphaMask(meta.Augmenter):
         mask_arr_binarized = mask_arr >= 0.5
         return mask_arr_binarized
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _blend_coordinates(
         cls,
@@ -1023,21 +676,24 @@ class BlendAlphaMask(meta.Augmenter):
         kpsoi_aug = ia.KeypointsOnImage.from_xy_array(coords_aug, shape=cbaoi.shape)
         return augm_utils.invert_convert_cbaois_to_kpsois_(cbaoi, kpsoi_aug)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _to_deterministic(self) -> meta.Augmenter:
         return cast(meta.Augmenter, _to_deterministic(self))
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.mask_generator]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
-        return cast(list[list[meta.Augmenter]], [lst for lst in [self.foreground, self.background] if lst is not None])
+        return cast(
+            list[list[meta.Augmenter]],
+            [lst for lst in [self.foreground, self.background] if lst is not None],
+        )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __str__(self) -> str:
         pattern = "%s(mask_generator=%s, name=%s, foreground=%s, background=%s, deterministic=%s)"
         return pattern % (
@@ -1050,8 +706,7 @@ class BlendAlphaMask(meta.Augmenter):
         )
 
 
-# FIXME the output of the third example makes it look like per_channel isn't
-#       working
+@legacy(version="0.4.0")
 class BlendAlphaElementwise(BlendAlphaMask):
     """
     Alpha-blend two image sources using alpha/opacity values sampled per pixel.
@@ -1071,7 +726,7 @@ class BlendAlphaElementwise(BlendAlphaMask):
         horizontal flips). See
         :class:`~imgaug2.augmenters.blend.BlendAlphaMask` for details.
 
-    Added in 0.4.0. (Before that named `AlphaElementwise`.)
+    Before that named `AlphaElementwise`.
 
     **Supported dtypes**:
 
@@ -1164,9 +819,9 @@ class BlendAlphaElementwise(BlendAlphaMask):
     one using a random factor sampled uniformly from the interval
     ``[0.0, 1.0]`` per pixel. For ``50%`` of all images, the blending happens
     channel-wise and the factor is sampled independently per pixel *and*
-    channel (``per_channel=0.5``). As a result, e.g. the red channel may look
-    visibly rotated (factor near ``1.0``), while the green and blue channels
-    may not look rotated (factors near ``0.0``).
+    channel (``per_channel=0.5``). Note that the visual effect depends on the
+    foreground transformation and the input image; for geometric transforms it
+    can be subtle and may show up mostly as color fringes.
 
     >>> aug = iaa.BlendAlphaElementwise(
     >>>     (0.0, 1.0),
@@ -1188,7 +843,7 @@ class BlendAlphaElementwise(BlendAlphaMask):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         factor: ParamInput = (0.0, 1.0),
@@ -1214,12 +869,13 @@ class BlendAlphaElementwise(BlendAlphaMask):
             deterministic=deterministic,
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def factor(self) -> iap.StochasticParameter:
         return self.mask_generator.parameter
 
 
+@legacy(version="0.4.0")
 class BlendAlphaSimplexNoise(BlendAlphaElementwise):
     """Alpha-blend two image sources using simplex noise alpha masks.
 
@@ -1227,7 +883,7 @@ class BlendAlphaSimplexNoise(BlendAlphaElementwise):
     connected blobs of 1s surrounded by 0s. If nearest neighbour
     upsampling is used, these blobs can be rectangular with sharp edges.
 
-    Added in 0.4.0. (Before that named `SimplexNoiseAlpha`.)
+    Before that named `SimplexNoiseAlpha`.
 
     **Supported dtypes**:
 
@@ -1400,7 +1056,7 @@ class BlendAlphaSimplexNoise(BlendAlphaElementwise):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         foreground: ChildrenInput = None,
@@ -1454,6 +1110,7 @@ class BlendAlphaSimplexNoise(BlendAlphaElementwise):
         )
 
 
+@legacy(version="0.4.0")
 class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
     """Alpha-blend two image sources using frequency noise masks.
 
@@ -1463,7 +1120,7 @@ class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
     neighbour upsampling is used, these blobs can be rectangular with sharp
     edges.
 
-    Added in 0.4.0. (Before that named `FrequencyNoiseAlpha`.)
+    Before that named `FrequencyNoiseAlpha`.
 
     **Supported dtypes**:
 
@@ -1660,7 +1317,7 @@ class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         exponent: ParamInput = (-4, 4),
@@ -1678,7 +1335,6 @@ class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # pylint: disable=dangerous-default-value
         aggregation_method = (
             aggregation_method if aggregation_method is not None else ["avg", "max"]
         )
@@ -1720,6 +1376,7 @@ class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
         )
 
 
+@legacy(version="0.4.0")
 class BlendAlphaSomeColors(BlendAlphaMask):
     """Blend images from two branches using colorwise masks.
 
@@ -1744,7 +1401,6 @@ class BlendAlphaSomeColors(BlendAlphaMask):
         horizontal flips). See
         :class:`~imgaug2.augmenters.blend.BlendAlphaMask` for details.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1844,7 +1500,7 @@ class BlendAlphaSomeColors(BlendAlphaMask):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         foreground: ChildrenInput = None,
@@ -1859,7 +1515,6 @@ class BlendAlphaSomeColors(BlendAlphaMask):
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # pylint: disable=dangerous-default-value
         super().__init__(
             SomeColorsMaskGen(
                 nb_bins=nb_bins,
@@ -1877,6 +1532,7 @@ class BlendAlphaSomeColors(BlendAlphaMask):
         )
 
 
+@legacy(version="0.4.0")
 class BlendAlphaHorizontalLinearGradient(BlendAlphaMask):
     """Blend images from two branches along a horizontal linear gradient.
 
@@ -1895,7 +1551,6 @@ class BlendAlphaHorizontalLinearGradient(BlendAlphaMask):
         horizontal flips). See
         :class:`~imgaug2.augmenters.blend.BlendAlphaMask` for details.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1980,7 +1635,7 @@ class BlendAlphaHorizontalLinearGradient(BlendAlphaMask):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         foreground: ChildrenInput = None,
@@ -2007,6 +1662,7 @@ class BlendAlphaHorizontalLinearGradient(BlendAlphaMask):
         )
 
 
+@legacy(version="0.4.0")
 class BlendAlphaVerticalLinearGradient(BlendAlphaMask):
     """Blend images from two branches along a vertical linear gradient.
 
@@ -2025,7 +1681,6 @@ class BlendAlphaVerticalLinearGradient(BlendAlphaMask):
         horizontal flips). See
         :class:`~imgaug2.augmenters.blend.BlendAlphaMask` for details.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2117,7 +1772,7 @@ class BlendAlphaVerticalLinearGradient(BlendAlphaMask):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         foreground: ChildrenInput = None,
@@ -2144,6 +1799,7 @@ class BlendAlphaVerticalLinearGradient(BlendAlphaMask):
         )
 
 
+@legacy(version="0.4.0")
 class BlendAlphaRegularGrid(BlendAlphaMask):
     """Blend images from two branches according to a regular grid.
 
@@ -2165,7 +1821,6 @@ class BlendAlphaRegularGrid(BlendAlphaMask):
         horizontal flips). See
         :class:`~imgaug2.augmenters.blend.BlendAlphaMask` for details.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2253,7 +1908,7 @@ class BlendAlphaRegularGrid(BlendAlphaMask):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         nb_rows: ParamInput,
@@ -2266,7 +1921,6 @@ class BlendAlphaRegularGrid(BlendAlphaMask):
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # pylint: disable=dangerous-default-value
         super().__init__(
             RegularGridMaskGen(
                 nb_rows=nb_rows, nb_cols=nb_cols, alpha=alpha if alpha is not None else [0.0, 1.0]
@@ -2280,6 +1934,7 @@ class BlendAlphaRegularGrid(BlendAlphaMask):
         )
 
 
+@legacy(version="0.4.0")
 class BlendAlphaCheckerboard(BlendAlphaMask):
     """Blend images from two branches according to a checkerboard pattern.
 
@@ -2299,7 +1954,6 @@ class BlendAlphaCheckerboard(BlendAlphaMask):
         horizontal flips). See
         :class:`~imgaug2.augmenters.blend.BlendAlphaMask` for details.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2365,7 +2019,7 @@ class BlendAlphaCheckerboard(BlendAlphaMask):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         nb_rows: ParamInput,
@@ -2388,6 +2042,7 @@ class BlendAlphaCheckerboard(BlendAlphaMask):
         )
 
 
+@legacy(version="0.4.0")
 class BlendAlphaSegMapClassIds(BlendAlphaMask):
     """Blend images from two branches based on segmentation map ids.
 
@@ -2415,7 +2070,6 @@ class BlendAlphaSegMapClassIds(BlendAlphaMask):
         This class will produce an ``AssertionError`` if there are no
         segmentation maps in a batch.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2502,7 +2156,7 @@ class BlendAlphaSegMapClassIds(BlendAlphaMask):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         class_ids: ParamInput,
@@ -2525,6 +2179,7 @@ class BlendAlphaSegMapClassIds(BlendAlphaMask):
         )
 
 
+@legacy(version="0.4.0")
 class BlendAlphaBoundingBoxes(BlendAlphaMask):
     """Blend images from two branches based on areas enclosed in bounding boxes.
 
@@ -2547,7 +2202,6 @@ class BlendAlphaBoundingBoxes(BlendAlphaMask):
         This class will produce an ``AssertionError`` if there are no
         bounding boxes in a batch.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2636,7 +2290,7 @@ class BlendAlphaBoundingBoxes(BlendAlphaMask):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         labels: LabelInput,
@@ -2659,6 +2313,7 @@ class BlendAlphaBoundingBoxes(BlendAlphaMask):
         )
 
 
+@legacy(version="0.4.0")
 class IBatchwiseMaskGenerator(metaclass=ABCMeta):
     """Interface for classes generating masks for batches.
 
@@ -2666,11 +2321,10 @@ class IBatchwiseMaskGenerator(metaclass=ABCMeta):
     of masks, one per row (i.e. image), matching the row shape (i.e. image
     shape). This is used in :class:`~imgaug2.augmenters.blend.BlendAlphaMask`.
 
-    Added in 0.4.0.
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @abstractmethod
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """Generate a mask with given shape.
@@ -2699,6 +2353,7 @@ class IBatchwiseMaskGenerator(metaclass=ABCMeta):
         raise NotImplementedError
 
 
+@legacy(version="0.4.0")
 class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
     """Mask generator that queries stochastic parameters for mask values.
 
@@ -2709,7 +2364,6 @@ class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
     ``(H, W, C)`` mask (if ``per_channel`` is true-like).
     The ``per_channel`` is sampled per batch for each row/image.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -2729,13 +2383,13 @@ class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(self, parameter: iap.StochasticParameter, per_channel: PerChannelInput) -> None:
         super().__init__()
         self.parameter = parameter
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
@@ -2750,7 +2404,7 @@ class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
             for shape, per_channel_i in zip(shapes, per_channel, strict=True)
         ]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_mask(
         self, shape: tuple[int, ...], random_state: iarandom.RNG, per_channel: float
     ) -> Array:
@@ -2777,6 +2431,7 @@ class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
         return mask
 
 
+@legacy(version="0.4.0")
 class SomeColorsMaskGen(IBatchwiseMaskGenerator):
     """Generator that produces masks based on some similar colors in images.
 
@@ -2805,7 +2460,6 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         This mask generator will produce an ``AssertionError`` for batches
         that contain no images.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2879,8 +2533,8 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
 
     """
 
-    # Added in 0.4.0.
     # TODO colorlib.CSPACE_RGB produces 'has no attribute' error?
+    @legacy(version="0.4.0")
     def __init__(
         self,
         nb_bins: ParamInput = (5, 15),
@@ -2889,7 +2543,6 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         rotation_deg: ParamInput = (0, 360),
         from_colorspace: str = "RGB",
     ) -> None:
-        # pylint: disable=dangerous-default-value
         super().__init__()
 
         self.nb_bins = iap.handle_discrete_param(
@@ -2920,7 +2573,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
 
         self.sigma_max = 10.0
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
@@ -2935,7 +2588,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
 
         return [self._draw_mask(image, i, samples) for i, image in enumerate(batch.images)]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_mask(
         self, image: Array, image_idx: int, samples: tuple[list[Array], Array, Array]
     ) -> Array:
@@ -2947,7 +2600,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
             self.from_colorspace,
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(
         self, batch: _BatchInAugmentation, random_state: iarandom.RNG
     ) -> tuple[list[Array], Array, Array]:
@@ -2966,6 +2619,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
 
         return binwise_alphas, smoothness, rotation_bins
 
+    @legacy(version="0.4.0")
     @classmethod
     def generate_mask(
         cls,
@@ -2977,7 +2631,6 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
     ) -> Array:
         """Generate a colorwise alpha mask for a single image.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -3010,9 +2663,6 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
             ``[0.0, 1.0]``
 
         """
-        # Import is deferred to avoid import cycles during module import.
-        from imgaug2.augmenters import color as colorlib
-
         image_hsv = colorlib.change_colorspace_(
             np.copy(image), to_colorspace=colorlib.CSPACE_HSV, from_colorspace=from_colorspace
         )
@@ -3028,7 +2678,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
 
         return mask
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _upscale_to_256_alpha_bins(cls, alphas: Array) -> Array:
         # repeat alphas bins so that B sampled bins become 256 bins
@@ -3038,7 +2688,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         alphas = alphas[0:256]
         return alphas
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _rotate_alpha_bins(cls, alphas: Array, rotation_bins: int) -> Array:
         # e.g. for offset 2: abcdef -> cdefab
@@ -3047,7 +2697,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
             alphas = np.roll(alphas, -rotation_bins)
         return alphas
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _smoothen_alphas(cls, alphas: Array, sigma: float) -> Array:
         if sigma <= 0.0 + 1e-2:
@@ -3082,7 +2732,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
 
         return alphas
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _generate_pixelwise_alpha_mask(cls, image_hsv: Array, hue_to_alpha: Array) -> Array:
         hue = image_hsv[:, :, 0]
@@ -3092,9 +2742,9 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         return mask.astype(np.float32) / 255.0
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         axis: int,
@@ -3125,11 +2775,11 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
             end_at, "end_at", value_range=(0.0, 1.0), tuple_to_uniform=True, list_to_choice=True
         )
 
+    @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
 
-        Added in 0.4.0.
 
         """
         random_state = iarandom.RNG.create_if_not_rng_(random_state)
@@ -3138,7 +2788,7 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
 
         return [self._draw_mask(shape, i, samples) for i, shape in enumerate(shapes)]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_mask(
         self, shape: tuple[int, ...], image_idx: int, samples: tuple[Array, Array, Array, Array]
     ) -> Array:
@@ -3150,7 +2800,7 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
             samples[3][image_idx],
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(
         self, nb_rows: int, random_state: iarandom.RNG
     ) -> tuple[Array, Array, Array, Array]:
@@ -3161,6 +2811,7 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
 
         return min_value, max_value, start_at, end_at
 
+    @legacy(version="0.4.0")
     @classmethod
     @abstractmethod
     def generate_mask(
@@ -3173,7 +2824,6 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
     ) -> Array:
         """Generate a horizontal gradient mask.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -3204,7 +2854,7 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
         """
         raise NotImplementedError
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _generate_mask(
         cls,
@@ -3250,6 +2900,7 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
         return mask
 
 
+@legacy(version="0.4.0")
 class HorizontalLinearGradientMaskGen(_LinearGradientMaskGen):
     """Generator that produces horizontal linear gradient masks.
 
@@ -3264,7 +2915,6 @@ class HorizontalLinearGradientMaskGen(_LinearGradientMaskGen):
 
     Note that this has nothing to do with a *derivative* along the x-axis.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -3305,7 +2955,7 @@ class HorizontalLinearGradientMaskGen(_LinearGradientMaskGen):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         min_value: ParamInput = (0.0, 0.2),
@@ -3317,13 +2967,18 @@ class HorizontalLinearGradientMaskGen(_LinearGradientMaskGen):
             axis=1, min_value=min_value, max_value=max_value, start_at=start_at, end_at=end_at
         )
 
+    @legacy(version="0.4.0")
     @classmethod
     def generate_mask(
-        cls, shape: tuple[int, ...], min_value: float, max_value: float, start_at: float, end_at: float
+        cls,
+        shape: tuple[int, ...],
+        min_value: float,
+        max_value: float,
+        start_at: float,
+        end_at: float,
     ) -> Array:
         """Generate a linear horizontal gradient mask.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -3362,13 +3017,13 @@ class HorizontalLinearGradientMaskGen(_LinearGradientMaskGen):
         )
 
 
+@legacy(version="0.4.0")
 class VerticalLinearGradientMaskGen(_LinearGradientMaskGen):
     """Generator that produces vertical linear gradient masks.
 
     See :class:`~imgaug2.augmenters.blend.HorizontalLinearGradientMaskGen`
     for details.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -3409,7 +3064,7 @@ class VerticalLinearGradientMaskGen(_LinearGradientMaskGen):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         min_value: ParamInput = (0.0, 0.2),
@@ -3421,13 +3076,18 @@ class VerticalLinearGradientMaskGen(_LinearGradientMaskGen):
             axis=0, min_value=min_value, max_value=max_value, start_at=start_at, end_at=end_at
         )
 
+    @legacy(version="0.4.0")
     @classmethod
     def generate_mask(
-        cls, shape: tuple[int, ...], min_value: float, max_value: float, start_at: float, end_at: float
+        cls,
+        shape: tuple[int, ...],
+        min_value: float,
+        max_value: float,
+        start_at: float,
+        end_at: float,
     ) -> Array:
         """Generate a linear horizontal gradient mask.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -3466,6 +3126,7 @@ class VerticalLinearGradientMaskGen(_LinearGradientMaskGen):
         )
 
 
+@legacy(version="0.4.0")
 class RegularGridMaskGen(IBatchwiseMaskGenerator):
     """Generate masks following a regular grid pattern.
 
@@ -3477,7 +3138,6 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
     samples random alpha values per cell, while in the checkerboard the
     alpha values follow a fixed pattern.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -3507,11 +3167,10 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self, nb_rows: ParamInput, nb_cols: ParamInput, alpha: ParamInput | None = None
     ) -> None:
-        # pylint: disable=dangerous-default-value
         self.nb_rows = iap.handle_discrete_param(
             nb_rows,
             "nb_rows",
@@ -3536,11 +3195,11 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
             list_to_choice=True,
         )
 
+    @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
 
-        Added in 0.4.0.
 
         """
         random_state = iarandom.RNG.create_if_not_rng_(random_state)
@@ -3549,10 +3208,12 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
 
         return [
             self.generate_mask(shape, nb_rows_i, nb_cols_i, alpha_i)
-            for shape, nb_rows_i, nb_cols_i, alpha_i in zip(shapes, nb_rows, nb_cols, alpha, strict=True)
+            for shape, nb_rows_i, nb_cols_i, alpha_i in zip(
+                shapes, nb_rows, nb_cols, alpha, strict=True
+            )
         ]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(
         self, nb_images: int, random_state: iarandom.RNG
     ) -> tuple[Array, Array, list[Array]]:
@@ -3565,11 +3226,13 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
 
         return nb_rows, nb_cols, alpha
 
+    @legacy(version="0.4.0")
     @classmethod
-    def generate_mask(cls, shape: tuple[int, ...], nb_rows: int, nb_cols: int, alphas: Array) -> Array:
+    def generate_mask(
+        cls, shape: tuple[int, ...], nb_rows: int, nb_cols: int, alphas: Array
+    ) -> Array:
         """Generate a mask following a checkerboard pattern.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -3630,6 +3293,7 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
         return mask
 
 
+@legacy(version="0.4.0")
 class CheckerboardMaskGen(IBatchwiseMaskGenerator):
     """Generate masks following a checkerboard-like pattern.
 
@@ -3639,7 +3303,6 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
     and bottom neighbour cells are ``0.0``. The 4-neighbours of any cell always
     have a value opposite to the cell's value (``0.0`` vs. ``1.0``).
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -3662,11 +3325,11 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
     def __init__(self, nb_rows: ParamInput, nb_cols: ParamInput) -> None:
         self.grid = RegularGridMaskGen(nb_rows=nb_rows, nb_cols=nb_cols, alpha=1)
 
+    @legacy(version="0.4.0")
     @property
     def nb_rows(self) -> iap.StochasticParameter:
         """Get the number of rows of the checkerboard grid.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -3676,11 +3339,11 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
         """
         return self.grid.nb_rows
 
+    @legacy(version="0.4.0")
     @property
     def nb_cols(self) -> iap.StochasticParameter:
         """Get the number of columns of the checkerboard grid.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -3690,14 +3353,13 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
         """
         return self.grid.nb_cols
 
+    @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
 
-        Added in 0.4.0.
 
         """
-        # pylint: disable=protected-access
         random_state = iarandom.RNG.create_if_not_rng_(random_state)
         shapes = batch.get_rowwise_shapes()
         nb_rows, nb_cols, _alpha = self.grid._draw_samples(len(shapes), random_state=random_state)
@@ -3707,11 +3369,11 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
             for shape, nb_rows_i, nb_cols_i in zip(shapes, nb_rows, nb_cols, strict=True)
         ]
 
+    @legacy(version="0.4.0")
     @classmethod
     def generate_mask(cls, shape: tuple[int, ...], nb_rows: int, nb_cols: int) -> Array:
         """Generate a mask following a checkerboard pattern.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -3745,6 +3407,7 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
         return RegularGridMaskGen.generate_mask(shape, nb_rows, nb_cols, alphas)
 
 
+@legacy(version="0.4.0")
 class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
     """Generator that produces masks highlighting segmentation map classes.
 
@@ -3767,7 +3430,6 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
         This class will produce an ``AssertionError`` if there are no
         segmentation maps in a batch.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -3815,7 +3477,7 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(self, class_ids: ParamInput, nb_sample_classes: ParamInput | None = None) -> None:
         if nb_sample_classes is None:
             if ia.is_single_integer(class_ids):
@@ -3846,11 +3508,11 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
                 allow_floats=False,
             )
 
+    @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
 
-        Added in 0.4.0.
 
         """
         assert batch.segmentation_maps is not None, (
@@ -3865,7 +3527,7 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
             for segmap, class_ids_i in zip(batch.segmentation_maps, class_ids, strict=True)
         ]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(self, nb_rows: int, random_state: iarandom.RNG) -> list[Sequence[int]]:
         nb_sample_classes = self.nb_sample_classes
         if nb_sample_classes is None:
@@ -3886,11 +3548,11 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
 
     # TODO this could be simplified to something like:
     #      segmap.keep_only_classes(class_ids).draw_mask()
+    @legacy(version="0.4.0")
     @classmethod
     def generate_mask(cls, segmap: SegmentationMapsOnImage, class_ids: Sequence[int]) -> Array:
         """Generate a mask of where the segmentation map has the given classes.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -3923,6 +3585,7 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
         return mask
 
 
+@legacy(version="0.4.0")
 class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
     """Generator that produces masks highlighting bounding boxes.
 
@@ -3941,7 +3604,6 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
         This class will produce an ``AssertionError`` if there are no
         bounding boxes in a batch.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -3988,8 +3650,10 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
 
     """
 
-    # Added in 0.4.0.
-    def __init__(self, labels: LabelInput = None, nb_sample_labels: ParamInput | None = None) -> None:
+    @legacy(version="0.4.0")
+    def __init__(
+        self, labels: LabelInput = None, nb_sample_labels: ParamInput | None = None
+    ) -> None:
         if labels is None:
             self.labels = None
             self.nb_sample_labels = None
@@ -4015,11 +3679,11 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
                 allow_floats=False,
             )
 
+    @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
 
-        Added in 0.4.0.
 
         """
         assert batch.bounding_boxes is not None, (
@@ -4038,7 +3702,7 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
             for bbsoi, labels_i in zip(batch.bounding_boxes, labels, strict=True)
         ]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(self, nb_rows: int, random_state: iarandom.RNG) -> list[Sequence[str]]:
         nb_sample_labels = self.nb_sample_labels
         if nb_sample_labels is None:
@@ -4057,11 +3721,11 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
 
     # TODO this could be simplified to something like
     #      bbsoi.only_labels(labels).draw_mask()
+    @legacy(version="0.4.0")
     @classmethod
     def generate_mask(cls, bbsoi: BoundingBoxesOnImage, labels: Sequence[str] | None) -> Array:
         """Generate a mask of the areas of bounding boxes with given labels.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -4097,6 +3761,7 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
         return mask
 
 
+@legacy(version="0.4.0")
 class InvertMaskGen(IBatchwiseMaskGenerator):
     """Generator that inverts the outputs of other mask generators.
 
@@ -4104,7 +3769,6 @@ class InvertMaskGen(IBatchwiseMaskGenerator):
     a child mask generator to produce a mask. That mask is then inverted
     for ``p%`` of all rows, i.e. converted to ``1.0 - mask``.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -4117,16 +3781,16 @@ class InvertMaskGen(IBatchwiseMaskGenerator):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(self, p: PerChannelInput, child: IBatchwiseMaskGenerator) -> None:
         self.p = iap.handle_probability_param(p, "p")
         self.child = child
 
+    @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
         See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
 
-        Added in 0.4.0.
 
         """
         random_state = iarandom.RNG.create_if_not_rng_(random_state)
@@ -4161,7 +3825,6 @@ def Alpha(
     Deprecated since 0.4.0.
 
     """
-    # pylint: disable=invalid-name
     return BlendAlpha(
         factor=factor,
         foreground=first,
@@ -4197,7 +3860,6 @@ def AlphaElementwise(
     Deprecated since 0.4.0.
 
     """
-    # pylint: disable=invalid-name
     return BlendAlphaElementwise(
         factor=factor,
         foreground=first,
@@ -4238,7 +3900,6 @@ def SimplexNoiseAlpha(
     Deprecated since 0.4.0.
 
     """
-    # pylint: disable=invalid-name
     return BlendAlphaSimplexNoise(
         foreground=first,
         background=second,
@@ -4285,7 +3946,6 @@ def FrequencyNoiseAlpha(
     Deprecated since 0.4.0.
 
     """
-    # pylint: disable=invalid-name, dangerous-default-value
     return BlendAlphaFrequencyNoise(
         exponent=exponent,
         foreground=first,
@@ -4294,9 +3954,7 @@ def FrequencyNoiseAlpha(
         size_px_max=size_px_max,
         upscale_method=upscale_method,
         iterations=iterations,
-        aggregation_method=aggregation_method
-        if aggregation_method is not None
-        else ["avg", "max"],
+        aggregation_method=aggregation_method if aggregation_method is not None else ["avg", "max"],
         sigmoid=sigmoid,
         sigmoid_thresh=sigmoid_thresh,
         seed=seed,

@@ -11,7 +11,23 @@ from numpy.typing import NDArray
 
 import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
-from imgaug2.augmentables.base import IAugmentable
+
+# *OnImage types are used for isinstance checks in _is_iterable
+from imgaug2.augmentables.bbs import BoundingBoxesOnImage as _BoundingBoxesOnImage
+from imgaug2.augmentables.heatmaps import HeatmapsOnImage as _HeatmapsOnImage
+from imgaug2.augmentables.kps import KeypointsOnImage as _KeypointsOnImage
+from imgaug2.augmentables.lines import LineStringsOnImage as _LineStringsOnImage
+from imgaug2.augmentables.polys import PolygonsOnImage as _PolygonsOnImage
+from imgaug2.augmentables.segmaps import SegmentationMapsOnImage as _SegmentationMapsOnImage
+
+_AUGMENTABLE_ON_IMAGE_TYPES = (
+    _BoundingBoxesOnImage,
+    _HeatmapsOnImage,
+    _KeypointsOnImage,
+    _LineStringsOnImage,
+    _PolygonsOnImage,
+    _SegmentationMapsOnImage,
+)
 
 if TYPE_CHECKING:
     from imgaug2.augmentables.bbs import BoundingBoxesOnImage
@@ -120,7 +136,11 @@ def _assert_many_arrays_ndim(
         arrs_flat = cast(list[_NDArrayAny], list(arrs))
     else:
         iterable_type_str = "iterable of iterable"
-        arrs_flat = [cast(_NDArrayAny, arr) for arrs_sublist in cast(Iterable[object], arrs) for arr in cast(Iterable[object], arrs_sublist)]
+        arrs_flat = [
+            cast(_NDArrayAny, arr)
+            for arrs_sublist in cast(Iterable[object], arrs)
+            for arr in cast(Iterable[object], arrs_sublist)
+        ]
 
     if any([arr.ndim != ndim for arr in arrs_flat]):
         raise ValueError(
@@ -157,7 +177,11 @@ def _assert_many_arrays_last_dim_exactly(
         arrs_flat = cast(list[_NDArrayAny], list(arrs))
     else:
         iterable_type_str = "iterable of iterable"
-        arrs_flat = [cast(_NDArrayAny, arr) for arrs_sublist in cast(Iterable[object], arrs) for arr in cast(Iterable[object], arrs_sublist)]
+        arrs_flat = [
+            cast(_NDArrayAny, arr)
+            for arrs_sublist in cast(Iterable[object], arrs)
+            for arr in cast(Iterable[object], arrs_sublist)
+        ]
 
     if any([arr.shape[-1] != size for arr in arrs_flat]):
         raise ValueError(
@@ -203,8 +227,7 @@ def normalize_heatmaps(
     inputs: object,
     shapes: object | None = None,
 ) -> list[HeatmapsOnImage] | None:
-    # TODO get rid of this deferred import
-    from imgaug2.augmentables.heatmaps import HeatmapsOnImage
+    from imgaug2.augmentables import heatmaps
 
     shapes = _preprocess_shapes(shapes)
     ntype = estimate_heatmaps_norm_type(inputs)
@@ -220,11 +243,13 @@ def normalize_heatmaps(
         inputs_arr = cast(_NDArrayAny, inputs)
         shapes_ = cast(list[_Shape], shapes)
         return [
-            HeatmapsOnImage(attr_i.astype(np.float32, copy=False), shape=shape_i)
-            for attr_i, shape_i in zip(cast(Iterable[_NDArrayAny], inputs_arr), shapes_, strict=True)
+            heatmaps.HeatmapsOnImage(attr_i.astype(np.float32, copy=False), shape=shape_i)
+            for attr_i, shape_i in zip(
+                cast(Iterable[_NDArrayAny], inputs_arr), shapes_, strict=True
+            )
         ]
     if ntype == "HeatmapsOnImage":
-        inputs_hm = cast(HeatmapsOnImage, inputs)
+        inputs_hm = cast(heatmaps.HeatmapsOnImage, inputs)
         return [inputs_hm]
     if ntype == "iterable[empty]":
         return None
@@ -234,19 +259,18 @@ def normalize_heatmaps(
         inputs_iter = cast(Iterable[_NDArrayAny], inputs)
         shapes_ = cast(list[_Shape], shapes)
         return [
-            HeatmapsOnImage(attr_i.astype(np.float32, copy=False), shape=shape_i)
+            heatmaps.HeatmapsOnImage(attr_i.astype(np.float32, copy=False), shape=shape_i)
             for attr_i, shape_i in zip(inputs_iter, shapes_, strict=True)
         ]
     assert ntype == "iterable-HeatmapsOnImage", f"Got unknown normalization type '{ntype}'."
-    return cast(list[HeatmapsOnImage], inputs)  # len allowed to differ from len of images
+    return cast(list[heatmaps.HeatmapsOnImage], inputs)  # len allowed to differ from len of images
 
 
 def normalize_segmentation_maps(
     inputs: object,
     shapes: object | None = None,
 ) -> list[SegmentationMapsOnImage] | None:
-    # TODO get rid of this deferred import
-    from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
+    from imgaug2.augmentables import segmaps
 
     shapes = _preprocess_shapes(shapes)
     ntype = estimate_segmaps_norm_type(inputs)
@@ -266,15 +290,17 @@ def normalize_segmentation_maps(
         shapes_ = cast(list[_Shape], shapes)
         if ntype == "array[bool]":
             return [
-                SegmentationMapsOnImage(attr_i, shape=shape)
-                for attr_i, shape in zip(cast(Iterable[_NDArrayAny], inputs_arr), shapes_, strict=True)
+                segmaps.SegmentationMapsOnImage(attr_i, shape=shape)
+                for attr_i, shape in zip(
+                    cast(Iterable[_NDArrayAny], inputs_arr), shapes_, strict=True
+                )
             ]
         return [
-            SegmentationMapsOnImage(attr_i, shape=shape)
+            segmaps.SegmentationMapsOnImage(attr_i, shape=shape)
             for attr_i, shape in zip(cast(Iterable[_NDArrayAny], inputs_arr), shapes_, strict=True)
         ]
     if ntype == "SegmentationMapsOnImage":
-        inputs_seg = cast(SegmentationMapsOnImage, inputs)
+        inputs_seg = cast(segmaps.SegmentationMapsOnImage, inputs)
         return [inputs_seg]
     if ntype == "iterable[empty]":
         return None
@@ -285,24 +311,25 @@ def normalize_segmentation_maps(
         shapes_ = cast(list[_Shape], shapes)
         if ntype == "iterable-array[bool]":
             return [
-                SegmentationMapsOnImage(attr_i, shape=shape)
+                segmaps.SegmentationMapsOnImage(attr_i, shape=shape)
                 for attr_i, shape in zip(inputs_iter, shapes_, strict=True)
             ]
         return [
-            SegmentationMapsOnImage(attr_i, shape=shape)
+            segmaps.SegmentationMapsOnImage(attr_i, shape=shape)
             for attr_i, shape in zip(inputs_iter, shapes_, strict=True)
         ]
 
     assert ntype == "iterable-SegmentationMapsOnImage", f"Got unknown normalization type '{ntype}'."
-    return cast(list[SegmentationMapsOnImage], inputs)  # len allowed to differ from len of images
+    return cast(
+        list[segmaps.SegmentationMapsOnImage], inputs
+    )  # len allowed to differ from len of images
 
 
 def normalize_keypoints(
     inputs: object,
     shapes: object | None = None,
 ) -> list[KeypointsOnImage] | None:
-    # TODO get rid of this deferred import
-    from imgaug2.augmentables.kps import Keypoint, KeypointsOnImage
+    from imgaug2.augmentables import kps
 
     shapes = _preprocess_shapes(shapes)
     ntype = estimate_keypoints_norm_type(inputs)
@@ -311,7 +338,7 @@ def normalize_keypoints(
     )
 
     if ntype == "None":
-        return cast(list[KeypointsOnImage] | None, inputs)
+        return cast(list[kps.KeypointsOnImage] | None, inputs)
     if ntype in ["array[float]", "array[int]", "array[uint]"]:
         inputs_arr = cast(_NDArrayAny, inputs)
         _assert_single_array_ndim(inputs, 3, "(N,K,2)", "KeypointsOnImage")
@@ -319,7 +346,7 @@ def normalize_keypoints(
         _assert_exactly_n_shapes_partial(n=len(inputs_arr))
         shapes_ = cast(list[_Shape], shapes)
         return [
-            KeypointsOnImage.from_xy_array(attr_i, shape=shape)
+            kps.KeypointsOnImage.from_xy_array(attr_i, shape=shape)
             for attr_i, shape in zip(cast(Iterable[_NDArrayAny], inputs_arr), shapes_, strict=True)
         ]
     if ntype == "tuple[number,size=2]":
@@ -327,14 +354,16 @@ def normalize_keypoints(
         assert shapes is not None
         shapes_ = shapes
         inputs_xy = cast(Sequence[float], inputs)
-        return [KeypointsOnImage([Keypoint(x=inputs_xy[0], y=inputs_xy[1])], shape=shapes_[0])]
+        return [
+            kps.KeypointsOnImage([kps.Keypoint(x=inputs_xy[0], y=inputs_xy[1])], shape=shapes_[0])
+        ]
     if ntype == "Keypoint":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
         shapes_ = shapes
-        return [KeypointsOnImage([inputs], shape=shapes_[0])]
+        return [kps.KeypointsOnImage([inputs], shape=shapes_[0])]
     if ntype == "KeypointsOnImage":
-        return [cast(KeypointsOnImage, inputs)]
+        return [cast(kps.KeypointsOnImage, inputs)]
     if ntype == "iterable[empty]":
         return None
     if ntype in ["iterable-array[float]", "iterable-array[int]", "iterable-array[uint]"]:
@@ -344,7 +373,7 @@ def normalize_keypoints(
         _assert_exactly_n_shapes_partial(n=len(inputs_seq))
         shapes_ = cast(list[_Shape], shapes)
         return [
-            KeypointsOnImage.from_xy_array(attr_i, shape=shape)
+            kps.KeypointsOnImage.from_xy_array(attr_i, shape=shape)
             for attr_i, shape in zip(cast(Iterable[_NDArrayAny], inputs), shapes_, strict=True)
         ]
     if ntype == "iterable-tuple[number,size=2]":
@@ -352,14 +381,16 @@ def normalize_keypoints(
         assert shapes is not None
         shapes_ = shapes
         inputs_xy = cast(Iterable[Sequence[float]], inputs)
-        return [KeypointsOnImage([Keypoint(x=x, y=y) for x, y in inputs_xy], shape=shapes_[0])]
+        return [
+            kps.KeypointsOnImage([kps.Keypoint(x=x, y=y) for x, y in inputs_xy], shape=shapes_[0])
+        ]
     if ntype == "iterable-Keypoint":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
         shapes_ = shapes
-        return [KeypointsOnImage(inputs, shape=shapes_[0])]
+        return [kps.KeypointsOnImage(inputs, shape=shapes_[0])]
     if ntype == "iterable-KeypointsOnImage":
-        return cast(list[KeypointsOnImage], inputs)
+        return cast(list[kps.KeypointsOnImage], inputs)
     if ntype == "iterable-iterable[empty]":
         return None
     if ntype == "iterable-iterable-tuple[number,size=2]":
@@ -367,7 +398,7 @@ def normalize_keypoints(
         _assert_exactly_n_shapes_partial(n=len(inputs_seq))
         shapes_ = cast(list[_Shape], shapes)
         return [
-            KeypointsOnImage.from_xy_array(np.array(attr_i, dtype=np.float32), shape=shape)
+            kps.KeypointsOnImage.from_xy_array(np.array(attr_i, dtype=np.float32), shape=shape)
             for attr_i, shape in zip(cast(Iterable[object], inputs), shapes_, strict=True)
         ]
 
@@ -376,7 +407,7 @@ def normalize_keypoints(
     _assert_exactly_n_shapes_partial(n=len(inputs_seq))
     shapes_ = cast(list[_Shape], shapes)
     return [
-        KeypointsOnImage(attr_i, shape=shape)
+        kps.KeypointsOnImage(attr_i, shape=shape)
         for attr_i, shape in zip(cast(Iterable[object], inputs), shapes_, strict=True)
     ]
 
@@ -385,8 +416,7 @@ def normalize_bounding_boxes(
     inputs: object,
     shapes: object | None = None,
 ) -> list[BoundingBoxesOnImage] | None:
-    # TODO get rid of this deferred import
-    from imgaug2.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+    from imgaug2.augmentables import bbs
 
     shapes = _preprocess_shapes(shapes)
     ntype = estimate_bounding_boxes_norm_type(inputs)
@@ -406,7 +436,7 @@ def normalize_bounding_boxes(
         _assert_exactly_n_shapes_partial(n=len(inputs_arr))
         shapes_ = cast(list[_Shape], shapes)
         return [
-            BoundingBoxesOnImage.from_xyxy_array(attr_i, shape=shape)
+            bbs.BoundingBoxesOnImage.from_xyxy_array(attr_i, shape=shape)
             for attr_i, shape in zip(cast(Iterable[_NDArrayAny], inputs_arr), shapes_, strict=True)
         ]
     if ntype == "tuple[number,size=4]":
@@ -415,9 +445,9 @@ def normalize_bounding_boxes(
         shapes_ = shapes
         inputs_xyxy = cast(Sequence[float], inputs)
         return [
-            BoundingBoxesOnImage(
+            bbs.BoundingBoxesOnImage(
                 [
-                    BoundingBox(
+                    bbs.BoundingBox(
                         x1=inputs_xyxy[0],
                         y1=inputs_xyxy[1],
                         x2=inputs_xyxy[2],
@@ -431,9 +461,9 @@ def normalize_bounding_boxes(
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
         shapes_ = shapes
-        return [BoundingBoxesOnImage([inputs], shape=shapes_[0])]
+        return [bbs.BoundingBoxesOnImage([inputs], shape=shapes_[0])]
     if ntype == "BoundingBoxesOnImage":
-        return [cast(BoundingBoxesOnImage, inputs)]
+        return [cast(bbs.BoundingBoxesOnImage, inputs)]
     if ntype == "iterable[empty]":
         return None
     if ntype in ["iterable-array[float]", "iterable-array[int]", "iterable-array[uint]"]:
@@ -443,7 +473,7 @@ def normalize_bounding_boxes(
         _assert_exactly_n_shapes_partial(n=len(inputs_seq))
         shapes_ = cast(list[_Shape], shapes)
         return [
-            BoundingBoxesOnImage.from_xyxy_array(attr_i, shape=shape)
+            bbs.BoundingBoxesOnImage.from_xyxy_array(attr_i, shape=shape)
             for attr_i, shape in zip(cast(Iterable[_NDArrayAny], inputs), shapes_, strict=True)
         ]
     if ntype == "iterable-tuple[number,size=4]":
@@ -452,8 +482,8 @@ def normalize_bounding_boxes(
         shapes_ = shapes
         inputs_xyxy = cast(Iterable[Sequence[float]], inputs)
         return [
-            BoundingBoxesOnImage(
-                [BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2) for x1, y1, x2, y2 in inputs_xyxy],
+            bbs.BoundingBoxesOnImage(
+                [bbs.BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2) for x1, y1, x2, y2 in inputs_xyxy],
                 shape=shapes_[0],
             )
         ]
@@ -461,9 +491,9 @@ def normalize_bounding_boxes(
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
         shapes_ = shapes
-        return [BoundingBoxesOnImage(inputs, shape=shapes_[0])]
+        return [bbs.BoundingBoxesOnImage(inputs, shape=shapes_[0])]
     if ntype == "iterable-BoundingBoxesOnImage":
-        return cast(list[BoundingBoxesOnImage], inputs)
+        return cast(list[bbs.BoundingBoxesOnImage], inputs)
     if ntype == "iterable-iterable[empty]":
         return None
     if ntype == "iterable-iterable-tuple[number,size=4]":
@@ -471,7 +501,9 @@ def normalize_bounding_boxes(
         _assert_exactly_n_shapes_partial(n=len(inputs_seq))
         shapes_ = cast(list[_Shape], shapes)
         return [
-            BoundingBoxesOnImage.from_xyxy_array(np.array(attr_i, dtype=np.float32), shape=shape)
+            bbs.BoundingBoxesOnImage.from_xyxy_array(
+                np.array(attr_i, dtype=np.float32), shape=shape
+            )
             for attr_i, shape in zip(cast(Iterable[object], inputs), shapes_, strict=True)
         ]
 
@@ -480,7 +512,7 @@ def normalize_bounding_boxes(
     _assert_exactly_n_shapes_partial(n=len(inputs_seq))
     shapes_ = cast(list[_Shape], shapes)
     return [
-        BoundingBoxesOnImage(attr_i, shape=shape)
+        bbs.BoundingBoxesOnImage(attr_i, shape=shape)
         for attr_i, shape in zip(cast(Iterable[object], inputs), shapes_, strict=True)
     ]
 
@@ -489,18 +521,17 @@ def normalize_polygons(
     inputs: object,
     shapes: object | None = None,
 ) -> list[PolygonsOnImage] | None:
-    # TODO get rid of this deferred import
-    from imgaug2.augmentables.polys import Polygon, PolygonsOnImage
+    from imgaug2.augmentables import polys
 
     return cast(
-        list[PolygonsOnImage] | None,
+        list[polys.PolygonsOnImage] | None,
         _normalize_polygons_and_line_strings(
-        cls_single=Polygon,
-        cls_oi=PolygonsOnImage,
-        axis_names=["#polys", "#points"],
-        estimate_ntype_func=estimate_polygons_norm_type,
-        inputs=inputs,
-        shapes=shapes,
+            cls_single=polys.Polygon,
+            cls_oi=polys.PolygonsOnImage,
+            axis_names=["#polys", "#points"],
+            estimate_ntype_func=estimate_polygons_norm_type,
+            inputs=inputs,
+            shapes=shapes,
         ),
     )
 
@@ -509,18 +540,17 @@ def normalize_line_strings(
     inputs: object,
     shapes: object | None = None,
 ) -> list[LineStringsOnImage] | None:
-    # TODO get rid of this deferred import
-    from imgaug2.augmentables.lines import LineString, LineStringsOnImage
+    from imgaug2.augmentables import lines
 
     return cast(
-        list[LineStringsOnImage] | None,
+        list[lines.LineStringsOnImage] | None,
         _normalize_polygons_and_line_strings(
-        cls_single=LineString,
-        cls_oi=LineStringsOnImage,
-        axis_names=["#lines", "#points"],
-        estimate_ntype_func=estimate_line_strings_norm_type,
-        inputs=inputs,
-        shapes=shapes,
+            cls_single=lines.LineString,
+            cls_oi=lines.LineStringsOnImage,
+            axis_names=["#lines", "#points"],
+            estimate_ntype_func=estimate_line_strings_norm_type,
+            inputs=inputs,
+            shapes=shapes,
         ),
     )
 
@@ -613,12 +643,20 @@ def _normalize_polygons_and_line_strings(
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
         shapes_ = shapes
-        return [cls_oi([cls_single(attr_i) for attr_i in cast(Iterable[object], inputs)], shape=shapes_[0])]
+        return [
+            cls_oi(
+                [cls_single(attr_i) for attr_i in cast(Iterable[object], inputs)], shape=shapes_[0]
+            )
+        ]
     if ntype == "iterable-iterable-Keypoint":
         _assert_exactly_n_shapes_partial(n=1)
         assert shapes is not None
         shapes_ = shapes
-        return [cls_oi([cls_single(attr_i) for attr_i in cast(Iterable[object], inputs)], shape=shapes_[0])]
+        return [
+            cls_oi(
+                [cls_single(attr_i) for attr_i in cast(Iterable[object], inputs)], shape=shapes_[0]
+            )
+        ]
     if ntype == (f"iterable-iterable-{cls_single_name}"):
         inputs_seq = cast(Sequence[object], inputs)
         _assert_exactly_n_shapes_partial(n=len(inputs_seq))
@@ -1065,8 +1103,7 @@ def _invert_normalize_polygons_and_line_strings(
     get_entities_func: Callable[[object], Sequence[object]],
     get_points_func: Callable[[object], object],
 ) -> object:
-    # TODO get rid of this deferred import
-    from imgaug2.augmentables.kps import Keypoint
+    from imgaug2.augmentables import kps
 
     ntype = estimate_ntype_func(inputs_old)
     if ntype == "None":
@@ -1150,7 +1187,7 @@ def _invert_normalize_polygons_and_line_strings(
             f"Got a {cls_oi_name} with {len(inputs)} {cls_single_name} instances instead."
         )
         return [
-            Keypoint(x=point[0], y=point[1])
+            kps.Keypoint(x=point[0], y=point[1])
             for point in get_points_func(get_entities_func(inputs[0])[0])
         ]
     if ntype == (f"iterable-{cls_single_name}"):
@@ -1210,7 +1247,7 @@ def _invert_normalize_polygons_and_line_strings(
             f"normalization. Got {len(inputs)} instances instead."
         )
         return [
-            [Keypoint(x=point[0], y=point[1]) for point in get_points_func(entity)]
+            [kps.Keypoint(x=point[0], y=point[1]) for point in get_points_func(entity)]
             for entity in get_entities_func(inputs[0])
         ]
     if ntype == (f"iterable-iterable-{cls_single_name}"):
@@ -1234,7 +1271,7 @@ def _invert_normalize_polygons_and_line_strings(
     assert inputs is not None
     return [
         [
-            [Keypoint(x=point[0], y=point[1]) for point in get_points_func(entity)]
+            [kps.Keypoint(x=point[0], y=point[1]) for point in get_points_func(entity)]
             for entity in get_entities_func(oi)
         ]
         for oi in inputs
@@ -1401,7 +1438,7 @@ def restore_dtype_and_merge(arr: object, input_dtype: _DType) -> object:
 def _is_iterable(obj: object) -> bool:
     return (
         ia.is_iterable(obj)
-        and not isinstance(obj, IAugmentable)  # not e.g. KeypointsOnImage
+        and not isinstance(obj, _AUGMENTABLE_ON_IMAGE_TYPES)  # not e.g. KeypointsOnImage
         and not hasattr(obj, "coords")  # not BBs, Polys, LS
         and not ia.is_string(obj)
     )

@@ -1,14 +1,17 @@
-"""
-Batch-level mixing utilities (MixUp / CutMix / Mosaic).
+"""Batch-level mixing utilities (MixUp / CutMix / Mosaic).
 
-These are intentionally NOT implemented as imgaug2 augmenters, because they operate
-on batches and require label mixing. They are provided as helper functions.
+This module provides helper functions for batch-level augmentations that
+operate on entire batches and require label mixing. These are intentionally
+NOT implemented as imgaug2 augmenters.
 
-All functions assume `images` is a numpy array of shape (N,H,W,C) (or (N,H,W)).
-Labels may be:
-  * class indices (N,)
-  * one-hot vectors (N,K)
-  * regression targets (N,...) (will be mixed linearly)
+Key Functions:
+    - `mixup`: MixUp augmentation - linearly interpolate images and labels.
+    - `cutmix`: CutMix augmentation - paste rectangular patches between images.
+    - `mosaic4`: Create mosaic by combining 4 images into one.
+
+Note:
+    Functions assume `images` is shape (N,H,W,C) or (N,H,W).
+    Labels may be class indices, one-hot vectors, or regression targets.
 """
 
 from __future__ import annotations

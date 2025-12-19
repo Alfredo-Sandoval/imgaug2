@@ -1,14 +1,13 @@
-"""
-Augmenters that apply changes to images based on segmentation methods.
+"""Augmenters that apply changes to images based on segmentation methods.
 
-List of augmenters:
+This module contains augmenters that use image segmentation techniques
+to create stylized or abstract versions of images.
 
-    * :class:`Superpixels`
-    * :class:`Voronoi`
-    * :class:`UniformVoronoi`
-    * :class:`RegularGridVoronoi`
-    * :class:`RelativeRegularGridVoronoi`
-
+Key Augmenters:
+    - `Superpixels`: Replace superpixel regions with their average color.
+    - `Voronoi`: Average colors within Voronoi cells.
+    - `UniformVoronoi`, `RegularGridVoronoi`: Voronoi variants with different
+      point sampling strategies.
 """
 
 from __future__ import annotations
@@ -33,11 +32,12 @@ from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 from imgaug2.imgaug import _NUMBA_INSTALLED, _numbajit
+from imgaug2.compat.markers import legacy
 
 _SLIC_SUPPORTS_START_LABEL = tuple(map(int, skimage.__version__.split(".")[0:2])) >= (
     0,
     17,
-)  # Added in 0.5.0.
+)
 
 
 # TODO merge this into imresize?
@@ -243,7 +243,7 @@ class Superpixels(meta.Augmenter):
         self.max_size = max_size
         self.interpolation = interpolation
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -271,7 +271,6 @@ class Superpixels(meta.Augmenter):
         # lowest possible value in these cases (i.e. 1). The alternative
         # would be to not perform superpixel detection in these cases
         # (akin to n_segments=#pixels).
-        # TODO add test for this
         n_segments_samples = np.clip(n_segments_samples, 1, None)
 
         for i, (image, rs) in enumerate(zip(images, rss[1:], strict=True)):
@@ -321,6 +320,7 @@ class Superpixels(meta.Augmenter):
 #      be faster for these areas
 # TODO incorporate this dtype support in the dtype sections of docstrings for
 #      Superpixels and segment_voronoi()
+@legacy(version="0.5.0")
 def replace_segments_(image: Array, segments: Array, replace_flags: Array | None) -> Array:
     """Replace segments in images by their average colors in-place.
 
@@ -330,7 +330,6 @@ def replace_segments_(image: Array, segments: Array, replace_flags: Array | None
     For each segement, the average color is computed and used as the
     replacement.
 
-    Added in 0.5.0.
 
     **Supported dtypes**:
 
@@ -398,7 +397,7 @@ def replace_segments_(image: Array, segments: Array, replace_flags: Array | None
     return result
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 def _replace_segments_np_(
     image: Array, segments: Array, replace_flags: Array | None, _nb_segments: int | None
 ) -> Array:
@@ -413,7 +412,7 @@ def _replace_segments_np_(
     return image
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 def _replace_segments_numba_dispatcher_(
     image: Array, segments: Array, replace_flags: Array | None, nb_segments: int
 ) -> Array:
@@ -429,7 +428,7 @@ def _replace_segments_numba_dispatcher_(
     return image
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 @_numbajit(nopython=True, nogil=True, cache=True)
 def _replace_segments_numba_collect_avg_colors(
     image: Array,
@@ -466,7 +465,7 @@ def _replace_segments_numba_collect_avg_colors(
     return average_colors
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 @_numbajit(nopython=True, nogil=True, cache=True)
 def _replace_segments_numba_apply_avg_cols_(
     image: Array, segments: Array, replace_flags: Array, average_colors: Array
@@ -733,7 +732,7 @@ class Voronoi(meta.Augmenter):
         self.max_size = max_size
         self.interpolation = interpolation
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1416,14 +1415,18 @@ class RegularGridPointsSampler(IPointsSampler):
         n_rows_lst, n_cols_lst = self._draw_samples(images, random_state)
         return self._generate_point_grids(images, n_rows_lst, n_cols_lst)
 
-    def _draw_samples(self, images: Sequence[Array] | Array, random_state: iarandom.RNG) -> tuple[Array, Array]:
+    def _draw_samples(
+        self, images: Sequence[Array] | Array, random_state: iarandom.RNG
+    ) -> tuple[Array, Array]:
         rss = random_state.duplicate(2)
         n_rows_lst = self.n_rows.draw_samples(len(images), random_state=rss[0])
         n_cols_lst = self.n_cols.draw_samples(len(images), random_state=rss[1])
         return self._clip_rows_and_cols(n_rows_lst, n_cols_lst, images)
 
     @classmethod
-    def _clip_rows_and_cols(cls, n_rows_lst: Array, n_cols_lst: Array, images: Sequence[Array] | Array) -> tuple[Array, Array]:
+    def _clip_rows_and_cols(
+        cls, n_rows_lst: Array, n_cols_lst: Array, images: Sequence[Array] | Array
+    ) -> tuple[Array, Array]:
         heights = np.int32([image.shape[0] for image in images])
         widths = np.int32([image.shape[1] for image in images])
         # We clip intentionally not to H-1 or W-1 here. If e.g. an image has
@@ -1553,15 +1556,15 @@ class RelativeRegularGridPointsSampler(IPointsSampler):
         )
 
     def sample_points(self, images: Sequence[Array] | Array, random_state: RNGInput) -> list[Array]:
-        # pylint: disable=protected-access
         random_state = iarandom.RNG.create_if_not_rng_(random_state)
         _verify_sample_points_images(images)
 
         n_rows, n_cols = self._draw_samples(images, random_state)
         return RegularGridPointsSampler._generate_point_grids(images, n_rows, n_cols)
 
-    def _draw_samples(self, images: Sequence[Array] | Array, random_state: iarandom.RNG) -> tuple[Array, Array]:
-        # pylint: disable=protected-access
+    def _draw_samples(
+        self, images: Sequence[Array] | Array, random_state: iarandom.RNG
+    ) -> tuple[Array, Array]:
         n_augmentables = len(images)
         rss = random_state.duplicate(2)
         n_rows_frac = self.n_rows_frac.draw_samples(n_augmentables, random_state=rss[0])
@@ -1669,7 +1672,9 @@ class DropoutPointsSampler(IPointsSampler):
         drop_masks = self._draw_samples(points_on_images, rss[1])
         return self._apply_dropout_masks(points_on_images, drop_masks)
 
-    def _draw_samples(self, points_on_images: list[Array], random_state: iarandom.RNG) -> list[Array]:
+    def _draw_samples(
+        self, points_on_images: list[Array], random_state: iarandom.RNG
+    ) -> list[Array]:
         rss = random_state.duplicate(len(points_on_images))
         drop_masks = [
             self._draw_samples_for_image(points_on_image, rs)
@@ -1858,7 +1863,9 @@ class SubsamplingPointsSampler(IPointsSampler):
         ]
 
     @classmethod
-    def _subsample(cls, points_on_image: Array, n_points_max: int, random_state: iarandom.RNG) -> Array:
+    def _subsample(
+        cls, points_on_image: Array, n_points_max: int, random_state: iarandom.RNG
+    ) -> Array:
         if len(points_on_image) <= n_points_max:
             return points_on_image
         indices = np.arange(len(points_on_image))

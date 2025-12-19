@@ -1,11 +1,10 @@
 """Augmenters that help with debugging.
 
-List of augmenters:
+This module provides augmenters and utilities for debugging augmentation
+pipelines by visualizing intermediate results.
 
-    * :class:`SaveDebugImageEveryNBatches`
-
-Added in 0.4.0.
-
+Key Augmenters:
+    - `SaveDebugImageEveryNBatches`: Save debug grids at regular intervals.
 """
 
 from __future__ import annotations
@@ -28,6 +27,7 @@ from imgaug2.augmenters import blend as blendlib
 from imgaug2.augmenters import meta
 from imgaug2.augmenters import size as sizelib
 from imgaug2.augmenters._typing import RNGInput
+from imgaug2.compat.markers import legacy
 
 _COLOR_PINK = (255, 192, 203)
 _COLOR_GRID_BACKGROUND = _COLOR_PINK
@@ -72,6 +72,7 @@ class CoordinateBasedAugmentableOnImageLike(Protocol):
     def draw_on_image(self, image: ImageArray) -> ImageArray: ...
 
 
+@legacy(version="0.4.0")
 def _resizepad_to_size(
     image: ImageArray, size: tuple[int, int], cval: Color
 ) -> tuple[ImageArray, tuple[int, int], tuple[int, int, int, int]]:
@@ -81,7 +82,6 @@ def _resizepad_to_size(
     retaining the aspect ratio).
     Then it pads the other side until both sides match `size`.
 
-    Added in 0.4.0.
 
     """
     # resize to height H and width W while keeping aspect ratio
@@ -123,38 +123,32 @@ def _resizepad_to_size(
 
 
 # TODO rename to Grid
+@legacy(version="0.4.0")
 class _IDebugGridCell(metaclass=ABCMeta):
     """A single cell within a debug image's grid.
 
     Usually corresponds to one image, but can also be e.g. a title/description.
 
-    Added in 0.4.0.
 
     """
 
+    @legacy(version="0.4.0")
     @property
     @abstractmethod
     def min_width(self) -> int:
-        """Minimum width in pixels that the cell requires.
+        """Minimum width in pixels that the cell requires."""
 
-        Added in 0.4.0.
-
-        """
-
+    @legacy(version="0.4.0")
     @property
     @abstractmethod
     def min_height(self) -> int:
-        """Minimum height in pixels that the cell requires.
+        """Minimum height in pixels that the cell requires."""
 
-        Added in 0.4.0.
-
-        """
-
+    @legacy(version="0.4.0")
     @abstractmethod
     def draw(self, height: int, width: int) -> ImageArray:
         """Draw the debug image grid cell's content.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -172,30 +166,27 @@ class _IDebugGridCell(metaclass=ABCMeta):
         """
 
 
+@legacy(version="0.4.0")
 class _DebugGridBorderCell(_IDebugGridCell):
-    """Helper to add a border around a cell within the debug image grid.
+    """Helper to add a border around a cell within the debug image grid."""
 
-    Added in 0.4.0.
-
-    """
-
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(self, size: int, color: Color, child: _IDebugGridCell) -> None:
         self.size = size
         self.color = color
         self.child = child
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def min_height(self) -> int:
         return self.child.min_height
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def min_width(self) -> int:
         return self.child.min_width
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def draw(self, height: int, width: int) -> ImageArray:
         content = self.child.draw(height, width)
         content = sizelib.pad(
@@ -210,23 +201,20 @@ class _DebugGridBorderCell(_IDebugGridCell):
         return content
 
 
+@legacy(version="0.4.0")
 class _DebugGridTextCell(_IDebugGridCell):
-    """Cell containing text.
+    """Cell containing text."""
 
-    Added in 0.4.0.
-
-    """
-
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(self, text: str) -> None:
         self.text = text
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def min_height(self) -> int:
         return max(20, len(self.text.split("\n")) * 17)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def min_width(self) -> int:
         lines = self.text.split("\n")
@@ -234,21 +222,18 @@ class _DebugGridTextCell(_IDebugGridCell):
             return 20
         return max(20, int(7 * max([len(line) for line in lines])))
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def draw(self, height: int, width: int) -> ImageArray:
         image = np.full((height, width, 3), 255, dtype=np.uint8)
         image = ia.draw_text(image, 0, 0, self.text, color=(0, 0, 0), size=12)
         return image
 
 
+@legacy(version="0.4.0")
 class _DebugGridImageCell(_IDebugGridCell):
-    """Cell containing an image, possibly with an different-shaped overlay.
+    """Cell containing an image, possibly with an different-shaped overlay."""
 
-    Added in 0.4.0.
-
-    """
-
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self, image: ImageArray, overlay: ImageArray | None = None, overlay_alpha: float = 0.75
     ) -> None:
@@ -256,17 +241,17 @@ class _DebugGridImageCell(_IDebugGridCell):
         self.overlay = overlay
         self.overlay_alpha = overlay_alpha
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def min_height(self) -> int:
         return self.image.shape[0]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def min_width(self) -> int:
         return self.image.shape[1]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def draw(self, height: int, width: int) -> ImageArray:
         image = self.image
         kind = image.dtype.kind
@@ -304,39 +289,39 @@ class _DebugGridImageCell(_IDebugGridCell):
 
         return blend
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _resize_overlay(cls, arr: ImageArray, size: tuple[int, int]) -> ImageArray:
         arr_rs = ia.imresize_single_image(arr, size, interpolation="nearest")
         return arr_rs
 
 
+@legacy(version="0.4.0")
 class _DebugGridCBAsOICell(_IDebugGridCell):
     """Cell visualizing a coordinate-based augmentable.
 
     CBAsOI = coordinate-based augmentables on images,
     e.g. ``KeypointsOnImage``.
 
-    Added in 0.4.0.
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(self, cbasoi: CoordinateBasedAugmentableOnImageLike, image: ImageArray) -> None:
         self.cbasoi = cbasoi
         self.image = image
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def min_height(self) -> int:
         return self.image.shape[0]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def min_width(self) -> int:
         return self.image.shape[1]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def draw(self, height: int, width: int) -> ImageArray:
         image_rsp, size_rs, paddings = _resizepad_to_size(
             self.image, (height, width), cval=_COLOR_GRID_BACKGROUND
@@ -350,49 +335,34 @@ class _DebugGridCBAsOICell(_IDebugGridCell):
         return cbasoi.draw_on_image(image_rsp)
 
 
+@legacy(version="0.4.0")
 class _DebugGridColumn:
-    """A single column within the debug image grid.
-
-    Added in 0.4.0.
-
-    """
+    """A single column within the debug image grid."""
 
     def __init__(self, cells: Sequence[_IDebugGridCell]) -> None:
         self.cells = cells
 
+    @legacy(version="0.4.0")
     @property
     def nb_rows(self) -> int:
-        """Number of rows in the column, i.e. examples in batch.
-
-        Added in 0.4.0.
-
-        """
+        """Number of rows in the column, i.e. examples in batch."""
         return len(self.cells)
 
+    @legacy(version="0.4.0")
     @property
     def max_cell_width(self) -> int:
-        """Width in pixels of the widest cell in the column.
-
-        Added in 0.4.0.
-
-        """
+        """Width in pixels of the widest cell in the column."""
         return max([cell.min_width for cell in self.cells])
 
+    @legacy(version="0.4.0")
     @property
     def max_cell_height(self) -> int:
-        """Height in pixels of the tallest cell in the column.
-
-        Added in 0.4.0.
-
-        """
+        """Height in pixels of the tallest cell in the column."""
         return max([cell.min_height for cell in self.cells])
 
+    @legacy(version="0.4.0")
     def draw(self, heights: Sequence[int] | NDArray[np.integer]) -> ImageArray:
-        """Convert this column to an image array.
-
-        Added in 0.4.0.
-
-        """
+        """Convert this column to an image array."""
         width = self.max_cell_width
         return np.vstack(
             [
@@ -402,27 +372,24 @@ class _DebugGridColumn:
         )
 
 
+@legacy(version="0.4.0")
 class _DebugGrid:
     """A debug image grid.
 
     Columns correspond to the input datatypes (e.g. images, bounding boxes).
     Rows correspond to the examples within a batch.
 
-    Added in 0.4.0.
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(self, columns: Sequence[_DebugGridColumn]) -> None:
         assert len(columns) > 0
         self.columns = columns
 
+    @legacy(version="0.4.0")
     def draw(self) -> ImageArray:
-        """Convert this grid to an image array.
-
-        Added in 0.4.0.
-
-        """
+        """Convert this grid to an image array."""
         nb_rows_by_col = [column.nb_rows for column in self.columns]
         assert len(set(nb_rows_by_col)) == 1
         rowwise_heights = np.zeros((self.columns[0].nb_rows,), dtype=np.int32)
@@ -437,6 +404,7 @@ class _DebugGrid:
 # TODO main process id, process id
 # TODO warning if map aspect ratio is different from image aspect ratio
 # TODO error if non-image shapes differ from image shapes
+@legacy(version="0.4.0")
 def draw_debug_image(
     images: ImagesInput,
     heatmaps: Sequence[HeatmapsOnImageLike] | None = None,
@@ -448,7 +416,6 @@ def draw_debug_image(
 ) -> ImageArray:
     """Generate a debug image grid of a single batch and various datatypes.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -559,19 +526,19 @@ def draw_debug_image(
     return result
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _add_borders(cells: Sequence[_IDebugGridCell]) -> list[_IDebugGridCell]:
     """Add a border (cell) around a cell."""
     return [_DebugGridBorderCell(1, _COLOR_GRID_BACKGROUND, cell) for cell in cells]
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _add_text_cell(title: str, cells: list[_IDebugGridCell]) -> list[_IDebugGridCell]:
     """Add a text cell before other cells."""
     return [_DebugGridTextCell(title)] + cells
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _create_images_column(images: ImagesInput) -> _DebugGridColumn:
     """Create columns for image data."""
     cells = [_DebugGridImageCell(image) for image in images]
@@ -582,7 +549,7 @@ def _create_images_column(images: ImagesInput) -> _DebugGridColumn:
     return column
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _create_heatmaps_columns(
     heatmaps: Sequence[HeatmapsOnImageLike], images: ImagesInput
 ) -> list[_DebugGridColumn]:
@@ -613,7 +580,7 @@ def _create_heatmaps_columns(
     return columns
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _create_segmap_columns(
     segmentation_maps: Sequence[SegmentationMapsOnImageLike], images: ImagesInput
 ) -> list[_DebugGridColumn]:
@@ -647,7 +614,7 @@ def _create_segmap_columns(
     return columns
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _create_cbasois_column(
     cbasois: Sequence[CoordinateBasedAugmentableOnImageLike],
     images: ImagesInput,
@@ -664,7 +631,7 @@ def _create_cbasois_column(
     return column
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _generate_images_description(images: ImagesInput) -> str:
     """Generate description for image columns."""
     if ia.is_np_array(images):
@@ -713,7 +680,7 @@ def _generate_images_description(images: ImagesInput) -> str:
     return _join_description_strs(strs)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _generate_segmaps_description(
     segmaps: Sequence[SegmentationMapsOnImageLike],
     channel_idx: int,
@@ -735,7 +702,7 @@ def _generate_segmaps_description(
     return _join_description_strs(strs + [value_range_str])
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _generate_heatmaps_description(
     heatmaps: Sequence[HeatmapsOnImageLike],
     channel_idx: int,
@@ -757,7 +724,7 @@ def _generate_heatmaps_description(
     return _join_description_strs(strs + [value_range_str])
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _generate_sm_hm_description(
     augmentables: Sequence[SegmentationMapsOnImageLike] | Sequence[HeatmapsOnImageLike] | None,
     channel_idx: int,
@@ -800,7 +767,7 @@ def _generate_sm_hm_description(
     return [channel_str, shapes_str, on_shapes_str]
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _generate_cbasois_description(
     cbasois: Sequence[CoordinateBasedAugmentableOnImageLike], images: ImagesInput
 ) -> str:
@@ -850,7 +817,6 @@ def _generate_cbasois_description(
                 coords_ooi.append(not (0 <= x < w and 0 <= y < h))
                 dists.append(((x, y), dist))
 
-    # use x_ and y_ because otherwise we get a 'redefines x' error in pylint
     coords_extreme = [(x_, y_) for (x_, y_), _ in sorted(dists, key=lambda t: t[1])]
 
     nb_ooi = sum(coords_ooi)
@@ -868,7 +834,7 @@ def _generate_cbasois_description(
     )
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _generate_on_image_shapes_descr(
     augmentables: Sequence[CoordinateBasedAugmentableOnImageLike]
     | Sequence[SegmentationMapsOnImageLike]
@@ -888,114 +854,113 @@ def _generate_on_image_shapes_descr(
     return on_shapes_str
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _join_description_strs(strs: Sequence[str]) -> str:
     """Join lines to a single string while removing empty lines."""
     strs = [str_i for str_i in strs if len(str_i) > 0]
     return "\n".join(strs)
 
 
+@legacy(version="0.4.0")
 class _ListOfArraysStats:
     """Class to derive aggregated values from a list of arrays.
 
     E.g. shape of the largest array, number of unique dtypes etc.
 
-    Added in 0.4.0.
 
     """
 
     def __init__(self, arrays: Sequence[ImageArray]) -> None:
         self.arrays = arrays
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def empty(self) -> bool:
         return len(self.arrays) == 0
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def areas(self) -> list[int]:
         return [np.prod(arr.shape[0:2]) for arr in self.arrays]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def arrays_by_area(self) -> list[ImageArray]:
         arrays_by_area = [
-            arr
-            for arr, _ in sorted(zip(self.arrays, self.areas, strict=True), key=lambda t: t[1])
+            arr for arr, _ in sorted(zip(self.arrays, self.areas, strict=True), key=lambda t: t[1])
         ]
         return arrays_by_area
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def shapes(self) -> list[tuple[int, ...]]:
         return [arr.shape for arr in self.arrays]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def all_same_shape(self) -> bool:
         if self.empty:
             return True
         return len(set(self.shapes)) == 1
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def smallest_shape(self) -> tuple[int, ...]:
         if self.empty:
             return tuple()
         return self.arrays_by_area[0].shape
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def largest_shape(self) -> tuple[int, ...]:
         if self.empty:
             return tuple()
         return self.arrays_by_area[-1].shape
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def area_max(self) -> int | tuple[()]:
         if self.empty:
             return tuple()
         return np.prod(self.arrays_by_area[-1][0:2])
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def heights(self) -> list[int]:
         return [arr.shape[0] for arr in self.arrays]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def height_min(self) -> int:
         heights = self.heights
         return min(heights) if len(heights) > 0 else 0
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def height_max(self) -> int:
         heights = self.heights
         return max(heights) if len(heights) > 0 else 0
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def widths(self) -> list[int]:
         return [arr.shape[1] for arr in self.arrays]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def width_min(self) -> int:
         widths = self.widths
         return min(widths) if len(widths) > 0 else 0
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def width_max(self) -> int:
         widths = self.widths
         return max(widths) if len(widths) > 0 else 0
 
-    # Added in 0.4.0.
     _TChannelsDefault = TypeVar("_TChannelsDefault")
 
+    @legacy(version="0.4.0")
     def get_channels_min(self, default: _TChannelsDefault) -> int | _TChannelsDefault:
         if self.empty:
             return -1
@@ -1003,7 +968,7 @@ class _ListOfArraysStats:
             return default
         return min([arr.shape[2] for arr in self.arrays if arr.ndim > 2])
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_channels_max(self, default: _TChannelsDefault) -> int | _TChannelsDefault:
         if self.empty:
             return -1
@@ -1011,44 +976,44 @@ class _ListOfArraysStats:
             return default
         return max([arr.shape[2] for arr in self.arrays if arr.ndim > 2])
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def dtypes(self) -> list[np.dtype[np.generic]]:
         return [arr.dtype for arr in self.arrays]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def dtype_names(self) -> list[str]:
         return [dtype.name for dtype in self.dtypes]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def all_same_dtype(self) -> bool:
         return len(set(self.dtype_names)) in [0, 1]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def all_dtypes_intlike(self) -> bool:
         if self.empty:
             return True
         return all([arr.dtype.kind in ["u", "i", "b"] for arr in self.arrays])
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def unique_dtype_names(self) -> list[str]:
         return sorted(list({arr.dtype.name for arr in self.arrays}))
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def value_min(self) -> float | int:
         return min([np.min(arr) for arr in self.arrays])
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def value_max(self) -> float | int:
         return max([np.max(arr) for arr in self.arrays])
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @property
     def nb_unique_values(self) -> int:
         values_uq = set()
@@ -1057,17 +1022,17 @@ class _ListOfArraysStats:
         return len(values_uq)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _IImageDestination(metaclass=ABCMeta):
     """A destination which receives images to save."""
 
+    @legacy(version="0.4.0")
     @abstractmethod
     def on_batch(self, batch: _BatchInAugmentation) -> None:
         """Signal to the destination that a new batch is processed.
 
         This is intended to be used by the destination e.g. to count batches.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1076,11 +1041,11 @@ class _IImageDestination(metaclass=ABCMeta):
 
         """
 
+    @legacy(version="0.4.0")
     @abstractmethod
     def receive(self, image: ImageArray) -> None:
         """Receive and handle an image.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1090,30 +1055,30 @@ class _IImageDestination(metaclass=ABCMeta):
         """
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _MultiDestination(_IImageDestination):
     """A list of multiple destinations behaving like a single one."""
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(self, destinations: Sequence[_IImageDestination]) -> None:
         self.destinations = destinations
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def on_batch(self, batch: _BatchInAugmentation) -> None:
         for destination in self.destinations:
             destination.on_batch(batch)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def receive(self, image: ImageArray) -> None:
         for destination in self.destinations:
             destination.receive(image)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _FolderImageDestination(_IImageDestination):
     """A destination which saves images to a directory."""
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self, folder_path: str | Path, filename_pattern: str = "batch_{batch_id:06d}.png"
     ) -> None:
@@ -1123,27 +1088,27 @@ class _FolderImageDestination(_IImageDestination):
         self._batch_id = -1
         self._filepath: str | None = None
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def on_batch(self, batch: _BatchInAugmentation) -> None:
         self._batch_id += 1
         self._filepath = str(
             Path(self.folder_path) / self.filename_pattern.format(batch_id=self._batch_id)
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def receive(self, image: ImageArray) -> None:
         imageio.imwrite(self._filepath, image)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _IBatchwiseSchedule(metaclass=ABCMeta):
     """A schedule determining per batch whether a condition is met."""
 
+    @legacy(version="0.4.0")
     @abstractmethod
     def on_batch(self, batch: _BatchInAugmentation) -> bool:
         """Determine for the given batch whether the condition is met.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1159,13 +1124,12 @@ class _IBatchwiseSchedule(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _EveryNBatchesSchedule(_IBatchwiseSchedule):
     """A schedule that generates a signal at every ``N`` th batch.
 
     This schedule must be called for *every* batch in order to count them.
 
-    Added in 0.4.0.
 
     """
 
@@ -1173,17 +1137,17 @@ class _EveryNBatchesSchedule(_IBatchwiseSchedule):
         self.interval = interval
         self._batch_id = -1
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def on_batch(self, batch: _BatchInAugmentation) -> bool:
         self._batch_id += 1
         signal = self._batch_id % self.interval == 0
         return signal
 
 
+@legacy(version="0.4.0")
 class _SaveDebugImage(meta.Augmenter):
     """Augmenter saving debug images to a destination according to a schedule.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -1213,7 +1177,7 @@ class _SaveDebugImage(meta.Augmenter):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         destination: _IImageDestination,
@@ -1229,7 +1193,7 @@ class _SaveDebugImage(meta.Augmenter):
         self.destination = destination
         self.schedule = schedule
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1256,10 +1220,10 @@ class _SaveDebugImage(meta.Augmenter):
         return batch
 
 
+@legacy(version="0.4.0")
 class SaveDebugImageEveryNBatches(_SaveDebugImage):
     """Visualize data in batches and save corresponding plots to a folder.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1312,7 +1276,7 @@ class SaveDebugImageEveryNBatches(_SaveDebugImage):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         destination: str | _IImageDestination,
@@ -1343,7 +1307,7 @@ class SaveDebugImageEveryNBatches(_SaveDebugImage):
             deterministic=deterministic,
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         dests = self.destination.destinations
         return [

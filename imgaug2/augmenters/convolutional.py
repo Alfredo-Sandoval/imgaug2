@@ -1,16 +1,15 @@
-"""
-Augmenters that are based on applying convolution kernels to images.
+"""Augmenters that are based on applying convolution kernels to images.
 
-List of augmenters:
+This module provides augmenters that apply custom or predefined convolution
+kernels to images for effects like sharpening, embossing, and edge detection.
 
-    * :class:`Convolve`
-    * :class:`Sharpen`
-    * :class:`Emboss`
-    * :class:`EdgeDetect`
-    * :class:`DirectedEdgeDetect`
+Key Augmenters:
+    - `Convolve`: Apply custom convolution kernels.
+    - `Sharpen`: Sharpen images with configurable strength.
+    - `Emboss`: Create embossed/relief effects.
+    - `EdgeDetect`, `DirectedEdgeDetect`: Detect edges in images.
 
 For MotionBlur, see ``blur.py``.
-
 """
 
 from __future__ import annotations
@@ -30,6 +29,7 @@ import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import ParamInput, RNGInput
+from imgaug2.compat.markers import legacy
 
 ImageArray: TypeAlias = NDArray[np.generic]
 KernelMatrix: TypeAlias = NDArray[np.generic]
@@ -38,12 +38,12 @@ MatrixGenerator: TypeAlias = Callable[[ImageArray, int, iarandom.RNG], KernelInp
 MatrixInput: TypeAlias = KernelMatrix | MatrixGenerator | None
 
 
+@legacy(version="0.5.0")
 def convolve(image: ImageArray, kernel: KernelInput) -> ImageArray:
     """Apply a convolution kernel (or one per channel) to an image.
 
     See :func:`convolve_` for details.
 
-    Added in 0.5.0.
 
     **Supported dtypes**:
 
@@ -67,12 +67,12 @@ def convolve(image: ImageArray, kernel: KernelInput) -> ImageArray:
     return convolve_(np.copy(image), kernel)
 
 
+@legacy(version="0.5.0")
 def convolve_(image: ImageArray, kernel: KernelInput) -> ImageArray:
     """Apply a convolution kernel (or one per channel) in-place to an image.
 
     Use a list of matrices to apply one kernel per channel.
 
-    Added in 0.5.0.
 
     **Supported dtypes**:
 
@@ -289,7 +289,7 @@ class Convolve(meta.Augmenter):
                 f"StochasticParameter. Got {type(matrix)}."
             )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -432,7 +432,9 @@ class _SharpeningMatrixGenerator:
         self.alpha = alpha
         self.lightness = lightness
 
-    def __call__(self, _image: ImageArray, nb_channels: int, random_state: iarandom.RNG) -> KernelMatrix:
+    def __call__(
+        self, _image: ImageArray, nb_channels: int, random_state: iarandom.RNG
+    ) -> KernelMatrix:
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
             f"Expected 'alpha' to be in the interval [0.0, 1.0], got {alpha_sample:.4f}."
@@ -544,7 +546,9 @@ class _EmbossMatrixGenerator:
         self.alpha = alpha
         self.strength = strength
 
-    def __call__(self, _image: ImageArray, nb_channels: int, random_state: iarandom.RNG) -> KernelMatrix:
+    def __call__(
+        self, _image: ImageArray, nb_channels: int, random_state: iarandom.RNG
+    ) -> KernelMatrix:
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
             f"Expected 'alpha' to be in the interval [0.0, 1.0], got {alpha_sample:.4f}."
@@ -563,8 +567,6 @@ class _EmbossMatrixGenerator:
         return matrix
 
 
-# TODO add tests
-# TODO move this to edges.py?
 class EdgeDetect(Convolve):
     """
     Generate a black & white edge image and alpha-blend it with the input image.
@@ -642,7 +644,9 @@ class _EdgeDetectMatrixGenerator:
     def __init__(self, alpha: iap.StochasticParameter) -> None:
         self.alpha = alpha
 
-    def __call__(self, _image: ImageArray, nb_channels: int, random_state: iarandom.RNG) -> KernelMatrix:
+    def __call__(
+        self, _image: ImageArray, nb_channels: int, random_state: iarandom.RNG
+    ) -> KernelMatrix:
         alpha_sample = self.alpha.draw_sample(random_state=random_state)
         assert 0 <= alpha_sample <= 1.0, (
             f"Expected 'alpha' to be in the interval [0.0, 1.0], got {alpha_sample:.4f}."
@@ -653,12 +657,6 @@ class _EdgeDetectMatrixGenerator:
         return matrix
 
 
-# TODO add tests
-# TODO merge EdgeDetect and DirectedEdgeDetect?
-# TODO deprecate and rename to AngledEdgeDetect
-# TODO rename arg "direction" to "angle"
-# TODO change direction/angle value range to (0, 360)
-# TODO move this to edges.py?
 class DirectedEdgeDetect(Convolve):
     """
     Detect edges from specified angles and alpha-blend with the input image.

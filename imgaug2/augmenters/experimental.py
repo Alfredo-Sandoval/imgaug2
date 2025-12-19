@@ -1,14 +1,19 @@
-"""
-Experimental augmenters for imgaug2.
+"""Experimental augmenters for imgaug2.
 
-This module adds a set of augmentations that are common in modern augmentation
-libraries, but historically missing from imgaug/imgaug2.
+This module provides modern augmentation techniques that are common in
+state-of-the-art augmentation libraries but were historically missing.
 
-Notes
------
-* These augmenters currently focus on image augmentation (ndarrays).
-* For coordinate-based augmentables (keypoints/bboxes/polygons/...), support can be
-  added later by reusing the same warp mappings (TPS / optical distortion).
+Key Augmenters:
+    - `ThinPlateSpline`: Non-linear warping using thin plate splines.
+    - `ZoomBlur`: Simulate motion towards/away from camera.
+    - `GlassBlur`: Frosted-glass effect using local pixel displacement.
+    - `FourierDomainAdaptation`: FDA for domain adaptation.
+    - `FancyPCA`: AlexNet-style PCA color jitter.
+    - `HEStain`: H&E stain augmentation for histopathology.
+
+Note:
+    These augmenters focus on image augmentation; coordinate-based
+    augmentable support may be added later.
 """
 
 from __future__ import annotations
@@ -17,6 +22,7 @@ import math
 from collections.abc import Sequence
 from typing import Literal, TypeAlias
 
+import cv2
 import numpy as np
 from numpy.typing import NDArray
 
@@ -25,16 +31,6 @@ import imgaug2.random as iarandom
 from imgaug2.augmenters._typing import Array, Images, RNGInput
 
 from . import meta
-
-try:  # pragma: no cover
-    import cv2
-except Exception:  # pragma: no cover
-    cv2 = None
-
-try:  # pragma: no cover
-    import scipy.ndimage
-except Exception:  # pragma: no cover
-    scipy = None
 
 
 Number: TypeAlias = float | int
@@ -66,7 +62,9 @@ class _RNGAdapter:
             return r.rand(size)
         raise AttributeError("RNG has neither `.random()` nor `.rand()`")
 
-    def uniform(self, low: Number, high: Number | None = None, size: Size = None) -> float | FloatArray:
+    def uniform(
+        self, low: Number, high: Number | None = None, size: Size = None
+    ) -> float | FloatArray:
         r = self._rng
         if hasattr(r, "uniform"):
             return r.uniform(low, high, size)
@@ -111,13 +109,11 @@ class _RNGAdapter:
 
 
 # ---------------------------------------------------------------------
-# CV2/scipy helpers
+# CV2 helpers
 # ---------------------------------------------------------------------
 
 
-def _cv2_border_mode(mode: str) -> int | None:
-    if cv2 is None:
-        return None
+def _cv2_border_mode(mode: str) -> int:
     mode = mode.lower()
     if mode in ("reflect", "reflect101", "reflect_101", "mirror"):
         return cv2.BORDER_REFLECT_101
@@ -130,9 +126,7 @@ def _cv2_border_mode(mode: str) -> int | None:
     return cv2.BORDER_REFLECT_101
 
 
-def _cv2_interpolation(order: int) -> int | None:
-    if cv2 is None:
-        return None
+def _cv2_interpolation(order: int) -> int:
     if order == 0:
         return cv2.INTER_NEAREST
     if order == 1:
@@ -158,40 +152,20 @@ def _remap_image(
     map_x = map_x.astype(np.float32, copy=False)
     map_y = map_y.astype(np.float32, copy=False)
 
-    if cv2 is not None:
-        out = cv2.remap(
-            image,
-            map_x,
-            map_y,
-            interpolation=_cv2_interpolation(order),
-            borderMode=_cv2_border_mode(mode),
-            borderValue=float(cval),
-        )
-        return out
-
-    if scipy is None:  # pragma: no cover
-        raise ImportError("Neither cv2 nor scipy is available. Install opencv-python or scipy.")
-
-    coords = np.stack([map_y, map_x], axis=0)
-    if image.ndim == 2:
-        out = scipy.ndimage.map_coordinates(image, coords, order=order, mode=mode, cval=float(cval))
-        return out.astype(image.dtype, copy=False)
-
-    channels = []
-    for c in range(image.shape[2]):
-        ch = scipy.ndimage.map_coordinates(
-            image[..., c], coords, order=order, mode=mode, cval=float(cval)
-        )
-        channels.append(ch)
-    out = np.stack(channels, axis=2)
-    return out.astype(image.dtype, copy=False)
+    out = cv2.remap(
+        image,
+        map_x,
+        map_y,
+        interpolation=_cv2_interpolation(order),
+        borderMode=_cv2_border_mode(mode),
+        borderValue=float(cval),
+    )
+    return out
 
 
 def _gaussian_blur(image: np.ndarray, sigma: float) -> np.ndarray:
     if sigma <= 0:
         return image
-    if cv2 is None:  # pragma: no cover
-        raise ImportError("GaussianBlur requires opencv-python (cv2).")
     k = int(2 * round(3 * sigma) + 1)
     k = max(3, k)
     if k % 2 == 0:
@@ -209,8 +183,6 @@ def _center_crop(image: np.ndarray, target_h: int, target_w: int) -> np.ndarray:
 
 
 def _resize(image: np.ndarray, new_h: int, new_w: int, order: int = 1) -> np.ndarray:
-    if cv2 is None:  # pragma: no cover
-        raise ImportError("Resize requires opencv-python (cv2).")
     return cv2.resize(image, (int(new_w), int(new_h)), interpolation=_cv2_interpolation(order))
 
 
@@ -316,14 +288,6 @@ def _tps_generate_inv_maps(
     y_c = np.linspace(0, height - 1, mh)
     Xc, Yc = np.meshgrid(x_c, y_c)
     map_x_c, map_y_c = _tps_eval(params_inv, ctrl_disp, Xc, Yc)
-
-    if cv2 is None:  # pragma: no cover
-        # fall back to full-res evaluation if cv2 isn't available for resize
-        xs_full = np.arange(width, dtype=np.float64)
-        ys_full = np.arange(height, dtype=np.float64)
-        Xf, Yf = np.meshgrid(xs_full, ys_full)
-        map_x_full, map_y_full = _tps_eval(params_inv, ctrl_disp, Xf, Yf)
-        return map_x_full.astype(np.float32), map_y_full.astype(np.float32)
 
     map_x_full = cv2.resize(
         map_x_c.astype(np.float32), (width, height), interpolation=cv2.INTER_CUBIC
@@ -472,9 +436,6 @@ class ZoomBlur(meta.Augmenter):
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
     ) -> Images:
-        if cv2 is None:  # pragma: no cover
-            raise ImportError("ZoomBlur requires opencv-python (cv2).")
-
         rng = _RNGAdapter(random_state)
         result: list[Image] = []
         for image in images:
@@ -554,8 +515,6 @@ class GlassBlur(meta.Augmenter):
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
     ) -> Images:
-        if cv2 is None:  # pragma: no cover
-            raise ImportError("GlassBlur requires opencv-python (cv2).")
         rng = _RNGAdapter(random_state)
         result: list[Image] = []
         for image in images:
@@ -683,8 +642,6 @@ class FourierDomainAdaptation(meta.Augmenter):
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
     ) -> Images:
-        if cv2 is None:  # pragma: no cover
-            raise ImportError("FourierDomainAdaptation requires opencv-python (cv2) for resizing.")
         rng = _RNGAdapter(random_state)
         result: list[Image] = []
         for image in images:
@@ -998,9 +955,6 @@ def _next_pow2(n: int) -> int:
 
 
 def _plasma_fractal(height: int, width: int, rng: _RNGAdapter, roughness: float) -> np.ndarray:
-    if cv2 is None:  # pragma: no cover
-        raise ImportError("Plasma effects require opencv-python (cv2) for resizing.")
-
     size = max(height, width)
     s = _next_pow2(size - 1) + 1  # 2^k + 1
     grid = np.zeros((s, s), dtype=np.float32)
@@ -1089,8 +1043,6 @@ class PlasmaBrightness(meta.Augmenter):
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
     ) -> Images:
-        if cv2 is None:  # pragma: no cover
-            raise ImportError("PlasmaBrightness requires opencv-python (cv2).")
         rng = _RNGAdapter(random_state)
         result: list[Image] = []
         for image in images:
@@ -1152,8 +1104,6 @@ class PlasmaShadow(meta.Augmenter):
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
     ) -> Images:
-        if cv2 is None:  # pragma: no cover
-            raise ImportError("PlasmaShadow requires opencv-python (cv2).")
         rng = _RNGAdapter(random_state)
         result: list[Image] = []
         for image in images:

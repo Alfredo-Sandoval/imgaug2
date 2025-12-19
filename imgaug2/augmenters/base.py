@@ -1,10 +1,10 @@
 """Base classes and functions used by all/most augmenters.
 
-This module is planned to contain :class:`imgaug2.augmenters.meta.Augmenter`
-in the future.
+This module provides foundational utilities for the augmenters package,
+including input validation and warning functions for suspicious array shapes.
 
-Added in 0.4.0.
-
+Note:
+    The main `Augmenter` base class is in `meta.py`.
 """
 
 from __future__ import annotations

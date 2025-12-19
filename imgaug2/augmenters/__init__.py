@@ -2,381 +2,74 @@
 
 from __future__ import annotations
 
-import os
+import importlib
 from abc import abstractmethod
 from collections.abc import Callable
-
-import imgaug2
 
 
 def abstractproperty(func: Callable[..., object]) -> property:
     return property(abstractmethod(func))
 
-from . import (
-    arithmetic,
-    artistic,
-    base,
-    blend,
-    blur,
-    color,
-    contrast,
-    convolutional,
-    debug,
-    edges,
-    experimental,
-    flip,
-    geometric,
-    imgcorruptlike,
-    meta,
-    mix,
-    pillike,
-    pooling,
-    segmentation,
-    size,
-    weather,
-)
-from .arithmetic import (
-    Add,
-    AddElementwise,
-    AdditiveGaussianNoise,
-    AdditiveLaplaceNoise,
-    AdditivePoissonNoise,
-    CoarseDropout,
-    CoarsePepper,
-    CoarseSalt,
-    CoarseSaltAndPepper,
-    ContrastNormalization,
-    Cutout,
-    Dropout,
-    Dropout2d,
-    ImpulseNoise,
-    Invert,
-    JpegCompression,
-    Multiply,
-    MultiplyElementwise,
-    Pepper,
-    ReplaceElementwise,
-    Salt,
-    SaltAndPepper,
-    Solarize,
-    TotalDropout,
-    add_elementwise,
-    add_scalar,
-    add_scalar_,
-    compress_jpeg,
-    cutout,
-    cutout_,
-    invert,
-    invert_,
-    multiply_elementwise,
-    multiply_elementwise_,
-    multiply_scalar,
-    multiply_scalar_,
-    replace_elementwise_,
-    solarize,
-    solarize_,
-    tempfile,
-)
-from .artistic import (
-    Cartoon,
-    stylize_cartoon,
-)
-from .base import (
-    SuspiciousMultiImageShapeWarning,
-    SuspiciousSingleImageShapeWarning,
-)
-from .blend import (
-    Alpha,
-    AlphaElementwise,
-    BlendAlpha,
-    BlendAlphaBoundingBoxes,
-    BlendAlphaCheckerboard,
-    BlendAlphaElementwise,
-    BlendAlphaFrequencyNoise,
-    BlendAlphaHorizontalLinearGradient,
-    BlendAlphaMask,
-    BlendAlphaRegularGrid,
-    BlendAlphaSegMapClassIds,
-    BlendAlphaSimplexNoise,
-    BlendAlphaSomeColors,
-    BlendAlphaVerticalLinearGradient,
-    BoundingBoxesMaskGen,
-    CheckerboardMaskGen,
-    FrequencyNoiseAlpha,
-    HorizontalLinearGradientMaskGen,
-    IBatchwiseMaskGenerator,
-    InvertMaskGen,
-    RegularGridMaskGen,
-    SegMapClassIdsMaskGen,
-    SimplexNoiseAlpha,
-    SomeColorsMaskGen,
-    StochasticParameterMaskGen,
-    VerticalLinearGradientMaskGen,
-    augm_utils,
-    blend_alpha,
-    blend_alpha_,
-)
-from .blur import (
-    AverageBlur,
-    BilateralBlur,
-    GaussianBlur,
-    MeanShiftBlur,
-    MedianBlur,
-    MotionBlur,
-    blur_avg_,
-    blur_gaussian_,
-    blur_mean_shift_,
-    iaa_convolutional,
-)
-from .collections import (
-    PosePreset,
-    RandAugment,
-)
-from .color import (
-    CSPACE_ALL,
-    CSPACE_BGR,
-    CSPACE_CIE,
-    CSPACE_GRAY,
-    CSPACE_HLS,
-    CSPACE_HSV,
-    CSPACE_RGB,
-    CSPACE_YUV,
-    AddToBrightness,
-    AddToHue,
-    AddToHueAndSaturation,
-    AddToSaturation,
-    ChangeColorspace,
-    ChangeColorTemperature,
-    CSPACE_Lab,
-    CSPACE_Luv,
-    CSPACE_YCrCb,
-    Grayscale,
-    InColorspace,
-    KMeansColorQuantization,
-    MultiplyAndAddToBrightness,
-    MultiplyBrightness,
-    MultiplyHue,
-    MultiplyHueAndSaturation,
-    MultiplySaturation,
-    Posterize,
-    RemoveSaturation,
-    UniformColorQuantization,
-    UniformColorQuantizationToNBits,
-    WithBrightnessChannels,
-    WithColorspace,
-    WithHueAndSaturation,
-    change_color_temperature,
-    change_color_temperatures_,
-    change_colorspace_,
-    change_colorspaces_,
-    posterize,
-    quantize_colors_kmeans,
-    quantize_colors_uniform,
-    quantize_kmeans,
-    quantize_uniform,
-    quantize_uniform_,
-    quantize_uniform_to_n_bits,
-    quantize_uniform_to_n_bits_,
-)
-from .contrast import (
-    CLAHE,
-    AllChannelsCLAHE,
-    AllChannelsHistogramEqualization,
-    GammaContrast,
-    HistogramEqualization,
-    LinearContrast,
-    LogContrast,
-    SigmoidContrast,
-    adjust_contrast_gamma,
-    adjust_contrast_linear,
-    adjust_contrast_log,
-    adjust_contrast_sigmoid,
-    color_lib,
-    ski_exposure,
-)
-from .convolutional import (
-    Convolve,
-    DirectedEdgeDetect,
-    EdgeDetect,
-    Emboss,
-    Sharpen,
-    convolve,
-    convolve_,
-)
-from .debug import (
-    SaveDebugImageEveryNBatches,
-    blendlib,
-    collections,
-    draw_debug_image,
-    imageio,
-    sizelib,
-)
-from .edges import (
-    Canny,
-    IBinaryImageColorizer,
-    RandomColorsBinaryImageColorizer,
-)
-from .experimental import (
-    FancyPCA,
-    FourierDomainAdaptation,
-    GlassBlur,
-    HEStain,
-    PlanckianJitter,
-    PlasmaBrightness,
-    PlasmaShadow,
-    ThinPlateSpline,
-    ZoomBlur,
-)
-from .flip import (
-    Fliplr,
-    Flipud,
-    HorizontalFlip,
-    VerticalFlip,
-    fliplr,
-    flipud,
-)
-from .geometric import (
-    Affine,
-    AffineCv2,
-    ElasticTransformation,
-    GridDistortion,
-    Jigsaw,
-    OpticalDistortion,
-    PerspectiveTransform,
-    PiecewiseAffine,
-    Rot90,
-    Rotate,
-    ScaleX,
-    ScaleY,
-    ShearX,
-    ShearY,
-    TranslateX,
-    TranslateY,
-    WithPolarWarping,
-    apply_jigsaw,
-    apply_jigsaw_to_coords,
-    blur_lib,
-    generate_jigsaw_destinations,
-    math,
-    ndimage,
-    size_lib,
-    tf,
-)
-from .meta import (
-    AssertLambda,
-    AssertShape,
-    Augmenter,
-    Batch,
-    ChannelShuffle,
-    ClipCBAsToImagePlanes,
-    Identity,
-    Lambda,
-    Noop,
-    OneOf,
-    RemoveCBAsByOutOfImageFraction,
-    Sequential,
-    SomeOf,
-    Sometimes,
-    UnnormalizedBatch,
-    WithChannels,
-    clip_augmented_image,
-    clip_augmented_image_,
-    clip_augmented_images,
-    clip_augmented_images_,
-    copy_arrays,
-    copy_module,
-    estimate_max_number_of_channels,
-    handle_children_list,
-    iabase,
-    invert_reduce_to_nonempty,
-    itertools,
-    reduce_to_nonempty,
-    shuffle_channels,
-)
-from .mix import (
-    cutmix,
-    mixup,
-    mosaic4,
-)
-from .pooling import (
-    AveragePooling,
-    MaxPooling,
-    MedianPooling,
-)
-from .segmentation import (
-    ABCMeta,
-    DropoutPointsSampler,
-    IPointsSampler,
-    RegularGridPointsSampler,
-    RegularGridVoronoi,
-    RelativeRegularGridPointsSampler,
-    RelativeRegularGridVoronoi,
-    SubsamplingPointsSampler,
-    Superpixels,
-    UniformPointsSampler,
-    UniformVoronoi,
-    Voronoi,
-    abstractmethod,
-    iarandom,
-    replace_segments_,
-    segment_voronoi,
-    skimage,
-)
-from .size import (
-    CenterCropToAspectRatio,
-    CenterCropToFixedSize,
-    CenterCropToMultiplesOf,
-    CenterCropToPowersOf,
-    CenterCropToSquare,
-    CenterPadToAspectRatio,
-    CenterPadToFixedSize,
-    CenterPadToMultiplesOf,
-    CenterPadToPowersOf,
-    CenterPadToSquare,
-    Crop,
-    CropAndPad,
-    CropToAspectRatio,
-    CropToFixedSize,
-    CropToMultiplesOf,
-    CropToPowersOf,
-    CropToSquare,
-    KeepSizeByResize,
-    Pad,
-    PadToAspectRatio,
-    PadToFixedSize,
-    PadToMultiplesOf,
-    PadToPowersOf,
-    PadToSquare,
-    Resize,
-    Scale,
-    compute_croppings_to_reach_aspect_ratio,
-    compute_croppings_to_reach_multiples_of,
-    compute_croppings_to_reach_powers_of,
-    compute_paddings_to_reach_aspect_ratio,
-    compute_paddings_to_reach_multiples_of,
-    compute_paddings_to_reach_powers_of,
-    cv2,
-    functools,
-    pad,
-    pad_to_aspect_ratio,
-    pad_to_multiples_of,
-    re,
-)
-from .weather import (
-    CloudLayer,
-    Clouds,
-    FastSnowyLandscape,
-    Fog,
-    Rain,
-    RainLayer,
-    Snowflakes,
-    SnowflakesLayer,
-    colorlib,
-    ia,
-    iadt,
-    iap,
-    np,
-)
+_SUBMODULE_NAMES = [
+    "arithmetic",
+    "artistic",
+    "base",
+    "blend",
+    "blur",
+    "color",
+    "collections",
+    "contrast",
+    "convolutional",
+    "debug",
+    "edges",
+    "experimental",
+    "flip",
+    "geometric",
+    "imgcorruptlike",
+    "meta",
+    "mix",
+    "overlay",
+    "pillike",
+    "pooling",
+    "segmentation",
+    "size",
+    "weather",
+]
+
+_ATTR_TO_MODULE: dict[str, str] = {}
+
+
+def __getattr__(name: str) -> object:
+    if name in _SUBMODULE_NAMES:
+        module = importlib.import_module(f"{__name__}.{name}")
+        globals()[name] = module
+        return module
+
+    module_name = _ATTR_TO_MODULE.get(name)
+    if module_name is not None:
+        module = importlib.import_module(f"{__name__}.{module_name}")
+        value = getattr(module, name)
+        globals()[name] = value
+        return value
+
+    for submodule_name in _SUBMODULE_NAMES:
+        module = importlib.import_module(f"{__name__}.{submodule_name}")
+        exports = getattr(module, "__all__", None)
+        if exports is None:
+            exports = [attr for attr in dir(module) if not attr.startswith("_")]
+        for attr in exports:
+            _ATTR_TO_MODULE.setdefault(attr, submodule_name)
+        if hasattr(module, name):
+            value = getattr(module, name)
+            globals()[name] = value
+            return value
+
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
+
+def __dir__() -> list[str]:
+    # Keep this cheap: show current globals plus known submodules.
+    return sorted(set(globals().keys()) | set(_SUBMODULE_NAMES))
 
 __all__ = [
     "ABCMeta",

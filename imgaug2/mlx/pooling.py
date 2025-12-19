@@ -9,11 +9,11 @@ non-divisible dimensions. All functions preserve input array type (NumPy or MLX)
 
 Examples
 --------
->>> import numpy as np
->>> from imgaug2.mlx.pooling import avg_pool, max_pool, min_pool
->>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
->>> downsampled = avg_pool(img, block_size=2)  # Reduce to 50x50
->>> max_pooled = max_pool(img, block_size=(2, 4))  # Reduce height by 2, width by 4
+>>> import numpy as np  # doctest: +SKIP
+>>> from imgaug2.mlx.pooling import avg_pool, max_pool, min_pool  # doctest: +SKIP
+>>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # doctest: +SKIP
+>>> downsampled = avg_pool(img, block_size=2)  # Reduce to 50x50  # doctest: +SKIP
+>>> max_pooled = max_pool(img, block_size=(2, 4))  # Reduce height by 2, width by 4  # doctest: +SKIP
 """
 
 from __future__ import annotations

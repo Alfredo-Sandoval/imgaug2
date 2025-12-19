@@ -11,7 +11,7 @@ import skimage.draw
 import skimage.measure
 
 import imgaug2.imgaug as ia
-from imgaug2.augmentables.base import IAugmentable
+
 from imgaug2.augmentables.utils import (
     _handle_on_image_shape,
     _normalize_shift_args,
@@ -19,6 +19,8 @@ from imgaug2.augmentables.utils import (
     normalize_imglike_shape,
     project_coords,
 )
+from imgaug2.compat.markers import legacy
+from imgaug2.augmenters._size_utils import pad as pad_
 
 if TYPE_CHECKING:
     from imgaug2.augmentables.kps import Keypoint, KeypointsOnImage
@@ -79,11 +81,11 @@ class BoundingBox:
         self.y2 = y2
         self.label = label
 
+    @legacy(version="0.4.0")
     @property
     def coords(self) -> np.ndarray:
         """Get the top-left and bottom-right coordinates as one array.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -217,13 +219,12 @@ class BoundingBox:
         """
         return self.height * self.width
 
-    # TODO add test for tuple of number
-    def contains(self, other: tuple[float, float] | _HasXY) -> bool:
+    def contains(self, other: tuple[float, float] | list[float] | np.ndarray | _HasXY) -> bool:
         """Estimate whether the bounding box contains a given point.
 
         Parameters
         ----------
-        other : tuple of number or imgaug2.augmentables.kps.Keypoint
+        other : tuple/list/ndarray of number or imgaug2.augmentables.kps.Keypoint
             Point to check for.
 
         Returns
@@ -233,12 +234,17 @@ class BoundingBox:
             ``False`` otherwise.
 
         """
-        if isinstance(other, tuple):
+        if isinstance(other, (tuple, list, np.ndarray)):
             x, y = other
         else:
             x, y = other.x, other.y
-        return self.x1 <= x <= self.x2 and self.y1 <= y <= self.y2
+        x1 = self.x1
+        y1 = self.y1
+        x2 = self.x2
+        y2 = self.y2
+        return x1 <= x <= x2 and y1 <= y <= y2
 
+    @legacy(version="0.4.0")
     def project_(self, from_shape: ShapeLike, to_shape: ShapeLike) -> BoundingBox:
         """Project the bounding box onto a differently shaped image in-place.
 
@@ -251,7 +257,6 @@ class BoundingBox:
         This is intended for cases where the original image is resized.
         It cannot be used for more complex changes (e.g. padding, cropping).
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -273,7 +278,6 @@ class BoundingBox:
         )
         return self
 
-    # TODO add tests for ndarray inputs
     def project(self, from_shape: ShapeLike, to_shape: ShapeLike) -> BoundingBox:
         """Project the bounding box onto a differently shaped image.
 
@@ -302,6 +306,7 @@ class BoundingBox:
         """
         return self.deepcopy().project_(from_shape, to_shape)
 
+    @legacy(version="0.4.0")
     def extend_(
         self,
         all_sides: float = 0,
@@ -312,7 +317,6 @@ class BoundingBox:
     ) -> BoundingBox:
         """Extend the size of the bounding box along its sides in-place.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -473,10 +477,10 @@ class BoundingBox:
         area_union = self.area + other.area - inters.area
         return inters.area / area_union if area_union > 0 else 0.0
 
+    @legacy(version="0.4.0")
     def compute_out_of_image_area(self, image: ShapeLike) -> float:
         """Compute the area of the BB that is outside of the image plane.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -500,6 +504,7 @@ class BoundingBox:
         area = self.area
         return area if inter is None else area - inter.area
 
+    @legacy(version="0.4.0")
     def compute_out_of_image_fraction(self, image: ShapeLike) -> float:
         """Compute fraction of BB area outside of the image plane.
 
@@ -507,7 +512,6 @@ class BoundingBox:
         bounding box that is outside of the image plane, while ``A`` is the
         total area of the bounding box.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -625,10 +629,10 @@ class BoundingBox:
         """Clip off all parts of the BB box that are outside of the image."""
         return self.clip_out_of_image(*args, **kwargs)
 
+    @legacy(version="0.4.0")
     def clip_out_of_image_(self, image: ShapeLike) -> BoundingBox:
         """Clip off parts of the BB box that are outside of the image in-place.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -678,12 +682,12 @@ class BoundingBox:
         """
         return self.deepcopy().clip_out_of_image_(image)
 
+    @legacy(version="0.4.0")
     def shift_(self, x: float = 0, y: float = 0) -> BoundingBox:
         """Move this bounding box along the x/y-axis in-place.
 
         The origin ``(0, 0)`` is at the top left of the image.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -757,10 +761,10 @@ class BoundingBox:
             Shifted bounding box.
 
         """
-        # pylint: disable=redefined-outer-name
         x, y = _normalize_shift_args(x, y, top=top, right=right, bottom=bottom, left=left)
         return self.deepcopy().shift_(x, y)
 
+    @legacy(version="0.4.0")
     def draw_label_on_image(
         self,
         image: np.ndarray,
@@ -778,7 +782,6 @@ class BoundingBox:
 
         The box is placed right above the BB's rectangle.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -828,7 +831,6 @@ class BoundingBox:
             Image with bounding box drawn on it.
 
         """
-        # pylint: disable=redefined-outer-name
         drawer = _LabelOnImageDrawer(
             color=color,
             color_text=color_text,
@@ -843,6 +845,7 @@ class BoundingBox:
             return drawer.draw_on_image(image, self)
         return drawer.draw_on_image_(image, self)
 
+    @legacy(version="0.4.0")
     def draw_box_on_image(
         self,
         image: np.ndarray,
@@ -857,7 +860,6 @@ class BoundingBox:
 
         This method does not draw the label.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -895,7 +897,6 @@ class BoundingBox:
             Image with bounding box drawn on it.
 
         """
-        # pylint: disable=invalid-name, redefined-outer-name
         if thickness is not None:
             ia.warn_deprecated(
                 "Usage of argument 'thickness' in BoundingBox.draw_on_image() "
@@ -947,7 +948,6 @@ class BoundingBox:
 
         return result
 
-    # TODO add explicit test for zero-sized BBs (worked when tested by hand)
     def draw_on_image(
         self,
         image: np.ndarray,
@@ -1003,7 +1003,6 @@ class BoundingBox:
             Image with bounding box drawn on it.
 
         """
-        # pylint: disable=redefined-outer-name
         image_drawn = self.draw_box_on_image(
             image,
             color=color,
@@ -1024,7 +1023,6 @@ class BoundingBox:
             )
         return image_drawn
 
-    # TODO add tests for pad and pad_max
     def extract_from_image(
         self,
         image: np.ndarray,
@@ -1072,7 +1070,6 @@ class BoundingBox:
             ``H'>0`` and ``W'>0``, otherwise only ``H'>=0`` and ``W'>=0``.
 
         """
-        # pylint: disable=no-else-return, too-many-statements
         height, width = image.shape[0], image.shape[1]
         x1, x2, y1, y2 = self.x1_int, self.x2_int, self.y1_int, self.y2_int
 
@@ -1086,7 +1083,6 @@ class BoundingBox:
             y1, y2 = np.clip([y1, y2], 0, height - 1)
             x1, x2 = np.clip([x1, x2], 0, width - 1)
 
-        # TODO add test
         if prevent_zero_size:
             if abs(x2 - x1) < 1:
                 x2 = x1 + 1
@@ -1100,8 +1096,6 @@ class BoundingBox:
             # TODO probably more efficient to initialize an array of zeros
             #      and copy only the portions of the bb into that array that
             #      are natively inside the image area
-            from imgaug2.augmenters import size as iasize
-
             pad_top = 0
             pad_right = 0
             pad_bottom = 0
@@ -1128,7 +1122,7 @@ class BoundingBox:
                 if pad_max is None:
                     pad_max = max(paddings)
 
-                image = iasize.pad(
+                image = pad_(
                     image,
                     top=min(pad_top, pad_max),
                     right=min(pad_right, pad_max),
@@ -1153,9 +1147,6 @@ class BoundingBox:
                 return np.zeros((out_height, out_width), dtype=image.dtype)
             return np.zeros((out_height, out_width, image.shape[-1]), dtype=image.dtype)
 
-    # TODO also add to_heatmap
-    # TODO add this to BoundingBoxesOnImage
-    # TODO add label to keypoints?
     def to_keypoints(self) -> list[Keypoint]:
         """Convert the BB's corners to keypoints (clockwise, from top left).
 
@@ -1165,20 +1156,19 @@ class BoundingBox:
             Corners of the bounding box as keypoints.
 
         """
-        # TODO get rid of this deferred import
-        from imgaug2.augmentables.kps import Keypoint
+        from imgaug2.augmentables import kps
 
         return [
-            Keypoint(x=self.x1, y=self.y1),
-            Keypoint(x=self.x2, y=self.y1),
-            Keypoint(x=self.x2, y=self.y2),
-            Keypoint(x=self.x1, y=self.y2),
+            kps.Keypoint(x=self.x1, y=self.y1),
+            kps.Keypoint(x=self.x2, y=self.y1),
+            kps.Keypoint(x=self.x2, y=self.y2),
+            kps.Keypoint(x=self.x1, y=self.y2),
         ]
 
+    @legacy(version="0.4.0")
     def to_polygon(self) -> Polygon:
         """Convert this bounding box to a polygon covering the same area.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -1186,10 +1176,9 @@ class BoundingBox:
             The bounding box converted to a polygon.
 
         """
-        # TODO get rid of this deferred import
-        from imgaug2.augmentables.polys import Polygon
+        from imgaug2.augmentables import polys
 
-        return Polygon(
+        return polys.Polygon(
             [
                 (self.x1, self.y1),
                 (self.x2, self.y1),
@@ -1200,6 +1189,7 @@ class BoundingBox:
         )
 
     # TODO also introduce similar area_almost_equals()
+    @legacy(version="0.4.0")
     def coords_almost_equals(
         self,
         other: BoundingBox | np.ndarray | Sequence[float] | Sequence[Sequence[float]],
@@ -1207,7 +1197,6 @@ class BoundingBox:
     ) -> bool:
         """Estimate if this and another BB have almost identical coordinates.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1248,6 +1237,7 @@ class BoundingBox:
 
         return np.allclose(coords_a.flat, coords_b, atol=max_distance, rtol=0)
 
+    @legacy(version="0.4.0")
     def almost_equals(self, other: BoundingBox, max_distance: float = 1e-4) -> bool:
         """Compare this and another BB's label and coordinates.
 
@@ -1255,7 +1245,6 @@ class BoundingBox:
         :func:`~imgaug2.augmentables.bbs.BoundingBox.coords_almost_equals` but
         additionally compares the labels.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1278,6 +1267,7 @@ class BoundingBox:
             return False
         return self.coords_almost_equals(other, max_distance=max_distance)
 
+    @legacy(version="0.4.0")
     @classmethod
     def from_point_soup(
         cls, xy: np.ndarray | Sequence[float] | Sequence[Sequence[float]]
@@ -1287,7 +1277,6 @@ class BoundingBox:
         This is the inverse of
         :func:`~imgaug2.BoundingBoxesOnImage.to_xyxy_array`.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1302,7 +1291,6 @@ class BoundingBox:
             Bounding box around the points.
 
         """
-        # pylint: disable=unsubscriptable-object
         xy = np.array(xy, dtype=np.float32)
 
         assert len(xy) > 0, (
@@ -1411,10 +1399,10 @@ class BoundingBox:
         #      the deepcopy from copy()
         return self.copy(x1=x1, y1=y1, x2=x2, y2=y2, label=label)
 
+    @legacy(version="0.4.0")
     def __getitem__(self, indices: object) -> np.ndarray | np.floating:
         """Get the coordinate(s) with given indices.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -1424,10 +1412,10 @@ class BoundingBox:
         """
         return self.coords[indices]
 
+    @legacy(version="0.4.0")
     def __iter__(self) -> Iterator[np.ndarray]:
         """Iterate over the coordinates of this instance.
 
-        Added in 0.4.0.
 
         Yields
         ------
@@ -1444,7 +1432,7 @@ class BoundingBox:
         return f"BoundingBox(x1={self.x1:.4f}, y1={self.y1:.4f}, x2={self.x2:.4f}, y2={self.y2:.4f}, label={self.label})"
 
 
-class BoundingBoxesOnImage(IAugmentable):
+class BoundingBoxesOnImage:
     """Container for the list of all bounding boxes on a single image.
 
     Parameters
@@ -1475,11 +1463,11 @@ class BoundingBoxesOnImage(IAugmentable):
         self.bounding_boxes = bounding_boxes
         self.shape = _handle_on_image_shape(shape, self)
 
+    @legacy(version="0.4.0")
     @property
     def items(self) -> list[BoundingBox]:
         """Get the bounding boxes in this container.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -1489,11 +1477,11 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return self.bounding_boxes
 
+    @legacy(version="0.4.0")
     @items.setter
     def items(self, value: list[BoundingBox]) -> None:
         """Set the bounding boxes in this container.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1543,10 +1531,10 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return len(self.bounding_boxes) == 0
 
+    @legacy(version="0.4.0")
     def on_(self, image: ShapeLike) -> BoundingBoxesOnImage:
         """Project BBs from one image (shape) to a another one in-place.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1562,7 +1550,6 @@ class BoundingBoxesOnImage(IAugmentable):
             The object and its items may have been modified in-place.
 
         """
-        # pylint: disable=invalid-name
         on_shape = normalize_imglike_shape(image)
         if on_shape[0:2] == self.shape[0:2]:
             self.shape = on_shape  # channels may differ
@@ -1589,7 +1576,6 @@ class BoundingBoxesOnImage(IAugmentable):
             the new image shape.
 
         """
-        # pylint: disable=invalid-name
         return self.deepcopy().on_(image)
 
     @classmethod
@@ -1620,7 +1606,6 @@ class BoundingBoxesOnImage(IAugmentable):
             derived from the provided corner coordinates.
 
         """
-        # pylint: disable=unsubscriptable-object
         xyxy = np.array(xyxy, dtype=np.float32)
 
         # note that np.array([]) is (0,), not (0, 2)
@@ -1636,13 +1621,15 @@ class BoundingBoxesOnImage(IAugmentable):
 
         return cls(boxes, shape)
 
+    @legacy(version="0.4.0")
     @classmethod
     def from_point_soups(
-        cls, xy: np.ndarray | Sequence[Sequence[float]] | Sequence[Sequence[Sequence[float]]], shape: ShapeLike
+        cls,
+        xy: np.ndarray | Sequence[Sequence[float]] | Sequence[Sequence[Sequence[float]]],
+        shape: ShapeLike,
     ) -> BoundingBoxesOnImage:
         """Convert an ``(N, 2P) or (N, P, 2) ndarray`` to a BBsOI instance.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1702,10 +1689,10 @@ class BoundingBoxesOnImage(IAugmentable):
 
         return xyxy_array.astype(dtype)
 
+    @legacy(version="0.4.0")
     def to_xy_array(self) -> np.ndarray:
         """Convert the ``BoundingBoxesOnImage`` object to an ``(N,2) ndarray``.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -1716,7 +1703,10 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return self.to_xyxy_array().reshape((-1, 2))
 
-    def fill_from_xyxy_array_(self, xyxy: np.ndarray | Sequence[Sequence[float]]) -> BoundingBoxesOnImage:
+    @legacy(version="0.4.0")
+    def fill_from_xyxy_array_(
+        self, xyxy: np.ndarray | Sequence[Sequence[float]]
+    ) -> BoundingBoxesOnImage:
         """Modify the BB coordinates of this instance in-place.
 
         .. note::
@@ -1730,7 +1720,6 @@ class BoundingBoxesOnImage(IAugmentable):
             This method will automatically flip x-coordinates if ``x1>x2``
             for a bounding box. (Analogous for y-coordinates.)
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1749,7 +1738,7 @@ class BoundingBoxesOnImage(IAugmentable):
         xyxy = np.array(xyxy, dtype=np.float32)
 
         # note that np.array([]) is (0,), not (0, 4)
-        assert xyxy.shape[0] == 0 or (xyxy.ndim == 2 and xyxy.shape[-1] == 4), (  # pylint: disable=unsubscriptable-object
+        assert xyxy.shape[0] == 0 or (xyxy.ndim == 2 and xyxy.shape[-1] == 4), (
             f"Expected input array to have shape (N,4), got shape {xyxy.shape}."
         )
 
@@ -1766,13 +1755,15 @@ class BoundingBoxesOnImage(IAugmentable):
 
         return self
 
-    def fill_from_xy_array_(self, xy: np.ndarray | Sequence[Sequence[float]]) -> BoundingBoxesOnImage:
+    @legacy(version="0.4.0")
+    def fill_from_xy_array_(
+        self, xy: np.ndarray | Sequence[Sequence[float]]
+    ) -> BoundingBoxesOnImage:
         """Modify the BB coordinates of this instance in-place.
 
         See
         :func:`~imgaug2.augmentables.bbs.BoundingBoxesOnImage.fill_from_xyxy_array_`.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1836,7 +1827,6 @@ class BoundingBoxesOnImage(IAugmentable):
             Image with drawn bounding boxes.
 
         """
-        # pylint: disable=redefined-outer-name
         image = np.copy(image) if copy else image
 
         for bb in self.bounding_boxes:
@@ -1852,10 +1842,12 @@ class BoundingBoxesOnImage(IAugmentable):
 
         return image
 
-    def remove_out_of_image_(self, fully: bool = True, partly: bool = False) -> BoundingBoxesOnImage:
+    @legacy(version="0.4.0")
+    def remove_out_of_image_(
+        self, fully: bool = True, partly: bool = False
+    ) -> BoundingBoxesOnImage:
         """Remove in-place all BBs that are fully/partially outside of the image.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1904,12 +1896,12 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return self.copy().remove_out_of_image_(fully=fully, partly=partly)
 
+    @legacy(version="0.4.0")
     def remove_out_of_image_fraction_(self, fraction: float) -> BoundingBoxesOnImage:
         """Remove in-place all BBs with an OOI fraction of at least `fraction`.
 
         'OOI' is the abbreviation for 'out of image'.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1929,10 +1921,10 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return _remove_out_of_image_fraction_(self, fraction)
 
+    @legacy(version="0.4.0")
     def remove_out_of_image_fraction(self, fraction: float) -> BoundingBoxesOnImage:
         """Remove all BBs with an out of image fraction of at least `fraction`.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1959,11 +1951,11 @@ class BoundingBoxesOnImage(IAugmentable):
         """Clip off all parts from all BBs that are outside of the image."""
         return self.clip_out_of_image()
 
+    @legacy(version="0.4.0")
     def clip_out_of_image_(self) -> BoundingBoxesOnImage:
         """
         Clip off in-place all parts from all BBs that are outside of the image.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -1993,12 +1985,12 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return self.deepcopy().clip_out_of_image_()
 
+    @legacy(version="0.4.0")
     def shift_(self, x: float = 0, y: float = 0) -> BoundingBoxesOnImage:
         """Move all BBs along the x/y-axis in-place.
 
         The origin ``(0, 0)`` is at the top left of the image.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -2073,10 +2065,10 @@ class BoundingBoxesOnImage(IAugmentable):
         x, y = _normalize_shift_args(x, y, top=top, right=right, bottom=bottom, left=left)
         return self.deepcopy().shift_(x=x, y=y)
 
+    @legacy(version="0.4.0")
     def to_keypoints_on_image(self) -> KeypointsOnImage:
         """Convert the bounding boxes to one ``KeypointsOnImage`` instance.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -2097,13 +2089,13 @@ class BoundingBoxesOnImage(IAugmentable):
 
         return KeypointsOnImage.from_xy_array(arr.reshape((-1, 2)), shape=self.shape)
 
+    @legacy(version="0.4.0")
     def invert_to_keypoints_on_image_(self, kpsoi: KeypointsOnImage) -> BoundingBoxesOnImage:
         """Invert the output of ``to_keypoints_on_image()`` in-place.
 
         This function writes in-place into this ``BoundingBoxesOnImage``
         instance.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -2141,10 +2133,10 @@ class BoundingBoxesOnImage(IAugmentable):
         self.shape = kpsoi.shape
         return self
 
+    @legacy(version="0.4.0")
     def to_polygons_on_image(self) -> PolygonsOnImage:
         """Convert the bounding boxes to one ``PolygonsOnImage`` instance.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -2217,10 +2209,10 @@ class BoundingBoxesOnImage(IAugmentable):
 
         return BoundingBoxesOnImage(bounding_boxes, shape)
 
+    @legacy(version="0.4.0")
     def __getitem__(self, indices: int | slice) -> BoundingBox | list[BoundingBox]:
         """Get the bounding box(es) with given indices.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -2230,10 +2222,10 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return self.bounding_boxes[indices]
 
+    @legacy(version="0.4.0")
     def __iter__(self) -> Iterator[BoundingBox]:
         """Iterate over the bounding boxes in this container.
 
-        Added in 0.4.0.
 
         Yields
         ------
@@ -2245,10 +2237,10 @@ class BoundingBoxesOnImage(IAugmentable):
         """
         return iter(self.bounding_boxes)
 
+    @legacy(version="0.4.0")
     def __len__(self) -> int:
         """Get the number of items in this instance.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -2289,7 +2281,6 @@ class _LabelOnImageDrawer:
         self.size_text = size_text
 
     def draw_on_image_(self, image: np.ndarray, bounding_box: BoundingBox) -> np.ndarray:
-        # pylint: disable=invalid-name, redefined-outer-name
         if self.raise_if_out_of_image:
             self._do_raise_if_out_of_image(image, bounding_box)
         color_text, color_bg = self._preprocess_colors()

@@ -1,17 +1,14 @@
-"""
-Augmenters that create weather effects.
+"""Augmenters that create weather effects.
 
-List of augmenters:
+This module provides augmenters that simulate various weather conditions
+like snow, clouds, fog, and rain to create realistic environmental effects.
 
-    * :class:`FastSnowyLandscape`
-    * :class:`CloudLayer`
-    * :class:`Clouds`
-    * :class:`Fog`
-    * :class:`SnowflakesLayer`
-    * :class:`Snowflakes`
-    * :class:`RainLayer`
-    * :class:`Rain`
-
+Key Augmenters:
+    - `FastSnowyLandscape`: Convert landscapes to snowy scenes.
+    - `Clouds`, `CloudLayer`: Add cloud overlays to images.
+    - `Fog`: Add fog effects with configurable density.
+    - `Snowflakes`, `SnowflakesLayer`: Add falling snowflake effects.
+    - `Rain`, `RainLayer`: Add rain streak effects.
 """
 
 from __future__ import annotations
@@ -29,6 +26,7 @@ from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import arithmetic, blur, contrast, meta
 from imgaug2.augmenters import color as colorlib
 from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
+from imgaug2.compat.markers import legacy
 
 
 class FastSnowyLandscape(meta.Augmenter):
@@ -179,7 +177,7 @@ class FastSnowyLandscape(meta.Augmenter):
         lmul_samples = self.lightness_multiplier.draw_samples((nb_augmentables,), rss[0])
         return thresh_samples, lmul_samples
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -404,7 +402,7 @@ class CloudLayer(meta.Augmenter):
             density_multiplier, "density_multiplier"
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -517,7 +515,12 @@ class CloudLayer(meta.Augmenter):
 
     @classmethod
     def _generate_intensity_map_fine(
-        cls, height: int, width: int, intensity_mean: float, exponent: ParamInput, random_state: iarandom.RNG
+        cls,
+        height: int,
+        width: int,
+        intensity_mean: float,
+        exponent: ParamInput,
+        random_state: iarandom.RNG,
     ) -> Array:
         intensity_details_generator = iap.FrequencyNoise(
             exponent=exponent,
@@ -957,7 +960,7 @@ class SnowflakesLayer(meta.Augmenter):
         # (height, width), same for all images
         self.gate_noise_size = (8, 8)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1077,7 +1080,7 @@ class SnowflakesLayer(meta.Augmenter):
         blurer = blur.MotionBlur(k=max(k, 3), angle=angle, direction=1.0, random_state=random_state)
         return blurer.augment_image(noise)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _postprocess_noise(
         cls, noise_small_blur: Array, flake_size_uniformity_sample: float, nb_channels: int
@@ -1092,7 +1095,7 @@ class SnowflakesLayer(meta.Augmenter):
         noise_small_blur_rgb = np.tile(noise_small_blur[..., np.newaxis], (1, 1, nb_channels))
         return noise_small_blur_rgb
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _blend(cls, image: Array, speed_sample: float, noise_small_blur_rgb: Array) -> Array:
         # blend:
@@ -1320,10 +1323,10 @@ class Snowflakes(meta.SomeOf):
         )
 
 
+@legacy(version="0.4.0")
 class RainLayer(SnowflakesLayer):
     """Add a single layer of falling raindrops to images.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1390,7 +1393,7 @@ class RainLayer(SnowflakesLayer):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         density: ParamInput,
@@ -1421,12 +1424,12 @@ class RainLayer(SnowflakesLayer):
             deterministic=deterministic,
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _blur(cls, noise: Array, sigma: float) -> Array:
         return noise
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _postprocess_noise(
         cls, noise_small_blur: Array, flake_size_uniformity_sample: float, nb_channels: int
@@ -1434,7 +1437,7 @@ class RainLayer(SnowflakesLayer):
         noise_small_blur_rgb = np.tile(noise_small_blur[..., np.newaxis], (1, 1, nb_channels))
         return noise_small_blur_rgb
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _blend(cls, image: Array, speed_sample: float, noise_small_blur_rgb: Array) -> Array:
         # We set the mean color based on the noise here. That's a pseudo-random
@@ -1452,6 +1455,7 @@ class RainLayer(SnowflakesLayer):
         return np.clip(image_f32, 0, 255).astype(np.uint8)
 
 
+@legacy(version="0.4.0")
 class Rain(meta.SomeOf):
     """Add falling snowflakes to images.
 
@@ -1467,7 +1471,6 @@ class Rain(meta.SomeOf):
         look like snowflakes. For larger images, you may want to increase
         the `drop_size` to e.g. ``(0.10, 0.20)``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1532,7 +1535,7 @@ class Rain(meta.SomeOf):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         nb_iterations: ParamInput = (1, 3),

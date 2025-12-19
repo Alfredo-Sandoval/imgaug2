@@ -1,12 +1,11 @@
 """Augmenters that are collections of other augmenters.
 
-List of augmenters:
+This module provides preset augmenter pipelines that combine multiple
+augmentation techniques for common use cases.
 
-    * :class:`RandAugment`
-    * :class:`PosePreset`
-
-Added in 0.4.0.
-
+Key Augmenters:
+    - `RandAugment`: Implementation of the RandAugment algorithm.
+    - `PosePreset`: Preset augmentation pipelines for pose estimation.
 """
 
 from __future__ import annotations
@@ -21,6 +20,7 @@ import imgaug2.random as iarandom
 from imgaug2.augmenters import arithmetic, contrast, flip, geometric, meta, pillike
 from imgaug2.augmenters import size as sizelib
 from imgaug2.augmenters._typing import Numberish, RNGInput
+from imgaug2.compat.markers import legacy
 
 DiscreteParamInput: TypeAlias = int | tuple[int, int] | list[int] | iap.StochasticParameter | None
 FillColor: TypeAlias = int | Sequence[int] | iap.StochasticParameter
@@ -34,6 +34,7 @@ PosePresetName: TypeAlias = Literal[
 ]
 
 
+@legacy(version="0.4.0")
 class RandAugment(meta.Sequential):
     """Apply RandAugment to inputs as described in the corresponding paper.
 
@@ -81,7 +82,6 @@ class RandAugment(meta.Sequential):
         transformations to ensure that outputs are as similar as possible
         to the paper's implementation.)
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -198,7 +198,7 @@ class RandAugment(meta.Sequential):
     # N=2, M=9 is optimal for ImageNet with ResNet-50
     # N=2, M=28 is optimal for ImageNet with EfficientNet-B7
     # for cval they use [125, 122, 113]
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         n: DiscreteParamInput = 2,
@@ -209,7 +209,6 @@ class RandAugment(meta.Sequential):
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # pylint: disable=invalid-name
         seed = seed if random_state == "deprecated" else random_state
         rng = iarandom.RNG.create_if_not_rng_(seed)
 
@@ -251,10 +250,9 @@ class RandAugment(meta.Sequential):
             deterministic=deterministic,
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _create_initial_augmenters_list(cls, m: iap.StochasticParameter) -> list[meta.Augmenter]:
-        # pylint: disable=invalid-name
         return [
             flip.Fliplr(0.5),
             sizelib.KeepSizeByResize(
@@ -270,19 +268,22 @@ class RandAugment(meta.Sequential):
             ),
         ]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _create_main_augmenters_list(
         cls, m: iap.StochasticParameter, cval: FillColor
     ) -> list[meta.Augmenter]:
-        # pylint: disable=invalid-name
         m_max = cls._M_MAX
 
-        def _float_parameter(level: iap.StochasticParameter, maxval: float) -> iap.StochasticParameter:
+        def _float_parameter(
+            level: iap.StochasticParameter, maxval: float
+        ) -> iap.StochasticParameter:
             maxval_norm = maxval / m_max
             return iap.Multiply(level, maxval_norm, elementwise=True)
 
-        def _int_parameter(level: iap.StochasticParameter, maxval: float) -> iap.StochasticParameter:
+        def _int_parameter(
+            level: iap.StochasticParameter, maxval: float
+        ) -> iap.StochasticParameter:
             # paper applies just int(), so we don't round here
             return iap.Discretize(_float_parameter(level, maxval), round=False)
 
@@ -347,7 +348,7 @@ class RandAugment(meta.Sequential):
             pillike.FilterSmooth(),
         ]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[iap.StochasticParameter | int | Sequence[int]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         someof = self[1]

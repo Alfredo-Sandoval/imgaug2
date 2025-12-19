@@ -1,4 +1,3 @@
-# TODO: Have Codex check this file
 """
 Some utility functions that are only used for unittests.
 Placing them in test/ directory seems to be against convention, so they are part of the library.
@@ -19,7 +18,7 @@ import tempfile
 import unittest
 import unittest.mock as mock
 import warnings
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Sequence
 from typing import Any, NoReturn, TypeVar
 
 import numpy as np
@@ -30,6 +29,7 @@ import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.kps import KeypointsOnImage
 from imgaug2.augmentables.polys import PolygonsOnImage
+from imgaug2.compat.markers import legacy
 
 T = TypeVar("T")
 
@@ -51,9 +51,8 @@ class ArgCopyingMagicMock(mock.MagicMock):
         return super()._mock_call(*args_copy, **kwargs_copy)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def assert_cbaois_equal(observed: Any, expected: Any, max_distance: float = 1e-4) -> None:  # noqa: ANN401
-    # pylint: disable=unidiomatic-typecheck
     if isinstance(observed, list) or isinstance(expected, list):
         assert isinstance(observed, list)
         assert isinstance(expected, list)
@@ -141,7 +140,7 @@ def reseed(seed: int = 0) -> None:
     random.seed(seed)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def runtest_pickleable_uint8_img(
     augmenter: Any, shape: tuple[int, ...] = (15, 15, 3), iterations: int = 3  # noqa: ANN401
 ) -> None:
@@ -157,10 +156,10 @@ def runtest_pickleable_uint8_img(
         assert np.array_equal(image_aug, image_aug_pkl)
 
 
+@legacy(version="0.4.0")
 def wrap_shift_deprecation(func: Callable[..., T], *args: Any, **kwargs: Any) -> T:  # noqa: ANN401
     """Helper for tests of CBA shift() functions.
 
-    Added in 0.4.0.
 
     """
     # No deprecated arguments? Just call the functions directly.
@@ -180,6 +179,7 @@ def wrap_shift_deprecation(func: Callable[..., T], *args: Any, **kwargs: Any) ->
         return result
 
 
+@legacy(version="0.4.0")
 class TemporaryDirectory:
     """Create a context for a temporary directory.
 
@@ -187,14 +187,12 @@ class TemporaryDirectory:
     This context is available in ``tmpfile.TemporaryDirectory``, but only
     from 3.2+.
 
-    Added in 0.4.0.
 
     """
 
     def __init__(
         self, suffix: str = "", prefix: str = "tmp", dir: str | None = None
     ) -> None:
-        # pylint: disable=redefined-builtin
         self.name = tempfile.mkdtemp(suffix, prefix, dir)
 
     def __enter__(self) -> str:
@@ -213,7 +211,7 @@ class TemporaryDirectory:
 # https://github.com/python/cpython/blob/master/Lib/unittest/case.py
 # at commit 293dd23 (Nov 19, 2019).
 # Required at least to enable assertWarns() in python <3.2.
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _is_subtype(expected: type | tuple[type, ...], basetype: type) -> bool:
     if isinstance(expected, tuple):
         return all(_is_subtype(e, basetype) for e in expected)
@@ -224,15 +222,14 @@ def _is_subtype(expected: type | tuple[type, ...], basetype: type) -> bool:
 # https://github.com/python/cpython/blob/master/Lib/unittest/case.py
 # at commit 293dd23 (Nov 19, 2019).
 # Required at least to enable assertWarns() in python <3.2.
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _BaseTestCaseContext:
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(self, test_case: unittest.TestCase) -> None:
         self.test_case = test_case
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _raiseFailure(self, standardMsg: str) -> NoReturn:
-        # pylint: disable=invalid-name, protected-access, no-member
         msg = self.test_case._formatMessage(self.msg, standardMsg)
         raise self.test_case.failureException(msg)
 
@@ -241,9 +238,9 @@ class _BaseTestCaseContext:
 # https://github.com/python/cpython/blob/master/Lib/unittest/case.py
 # at commit 293dd23 (Nov 19, 2019).
 # Required at least to enable assertWarns() in python <3.2.
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _AssertRaisesBaseContext(_BaseTestCaseContext):
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         expected: type[BaseException] | tuple[type[BaseException], ...],
@@ -259,8 +256,7 @@ class _AssertRaisesBaseContext(_BaseTestCaseContext):
         self.obj_name = None
         self.msg = None
 
-    # Added in 0.4.0.
-    # pylint: disable=inconsistent-return-statements
+    @legacy(version="0.4.0")
     def handle(
         self, name: str, args: Sequence[Any], kwargs: dict[str, Any]
     ) -> Any:  # noqa: ANN401
@@ -270,7 +266,6 @@ class _AssertRaisesBaseContext(_BaseTestCaseContext):
         If args is not empty, call a callable passing positional and keyword
         arguments.
         """
-        # pylint: disable=no-member, self-cls-assignment, not-context-manager
         try:
             if not _is_subtype(self.expected, self._base_type):
                 raise TypeError(f'{name}() arg 1 must be {self._base_type_str}')
@@ -295,25 +290,22 @@ class _AssertRaisesBaseContext(_BaseTestCaseContext):
             # bpo-23890: manually break a reference cycle
             self = None
 
-    # pylint: enable=inconsistent-return-statements
-
 
 # Copied from
 # https://github.com/python/cpython/blob/master/Lib/unittest/case.py
 # at commit 293dd23 (Nov 19, 2019).
 # Required at least to enable assertWarns() in python <3.2.
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _AssertWarnsContext(_AssertRaisesBaseContext):
     """A context manager used to implement TestCase.assertWarns* methods."""
 
     _base_type = Warning
     _base_type_str = 'a warning type or tuple of warning types'
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __enter__(self) -> _AssertWarnsContext:
         # The __warningregistry__'s need to be in a pristine state for tests
         # to work properly.
-        # pylint: disable=invalid-name, attribute-defined-outside-init
         for v in sys.modules.values():
             if getattr(v, '__warningregistry__', None):
                 v.__warningregistry__ = {}
@@ -322,14 +314,13 @@ class _AssertWarnsContext(_AssertRaisesBaseContext):
         warnings.simplefilter("always", self.expected)
         return self
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __exit__(
         self,
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         tb: Any,  # noqa: ANN401
     ) -> None:
-        # pylint: disable=invalid-name, attribute-defined-outside-init
         self.warnings_manager.__exit__(exc_type, exc_value, tb)
         if exc_type is not None:
             # let unexpected exceptions pass through
@@ -367,6 +358,7 @@ class _AssertWarnsContext(_AssertRaisesBaseContext):
 # https://github.com/python/cpython/blob/master/Lib/unittest/case.py
 # at commit 293dd23 (Nov 19, 2019).
 # Required at least to enable assertWarns() in python <3.2.
+@legacy(version="0.4.0")
 def assertWarns(
     testcase: unittest.TestCase,
     expected_warning: type[Warning] | tuple[type[Warning], ...],
@@ -377,7 +369,6 @@ def assertWarns(
 
     Note that unittest's ``assertWarns`` is only available in python 3.2+.
 
-    Added in 0.4.0.
 
     Example
     -------
@@ -386,19 +377,16 @@ def assertWarns(
     >>>         pass
 
     """
-    # pylint: disable=invalid-name
     context = _AssertWarnsContext(expected_warning, testcase)
     return context.handle("assertWarns", args, kwargs)
 
 
+@legacy(version="0.5.0")
 class temporary_constants:
     """Context to temporarily change the value of one or more constants.
 
-    Added in 0.5.0.
 
     """
-
-    # pylint: disable=invalid-name
 
     UNCHANGED = object()
 
@@ -433,6 +421,7 @@ class temporary_constants:
             setattr(module, cname, old_value)
 
 
+@legacy(version="0.5.0")
 def is_parameter_instance(param: iap.StochasticParameter, param_type: type) -> bool:
     """Perform an isinstance check on a parameter while ignoring prefetching.
 
@@ -441,7 +430,6 @@ def is_parameter_instance(param: iap.StochasticParameter, param_type: type) -> b
     is equivalent to ``isinstance(param.other_param, param_type)`` (potentially
     recursively evaluated until `param` is no longer prefetched).
 
-    Added in 0.5.0.
 
     Parameters
     ----------
@@ -461,10 +449,10 @@ def is_parameter_instance(param: iap.StochasticParameter, param_type: type) -> b
     return isinstance(remove_prefetching(param), param_type)
 
 
+@legacy(version="0.5.0")
 def remove_prefetching(param: iap.StochasticParameter) -> iap.StochasticParameter:
     """Convert a possibly-prefetched parameter into a not-prefetched one.
 
-    Added in 0.5.0.
 
     Parameters
     ----------
@@ -484,10 +472,10 @@ def remove_prefetching(param: iap.StochasticParameter) -> iap.StochasticParamete
     return param
 
 
+@legacy(version="0.5.0")
 def ensure_deprecation_warning(expected_text: str) -> Callable[..., Callable[..., None]]:
     """Ensure that a decorated function raises a deprecation warning.
 
-    Added in 0.5.0.
 
     Parameters
     ----------

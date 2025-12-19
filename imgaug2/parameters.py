@@ -9,13 +9,14 @@ and methods to normalize parameter-related user inputs.
 from __future__ import annotations
 
 import copy as copy_module
+import re
 import tempfile
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from functools import reduce, wraps
 from operator import mul as mul_op
-from typing import Any, NoReturn, TypeVar, Union, overload
+from typing import Any, NoReturn, TypeVar, Union, cast, overload
 
 import cv2
 import imageio
@@ -34,15 +35,11 @@ from imgaug2.compat.markers import legacy, new
 Numberish = Union[float, int, "StochasticParameter"]
 ParamInput = Union[float, tuple[float, float], list[float], "StochasticParameter"]
 
-# Added in 0.5.0.
 _PREFETCHING_ENABLED = True
-# Added in 0.5.0.
 _NB_PREFETCH = 10000
-# Added in 0.5.0.
 _NB_PREFETCH_STRINGS = 1000
 
 
-# Added in 0.5.0.
 @legacy(version="0.5.0")
 def _prefetchable(func: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(func)
@@ -53,7 +50,6 @@ def _prefetchable(func: Callable[..., Any]) -> Callable[..., Any]:
     return _inner
 
 
-# Added in 0.5.0.
 @legacy(version="0.5.0")
 def _prefetchable_str(func: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(func)
@@ -64,7 +60,6 @@ def _prefetchable_str(func: Callable[..., Any]) -> Callable[..., Any]:
     return _inner
 
 
-# Added in 0.5.0.
 @legacy(version="0.5.0")
 def _wrap_param_in_prefetchers(param: Any, nb_prefetch: int) -> Any:  # noqa: ANN401
     for key, value in param.__dict__.items():
@@ -76,7 +71,6 @@ def _wrap_param_in_prefetchers(param: Any, nb_prefetch: int) -> Any:  # noqa: AN
     return param
 
 
-# Added in 0.5.0.
 @legacy(version="0.5.0")
 def _wrap_leafs_of_param_in_prefetchers(param: Any, nb_prefetch: int) -> Any:  # noqa: ANN401
     param_wrapped, _did_wrap_any_child = _wrap_leafs_of_param_in_prefetchers_recursive(
@@ -85,7 +79,6 @@ def _wrap_leafs_of_param_in_prefetchers(param: Any, nb_prefetch: int) -> Any:  #
     return param_wrapped
 
 
-# Added in 0.5.0.
 @legacy(version="0.5.0")
 def _wrap_leafs_of_param_in_prefetchers_recursive(
     param: Any, nb_prefetch: int  # noqa: ANN401
@@ -136,7 +129,6 @@ def _wrap_leafs_of_param_in_prefetchers_recursive(
 def toggle_prefetching(enabled: bool) -> None:
     """Toggle prefetching on or off.
 
-    Added in 0.5.0.
 
     Parameters
     ----------
@@ -144,16 +136,14 @@ def toggle_prefetching(enabled: bool) -> None:
         Whether enabled is activated (``True``) or off (``False``).
 
     """
-    # pylint: disable=global-statement
     global _PREFETCHING_ENABLED
     _PREFETCHING_ENABLED = enabled
 
 
 @legacy(version="0.5.0")
-class toggled_prefetching:  # pylint: disable=invalid-name
+class toggled_prefetching:
     """Context that toggles prefetching on or off depending on a flag.
 
-    Added in 0.5.0.
 
     Parameters
     ----------
@@ -162,39 +152,36 @@ class toggled_prefetching:  # pylint: disable=invalid-name
 
     """
 
-    # Added in 0.5.0.
+    @legacy(version="0.5.0")
     def __init__(self, enabled: bool) -> None:
         self.enabled = enabled
         self._old_state = None
 
-    # Added in 0.5.0.
+    @legacy(version="0.5.0")
     def __enter__(self) -> None:
-        # pylint: disable=global-statement
         global _PREFETCHING_ENABLED
         self._old_state = _PREFETCHING_ENABLED
         _PREFETCHING_ENABLED = self.enabled
 
-    # Added in 0.5.0.
+    @legacy(version="0.5.0")
     def __exit__(
         self,
         exception_type: Any,  # noqa: ANN401
         exception_value: Any,  # noqa: ANN401
         exception_traceback: Any,  # noqa: ANN401
     ) -> None:
-        # pylint: disable=global-statement
         global _PREFETCHING_ENABLED
         _PREFETCHING_ENABLED = self._old_state
 
 
 @legacy(version="0.5.0")
-class no_prefetching(toggled_prefetching):  # pylint: disable=invalid-name
+class no_prefetching(toggled_prefetching):
     """Context that deactviates prefetching.
 
-    Added in 0.5.0.
 
     """
 
-    # Added in 0.5.0.
+    @legacy(version="0.5.0")
     def __init__(self) -> None:
         super().__init__(False)
 
@@ -245,8 +232,10 @@ def _check_value_range(
     raise Exception(f"Unexpected input for value_range, got {str(value_range)}.")
 
 
-# FIXME this uses _check_value_range, which checks for a<=x<=b, but a produced
-#       Uniform parameter has value range a<=x<b.
+# NOTE: `_check_value_range()` validates the *provided* bounds and is inclusive
+# on the upper end. When `param` is converted to `Uniform(a, b)`, the produced
+# samples are in the half-open interval ``[a, b)``. If you need strict upper
+# bound validation (e.g. require ``x < b``), pass a callable via `value_range`.
 @legacy
 def handle_continuous_param(
     param: float | tuple[float, float] | list[float] | StochasticParameter,
@@ -366,7 +355,6 @@ def handle_discrete_param(
     )
 
 
-# Added in 0.4.0.
 @legacy(version="0.4.0")
 def handle_categorical_string_param(
     param: str | list[str] | StochasticParameter | Any,  # noqa: ANN401
@@ -434,7 +422,6 @@ def handle_discrete_kernel_size_param(
     allow_floats: bool = True,
     prefetch: bool = True,
 ) -> tuple[StochasticParameter | None, StochasticParameter | None]:
-    # pylint: disable=invalid-name
 
     result: tuple[StochasticParameter | None, StochasticParameter | None] = None, None
     if ia.is_single_integer(param) or (allow_floats and ia.is_single_float(param)):
@@ -567,7 +554,6 @@ def force_np_float_dtype(val: NDArray) -> NDArray:
 
 @legacy
 def both_np_float_if_one_is_float(a: NDArray, b: NDArray) -> tuple[NDArray, NDArray]:
-    # pylint: disable=invalid-name
     a_f = a.dtype.type in ia.NP_FLOAT_TYPES
     b_f = b.dtype.type in ia.NP_FLOAT_TYPES
     if a_f and b_f:
@@ -648,10 +634,10 @@ class StochasticParameter(metaclass=ABCMeta):
         pass
 
     @property
+    @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
         """Determines whether this parameter may be prefetched.
 
-        Added in 0.5.0.
 
         Returns
         -------
@@ -1005,11 +991,10 @@ class AutoPrefetcher(StochasticParameter):
     array. In-place changes to these samples should hence be performed with
     some caution.
 
-    Added in 0.5.0.
 
     """
 
-    # Added in 0.5.0.
+    @legacy(version="0.5.0")
     def __init__(self, other_param: StochasticParameter, nb_prefetch: int) -> None:
         super().__init__()
         self.other_param = other_param
@@ -1019,9 +1004,8 @@ class AutoPrefetcher(StochasticParameter):
         self.index = 0
         self.last_rng_idx: int | None = None
 
-    # Added in 0.5.0.
+    @legacy(version="0.5.0")
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
-        # pylint: disable=protected-access
         if not _PREFETCHING_ENABLED:
             return self.other_param.draw_samples(size, random_state)
 
@@ -1049,7 +1033,7 @@ class AutoPrefetcher(StochasticParameter):
 
         return samples.reshape(size)
 
-    # Added in 0.5.0.
+    @legacy(version="0.5.0")
     def _prefetch(self, random_state: iarandom.RNG) -> None:
         samples = self.other_param.draw_samples((self.nb_prefetch,), random_state)
         if self.samples is None:
@@ -1058,16 +1042,16 @@ class AutoPrefetcher(StochasticParameter):
             self.samples = np.concatenate([self.samples[self.index :], samples], axis=0)
         self.index = 0
 
-    # Added in 0.5.0.
+    @legacy(version="0.5.0")
     def __getattr__(self, attr: str) -> Any:  # noqa: ANN401
         other_param = super().__getattribute__("other_param")
         return getattr(other_param, attr)
 
-    # Added in 0.5.0.
+    @legacy(version="0.5.0")
     def __repr__(self) -> str:
         return self.__str__()
 
-    # Added in 0.5.0.
+    @legacy(version="0.5.0")
     def __str__(self) -> str:
         has_samples = self.samples is not None
         samples_shape = self.samples.shape if has_samples else "None"  # type: ignore
@@ -1151,7 +1135,6 @@ class DeterministicList(StochasticParameter):
     will (by default) be tiled until it is long enough (i.e. the sampling
     will start again at the first element, if necessary multiple times).
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -1160,7 +1143,7 @@ class DeterministicList(StochasticParameter):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(self, values: NDArray | Iterable[Numberish]) -> None:
         super().__init__()
 
@@ -1185,7 +1168,7 @@ class DeterministicList(StochasticParameter):
             elif kind == "f":
                 self.values = self.values.astype(np.float32)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         nb_requested = int(np.prod(size))
         values = self.values
@@ -1197,11 +1180,11 @@ class DeterministicList(StochasticParameter):
             values = np.tile(values, (multiplier,))
         return values[:nb_requested].reshape(size)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __repr__(self) -> str:
         return self.__str__()
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __str__(self) -> str:
         if self.values.dtype.kind == "f":
             values = [f"{value:.4f}" for value in self.values]
@@ -1249,7 +1232,6 @@ class Choice(StochasticParameter):
         replace: bool = True,
         p: Iterable[float] | None = None,
     ) -> None:
-        # pylint: disable=invalid-name
         super().__init__()
 
         assert ia.is_iterable(a), f"Expected a to be an iterable (e.g. list), got {type(a)}."
@@ -1262,8 +1244,8 @@ class Choice(StochasticParameter):
             )
         self.p = p
 
-    # Added in 0.5.0.
     @property
+    @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
         """See :func:`StochasticParameter.prefetchable`."""
         return self.replace
@@ -1366,8 +1348,8 @@ class Binomial(StochasticParameter):
         super().__init__()
         self.p = handle_continuous_param(p, "p")
 
-    # Added in 0.5.0.
     @property
+    @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
         """See :func:`StochasticParameter.prefetchable`."""
         return True
@@ -1425,20 +1407,18 @@ class DiscreteUniform(StochasticParameter):
     """
 
     def __init__(self, a: ParamInput, b: ParamInput) -> None:
-        # pylint: disable=invalid-name
         super().__init__()
 
         self.a = handle_discrete_param(a, "a")
         self.b = handle_discrete_param(b, "b")
 
-    # Added in 0.5.0.
     @property
+    @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
-        # pylint: disable=invalid-name
         a = self.a.draw_sample(random_state=random_state)
         b = self.b.draw_sample(random_state=random_state)
         if a > b:
@@ -1496,8 +1476,8 @@ class Poisson(StochasticParameter):
 
         self.lam = handle_continuous_param(lam, "lam")
 
-    # Added in 0.5.0.
     @property
+    @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
         """See :func:`StochasticParameter.prefetchable`."""
         return True
@@ -1559,8 +1539,8 @@ class Normal(StochasticParameter):
         self.loc = handle_continuous_param(loc, "loc")
         self.scale = handle_continuous_param(scale, "scale", value_range=(0, None))
 
-    # Added in 0.5.0.
     @property
+    @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
         """See :func:`StochasticParameter.prefetchable`."""
         return True
@@ -1648,14 +1628,13 @@ class TruncatedNormal(StochasticParameter):
         self.low = handle_continuous_param(low, "low")
         self.high = handle_continuous_param(high, "high")
 
-    # Added in 0.5.0.
     @property
+    @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
-        # pylint: disable=invalid-name
         loc = self.loc.draw_sample(random_state=random_state)
         scale = self.scale.draw_sample(random_state=random_state)
         low = self.low.draw_sample(random_state=random_state)
@@ -1731,8 +1710,8 @@ class Laplace(StochasticParameter):
         self.loc = handle_continuous_param(loc, "loc")
         self.scale = handle_continuous_param(scale, "scale", value_range=(0, None))
 
-    # Added in 0.5.0.
     @property
+    @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
         """See :func:`StochasticParameter.prefetchable`."""
         return True
@@ -1785,19 +1764,17 @@ class ChiSquare(StochasticParameter):
     """
 
     def __init__(self, df: ParamInput) -> None:
-        # pylint: disable=invalid-name
         super().__init__()
 
         self.df = handle_discrete_param(df, "df", value_range=(1, None))
 
-    # Added in 0.5.0.
     @property
+    @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
-        # pylint: disable=invalid-name
         df = self.df.draw_sample(random_state=random_state)
         assert df >= 1, f"Expected df to be >=1, got {df:d}."
         return random_state.chisquare(df, size=size).astype(np.float32)
@@ -1843,19 +1820,17 @@ class Weibull(StochasticParameter):
     """
 
     def __init__(self, a: ParamInput) -> None:
-        # pylint: disable=invalid-name
         super().__init__()
 
         self.a = handle_continuous_param(a, "a", value_range=(0.0001, None))
 
-    # Added in 0.5.0.
     @property
+    @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
-        # pylint: disable=invalid-name
         a = self.a.draw_sample(random_state=random_state)
         assert a > 0, f"Expected a to be >0, got {a:.4f}."
         return random_state.weibull(a, size=size).astype(np.float32)
@@ -1907,20 +1882,18 @@ class Uniform(StochasticParameter):
     """
 
     def __init__(self, a: ParamInput, b: ParamInput) -> None:
-        # pylint: disable=invalid-name
         super().__init__()
 
         self.a = handle_continuous_param(a, "a")
         self.b = handle_continuous_param(b, "b")
 
-    # Added in 0.5.0.
     @property
+    @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
         """See :func:`StochasticParameter.prefetchable`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
-        # pylint: disable=invalid-name
         a = self.a.draw_sample(random_state=random_state)
         b = self.b.draw_sample(random_state=random_state)
         if a > b:
@@ -1987,8 +1960,8 @@ class Beta(StochasticParameter):
         )
         self.epsilon = epsilon
 
-    # Added in 0.5.0.
     @property
+    @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
         """See :func:`StochasticParameter.prefetchable`."""
         return True
@@ -2310,7 +2283,6 @@ class Discretize(StochasticParameter):
     round : bool, optional
         Whether to round before converting to integer dtype.
 
-        Added in 0.4.0.
 
     Examples
     --------
@@ -2322,7 +2294,6 @@ class Discretize(StochasticParameter):
     """
 
     def __init__(self, other_param: StochasticParameter, round: bool = True) -> None:
-        # pylint: disable=redefined-builtin
         super().__init__()
         _assert_arg_is_stoch_param("other_param", other_param)
         self.other_param = other_param
@@ -2494,7 +2465,6 @@ class Divide(StochasticParameter):
         self.elementwise = elementwise
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
-        # pylint: disable=no-else-return
         rngs = random_state.duplicate(2)
         samples = self.other_param.draw_samples(size, random_state=rngs[0])
 
@@ -2753,11 +2723,7 @@ class Power(StochasticParameter):
         samples, exponents = both_np_float_if_one_is_float(samples, exponents)
         samples_dtype = samples.dtype
 
-        # TODO switch to this as numpy>=1.15 is now a requirement
-        #      float_power requires numpy>=1.12
-        # result = np.float_power(samples, exponents)
-        # TODO why was float32 type here replaced with complex number
-        #      formulation?
+        # Using complex128 to handle negative bases with fractional exponents
         result = np.power(samples.astype(np.complex128), exponents).real
         if result.dtype != samples_dtype:
             result = result.astype(samples_dtype)
@@ -2858,9 +2824,6 @@ class RandomSign(StochasticParameter):
         # Add absolute here to guarantee that we get p_positive percent of
         # positive values. Otherwise we would merely flip p_positive percent
         # of all signs.
-        # TODO test if
-        #          result[coinflips_mask] *= (-1)
-        #      is faster  (with protection against mask being empty?)
         result = np.absolute(samples) * signs
         return result
 
@@ -3018,7 +2981,6 @@ def Positive(
     second resampling step, the sign is simply flipped.
 
     """
-    # pylint: disable=invalid-name
     return ForceSign(
         other_param=other_param, positive=True, mode=mode, reroll_count_max=reroll_count_max
     )
@@ -3060,7 +3022,6 @@ def Negative(
     second resampling step, the sign is simply flipped.
 
     """
-    # pylint: disable=invalid-name
     return ForceSign(
         other_param=other_param, positive=False, mode=mode, reroll_count_max=reroll_count_max
     )
@@ -3141,7 +3102,6 @@ class IterativeNoiseAggregator(StochasticParameter):
         iterations: ParamInput = (1, 3),
         aggregation_method: ParamInput | str | list[str] | None = None,
     ) -> None:
-        # pylint: disable=dangerous-default-value
         super().__init__()
         if aggregation_method is None:
             aggregation_method = ["max", "avg"]
@@ -3387,8 +3347,33 @@ class Sigmoid(StochasticParameter):
         return f"Sigmoid({opstr}, {str(self.threshold)}, {str(self.activated)}, {str(self.mul)}, {str(self.add)})"
 
 
+class _NoiseParameterMixin:
+    """Mixin providing shared _draw_samples logic for noise parameters.
+
+    Subclasses must implement _draw_samples_hw(height, width, random_state).
+    """
+
+    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
+        assert len(size) in [2, 3], (
+            f"Expected requested noise to have shape (H, W) or (H, W, C), got shape {size}."
+        )
+        height, width = size[0:2]
+        nb_channels = 1 if len(size) == 2 else size[2]
+
+        channels = [
+            self._draw_samples_hw(height, width, random_state) for _ in np.arange(nb_channels)
+        ]
+
+        if len(size) == 2:
+            return channels[0]
+        return np.stack(channels, axis=-1)
+
+    def _draw_samples_hw(self, height: int, width: int, random_state: iarandom.RNG) -> Any:  # noqa: ANN401
+        raise NotImplementedError("Subclasses must implement _draw_samples_hw")
+
+
 @legacy
-class SimplexNoise(StochasticParameter):
+class SimplexNoise(_NoiseParameterMixin, StochasticParameter):
     """Parameter that generates simplex noise of varying resolutions.
 
     This parameter expects to sample noise for 2d planes, i.e. for
@@ -3459,7 +3444,6 @@ class SimplexNoise(StochasticParameter):
         size_px_max: ParamInput = (2, 16),
         upscale_method: ParamInput | str | list[str] | None = None,
     ) -> None:
-        # pylint: disable=dangerous-default-value
         super().__init__()
         if upscale_method is None:
             upscale_method = ["linear", "nearest"]
@@ -3487,21 +3471,6 @@ class SimplexNoise(StochasticParameter):
                 "Expected upscale_method to be string or list of strings or "
                 f"StochasticParameter, got {type(upscale_method)}."
             )
-
-    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
-        assert len(size) in [2, 3], (
-            f"Expected requested noise to have shape (H, W) or (H, W, C), got shape {size}."
-        )
-        height, width = size[0:2]
-        nb_channels = 1 if len(size) == 2 else size[2]
-
-        channels = [
-            self._draw_samples_hw(height, width, random_state) for _ in np.arange(nb_channels)
-        ]
-
-        if len(size) == 2:
-            return channels[0]
-        return np.stack(channels, axis=-1)
 
     def _draw_samples_hw(self, height: int, width: int, random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         iterations = 1
@@ -3559,10 +3528,7 @@ class SimplexNoise(StochasticParameter):
             for x in range(w_small):
                 noise[y, x] = generator.noise2(y=y, x=x)
 
-        # TODO this was previously (noise+0.5)/2, which was wrong as the noise
-        #      here is in range [-1.0, 1.0], but this new normalization might
-        #      lead to bad masks due to too many values being significantly
-        #      above 0.0 instead of being clipped to 0?
+        # Normalize from [-1.0, 1.0] to [0.0, 1.0]
         noise_0to1 = (noise + 1.0) / 2
         noise_0to1 = np.clip(noise_0to1, 0.0, 1.0)
 
@@ -3584,7 +3550,7 @@ class SimplexNoise(StochasticParameter):
 
 
 @legacy
-class FrequencyNoise(StochasticParameter):
+class FrequencyNoise(_NoiseParameterMixin, StochasticParameter):
     """Parameter to generate noise of varying frequencies.
 
     This parameter expects to sample noise for 2d planes, i.e. for
@@ -3670,7 +3636,6 @@ class FrequencyNoise(StochasticParameter):
         size_px_max: ParamInput = (4, 32),
         upscale_method: ParamInput | str | list[str] | None = None,
     ) -> None:
-        # pylint: disable=dangerous-default-value
         super().__init__()
         if upscale_method is None:
             upscale_method = ["linear", "nearest"]
@@ -3703,27 +3668,10 @@ class FrequencyNoise(StochasticParameter):
 
         self._distance_matrix_cache = np.zeros((0, 0), dtype=np.float32)
 
-    # TODO this is the same as in SimplexNoise, make DRY
-    def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
+    def _draw_samples_hw(self, height: int, width: int, random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         # code here is similar to:
         #   http://www.redblobgames.com/articles/noise/2d/
         #   http://www.redblobgames.com/articles/noise/2d/2d-noise.js
-
-        assert len(size) in [2, 3], (
-            f"Expected requested noise to have shape (H, W) or (H, W, C), got shape {size}."
-        )
-        height, width = size[0:2]
-        nb_channels = 1 if len(size) == 2 else size[2]
-
-        channels = [
-            self._draw_samples_hw(height, width, random_state) for _ in np.arange(nb_channels)
-        ]
-
-        if len(size) == 2:
-            return channels[0]
-        return np.stack(channels, axis=-1)
-
-    def _draw_samples_hw(self, height: int, width: int, random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         maxlen = max(height, width)
         size_px_max = self.size_px_max.draw_sample(random_state=random_state)
         h_small, w_small = height, width
@@ -3847,4 +3795,113 @@ class FrequencyNoise(StochasticParameter):
 def _assert_arg_is_stoch_param(arg_name: str, arg_value: Any) -> None:  # noqa: ANN401
     assert isinstance(arg_value, StochasticParameter), (
         f"Expected '{arg_name}' to be a StochasticParameter, got type {arg_value}."
+    )
+
+
+def handle_cval_arg(cval: ParamInput | Any) -> StochasticParameter:
+    """Handle the `cval` parameter used in geometric transformations.
+
+    This converts user-provided `cval` inputs into StochasticParameter instances.
+
+    Parameters
+    ----------
+    cval : {float, tuple of float, list of float, StochasticParameter, "ALL"}
+        The fill color value(s) to use.
+        If ``"ALL"``, returns a uniform distribution over [0, 255].
+
+    Returns
+    -------
+    StochasticParameter
+        The normalized cval parameter.
+
+    """
+    if cval == ia.ALL:
+        # Note: This is dynamically created per image. Consider making this
+        # more efficient by caching or using a per-dtype approach.
+        return Uniform(0, 255)  # skimage transform expects float
+    return handle_continuous_param(
+        cval, "cval", value_range=None, tuple_to_uniform=True, list_to_choice=True
+    )
+
+
+def handle_position_parameter(
+    position: str
+    | tuple[float | int | StochasticParameter, float | int | StochasticParameter]
+    | StochasticParameter,
+) -> StochasticParameter | tuple[StochasticParameter, StochasticParameter]:
+    """Handle the `position` parameter used in augmenters.
+
+    This converts various position formats into normalized StochasticParameter instances.
+
+    Parameters
+    ----------
+    position : str or tuple or StochasticParameter
+        Position specification. Can be one of:
+        - "uniform": Random position from uniform distribution [0, 1]
+        - "normal": Random position from normal distribution, clipped to [0, 1]
+        - "center": Fixed position at center (0.5, 0.5)
+        - "{h}-{v}": Directional position like "left-top", "center-center", etc.
+        - tuple of two numbers/StochasticParameters: Explicit x, y positions
+        - StochasticParameter: Custom parameter
+
+    Returns
+    -------
+    StochasticParameter or tuple of StochasticParameter
+        The normalized position parameter(s).
+
+    """
+    if position == "uniform":
+        return Uniform(0.0, 1.0), Uniform(0.0, 1.0)
+    if position == "normal":
+        return (
+            Clip(Normal(loc=0.5, scale=0.35 / 2), minval=0.0, maxval=1.0),
+            Clip(Normal(loc=0.5, scale=0.35 / 2), minval=0.0, maxval=1.0),
+        )
+    if position == "center":
+        return Deterministic(0.5), Deterministic(0.5)
+    if ia.is_string(position) and re.match(
+        r"^(left|center|right)-(top|center|bottom)$", position
+    ):
+        mapping = {"top": 0.0, "center": 0.5, "bottom": 1.0, "left": 0.0, "right": 1.0}
+        return (
+            Deterministic(mapping[position.split("-")[0]]),
+            Deterministic(mapping[position.split("-")[1]]),
+        )
+    if isinstance(position, StochasticParameter):
+        return position
+    if isinstance(position, tuple):
+        assert len(position) == 2, (
+            "Expected tuple with two entries as position parameter. "
+            f"Got {len(position)} entries with types {str([type(item) for item in position])}."
+        )
+        for item in position:
+            if ia.is_single_number(item) and (item < 0 or item > 1.0):
+                raise Exception(
+                    "Both position values must be within the value range "
+                    f"[0.0, 1.0]. Got type {type(item)} with value {item:.8f}."
+                )
+        position_list = [
+            Deterministic(item) if ia.is_single_number(item) else item
+            for item in position
+        ]
+
+        only_sparams = all(isinstance(item, StochasticParameter) for item in position_list)
+        assert only_sparams, (
+            "Expected tuple with two entries that are both either "
+            f"StochasticParameter or float/int. Got types {str([type(item) for item in position_list])}."
+        )
+        return cast(
+            tuple[StochasticParameter, StochasticParameter],
+            (position_list[0], position_list[1]),
+        )
+    raise Exception(
+        "Expected one of the following as position parameter: string "
+        "'uniform', string 'normal', string 'center', a string matching "
+        "regex ^(left|center|right)-(top|center|bottom)$, a single "
+        "StochasticParameter or a tuple of two entries, both being either "
+        "StochasticParameter or floats or int. Got instead type {} with "
+        "content '{}'.".format(
+            type(position),
+            (str(position) if len(str(position)) < 20 else str(position)[0:20] + "..."),
+        )
     )

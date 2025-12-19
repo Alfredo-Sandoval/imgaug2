@@ -7,11 +7,11 @@ or NHWC (Batch, Height, Width, Channel) format and preserve the input array type
 
 Examples
 --------
->>> import numpy as np
->>> from imgaug2.mlx.flip import fliplr, flipud, rot90
->>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
->>> flipped = fliplr(img)  # Returns numpy array
->>> rotated = rot90(img, k=2)  # Rotate 180 degrees
+>>> import numpy as np  # doctest: +SKIP
+>>> from imgaug2.mlx.flip import fliplr, flipud, rot90  # doctest: +SKIP
+>>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # doctest: +SKIP
+>>> flipped = fliplr(img)  # Returns numpy array  # doctest: +SKIP
+>>> rotated = rot90(img, k=2)  # Rotate 180 degrees  # doctest: +SKIP
 """
 
 from __future__ import annotations

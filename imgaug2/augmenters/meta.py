@@ -1,24 +1,13 @@
-"""
-Augmenters that don't apply augmentations themselves, but are needed
-for meta usage.
+"""Augmenters for meta usage and pipeline control.
 
-List of augmenters:
+This module provides the base `Augmenter` class and augmenters for controlling
+pipeline flow, sequencing, and conditional execution.
 
-    * :class:`Augmenter` (base class for all augmenters)
-    * :class:`Sequential`
-    * :class:`SomeOf`
-    * :class:`OneOf`
-    * :class:`Sometimes`
-    * :class:`WithChannels`
-    * :class:`Identity`
-    * :class:`Noop`
-    * :class:`Lambda`
-    * :class:`AssertLambda`
-    * :class:`AssertShape`
-    * :class:`ChannelShuffle`
-
-Note: :class:`~imgaug2.augmenters.color.WithColorspace` is in ``color.py``.
-
+Key Augmenters:
+    - `Sequential`, `SomeOf`, `OneOf`: Combine and select augmenters.
+    - `Sometimes`: Apply augmenters probabilistically.
+    - `WithChannels`, `ChannelShuffle`: Channel-specific operations.
+    - `Noop`, `Lambda`, `Identity`: Utility augmenters.
 """
 
 from __future__ import annotations
@@ -97,7 +86,6 @@ def handle_children_list(
         return default
     if isinstance(lst, Augmenter):
         if ia.is_iterable(lst):
-            # TODO why was this assert added here? seems to make no sense
             only_augmenters = all([isinstance(child, Augmenter) for child in lst])
             assert only_augmenters, "Expected all children to be augmenters, got types {}.".format(
                 ", ".join([str(type(v)) for v in lst])
@@ -195,7 +183,7 @@ def _remove_added_channel_axis(arrs_added: Images, arrs_orig: Images) -> Images:
     ]
 
 
-class _maybe_deterministic_ctx:  # pylint: disable=invalid-name
+class _maybe_deterministic_ctx:
     """Context that resets an RNG to its initial state upon exit.
 
     This allows to execute some sampling functions and leave the code block
@@ -214,7 +202,9 @@ class _maybe_deterministic_ctx:  # pylint: disable=invalid-name
 
     """
 
-    def __init__(self, random_state: iarandom.RNG | Augmenter, deterministic: bool | None = None) -> None:
+    def __init__(
+        self, random_state: iarandom.RNG | Augmenter, deterministic: bool | None = None
+    ) -> None:
         if deterministic is None:
             augmenter = random_state
             self.random_state = augmenter.random_state
@@ -278,7 +268,6 @@ class Augmenter(metaclass=ABCMeta):
         If a new bit generator has to be created, it will be an instance
         of :class:`numpy.random.SFC64`.
 
-        Added in 0.4.0.
 
     name : None or str, optional
         Name given to the Augmenter instance. This name is used when
@@ -539,7 +528,6 @@ class Augmenter(metaclass=ABCMeta):
                     yield batch_normalized
 
             with multicore.Pool(self) as pool:
-                # pylint:disable=protected-access
                 # note that pool.processes is None here
                 output_buffer_size = pool.pool._processes * 10
 
@@ -569,7 +557,9 @@ class Augmenter(metaclass=ABCMeta):
         "`augment_batch(batch, hooks=hooks)`.",
     )
     def augment_batch(
-        self, batch: Batch | UnnormalizedBatch | _BatchInAugmentation, hooks: ia.HooksImages | None = None
+        self,
+        batch: Batch | UnnormalizedBatch | _BatchInAugmentation,
+        hooks: ia.HooksImages | None = None,
     ) -> Batch | UnnormalizedBatch | _BatchInAugmentation:
         """Augment a single batch.
 
@@ -582,6 +572,7 @@ class Augmenter(metaclass=ABCMeta):
         return self.augment_batch_(batch, hooks=hooks)
 
     # TODO add more tests
+    @legacy(version="0.4.0")
     def augment_batch_(
         self,
         batch: Batch | UnnormalizedBatch | _BatchInAugmentation,
@@ -591,7 +582,6 @@ class Augmenter(metaclass=ABCMeta):
         """
         Augment a single batch in-place.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -706,6 +696,7 @@ class Augmenter(metaclass=ABCMeta):
             return batch_norm
         return batch_inaug
 
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -723,7 +714,6 @@ class Augmenter(metaclass=ABCMeta):
         Augmenter instance's ``random_state`` variable. The parameter
         ``random_state`` takes care of both of these.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1420,6 +1410,7 @@ class Augmenter(metaclass=ABCMeta):
             UnnormalizedBatch(line_strings=line_strings_on_images), parents=parents, hooks=hooks
         ).line_strings_aug
 
+    @legacy(version="0.4.0")
     def _augment_bounding_boxes(
         self,
         bounding_boxes_on_images: ia.BoundingBoxesOnImage | list[ia.BoundingBoxesOnImage],
@@ -1445,7 +1436,6 @@ class Augmenter(metaclass=ABCMeta):
             is now the preferred way of implementing custom augmentation
             routines.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1571,6 +1561,7 @@ class Augmenter(metaclass=ABCMeta):
             line_strings_on_images, random_state=random_state, parents=parents, hooks=hooks
         )
 
+    @legacy(version="0.4.0")
     def _augment_bounding_boxes_as_keypoints(
         self,
         bounding_boxes_on_images: ia.BoundingBoxesOnImage | list[ia.BoundingBoxesOnImage],
@@ -1581,7 +1572,6 @@ class Augmenter(metaclass=ABCMeta):
         """
         Augment BBs by applying keypoint augmentation to their corners.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1697,6 +1687,7 @@ class Augmenter(metaclass=ABCMeta):
             line_strings_on_images, random_state=random_state, parents=parents, hooks=hooks
         )
 
+    @legacy(version="0.4.0")
     def _augment_cbaois_as_keypoints(
         self,
         cbaois: ia.BoundingBoxesOnImage
@@ -1715,7 +1706,6 @@ class Augmenter(metaclass=ABCMeta):
         """
         Augment bounding boxes by applying KP augmentation to their corners.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1744,6 +1734,7 @@ class Augmenter(metaclass=ABCMeta):
         )
         return self._apply_to_cbaois_as_keypoints(cbaois, func)
 
+    @legacy(version="0.4.0")
     @classmethod
     def _apply_to_polygons_as_keypoints(
         cls,
@@ -1758,7 +1749,6 @@ class Augmenter(metaclass=ABCMeta):
         """
         Apply a callback to polygons in keypoint-representation.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1810,6 +1800,7 @@ class Augmenter(metaclass=ABCMeta):
 
         return psois
 
+    @legacy(version="0.4.0")
     @classmethod
     def _apply_to_cbaois_as_keypoints(
         cls,
@@ -1830,7 +1821,6 @@ class Augmenter(metaclass=ABCMeta):
         """
         Augment bounding boxes by applying KP augmentation to their corners.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -2167,7 +2157,10 @@ class Augmenter(metaclass=ABCMeta):
         return self.augment(*args, **kwargs)
 
     def pool(
-        self, processes: int | None = None, maxtasksperchild: int | None = None, seed: RNGInput = None
+        self,
+        processes: int | None = None,
+        maxtasksperchild: int | None = None,
+        seed: RNGInput = None,
     ) -> object:
         """Create a pool used for multicore augmentation.
 
@@ -2349,8 +2342,6 @@ class Augmenter(metaclass=ABCMeta):
 
         return grid
 
-    # TODO test for 2D images
-    # TODO test with C = 1
     def show_grid(self, images: Images, rows: int, cols: int) -> None:
         """Augment images and plot the results as a single grid-like image.
 
@@ -2477,6 +2468,7 @@ class Augmenter(metaclass=ABCMeta):
         self.seed_(entropy=random_state, deterministic_too=deterministic_too)
 
     # TODO mark this as in-place
+    @legacy(version="0.4.0")
     def seed_(self, entropy: RNGInput = None, deterministic_too: bool = False) -> None:
         """Seed this augmenter and all of its children.
 
@@ -2504,7 +2496,6 @@ class Augmenter(metaclass=ABCMeta):
         Note that :func:`Augmenter.augment_batches` and :func:`Augmenter.pool`
         already do this automatically.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -2777,7 +2768,9 @@ class Augmenter(metaclass=ABCMeta):
         elif matching == "position":
             if len(source_augs) != len(target_augs) and not matching_tolerant:
                 raise Exception("Source and target augmentation sequences have different lengths.")
-            for source_aug, target_aug in zip(source_augs, target_augs, strict=not matching_tolerant):
+            for source_aug, target_aug in zip(
+                source_augs, target_augs, strict=not matching_tolerant
+            ):
                 if source_aug.random_state.is_global_rng():
                     raise Exception(global_rs_exc_msg)
                 # has to be copy(), see above
@@ -2842,10 +2835,6 @@ class Augmenter(metaclass=ABCMeta):
         """
         return []
 
-    # TODO why does this exist? it seems to be identical to
-    #      get_children_lists() for flat=False, aside from returning list
-    #      copies instead of the same instances as used by the augmenters.
-    # TODO this can be simplified using imgaug2.imgaug2.flatten()?
     def get_all_children(self, flat: bool = False) -> list[Augmenter | list[Augmenter]]:
         """Get all children of this augmenter as a list.
 
@@ -3083,7 +3072,9 @@ class Augmenter(metaclass=ABCMeta):
 
     @ia.deprecated("remove_augmenters_")
     def remove_augmenters_inplace(
-        self, func: Callable[[Augmenter, list[Augmenter]], bool], parents: list[Augmenter] | None = None
+        self,
+        func: Callable[[Augmenter, list[Augmenter]], bool],
+        parents: list[Augmenter] | None = None,
     ) -> None:
         """Old name for :func:`~imgaug2.meta.Augmenter.remove_augmenters_`.
 
@@ -3094,8 +3085,11 @@ class Augmenter(metaclass=ABCMeta):
 
     # TODO allow first arg to be string name, class type or func
     # TODO remove parents arg + add _remove_augmenters_() with parents arg
+    @legacy(version="0.4.0")
     def remove_augmenters_(
-        self, func: Callable[[Augmenter, list[Augmenter]], bool], parents: list[Augmenter] | None = None
+        self,
+        func: Callable[[Augmenter, list[Augmenter]], bool],
+        parents: list[Augmenter] | None = None,
     ) -> None:
         """Remove in-place children of this augmenter that match a condition.
 
@@ -3104,7 +3098,6 @@ class Augmenter(metaclass=ABCMeta):
         ``copy=False``, except that it does not affect the topmost augmenter
         (the one on which this function is initially called on).
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -3318,7 +3311,7 @@ class Sequential(Augmenter, list):
         )
         self.random_order = random_order
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -3590,7 +3583,6 @@ class SomeOf(Augmenter, list):
         return augmenter_order
 
     def _get_augmenter_active(self, nb_rows: int, random_state: iarandom.RNG) -> Array:
-        # pylint: disable=invalid-name
         nn = self._get_n(nb_rows, random_state)
         nn = [min(n, len(self)) for n in nn]
         augmenter_active = np.zeros((nb_rows, len(self)), dtype=bool)
@@ -3601,7 +3593,7 @@ class SomeOf(Augmenter, list):
             random_state.shuffle(row)
         return augmenter_active
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -3852,7 +3844,7 @@ class Sometimes(Augmenter):
         self.then_list = handle_children_list(then_list, self.name, "then", default=None)
         self.else_list = handle_children_list(else_list, self.name, "else", default=None)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -4020,7 +4012,7 @@ class WithChannels(Augmenter):
 
         self.children = handle_children_list(children, self.name, "then")
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -4067,7 +4059,7 @@ class WithChannels(Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _assert_lengths_not_changed(cls, images_aug: Images, images: Images) -> None:
         assert len(images_aug) == len(images), (
@@ -4075,7 +4067,7 @@ class WithChannels(Augmenter):
             f"augmentation, but got {len(images_aug)} vs. originally {len(images)} images."
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _assert_shapes_not_changed(cls, images_aug: Images, images: Images) -> None:
         if ia.is_np_array(images_aug) and ia.is_np_array(images):
@@ -4092,7 +4084,7 @@ class WithChannels(Augmenter):
             f"{str([image.shape[0:2] for image in images])} to {str([image_aug.shape[0:2] for image_aug in images_aug])}, but expected to be the same."
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _assert_dtypes_not_changed(cls, images_aug: Images, images: Images) -> None:
         if ia.is_np_array(images_aug) and ia.is_np_array(images):
@@ -4110,14 +4102,14 @@ class WithChannels(Augmenter):
             f"{str([image.dtype.name for image in images])} to {str([image_aug.dtype.name for image_aug in images_aug])}, but expected to be the same."
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _recover_images_array(cls, images_aug: Images, images: Images) -> Images:
         if ia.is_np_array(images):
             return np.array(images_aug)
         return images_aug
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _reduce_images_to_channels(self, images: Images) -> Images:
         if self.channels is None:
             return images
@@ -4133,7 +4125,7 @@ class WithChannels(Augmenter):
                 result.append(image[..., self.channels])
         return result
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _invert_reduce_images_to_channels(self, images_aug: Images, images: Images) -> Images:
         if self.channels is None:
             return images_aug
@@ -4150,7 +4142,7 @@ class WithChannels(Augmenter):
             image[..., self.channels] = image_aug
         return images
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _replace_unaugmented_cells(
         self, augmentables_aug: Sequence[object], augmentables: Sequence[object]
     ) -> list[object]:
@@ -4160,7 +4152,9 @@ class WithChannels(Augmenter):
         nb_channels_to_aug = len(self.channels)
         nb_channels_lst: list[int] = []
         for augm in augmentables:
-            assert hasattr(augm, "shape"), f"Expected augmentable to have attribute `shape`, got {type(augm)}."
+            assert hasattr(augm, "shape"), (
+                f"Expected augmentable to have attribute `shape`, got {type(augm)}."
+            )
             augm_shape = cast(_HasShape, augm).shape
             nb_channels_lst.append(augm_shape[2] if len(augm_shape) > 2 else 1)
 
@@ -4204,13 +4198,13 @@ class WithChannels(Augmenter):
         )
 
 
+@legacy(version="0.4.0")
 class Identity(Augmenter):
     """Augmenter that does not change the input data.
 
     This augmenter is useful e.g. during validation/testing as it allows
     to re-use the training code without actually performing any augmentation.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4256,7 +4250,7 @@ class Identity(Augmenter):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         seed: RNGInput = None,
@@ -4268,7 +4262,7 @@ class Identity(Augmenter):
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -4278,7 +4272,7 @@ class Identity(Augmenter):
     ) -> _BatchInAugmentation:
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> Sequence[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return []
@@ -4334,6 +4328,7 @@ class Noop(Identity):
         )
 
 
+@legacy(version="0.4.0")
 class Lambda(Augmenter):
     """Augmenter that calls a lambda function for each input batch.
 
@@ -4420,7 +4415,6 @@ class Lambda(Augmenter):
         bounding boxes will automatically be augmented by transforming their
         corner vertices to keypoints and calling `func_keypoints`.
 
-        Added in 0.4.0.
 
     func_polygons : "keypoints" or None or callable, optional
         The function to call for each batch of polygons.
@@ -4452,7 +4446,6 @@ class Lambda(Augmenter):
         line strings will automatically be augmented by transforming their
         corner vertices to keypoints and calling `func_keypoints`.
 
-        Added in 0.4.0.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
@@ -4512,7 +4505,9 @@ class Lambda(Augmenter):
 
     def __init__(
         self,
-        func_images: Callable[[Images, iarandom.RNG, list[Augmenter], ia.HooksImages | None], Images]
+        func_images: Callable[
+            [Images, iarandom.RNG, list[Augmenter], ia.HooksImages | None], Images
+        ]
         | None = None,
         func_heatmaps: Callable[
             [list[ia.HeatmapsOnImage], iarandom.RNG, list[Augmenter], ia.HooksHeatmaps | None],
@@ -4694,7 +4689,7 @@ class Lambda(Augmenter):
             return result
         return polygons_on_images
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_line_strings(
         self,
         line_strings_on_images: list[ia.LineStringsOnImage],
@@ -4722,7 +4717,7 @@ class Lambda(Augmenter):
             return result
         return line_strings_on_images
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_bounding_boxes(
         self,
         bounding_boxes_on_images: list[ia.BoundingBoxesOnImage],
@@ -4765,6 +4760,7 @@ class Lambda(Augmenter):
         return []
 
 
+@legacy(version="0.4.0")
 class AssertLambda(Lambda):
     """Assert conditions based on lambda-function to be the case for input data.
 
@@ -4843,7 +4839,6 @@ class AssertLambda(Lambda):
         It essentially re-uses the interface of
         :func:`~imgaug2.augmenters.meta.Augmenter._augment_bounding_boxes`.
 
-        Added in 0.4.0.
 
     func_polygons : None or callable, optional
         The function to call for each batch of polygons.
@@ -4865,7 +4860,6 @@ class AssertLambda(Lambda):
         It essentially re-uses the interface of
         :func:`~imgaug2.augmenters.meta.Augmenter._augment_line_strings`.
 
-        Added in 0.4.0.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
@@ -4905,7 +4899,8 @@ class AssertLambda(Lambda):
         ]
         | None = None,
         func_keypoints: Callable[
-            [list[ia.KeypointsOnImage], iarandom.RNG, list[Augmenter], ia.HooksKeypoints | None], bool
+            [list[ia.KeypointsOnImage], iarandom.RNG, list[Augmenter], ia.HooksKeypoints | None],
+            bool,
         ]
         | None = None,
         func_bounding_boxes: Callable[
@@ -4919,7 +4914,8 @@ class AssertLambda(Lambda):
         ]
         | None = None,
         func_polygons: Callable[
-            [list[ia.PolygonsOnImage], iarandom.RNG, list[Augmenter], ia.HooksKeypoints | None], bool
+            [list[ia.PolygonsOnImage], iarandom.RNG, list[Augmenter], ia.HooksKeypoints | None],
+            bool,
         ]
         | None = None,
         func_line_strings: Callable[
@@ -4962,9 +4958,9 @@ class AssertLambda(Lambda):
         )
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _AssertLambdaCallback:
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         func: Callable[[object, iarandom.RNG, list[Augmenter], object], bool],
@@ -4973,7 +4969,7 @@ class _AssertLambdaCallback:
         self.func = func
         self.augmentable_name = augmentable_name
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __call__(
         self,
         augmentables: object,
@@ -4987,9 +4983,9 @@ class _AssertLambdaCallback:
         return augmentables
 
 
-# TODO add tests for segmaps
-# TODO This evaluates .shape for kps/polys, but the array shape for
-#      heatmaps/segmaps. Not very consistent.
+# Note: This evaluates .shape for kps/polys, but the array shape for
+# heatmaps/segmaps.
+@legacy(version="0.4.0")
 class AssertShape(Lambda):
     """Assert that inputs have a specified shape.
 
@@ -5062,7 +5058,6 @@ class AssertShape(Lambda):
         :class:`~imgaug2.augmentables.bbs.BoundingBoxesOnImage` instance the
         ``.shape`` attribute, i.e. the shape of the corresponding image.
 
-        Added in 0.4.0.
 
     check_polygons : bool, optional
         Whether to validate input polygons via the given shape.
@@ -5076,7 +5071,6 @@ class AssertShape(Lambda):
         :class:`~imgaug2.augmentables.lines.LineStringsOnImage` instance the
         ``.shape`` attribute, i.e. the shape of the corresponding image.
 
-        Added in 0.4.0.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
         See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
@@ -5160,7 +5154,9 @@ class AssertShape(Lambda):
         )
 
     @classmethod
-    def _compare(cls, observed: int, expected: object, dimension: int, image_index: int | str) -> None:
+    def _compare(
+        cls, observed: int, expected: object, dimension: int, image_index: int | str
+    ) -> None:
         if expected is not None:
             if ia.is_single_integer(expected):
                 assert observed == expected, (
@@ -5203,7 +5199,7 @@ class AssertShape(Lambda):
 
 # Keep these checks as top-level callables to avoid pickling issues when they
 # are sent to multiprocessing workers.
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _AssertShapeImagesCheck:
     def __init__(self, shape: tuple[object, ...]) -> None:
         self.shape = shape
@@ -5221,7 +5217,7 @@ class _AssertShapeImagesCheck:
         return images
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _AssertShapeHeatmapsCheck:
     def __init__(self, shape: tuple[object, ...]) -> None:
         self.shape = shape
@@ -5237,7 +5233,7 @@ class _AssertShapeHeatmapsCheck:
         return heatmaps
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _AssertShapeSegmapCheck:
     def __init__(self, shape: tuple[object, ...]) -> None:
         self.shape = shape
@@ -5253,7 +5249,7 @@ class _AssertShapeSegmapCheck:
         return segmaps
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _AssertShapeKeypointsCheck:
     def __init__(self, shape: tuple[object, ...]) -> None:
         self.shape = shape
@@ -5269,7 +5265,7 @@ class _AssertShapeKeypointsCheck:
         return keypoints_on_images
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _AssertShapeBoundingBoxesCheck:
     def __init__(self, shape: tuple[object, ...]) -> None:
         self.shape = shape
@@ -5285,7 +5281,7 @@ class _AssertShapeBoundingBoxesCheck:
         return bounding_boxes_on_images
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _AssertShapePolygonsCheck:
     def __init__(self, shape: tuple[object, ...]) -> None:
         self.shape = shape
@@ -5301,7 +5297,7 @@ class _AssertShapePolygonsCheck:
         return polygons_on_images
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _AssertShapeLineStringsCheck:
     def __init__(self, shape: tuple[object, ...]) -> None:
         self.shape = shape
@@ -5406,7 +5402,7 @@ class ChannelShuffle(Augmenter):
         assert valid_channels, f"Expected None or imgaug2.ALL or list of int, got {type(channels)}."
         self.channels = channels
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -5500,6 +5496,7 @@ def shuffle_channels(
     return image[..., channels_perm_full]
 
 
+@legacy(version="0.4.0")
 class RemoveCBAsByOutOfImageFraction(Augmenter):
     """Remove coordinate-based augmentables exceeding an out of image fraction.
 
@@ -5510,7 +5507,6 @@ class RemoveCBAsByOutOfImageFraction(Augmenter):
     augmentable's area that is outside of the image, e.g. for a bounding box
     that has half of its area outside of the image it would be ``0.5``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -5589,7 +5585,7 @@ class RemoveCBAsByOutOfImageFraction(Augmenter):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         fraction: Number,
@@ -5604,7 +5600,7 @@ class RemoveCBAsByOutOfImageFraction(Augmenter):
 
         self.fraction = fraction
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -5619,12 +5615,13 @@ class RemoveCBAsByOutOfImageFraction(Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.fraction]
 
 
+@legacy(version="0.4.0")
 class ClipCBAsToImagePlanes(Augmenter):
     """Clip coordinate-based augmentables to areas within the image plane.
 
@@ -5635,7 +5632,6 @@ class ClipCBAsToImagePlanes(Augmenter):
     it removes any single points outside of the image plane. Any augmentable
     that is completely outside of the image plane will be removed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -5686,7 +5682,7 @@ class ClipCBAsToImagePlanes(Augmenter):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         seed: RNGInput = None,
@@ -5698,7 +5694,7 @@ class ClipCBAsToImagePlanes(Augmenter):
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -5713,7 +5709,7 @@ class ClipCBAsToImagePlanes(Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return []

@@ -12,6 +12,7 @@ import numpy as np
 import imgaug2.imgaug as ia
 from imgaug2.augmentables import normalization as nlib
 from imgaug2.augmentables import utils
+from imgaug2.compat.markers import legacy
 
 DEFAULT = "DEFAULT"
 
@@ -180,6 +181,7 @@ class UnnormalizedBatch:
         self.line_strings_aug = None
         self.data = data
 
+    @legacy(version="0.4.0")
     def get_column_names(self) -> list[str]:
         """Get the names of types of augmentables that contain data.
 
@@ -187,7 +189,6 @@ class UnnormalizedBatch:
         data is contained in the batch that has to be augmented, visualized
         or something similar.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -244,6 +245,7 @@ class UnnormalizedBatch:
             data=self.data,
         )
 
+    @legacy(version="0.4.0")
     def fill_from_augmented_normalized_batch_(
         self, batch_aug_norm: Batch
     ) -> UnnormalizedBatch:
@@ -255,7 +257,6 @@ class UnnormalizedBatch:
         batch *in unnormalized form*. Hence, the datatypes of all ``*_aug``
         attributes will match the datatypes of the ``*_unaug`` attributes.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -450,6 +451,7 @@ class Batch:
         """Get unaugmented bounding boxes."""
         return self.bounding_boxes_unaug
 
+    @legacy(version="0.4.0")
     def get_column_names(self) -> list[str]:
         """Get the names of types of augmentables that contain data.
 
@@ -457,7 +459,6 @@ class Batch:
         data is contained in the batch that has to be augmented, visualized
         or something similar.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -467,13 +468,13 @@ class Batch:
         """
         return _get_column_names(self, "_unaug")
 
+    @legacy(version="0.4.0")
     def to_normalized_batch(self) -> Batch:
         """Return this batch.
 
         This method does nothing and only exists to simplify interfaces
         that accept both :class:`UnnormalizedBatch` and :class:`Batch`.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -483,10 +484,10 @@ class Batch:
         """
         return self
 
+    @legacy(version="0.4.0")
     def to_batch_in_augmentation(self) -> _BatchInAugmentation:
         """Convert this batch to a :class:`_BatchInAugmentation` instance.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -511,6 +512,7 @@ class Batch:
             line_strings=_copy(self.line_strings_unaug),
         )
 
+    @legacy(version="0.4.0")
     def fill_from_batch_in_augmentation_(
         self, batch_in_augmentation: _BatchInAugmentation
     ) -> Batch:
@@ -518,7 +520,6 @@ class Batch:
 
         This method works in-place.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -665,7 +666,7 @@ class Batch:
         return batch
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _BatchInAugmentationPropagationContext:
     def __init__(
         self,
@@ -697,6 +698,7 @@ class _BatchInAugmentationPropagationContext:
             self.batch = self.batch.invert_apply_propagation_hooks_(self.noned_info)
 
 
+@legacy(version="0.4.0")
 class _BatchInAugmentation:
     """
     Class encapsulating a batch during the augmentation process.
@@ -705,7 +707,6 @@ class _BatchInAugmentation:
     :class:`Batch`. Data within the batch may be changed in-place. No initial
     copy is needed.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -732,7 +733,7 @@ class _BatchInAugmentation:
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         images: object | None = None,
@@ -755,10 +756,10 @@ class _BatchInAugmentation:
         self.data = data
 
     @property
+    @legacy(version="0.4.0")
     def empty(self) -> bool:
         """Estimate whether this batch is empty, i.e. contains no data.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -770,13 +771,13 @@ class _BatchInAugmentation:
         return self.nb_rows == 0
 
     @property
+    @legacy(version="0.4.0")
     def nb_rows(self) -> int:
         """Get the number of rows (i.e. examples) in this batch.
 
         Note that this method assumes that all columns have the same number
         of rows.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -791,13 +792,13 @@ class _BatchInAugmentation:
         return 0
 
     @property
+    @legacy(version="0.4.0")
     def columns(self) -> list[_AugmentableColumn]:
         """Get the columns of data to augment.
 
         Each column represents one datatype and its corresponding data,
         e.g. images or polygons.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -807,6 +808,7 @@ class _BatchInAugmentation:
         """
         return _get_columns(self, "")
 
+    @legacy(version="0.4.0")
     def get_column_names(self) -> list[str]:
         """Get the names of types of augmentables that contain data.
 
@@ -814,7 +816,6 @@ class _BatchInAugmentation:
         data is contained in the batch that has to be augmented, visualized
         or something similar.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -824,6 +825,7 @@ class _BatchInAugmentation:
         """
         return _get_column_names(self, "")
 
+    @legacy(version="0.4.0")
     def get_rowwise_shapes(self) -> list[tuple[int, ...] | None]:
         """Get the shape of each row within this batch.
 
@@ -834,7 +836,6 @@ class _BatchInAugmentation:
         shape and that it is identical to the image's shape.
         It also assumes that there are no columns containing only ``None`` s.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -861,10 +862,10 @@ class _BatchInAugmentation:
                 return shapes
         return shapes
 
+    @legacy(version="0.4.0")
     def subselect_rows_by_indices(self, indices: Sequence[int] | np.ndarray) -> _BatchInAugmentation:
         """Reduce this batch to a subset of rows based on their row indices.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -882,7 +883,7 @@ class _BatchInAugmentation:
             rows = getattr(self, augm_name)
             if rows is not None:
                 if augm_name == "images" and ia.is_np_array(rows):
-                    rows = rows[indices]  # pylint: disable=unsubscriptable-object
+                    rows = rows[indices]
                 else:
                     rows = [rows[index] for index in indices]
 
@@ -892,6 +893,7 @@ class _BatchInAugmentation:
 
         return _BatchInAugmentation(**kwargs)
 
+    @legacy(version="0.4.0")
     def invert_subselect_rows_by_indices_(
         self, indices: Sequence[int] | np.ndarray, batch_subselected: _BatchInAugmentation
     ) -> _BatchInAugmentation:
@@ -902,7 +904,6 @@ class _BatchInAugmentation:
 
         This method has to be executed on the batch *before* subselection.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -953,23 +954,23 @@ class _BatchInAugmentation:
                         )
 
                     if len(shapes) == 1 and len(dtypes) == 1:
-                        column[indices] = column_sub  # pylint: disable=unsupported-assignment-operation
+                        column[indices] = column_sub
                     else:
                         self.images = list(column)
                         for ith_index, index in enumerate(indices):
                             self.images[index] = column_sub[ith_index]
                 else:
                     for ith_index, index in enumerate(indices):
-                        column[index] = column_sub[ith_index]  # pylint: disable=unsupported-assignment-operation
+                        column[index] = column_sub[ith_index]
 
         return self
 
+    @legacy(version="0.4.0")
     def propagation_hooks_ctx(
         self, augmenter: object, hooks: _PropagationHooks | None, parents: object
     ) -> _BatchInAugmentationPropagationContext:
         """Start a context in which propagation hooks are applied.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -992,6 +993,7 @@ class _BatchInAugmentation:
             self, augmenter=augmenter, hooks=hooks, parents=parents
         )
 
+    @legacy(version="0.4.0")
     def apply_propagation_hooks_(
         self, augmenter: object, hooks: _PropagationHooks | None, parents: object
     ) -> list[tuple[str, object]] | None:
@@ -999,7 +1001,6 @@ class _BatchInAugmentation:
 
         This method works in-place.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1035,6 +1036,7 @@ class _BatchInAugmentation:
                 noned_info.append((column.attr_name, column.value))
         return noned_info
 
+    @legacy(version="0.4.0")
     def invert_apply_propagation_hooks_(
         self, noned_info: Sequence[tuple[str, object]]
     ) -> _BatchInAugmentation:
@@ -1045,7 +1047,6 @@ class _BatchInAugmentation:
 
         This method works in-place.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1064,13 +1065,13 @@ class _BatchInAugmentation:
             setattr(self, attr_name, value)
         return self
 
+    @legacy(version="0.4.0")
     def to_batch_in_augmentation(self) -> _BatchInAugmentation:
         """Convert this batch to a :class:`_BatchInAugmentation` instance.
 
         This method simply returns the batch itself. It exists for consistency
         with the other batch classes.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -1080,6 +1081,7 @@ class _BatchInAugmentation:
         """
         return self
 
+    @legacy(version="0.4.0")
     def fill_from_batch_in_augmentation_(
         self, batch_in_augmentation: _BatchInAugmentation
     ) -> _BatchInAugmentation:
@@ -1087,7 +1089,6 @@ class _BatchInAugmentation:
 
         This method works in-place.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1114,10 +1115,10 @@ class _BatchInAugmentation:
 
         return self
 
+    @legacy(version="0.4.0")
     def to_batch(self, batch_before_aug: Batch) -> Batch:
         """Convert this batch into a :class:`Batch` instance.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1153,10 +1154,10 @@ class _BatchInAugmentation:
         batch.line_strings_aug = self.line_strings
         return batch
 
+    @legacy(version="0.4.0")
     def deepcopy(self) -> _BatchInAugmentation:
         """Copy this batch and all of its column values.
 
-        Added in 0.4.0.
 
         Returns
         -------

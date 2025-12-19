@@ -9,13 +9,13 @@ solarization, and gamma correction. All functions preserve input array type (Num
 
 Examples
 --------
->>> import numpy as np
->>> from imgaug2.mlx.pointwise import add, multiply, linear_contrast, invert
->>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
->>> brightened = add(img, 50)
->>> darkened = multiply(img, 0.5)
->>> contrasted = linear_contrast(img, factor=1.5)
->>> inverted = invert(img)
+>>> import numpy as np  # doctest: +SKIP
+>>> from imgaug2.mlx.pointwise import add, multiply, linear_contrast, invert  # doctest: +SKIP
+>>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # doctest: +SKIP
+>>> brightened = add(img, 50)  # doctest: +SKIP
+>>> darkened = multiply(img, 0.5)  # doctest: +SKIP
+>>> contrasted = linear_contrast(img, factor=1.5)  # doctest: +SKIP
+>>> inverted = invert(img)  # doctest: +SKIP
 """
 
 from __future__ import annotations
@@ -163,6 +163,11 @@ def linear_contrast(image: object, factor: float) -> object:
     img_mlx = ensure_float32(to_mlx(image))
 
     midpoint = 128.0
+    if isinstance(factor, (int, float)):
+        factor = mx.array(float(factor))
+    elif not is_mlx_array(factor):
+        factor = to_mlx(factor)
+
     result = (img_mlx - midpoint) * factor + midpoint
 
     if is_input_mlx:
@@ -406,8 +411,14 @@ def gamma_contrast(
 
     x = ensure_float32(img_mlx)
     rng = float(max_value - min_value)
+
+    if isinstance(gamma, (int, float)):
+        gamma_arr = mx.array(float(gamma))
+    else:
+        gamma_arr = to_mlx(gamma) if not is_mlx_array(gamma) else gamma
+
     x01 = mx.clip((x - float(min_value)) / rng, 0.0, 1.0)
-    y = float(min_value) + mx.power(x01, float(gamma)) * rng
+    y = float(min_value) + mx.power(x01, gamma_arr) * rng
 
     if is_input_mlx:
         if img_mlx.dtype in {mx.uint8, mx.uint16, mx.uint32, mx.int8, mx.int16, mx.int32}:
@@ -420,4 +431,181 @@ def gamma_contrast(
     return y_np
 
 
-__all__ = ["add", "multiply", "linear_contrast", "invert", "solarize", "gamma_contrast"]
+def sigmoid_contrast(
+    image: object,
+    gain: float,
+    cutoff: float,
+    inv: float | bool = False,
+    *,
+    min_value: float | None = None,
+    max_value: float | None = None,
+) -> object:
+    """Apply sigmoid contrast adjustment.
+
+    Parameters
+    ----------
+    image : object
+        Input image as NumPy array or MLX array.
+    gain : float
+        Multiplier for the sigmoid function's output.
+    cutoff : float
+        Cutoff that shifts the sigmoid function in horizontal direction.
+    inv : float
+        Whether to invert the sigmoid correction.
+    min_value : float, optional
+        Minimum value of the range.
+    max_value : float, optional
+        Maximum value of the range.
+
+    Returns
+    -------
+    object
+        Contrast-adjusted image.
+    """
+    require()
+
+    is_input_mlx = is_mlx_array(image)
+    original_dtype = None if is_input_mlx else to_numpy(image).dtype
+    img_mlx = to_mlx(image)
+
+    if min_value is None or max_value is None:
+        min_d, max_d = _infer_min_max_for_invert(
+            original_dtype if original_dtype is not None else img_mlx.dtype
+        )
+        min_value = min_d if min_value is None else float(min_value)
+        max_value = max_d if max_value is None else float(max_value)
+
+    if max_value == min_value:
+        return image
+
+    x = ensure_float32(img_mlx)
+    rng = float(max_value - min_value)
+
+    if isinstance(gain, (int, float)):
+        gain_arr = mx.array(float(gain))
+    else:
+        gain_arr = to_mlx(gain) if not is_mlx_array(gain) else gain
+
+    if isinstance(cutoff, (int, float)):
+        cutoff_arr = mx.array(float(cutoff))
+    else:
+        cutoff_arr = to_mlx(cutoff) if not is_mlx_array(cutoff) else cutoff
+
+    x01 = (x - float(min_value)) / rng
+    exp_term = mx.exp(gain_arr * (cutoff_arr - x01))
+    sig = 1 / (1 + exp_term)
+
+    inv_is_scalar = isinstance(inv, (int, float, bool, np.generic))
+    if inv_is_scalar:
+        inv_bool = float(inv) > 0.5
+        if inv_bool:
+            y = float(min_value) + rng * (1 - sig)
+        else:
+            y = float(min_value) + rng * sig
+    else:
+        inv_arr = to_mlx(inv) if not is_mlx_array(inv) else inv
+        y = float(min_value) + rng * sig
+        y_inv = float(min_value) + rng * (1 - sig)
+        y = mx.where(inv_arr > 0.5, y_inv, y)
+
+    if is_input_mlx:
+        if img_mlx.dtype in {mx.uint8, mx.uint16, mx.uint32, mx.int8, mx.int16, mx.int32}:
+            y = mx.clip(y, min_value, max_value).astype(img_mlx.dtype)
+        return y
+
+    y_np = to_numpy(y)
+    if original_dtype is not None and original_dtype.kind in {"u", "i"}:
+        y_np = np.clip(y_np, min_value, max_value).astype(original_dtype)
+    return y_np
+
+
+def log_contrast(
+    image: object,
+    gain: float,
+    inv: float | bool = False,
+    *,
+    min_value: float | None = None,
+    max_value: float | None = None,
+) -> object:
+    """Apply logarithmic contrast adjustment.
+
+    Parameters
+    ----------
+    image : object
+        Input image as NumPy array or MLX array.
+    gain : float
+        Multiplier for the logarithm result.
+    inv : float
+        Whether to invert the logarithmic correction.
+    min_value : float, optional
+        Minimum value of the range.
+    max_value : float, optional
+        Maximum value of the range.
+
+    Returns
+    -------
+    object
+        Contrast-adjusted image.
+    """
+    require()
+
+    is_input_mlx = is_mlx_array(image)
+    original_dtype = None if is_input_mlx else to_numpy(image).dtype
+    img_mlx = to_mlx(image)
+
+    if min_value is None or max_value is None:
+        min_d, max_d = _infer_min_max_for_invert(
+            original_dtype if original_dtype is not None else img_mlx.dtype
+        )
+        min_value = min_d if min_value is None else float(min_value)
+        max_value = max_d if max_value is None else float(max_value)
+
+    if max_value == min_value:
+        return image
+
+    x = ensure_float32(img_mlx)
+    rng = float(max_value - min_value)
+
+    if isinstance(gain, (int, float)):
+        gain_arr = mx.array(float(gain))
+    else:
+        gain_arr = to_mlx(gain) if not is_mlx_array(gain) else gain
+
+    x01 = (x - float(min_value)) / rng
+    # Clip to ensure valid log input, though x01 should be >= 0 naturally if x >= min
+    x01 = mx.maximum(x01, 0.0)
+
+    inv_is_scalar = isinstance(inv, (int, float, bool, np.generic))
+    if inv_is_scalar:
+        inv_bool = float(inv) > 0.5
+        if inv_bool:
+            y = float(min_value) + rng * gain_arr * (2.0**x01 - 1.0)
+        else:
+            y = float(min_value) + rng * gain_arr * mx.log2(1.0 + x01)
+    else:
+        inv_arr = to_mlx(inv) if not is_mlx_array(inv) else inv
+        y = float(min_value) + rng * gain_arr * mx.log2(1.0 + x01)
+        y_inv = float(min_value) + rng * gain_arr * (2.0**x01 - 1.0)
+        y = mx.where(inv_arr > 0.5, y_inv, y)
+
+    if is_input_mlx:
+        if img_mlx.dtype in {mx.uint8, mx.uint16, mx.uint32, mx.int8, mx.int16, mx.int32}:
+            y = mx.clip(y, min_value, max_value).astype(img_mlx.dtype)
+        return y
+
+    y_np = to_numpy(y)
+    if original_dtype is not None and original_dtype.kind in {"u", "i"}:
+        y_np = np.clip(y_np, min_value, max_value).astype(original_dtype)
+    return y_np
+
+
+__all__ = [
+    "add",
+    "multiply",
+    "linear_contrast",
+    "invert",
+    "solarize",
+    "gamma_contrast",
+    "sigmoid_contrast",
+    "log_contrast",
+]

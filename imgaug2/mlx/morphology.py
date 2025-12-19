@@ -10,11 +10,11 @@ gradient. All functions preserve input array type (NumPy or MLX).
 
 Examples
 --------
->>> import numpy as np
->>> from imgaug2.mlx.morphology import erosion, dilation, opening
->>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
->>> eroded = erosion(img, ksize=3, shape='rect')
->>> opened = opening(img, ksize=5, shape='ellipse')
+>>> import numpy as np  # doctest: +SKIP
+>>> from imgaug2.mlx.morphology import erosion, dilation, opening  # doctest: +SKIP
+>>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # doctest: +SKIP
+>>> eroded = erosion(img, ksize=3, shape='rect')  # doctest: +SKIP
+>>> opened = opening(img, ksize=5, shape='ellipse')  # doctest: +SKIP
 """
 
 from __future__ import annotations

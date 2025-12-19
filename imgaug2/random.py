@@ -1,42 +1,7 @@
-"""Classes and functions related to pseudo-random number generation.
+"""Random helpers and RNG wrapper for imgaug2.
 
-This module deals with the generation of pseudo-random numbers.
-It provides the :class:`~imgaug2.random.RNG` class, which is the primary
-random number generator in ``imgaug``. It also provides various utility
-functions related random number generation, such as copying random number
-generators or setting their state.
-
-The main benefit of this module is to hide the actually used random number
-generation classes and methods behin imgaug-specific classes and methods.
-This allows to deal with numpy using two different interfaces (one old
-interface in numpy <=1.16 and a new one in numpy 1.17+). It also allows
-to potentially switch to a different framework/library in the future.
-
-Definitions
------------
-
-- *numpy generator* or *numpy random number generator*: Usually an instance
-  of :class:`numpy.random.Generator`. Can often also denote an instance
-  of :class:`numpy.random.RandomState` as both have almost the same inter-face.
-- *RandomState*: An instance of `numpy.random.RandomState`.
-  Note that outside of this module, the term "random state" often roughly
-  translates to "any random number generator with numpy-like interface
-  in a given state", i.e. it can then include instances of
-  :class:`numpy.random.Generator` or :class:`~imgaug2.random.RNG`.
-- *RNG*: An instance of :class:`~imgaug2.random.RNG`.
-
-Examples
---------
-
->>> import imgaug2.random as iarandom
->>> rng = iarandom.RNG(1234)
->>> rng.integers(0, 1000)
-
-Initialize a random number generator with seed ``1234``, then sample
-a single integer from the discrete interval ``[0, 1000)``.
-This will use a :class:`numpy.random.Generator` in numpy 1.17+ and
-automatically fall back to :class:`numpy.random.RandomState` in numpy <=1.16.
-
+Unifies NumPy's Generator/RandomState APIs and provides helpers for
+seeding and state management.
 """
 
 from __future__ import annotations
@@ -49,6 +14,8 @@ from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar, cast
 
 import numpy as np
 from numpy.typing import ArrayLike, DTypeLike, NDArray
+
+from imgaug2.compat.markers import legacy
 
 if TYPE_CHECKING:
     from numpy._typing import _ShapeLike
@@ -67,113 +34,46 @@ FloatArray: TypeAlias = NDArray[np.floating[Any]]
 IntArray: TypeAlias = NDArray[np.integer[Any]]
 GenericArray: TypeAlias = NDArray[np.generic]
 
-# Check if numpy is version 1.17 or later. In that version, the new random
-# number interface was added.
-# Note that a valid version number can also be "1.18.0.dev0+285ab1d",
-# in which the last component cannot easily be converted to an int. Hence we
-# only pick the first two components.
+# Detect which NumPy RNG API is available (Generator vs RandomState).
+# We only parse major/minor; dev/build suffixes are ignored.
 SUPPORTS_NEW_NP_RNG_STYLE: bool = False
 BIT_GENERATOR: type[Any] | None = None
 _NP_VERSION: list[int] = list(map(int, np.__version__.split(".")[0:2]))
 if _NP_VERSION[0] > 1 or _NP_VERSION[1] >= 17:
     SUPPORTS_NEW_NP_RNG_STYLE = True
-    BIT_GENERATOR = np.random.SFC64  # pylint: disable=invalid-name
+    BIT_GENERATOR = np.random.SFC64
 
-    # interface of BitGenerator
-    # in 1.17 this was at numpy.random.bit_generator.BitGenerator
-    # in 1.18 this was moved to numpy.random.BitGenerator
-    # pylint: disable=invalid-name, no-member
+    # BitGenerator interface location differs between NumPy 1.17 and 1.18+.
     if _NP_VERSION[1] == 17:
-        # Added in 0.4.0.
         import numpy.random.bit_generator as _bit_gen_module  # type: ignore[import-not-found]
+
         _BIT_GENERATOR_INTERFACE: type[Any] = _bit_gen_module.BitGenerator
     else:
-        # Added in 0.4.0.
         _BIT_GENERATOR_INTERFACE = np.random.BitGenerator
-    # pylint: enable=invalid-name, no-member
 
-# We instantiate a current/global random state here once.
+# Global RNG instance (lazy-initialized).
 GLOBAL_RNG: RNG | None = None
 
-# use 2**31 instead of 2**32 as the maximum here, because 2**31 errored on
-# some systems
+# Use 2**31-1 as max; 2**31 fails on some platforms.
 SEED_MIN_VALUE: int = 0
 SEED_MAX_VALUE: int = 2**31 - 1
 
-# Added in 0.5.0.
 _RNG_IDX: int = 1
 
-# TODO decrease pool_size in SeedSequence to 2 or 1?
 # TODO add 'with resetted_rng(...)'
 # TODO change random_state to rng or seed
 
 
 class RNG:
-    """
-    Random number generator for imgaug2.
+    """Unified RNG wrapper for NumPy Generator/RandomState.
 
-    This class is a wrapper around ``numpy.random.Generator`` and
-    automatically falls back to ``numpy.random.RandomState`` in case of
-    numpy version 1.16 or lower. It allows to use numpy 1.17's sampling
-    functions in 1.16 too and supports a variety of useful functions on
-    the wrapped sampler, e.g. gettings its state or copying it.
-
-    Not supported sampling functions of numpy <=1.16:
-
-    * :func:`numpy.random.RandomState.rand`
-    * :func:`numpy.random.RandomState.randn`
-    * :func:`numpy.random.RandomState.randint`
-    * :func:`numpy.random.RandomState.random_integers`
-    * :func:`numpy.random.RandomState.random_sample`
-    * :func:`numpy.random.RandomState.ranf`
-    * :func:`numpy.random.RandomState.sample`
-    * :func:`numpy.random.RandomState.seed`
-    * :func:`numpy.random.RandomState.get_state`
-    * :func:`numpy.random.RandomState.set_state`
-
-    In :func:`~imgaug2.random.RNG.choice`, the `axis` argument is not yet
-    supported.
-
-    Parameters
-    ----------
-    generator : None or int or RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState
-        The numpy random number generator to use. In case of numpy
-        version 1.17 or later, this shouldn't be a ``RandomState`` as that
-        class is outdated.
-        Behaviour for different datatypes:
-
-          * If ``None``: The global RNG is wrapped by this RNG (they are then
-            effectively identical, any sampling on this RNG will affect the
-            global RNG).
-          * If ``int``: In numpy 1.17+, the value is used as a seed for a
-            ``Generator`` wrapped by this RNG. I.e. it will be provided as the
-            entropy to a ``SeedSequence``, which will then be used for an
-            ``SFC64`` bit generator and wrapped by a ``Generator``.
-            In numpy <=1.16, the value is used as a seed for a ``RandomState``,
-            which is then wrapped by this RNG.
-          * If :class:`RNG`: That RNG's ``generator`` attribute will be used
-            as the generator for this RNG, i.e. the same as
-            ``RNG(other_rng.generator)``.
-          * If :class:`numpy.random.Generator`: That generator will be wrapped.
-          * If :class:`numpy.random.BitGenerator`: A numpy
-            generator will be created (and wrapped by this RNG) that contains
-            the bit generator.
-          * If :class:`numpy.random.SeedSequence`: A numpy
-            generator will be created (and wrapped by this RNG) that contains
-            an ``SFC64`` bit generator initialized with the given
-            ``SeedSequence``.
-          * If :class:`numpy.random.RandomState`: In numpy <=1.16, this
-            ``RandomState`` will be wrapped and used to sample random values.
-            In numpy 1.17+, a seed will be derived from this ``RandomState``
-            and a new ``numpy.generator.Generator`` based on an ``SFC64``
-            bit generator will be created and wrapped by this RNG.
-
+    Accepts a seed, an existing RNG, or a NumPy RNG instance and exposes a
+    stable API across NumPy versions.
     """
 
     # TODO add maybe a __new__ here that feeds-through an RNG input without
     #      wrapping it in RNG(rng_input)?
     def __init__(self, generator: RNGInput) -> None:
-        # pylint: disable=protected-access, global-statement
         global _RNG_IDX
 
         if isinstance(generator, RNG):
@@ -182,11 +82,7 @@ class RNG:
             self.generator = normalize_generator_(generator)
         self._is_new_rng_style = not isinstance(self.generator, np.random.RandomState)
 
-        # _idx is used to have a unique id for each RNG.
-        # This is currently necessary for AutoPrefetcher. It could be done
-        # similarly via the generator state, though at a much higher
-        # computational cost. id(rng) cannot be used for this as multiple
-        # RNG instances with different states may have the same id() value.
+        # Unique id used by AutoPrefetcher; state-based ids are too costly.
         self._idx = _RNG_IDX
         _RNG_IDX += 1
 
@@ -194,45 +90,29 @@ class RNG:
     def state(self) -> GeneratorState:
         """Get the state of this RNG.
 
-        Returns
-        -------
-        tuple or dict
-            The state of the RNG.
-            In numpy 1.17+, the bit generator's state will be returned.
-            In numpy <=1.16, the ``RandomState`` 's state is returned.
-            In both cases the state is a copy. In-place changes will not affect
-            the RNG.
-
+        Returns:
+            The state of the RNG (tuple or dict).
+            Returns a copy; in-place changes to the return value will not affect the RNG.
         """
         return get_generator_state(self.generator)
 
     @state.setter
     def state(self, value: GeneratorState) -> None:
-        """Set the state if the RNG in-place.
+        """Set the state of the RNG in-place.
 
-        Parameters
-        ----------
-        value : tuple or dict
-            The new state of the RNG.
-            Should correspond to the output of the ``state`` property.
-
+        Parameters:
+            value: The new state of the RNG (tuple or dict), matching the format from `state`.
         """
         self.set_state_(value)
 
     def set_state_(self, value: GeneratorState) -> RNG:
-        """Set the state if the RNG in-place.
+        """Set the state of the RNG in-place.
 
-        Parameters
-        ----------
-        value : tuple or dict
-            The new state of the RNG.
-            Should correspond to the output of the ``state`` property.
+        Parameters:
+            value: The new state of the RNG.
 
-        Returns
-        -------
-        RNG
-            The RNG itself.
-
+        Returns:
+            The RNG instance itself.
         """
         set_generator_state_(self.generator, value)
         return self
@@ -240,35 +120,22 @@ class RNG:
     def use_state_of_(self, other: RNG) -> RNG:
         """Copy and use (in-place) the state of another RNG.
 
-        .. note::
+        Note:
+            Ensure neither RNG is the global RNG to avoid unexpected side effects.
 
-            It is often sensible to first verify that neither this RNG nor
-            `other` are identical to the global RNG.
+        Parameters:
+            other: The other RNG whose state will be copied.
 
-        Parameters
-        ----------
-        other : RNG
-            The other RNG, which's state will be copied.
-
-        Returns
-        -------
-        RNG
-            The RNG itself.
-
+        Returns:
+            The RNG instance itself.
         """
         return self.set_state_(other.state)
 
     def is_global_rng(self) -> bool:
-        """Estimate whether this RNG is identical to the global RNG.
+        """Check if this RNG wraps the same generator as the global RNG.
 
-        Returns
-        -------
-        bool
-            ``True`` is this RNG's underlying generator is identical to the
-            global RNG's underlying generator. The RNGs themselves may
-            be different, only the wrapped generator matters.
-            ``False`` otherwise.
-
+        Returns:
+            `True` if the underlying generator is identical to the global one; `False` otherwise.
         """
         # We use .generator here, because otherwise RNG(global_rng) would be
         # viewed as not-identical to the global RNG, even though its generator
@@ -276,54 +143,29 @@ class RNG:
         return get_global_rng().generator is self.generator
 
     def equals_global_rng(self) -> bool:
-        """Estimate whether this RNG has the same state as the global RNG.
+        """Check if this RNG shares the same state as the global RNG.
 
-        Returns
-        -------
-        bool
-            ``True`` is this RNG has the same state as the global RNG, i.e.
-            it will lead to the same sampled values given the same sampling
-            method calls. The RNGs *don't* have to be identical object
-            instances, which protects against e.g. copy effects.
-            ``False`` otherwise.
-
+        Returns:
+            `True` if standard sampling produces the same values as the global RNG; `False` otherwise.
         """
         return get_global_rng().equals(self)
 
     def generate_seed_(self) -> int:
-        """Sample a random seed.
+        """Sample a random seed and advance the generator.
 
-        This advances the underlying generator's state.
-
-        See ``SEED_MIN_VALUE`` and ``SEED_MAX_VALUE`` for the seed's value
-        range.
-
-        Returns
-        -------
-        int
-            The sampled seed.
-
+        Returns:
+            The sampled seed (int).
         """
         return generate_seed_(self.generator)
 
     def generate_seeds_(self, n: int) -> IntArray:
-        """Generate `n` random seed values.
+        """Generate `n` random seed values, advancing the generator state.
 
-        This advances the underlying generator's state.
+        Parameters:
+            n: Number of seeds to sample.
 
-        See ``SEED_MIN_VALUE`` and ``SEED_MAX_VALUE`` for the seed's value
-        range.
-
-        Parameters
-        ----------
-        n : int
-            Number of seeds to sample.
-
-        Returns
-        -------
-        ndarray
-            1D-array of ``int32`` seeds.
-
+        Returns:
+            1D array of `int32` seeds.
         """
         return generate_seeds_(self.generator, n)
 
@@ -353,20 +195,13 @@ class RNG:
         return self.derive_rngs_(1)[0]
 
     def derive_rngs_(self, n: int) -> list[RNG]:
-        """Create `n` child RNGs.
+        """Create `n` child RNGs, advancing the generator state.
 
-        This advances the underlying generator's state.
+        Parameters:
+            n: Number of child RNGs to derive.
 
-        Parameters
-        ----------
-        n : int
-            Number of child RNGs to derive.
-
-        Returns
-        -------
-        list of RNG
-            Child RNGs.
-
+        Returns:
+            List of new `RNG` instances.
         """
         return [RNG(gen) for gen in derive_generators_(self.generator, n)]
 
@@ -390,20 +225,12 @@ class RNG:
     def advance_(self) -> RNG:
         """Advance the RNG's internal state in-place by one step.
 
-        This advances the underlying generator's state.
+        Note:
+            This advances the generator by sampling a value. For drastic state changes,
+            consider deriving a new RNG.
 
-        .. note::
-
-            This simply samples one or more random values. This means that
-            a call of this method will not completely change the outputs of
-            the next called sampling method. To achieve more drastic output
-            changes, call :func:`~imgaug2.random.RNG.derive_rng_`.
-
-        Returns
-        -------
-        RNG
-            The RNG itself.
-
+        Returns:
+            The RNG instance itself.
         """
         advance_generator_(self.generator)
         return self
@@ -434,82 +261,49 @@ class RNG:
         return self.copy()
 
     def duplicate(self, n: int) -> list[RNG]:
-        """Create a list containing `n` times this RNG.
+        """Create a list containing `n` references to this RNG.
 
-        This method was mainly introduced as a replacement for previous
-        calls of :func:`~imgaug2.random.RNG.derive_rngs_`. These calls
-        turned out to be very slow in numpy 1.17+ and were hence replaced
-        by simple duplication (except for the cases where child RNGs
-        absolutely *had* to be created).
-        This RNG duplication method doesn't help very much against code
-        repetition, but it does *mark* the points where it would be desirable
-        to create child RNGs for various reasons. Once deriving child RNGs
-        is somehow sped up in the future, these calls can again be
-        easily found and replaced.
+        Note:
+            This returns the *same* RNG instance `n` times, not copies.
+            Used primarily as a placeholder for deprecated child derivation calls.
 
-        Parameters
-        ----------
-        n : int
-            Length of the output list.
+        Parameters:
+            n: Length of the output list.
 
-        Returns
-        -------
-        list of RNG
-            List containing `n` times this RNG (same instances, no copies).
-
+        Returns:
+            List containing `n` references to this RNG.
         """
         return [self for _ in range(n)]
 
     @classmethod
     def create_fully_random(cls) -> RNG:
-        """Create a new RNG, based on entropy provided from the OS.
+        """Create a new RNG seeded with OS entropy.
 
-        Returns
-        -------
-        RNG
-            A new RNG. It is not derived from any other previously created
-            RNG, nor does it depend on the seeding of imgaug or numpy.
-
+        Returns:
+            A new independent `RNG` instance.
         """
         return RNG(create_fully_random_generator())
 
     @classmethod
     def create_pseudo_random_(cls) -> RNG:
-        """Create a new RNG in pseudo-random fashion.
+        """Create a new RNG derived from the global RNG.
 
-        A seed will be sampled from the current global RNG and used to
-        initialize the new RNG.
+        Advances the global RNG state.
 
-        This advandes the global RNG's state.
-
-        Returns
-        -------
-        RNG
-            A new RNG, derived from the current global RNG.
-
+        Returns:
+            A new `RNG` instance derived from the global generator.
         """
         return get_global_rng().derive_rng_()
 
     @classmethod
     def create_if_not_rng_(cls, generator: RNGInput) -> RNG:
-        """Create a new RNG from any input, but feed-through RNGs unchanged.
+        """Create a new RNG from a generator input, returning existing RNGs unchanged.
 
-        Added in 0.5.0.
+        Parameters:
+            generator: The valid RNG input (see `__init__`).
 
-        Parameters
-        ----------
-        generator : None or int or RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState
-            The numpy random number generator to use.
-            If this is an :class:`RNG`, it will be returned without change.
-            See ``__init__`` for details.
-
-        Returns
-        -------
-        RNG
-            If an :class:`RNG` was provided, then the input :class:`RNG`
-            instance without any change. Otherwise equivalent to
-            ``RNG(inputs)``.
-
+        Returns:
+            The input if it is already an `RNG`, otherwise a new `RNG` wrapper.
         """
         if isinstance(generator, RNG):
             return generator
@@ -532,13 +326,12 @@ class RNG:
         dtype: DTypeLike = "int32",
         endpoint: bool = False,
     ) -> int | IntArray:
-        """Call numpy's ``integers()`` or ``randint()``.
+        """Sample integers from [low, high).
 
-        .. note::
+        Wraps `numpy.random.Generator.integers` (or `randint`).
 
-            Changed `dtype` argument default value from numpy's ``int64`` to
-            ``int32``.
-
+        Note:
+            Default `dtype` is `int32` (unlike NumPy's `int64`).
         """
         return polyfill_integers(
             self.generator, low=low, high=high, size=size, dtype=dtype, endpoint=endpoint
@@ -550,13 +343,12 @@ class RNG:
         dtype: DTypeLike = "float32",
         out: FloatArray | None = None,
     ) -> float | FloatArray:
-        """Call numpy's ``random()`` or ``random_sample()``.
+        """Sample random floats in [0.0, 1.0).
 
-        .. note::
+        Wraps `numpy.random.Generator.random` (or `random_sample`).
 
-            Changed `dtype` argument default value from numpy's ``d`` to
-            ``float32``.
-
+        Note:
+            Default `dtype` is `float32` (unlike NumPy's `float64`).
         """
         return polyfill_random(self.generator, size=size, dtype=dtype, out=out)
 
@@ -568,96 +360,105 @@ class RNG:
         replace: bool = True,
         p: ArrayLike | None = None,
     ) -> Any:  # noqa: ANN401
-        """Call :func:`numpy.random.Generator.choice`."""
-        # pylint: disable=invalid-name
+        """Generate a random sample from a given 1-D array.
+
+        Wraps `numpy.random.Generator.choice`.
+        """
         return self.generator.choice(a=a, size=size, replace=replace, p=p)  # type: ignore[call-overload]
 
     def bytes(self, length: int) -> builtins.bytes:
-        """Call :func:`numpy.random.Generator.bytes`."""
+        """Return random bytes.
+
+        Wraps `numpy.random.Generator.bytes`.
+        """
         return self.generator.bytes(length=length)
 
     # TODO mark in-place
     def shuffle(self, x: ArrayLike) -> None:
-        """Call :func:`numpy.random.Generator.shuffle`."""
+        """Modify a sequence in-place by shuffling its contents.
+
+        Wraps `numpy.random.Generator.shuffle`.
+        """
         # note that shuffle() does not allow keyword arguments
         # note that shuffle() works in-place
         self.generator.shuffle(x)  # type: ignore[arg-type]
 
     def permutation(self, x: int | ArrayLike) -> GenericArray:
-        """Call :func:`numpy.random.Generator.permutation`."""
+        """Randomly permute a sequence, or return a permuted range.
+
+        Wraps `numpy.random.Generator.permutation`.
+        """
         # note that permutation() does not allow keyword arguments
         return self.generator.permutation(x)  # type: ignore[call-overload, return-value]
 
     def beta(self, a: float, b: float, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.beta`."""
-        # pylint: disable=invalid-name
+        """Draw samples from a Beta distribution."""
         return self.generator.beta(a=a, b=b, size=size)
 
     def binomial(self, n: int, p: float, size: Size = None) -> int | IntArray:
-        """Call :func:`numpy.random.Generator.binomial`."""
+        """Draw samples from a Binomial distribution."""
         return self.generator.binomial(n=n, p=p, size=size)
 
     def chisquare(self, df: float, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.chisquare`."""
-        # pylint: disable=invalid-name
+        """Draw samples from a Chi-square distribution."""
         return self.generator.chisquare(df=df, size=size)
 
     def dirichlet(self, alpha: Sequence[float] | FloatArray, size: Size = None) -> FloatArray:
-        """Call :func:`numpy.random.Generator.dirichlet`."""
+        """Draw samples from the Dirichlet distribution."""
         return self.generator.dirichlet(alpha=alpha, size=size)
 
     def exponential(self, scale: float = 1.0, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.exponential`."""
+        """Draw samples from an Exponential distribution."""
         return self.generator.exponential(scale=scale, size=size)
 
     def f(self, dfnum: float, dfden: float, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.f`."""
+        """Draw samples from an F distribution."""
         return self.generator.f(dfnum=dfnum, dfden=dfden, size=size)
 
     def gamma(self, shape: float, scale: float = 1.0, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.gamma`."""
+        """Draw samples from a Gamma distribution."""
         return self.generator.gamma(shape=shape, scale=scale, size=size)
 
     def geometric(self, p: float, size: Size = None) -> int | IntArray:
-        """Call :func:`numpy.random.Generator.geometric`."""
+        """Draw samples from the Geometric distribution."""
         return self.generator.geometric(p=p, size=size)
 
     def gumbel(self, loc: float = 0.0, scale: float = 1.0, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.gumbel`."""
+        """Draw samples from a Gumbel distribution."""
         return self.generator.gumbel(loc=loc, scale=scale, size=size)
 
     def hypergeometric(
         self, ngood: int, nbad: int, nsample: int, size: Size = None
     ) -> int | IntArray:
-        """Call :func:`numpy.random.Generator.hypergeometric`."""
+        """Draw samples from a Hypergeometric distribution."""
         return self.generator.hypergeometric(ngood=ngood, nbad=nbad, nsample=nsample, size=size)
 
     def laplace(
         self, loc: float = 0.0, scale: float = 1.0, size: Size = None
     ) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.laplace`."""
+        """Draw samples from the Laplace or double exponential distribution."""
         return self.generator.laplace(loc=loc, scale=scale, size=size)
 
     def logistic(
         self, loc: float = 0.0, scale: float = 1.0, size: Size = None
     ) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.logistic`."""
+        """Draw samples from a Logistic distribution."""
         return self.generator.logistic(loc=loc, scale=scale, size=size)
 
     def lognormal(
         self, mean: float = 0.0, sigma: float = 1.0, size: Size = None
     ) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.lognormal`."""
+        """Draw samples from a Lognormal distribution."""
         return self.generator.lognormal(mean=mean, sigma=sigma, size=size)
 
     def logseries(self, p: float, size: Size = None) -> int | IntArray:
-        """Call :func:`numpy.random.Generator.logseries`."""
+        """Draw samples from a Log Series distribution."""
         return self.generator.logseries(p=p, size=size)
 
     def multinomial(
         self, n: int, pvals: Sequence[float] | FloatArray, size: Size = None
     ) -> IntArray:
-        """Call :func:`numpy.random.Generator.multinomial`."""
+        """Draw samples from a Multinomial distribution."""
         return self.generator.multinomial(n=n, pvals=pvals, size=size)
 
     def multivariate_normal(
@@ -668,50 +469,51 @@ class RNG:
         check_valid: str = "warn",
         tol: float = 1e-8,
     ) -> FloatArray:
-        """Call :func:`numpy.random.Generator.multivariate_normal`."""
+        """Draw samples from a Multivariate Normal distribution."""
         return self.generator.multivariate_normal(
-            mean=mean, cov=cov, size=size, check_valid=check_valid, tol=tol  # type: ignore[arg-type]
+            mean=mean,
+            cov=cov,
+            size=size,
+            check_valid=check_valid,
+            tol=tol,  # type: ignore[arg-type]
         )
 
     def negative_binomial(self, n: int, p: float, size: Size = None) -> int | IntArray:
-        """Call :func:`numpy.random.Generator.negative_binomial`."""
+        """Draw samples from a Negative Binomial distribution."""
         return self.generator.negative_binomial(n=n, p=p, size=size)
 
     def noncentral_chisquare(self, df: float, nonc: float, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.noncentral_chisquare`."""
-        # pylint: disable=invalid-name
+        """Draw samples from a Noncentral Chi-square distribution."""
         return self.generator.noncentral_chisquare(df=df, nonc=nonc, size=size)
 
     def noncentral_f(
         self, dfnum: float, dfden: float, nonc: float, size: Size = None
     ) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.noncentral_f`."""
+        """Draw samples from a Noncentral F distribution."""
         return self.generator.noncentral_f(dfnum=dfnum, dfden=dfden, nonc=nonc, size=size)
 
     def normal(self, loc: float = 0.0, scale: float = 1.0, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.normal`."""
+        """Draw random samples from a Normal (Gaussian) distribution."""
         return self.generator.normal(loc=loc, scale=scale, size=size)
 
     def pareto(self, a: float, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.pareto`."""
-        # pylint: disable=invalid-name
+        """Draw samples from a Pareto II or Lomax distribution."""
         return self.generator.pareto(a=a, size=size)
 
     def poisson(self, lam: float = 1.0, size: Size = None) -> int | IntArray:
-        """Call :func:`numpy.random.Generator.poisson`."""
+        """Draw samples from a Poisson distribution."""
         return self.generator.poisson(lam=lam, size=size)
 
     def power(self, a: float, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.power`."""
-        # pylint: disable=invalid-name
+        """Draw samples in [0, 1] from a Power distribution with positive exponent a - 1."""
         return self.generator.power(a=a, size=size)
 
     def rayleigh(self, scale: float = 1.0, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.rayleigh`."""
+        """Draw samples from a Rayleigh distribution."""
         return self.generator.rayleigh(scale=scale, size=size)
 
     def standard_cauchy(self, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.standard_cauchy`."""
+        """Draw samples from a standard Cauchy distribution with mode=0."""
         return self.generator.standard_cauchy(size=size)
 
     def standard_exponential(
@@ -721,17 +523,17 @@ class RNG:
         method: str = "zig",
         out: FloatArray | None = None,
     ) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.standard_exponential`.
+        """Draw samples from the standard exponential distribution.
 
-        .. note::
-
-            Changed `dtype` argument default value from numpy's ``d`` to
-            ``float32``.
-
+        Note:
+            Default `dtype` is `float32`.
         """
         if self._is_new_rng_style:
             return self.generator.standard_exponential(
-                size=size, dtype=dtype, method=method, out=out  # type: ignore[arg-type]
+                size=size,
+                dtype=dtype,
+                method=method,
+                out=out,  # type: ignore[arg-type]
             )
         raw_result = self.generator.standard_exponential(size=size)
         if isinstance(raw_result, np.ndarray):
@@ -754,13 +556,10 @@ class RNG:
         dtype: DTypeLike = "float32",
         out: FloatArray | None = None,
     ) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.standard_gamma`.
+        """Draw samples from a standard Gamma distribution.
 
-        .. note::
-
-            Changed `dtype` argument default value from numpy's ``d`` to
-            ``float32``.
-
+        Note:
+            Default `dtype` is `float32`.
         """
         if self._is_new_rng_style:
             return self.generator.standard_gamma(shape=shape, size=size, dtype=dtype, out=out)  # type: ignore[call-overload, return-value]
@@ -780,13 +579,10 @@ class RNG:
         dtype: DTypeLike = "float32",
         out: FloatArray | None = None,
     ) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.standard_normal`.
+        """Draw samples from a standard Normal distribution (mean=0, stdev=1).
 
-        .. note::
-
-            Changed `dtype` argument default value from numpy's ``d`` to
-            ``float32``.
-
+        Note:
+            Default `dtype` is `float32`.
         """
         if self._is_new_rng_style:
             return self.generator.standard_normal(size=size, dtype=dtype, out=out)  # type: ignore[call-overload, return-value]
@@ -805,37 +601,33 @@ class RNG:
         return result
 
     def standard_t(self, df: float, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.standard_t`."""
-        # pylint: disable=invalid-name
+        """Draw samples from a standard Student's t distribution with `df` degrees of freedom."""
         return self.generator.standard_t(df=df, size=size)
 
     def triangular(
         self, left: float, mode: float, right: float, size: Size = None
     ) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.triangular`."""
+        """Draw samples from a Triangular distribution over the interval [left, right]."""
         return self.generator.triangular(left=left, mode=mode, right=right, size=size)
 
     def uniform(self, low: float = 0.0, high: float = 1.0, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.uniform`."""
+        """Draw samples from a Uniform distribution over [low, high)."""
         return self.generator.uniform(low=low, high=high, size=size)
 
     def vonmises(self, mu: float, kappa: float, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.vonmises`."""
-        # pylint: disable=invalid-name
+        """Draw samples from a von Mises distribution."""
         return self.generator.vonmises(mu=mu, kappa=kappa, size=size)
 
     def wald(self, mean: float, scale: float, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.wald`."""
+        """Draw samples from a Wald (inverse Gaussian) distribution."""
         return self.generator.wald(mean=mean, scale=scale, size=size)
 
     def weibull(self, a: float, size: Size = None) -> float | FloatArray:
-        """Call :func:`numpy.random.Generator.weibull`."""
-        # pylint: disable=invalid-name
+        """Draw samples from a Weibull distribution."""
         return self.generator.weibull(a=a, size=size)
 
     def zipf(self, a: float, size: Size = None) -> int | IntArray:
-        """Call :func:`numpy.random.Generator.zipf`."""
-        # pylint: disable=invalid-name
+        """Draw samples from a Zipf distribution."""
         return self.generator.zipf(a=a, size=size)
 
     ##################################################################
@@ -845,6 +637,7 @@ class RNG:
     # API.
     ##################################################################
 
+    @legacy(version="0.4.0")
     def rand(self, *args: int) -> float | FloatArray:
         """Call :func:`numpy.random.RandomState.rand`.
 
@@ -852,11 +645,11 @@ class RNG:
 
             This method is outdated in numpy. Use :func:`RNG.random` instead.
 
-        Added in 0.4.0.
 
         """
         return self.random(size=args)
 
+    @legacy(version="0.4.0")
     def randint(
         self,
         low: int,
@@ -876,11 +669,11 @@ class RNG:
             This method is outdated in numpy. Use :func:`RNG.integers`
             instead.
 
-        Added in 0.4.0.
 
         """
         return self.integers(low=low, high=high, size=size, dtype=dtype, endpoint=False)
 
+    @legacy(version="0.4.0")
     def randn(self, *args: int) -> float | FloatArray:
         """Call :func:`numpy.random.RandomState.randn`.
 
@@ -889,11 +682,11 @@ class RNG:
             This method is outdated in numpy. Use :func:`RNG.standard_normal`
             instead.
 
-        Added in 0.4.0.
 
         """
         return self.standard_normal(size=args)
 
+    @legacy(version="0.4.0")
     def random_integers(
         self, low: int, high: int | None = None, size: Size = None
     ) -> int | IntArray:
@@ -904,13 +697,13 @@ class RNG:
             This method is outdated in numpy. Use :func:`RNG.integers`
             instead.
 
-        Added in 0.4.0.
 
         """
         if high is None:
             return self.integers(low=1, high=low, size=size, endpoint=True)
         return self.integers(low=low, high=high, size=size, endpoint=True)
 
+    @legacy(version="0.4.0")
     def random_sample(self, size: Size) -> float | FloatArray:
         """Call :func:`numpy.random.RandomState.random_sample`.
 
@@ -919,11 +712,11 @@ class RNG:
             This method is outdated in numpy. Use :func:`RNG.uniform`
             instead.
 
-        Added in 0.4.0.
 
         """
         return self.uniform(0.0, 1.0, size=size)
 
+    @legacy(version="0.4.0")
     def tomaxint(self, size: Size = None) -> int | IntArray:
         """Call :func:`numpy.random.RandomState.tomaxint`.
 
@@ -932,7 +725,6 @@ class RNG:
             This method is outdated in numpy. Use :func:`RNG.integers`
             instead.
 
-        Added in 0.4.0.
 
         """
         import sys
@@ -971,7 +763,6 @@ def get_global_rng() -> RNG:
 
     """
     # TODO change global_rng to singleton
-    # pylint: disable=global-statement, redefined-outer-name
     global GLOBAL_RNG
     if GLOBAL_RNG is None:
         # This uses numpy's random state to sample a seed.
@@ -1749,14 +1540,13 @@ RNGInput: TypeAlias = (
 )
 
 
-# TODO add tests
+@legacy(version="0.4.0")
 class temporary_numpy_seed:
     """Context to temporarily alter the random state of ``numpy.random``.
 
     The random state's internal state will be set back to the original one
     once the context finishes.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -1767,9 +1557,6 @@ class temporary_numpy_seed:
         this context will do nothing).
 
     """
-
-    # pylint complains about class name
-    # pylint: disable=invalid-name
 
     def __init__(self, entropy: int | None = None) -> None:
         self.old_state: dict[str, Any] | RandomStateState | None = None

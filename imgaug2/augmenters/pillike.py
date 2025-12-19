@@ -1,57 +1,23 @@
-"""
-Augmenters that have identical outputs to well-known PIL functions.
+"""Augmenters that have identical outputs to well-known PIL functions.
 
-The ``like`` in ``pillike`` indicates that the augmenters in this module
-have identical outputs and mostly identical inputs to corresponding PIL
-functions, but do not *have to* wrap these functions internally. They may
-use internally different (e.g. faster) techniques to produce these outputs.
+This module provides augmenters with outputs identical to corresponding PIL
+functions, though they may use faster internal techniques. Use these when
+exact PIL compatibility is required.
 
-Some of the augmenters in this module may also exist in other modules
-under similar name. These other augmenters may currently have the same
-outputs as the corresponding PIL functions, but that is not guaranteed
-for the future. Use the augmenters in this module if identical outputs
-to PIL are required.
-
-List of augmenters:
-
-    * :class:`Solarize`
-    * :class:`Posterize`
-    * :class:`Equalize`
-    * :class:`Autocontrast`
-    * :class:`EnhanceColor`
-    * :class:`EnhanceContrast`
-    * :class:`EnhanceBrightness`
-    * :class:`EnhanceSharpness`
-    * :class:`FilterBlur`
-    * :class:`FilterSmooth`
-    * :class:`FilterSmoothMore`
-    * :class:`FilterEdgeEnhance`
-    * :class:`FilterEdgeEnhanceMore`
-    * :class:`FilterFindEdges`
-    * :class:`FilterContour`
-    * :class:`FilterEmboss`
-    * :class:`FilterSharpen`
-    * :class:`FilterDetail`
-    * :class:`Affine`
-
-Standard usage of these augmenters follows roughly the schema::
-
-    import numpy as np
-    import imgaug2.augmenters as iaa
-
-    aug = iaa.pillike.Affine(translate_px={"x": (-5, 5)})
-    image = np.full((32, 32, 3), 255, dtype=np.uint8)
-
-    images_aug = aug(images=[image, image, image])
-
-Added in 0.4.0.
-
+Key Augmenters:
+    - `Autocontrast`: Normalize image contrast like PIL's autocontrast.
+    - `Equalize`: Histogram equalization like PIL's equalize.
+    - `EnhanceColor`, `EnhanceContrast`, `EnhanceBrightness`, `EnhanceSharpness`:
+      Image enhancement operations matching PIL's ImageEnhance module.
+    - `FilterBlur`, `FilterSharpen`, `FilterEdgeEnhance`, `FilterEmboss`:
+      Filter operations matching PIL's ImageFilter module.
+    - `Affine`: Affine transformations compatible with PIL's transform.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast
+from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias
 
 import cv2
 import numpy as np
@@ -65,18 +31,19 @@ import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
-from imgaug2.augmenters import arithmetic, geometric, meta
-from imgaug2.augmenters import color as colorlib
-from imgaug2.augmenters import contrast as contrastlib
-from imgaug2.augmenters import size as sizelib
+import imgaug2.augmenters.arithmetic as arithmetic
+import imgaug2.augmenters.geometric as geometric
+import imgaug2.augmenters.meta as meta
+import imgaug2.augmenters.color as colorlib
+import imgaug2.augmenters.contrast as contrastlib
+import imgaug2.augmenters.size as sizelib
 from imgaug2.augmenters._typing import (
     Array,
     Images,
-    Matrix,
     ParamInput,
     RNGInput,
-    Shape,
 )
+from imgaug2.compat.markers import legacy
 from imgaug2.imgaug import _normalize_cv2_input_arr_
 
 if TYPE_CHECKING:
@@ -94,7 +61,7 @@ AffineParam: TypeAlias = ParamInput | dict[str, ParamInput]
 AffineParamOrNone: TypeAlias = AffineParam | None
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _ensure_valid_shape(image: Array, func_name: str) -> tuple[Array, bool]:
     is_hw1 = image.ndim == 3 and image.shape[-1] == 1
     if is_hw1:
@@ -107,13 +74,13 @@ def _ensure_valid_shape(image: Array, func_name: str) -> tuple[Array, bool]:
     return image, is_hw1
 
 
+@legacy(version="0.4.0")
 def solarize_(image: Array, threshold: int = 128) -> Array:
     """Invert all array components above a threshold in-place.
 
     This function has identical outputs to ``PIL.ImageOps.solarize``.
     It does however work in-place.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -139,12 +106,12 @@ def solarize_(image: Array, threshold: int = 128) -> Array:
     return arithmetic.invert_(image, threshold=threshold)
 
 
+@legacy(version="0.4.0")
 def solarize(image: Array, threshold: int = 128) -> Array:
     """Invert all array components above a threshold.
 
     This function has identical outputs to ``PIL.ImageOps.solarize``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -168,13 +135,13 @@ def solarize(image: Array, threshold: int = 128) -> Array:
     return arithmetic.invert(image, threshold=threshold)
 
 
+@legacy(version="0.4.0")
 def posterize_(image: Array, bits: int) -> Array:
     """Reduce the number of bits for each color channel in-place.
 
     This function has identical outputs to ``PIL.ImageOps.posterize``.
     It does however work in-place.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -199,12 +166,12 @@ def posterize_(image: Array, bits: int) -> Array:
     return colorlib.posterize(image, bits)
 
 
+@legacy(version="0.4.0")
 def posterize(image: Array, bits: int) -> Array:
     """Reduce the number of bits for each color channel.
 
     This function has identical outputs to ``PIL.ImageOps.posterize``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -228,6 +195,7 @@ def posterize(image: Array, bits: int) -> Array:
     return colorlib.posterize(image, bits)
 
 
+@legacy(version="0.4.0")
 def equalize(image: Array, mask: Array | None = None) -> Array:
     """Equalize the image histogram.
 
@@ -236,7 +204,6 @@ def equalize(image: Array, mask: Array | None = None) -> Array:
     This function is identical in inputs and outputs to
     ``PIL.ImageOps.equalize``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -266,6 +233,7 @@ def equalize(image: Array, mask: Array | None = None) -> Array:
     return equalize_(image, mask)
 
 
+@legacy(version="0.4.0")
 def equalize_(image: Array, mask: Array | None = None) -> Array:
     """Equalize the image histogram in-place.
 
@@ -275,7 +243,6 @@ def equalize_(image: Array, mask: Array | None = None) -> Array:
     This function has identical outputs to ``PIL.ImageOps.equalize``.
     It does however work in-place.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -331,11 +298,10 @@ def equalize_(image: Array, mask: Array | None = None) -> Array:
 
 # note that this is supposed to be a non-PIL reimplementation of PIL's
 # equalize, which produces slightly different results from cv2.equalizeHist()
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _equalize_no_pil_(image: Array, mask: Array | None = None) -> Array:
     nb_channels = 1 if image.ndim == 2 else image.shape[-1]
-    # TODO remove the first axis, no longer needed
-    lut = np.empty((1, 256, nb_channels), dtype=np.int32)
+    lut = np.empty((256, nb_channels), dtype=np.int32)
 
     for c_idx in range(nb_channels):
         if image.ndim == 2:
@@ -344,25 +310,25 @@ def _equalize_no_pil_(image: Array, mask: Array | None = None) -> Array:
             image_c = image[:, :, c_idx : c_idx + 1]
         histo = cv2.calcHist([_normalize_cv2_input_arr_(image_c)], [0], mask, [256], [0, 256])
         if len(histo.nonzero()[0]) <= 1:
-            lut[0, :, c_idx] = np.arange(256).astype(np.int32)
+            lut[:, c_idx] = np.arange(256).astype(np.int32)
             continue
 
         step = np.sum(histo[:-1]) // 255
         if not step:
-            lut[0, :, c_idx] = np.arange(256).astype(np.int32)
+            lut[:, c_idx] = np.arange(256).astype(np.int32)
             continue
 
         n = step // 2
         cumsum = np.cumsum(histo)
-        lut[0, 0, c_idx] = n
-        lut[0, 1:, c_idx] = n + cumsum[0:-1]
-        lut[0, :, c_idx] //= int(step)
+        lut[0, c_idx] = n
+        lut[1:, c_idx] = n + cumsum[0:-1]
+        lut[:, c_idx] //= int(step)
     lut = np.clip(lut, None, 255, out=lut).astype(np.uint8)
     image = ia.apply_lut_(image, lut)
     return image
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _equalize_pil_(image: Array, mask: Array | None = None) -> Array:
     if mask is not None:
         mask = PIL.Image.fromarray(mask).convert("L")
@@ -372,6 +338,7 @@ def _equalize_pil_(image: Array, mask: Array | None = None) -> Array:
     return image
 
 
+@legacy(version="0.4.0")
 def autocontrast(image: Array, cutoff: int = 0, ignore: IgnoreValues = None) -> Array:
     """Maximize (normalize) image contrast.
 
@@ -383,7 +350,6 @@ def autocontrast(image: Array, cutoff: int = 0, ignore: IgnoreValues = None) -> 
     This function has identical outputs to ``PIL.ImageOps.autocontrast``.
     The speed is almost identical.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -434,7 +400,7 @@ def autocontrast(image: Array, cutoff: int = 0, ignore: IgnoreValues = None) -> 
     return _autocontrast_no_pil(image, cutoff, ignore)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _autocontrast_pil(image: Array, cutoff: int, ignore: IgnoreValues) -> Array:
     # don't return np.asarray(...) as its results are read-only
     return np.array(
@@ -445,9 +411,8 @@ def _autocontrast_pil(image: Array, cutoff: int, ignore: IgnoreValues) -> Array:
 # This function is only faster than the corresponding PIL function if no
 # cutoff is used.
 # C901 is "<functionname> is too complex"
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _autocontrast_no_pil(image: Array, cutoff: int, ignore: IgnoreValues) -> Array:  # noqa: C901
-    # pylint: disable=invalid-name
     if ignore is not None and not ia.is_iterable(ignore):
         ignore = [ignore]
 
@@ -537,14 +502,12 @@ def _autocontrast_no_pil(image: Array, cutoff: int, ignore: IgnoreValues) -> Arr
     return result
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _EnhanceCtor(Protocol):
     def __call__(self, image: PIL.Image.Image) -> PIL.ImageEnhance._Enhance: ...
 
 
-def _apply_enhance_func(
-    image: Array, cls: _EnhanceCtor, factor: float
-) -> Array:
+def _apply_enhance_func(image: Array, cls: _EnhanceCtor, factor: float) -> Array:
     iadt.allow_only_uint8({image.dtype})
 
     if 0 in image.shape:
@@ -559,13 +522,13 @@ def _apply_enhance_func(
     return result
 
 
+@legacy(version="0.4.0")
 def enhance_color(image: Array, factor: float) -> Array:
     """Change the strength of colors in an image.
 
     This function has identical outputs to
     ``PIL.ImageEnhance.Color``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -602,13 +565,13 @@ def enhance_color(image: Array, factor: float) -> Array:
     return _apply_enhance_func(image, PIL.ImageEnhance.Color, factor)
 
 
+@legacy(version="0.4.0")
 def enhance_contrast(image: Array, factor: float) -> Array:
     """Change the contrast of an image.
 
     This function has identical outputs to
     ``PIL.ImageEnhance.Contrast``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -646,13 +609,13 @@ def enhance_contrast(image: Array, factor: float) -> Array:
     return _apply_enhance_func(image, PIL.ImageEnhance.Contrast, factor)
 
 
+@legacy(version="0.4.0")
 def enhance_brightness(image: Array, factor: float) -> Array:
     """Change the brightness of images.
 
     This function has identical outputs to
     ``PIL.ImageEnhance.Brightness``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -689,13 +652,13 @@ def enhance_brightness(image: Array, factor: float) -> Array:
     return _apply_enhance_func(image, PIL.ImageEnhance.Brightness, factor)
 
 
+@legacy(version="0.4.0")
 def enhance_sharpness(image: Array, factor: float) -> Array:
     """Change the sharpness of an image.
 
     This function has identical outputs to
     ``PIL.ImageEnhance.Sharpness``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -732,7 +695,7 @@ def enhance_sharpness(image: Array, factor: float) -> Array:
     return _apply_enhance_func(image, PIL.ImageEnhance.Sharpness, factor)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _filter_by_kernel(image: Array, kernel: PIL.ImageFilter.Filter) -> Array:
     iadt.allow_only_uint8({image.dtype})
 
@@ -752,12 +715,12 @@ def _filter_by_kernel(image: Array, kernel: PIL.ImageFilter.Filter) -> Array:
     return result
 
 
+@legacy(version="0.4.0")
 def filter_blur(image: Array) -> Array:
     """Apply a blur filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.BLUR`` kernel.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -789,12 +752,12 @@ def filter_blur(image: Array) -> Array:
     return _filter_by_kernel(image, PIL.ImageFilter.BLUR)
 
 
+@legacy(version="0.4.0")
 def filter_smooth(image: Array) -> Array:
     """Apply a smoothness filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.SMOOTH`` kernel.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -826,12 +789,12 @@ def filter_smooth(image: Array) -> Array:
     return _filter_by_kernel(image, PIL.ImageFilter.SMOOTH)
 
 
+@legacy(version="0.4.0")
 def filter_smooth_more(image: Array) -> Array:
     """Apply a strong smoothness filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.SMOOTH_MORE`` kernel.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -863,12 +826,12 @@ def filter_smooth_more(image: Array) -> Array:
     return _filter_by_kernel(image, PIL.ImageFilter.SMOOTH_MORE)
 
 
+@legacy(version="0.4.0")
 def filter_edge_enhance(image: Array) -> Array:
     """Apply an edge enhancement filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.EDGE_ENHANCE`` kernel.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -900,13 +863,13 @@ def filter_edge_enhance(image: Array) -> Array:
     return _filter_by_kernel(image, PIL.ImageFilter.EDGE_ENHANCE)
 
 
+@legacy(version="0.4.0")
 def filter_edge_enhance_more(image: Array) -> Array:
     """Apply a stronger edge enhancement filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.EDGE_ENHANCE_MORE``
     kernel.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -938,12 +901,12 @@ def filter_edge_enhance_more(image: Array) -> Array:
     return _filter_by_kernel(image, PIL.ImageFilter.EDGE_ENHANCE_MORE)
 
 
+@legacy(version="0.4.0")
 def filter_find_edges(image: Array) -> Array:
     """Apply an edge detection filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.FIND_EDGES`` kernel.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -975,12 +938,12 @@ def filter_find_edges(image: Array) -> Array:
     return _filter_by_kernel(image, PIL.ImageFilter.FIND_EDGES)
 
 
+@legacy(version="0.4.0")
 def filter_contour(image: Array) -> Array:
     """Apply a contour filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.CONTOUR`` kernel.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1012,12 +975,12 @@ def filter_contour(image: Array) -> Array:
     return _filter_by_kernel(image, PIL.ImageFilter.CONTOUR)
 
 
+@legacy(version="0.4.0")
 def filter_emboss(image: Array) -> Array:
     """Apply an emboss filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.EMBOSS`` kernel.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1049,12 +1012,12 @@ def filter_emboss(image: Array) -> Array:
     return _filter_by_kernel(image, PIL.ImageFilter.EMBOSS)
 
 
+@legacy(version="0.4.0")
 def filter_sharpen(image: Array) -> Array:
     """Apply a sharpening filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.SHARPEN`` kernel.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1086,12 +1049,12 @@ def filter_sharpen(image: Array) -> Array:
     return _filter_by_kernel(image, PIL.ImageFilter.SHARPEN)
 
 
+@legacy(version="0.4.0")
 def filter_detail(image: Array) -> Array:
     """Apply a detail enhancement filter kernel to the image.
 
     This is the same as using PIL's ``PIL.ImageFilter.DETAIL`` kernel.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1125,7 +1088,7 @@ def filter_detail(image: Array) -> Array:
 
 # TODO unify this with the matrix generation for Affine,
 #      there is probably no need to keep these separate
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _create_affine_matrix(
     scale_x: float = 1.0,
     scale_y: float = 1.0,
@@ -1159,6 +1122,7 @@ def _create_affine_matrix(
     return matrix
 
 
+@legacy(version="0.4.0")
 def warp_affine(
     image: Array,
     scale_x: float = 1.0,
@@ -1176,7 +1140,6 @@ def warp_affine(
     This function has identical outputs to
     ``PIL.Image.transform`` with ``method=PIL.Image.AFFINE``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1291,6 +1254,7 @@ def warp_affine(
 
 # we don't use pil_solarize() here. but instead just subclass Invert,
 # which is easier and comes down to the same
+@legacy(version="0.4.0")
 class Solarize(arithmetic.Invert):
     """Augmenter with identical outputs to PIL's ``solarize()`` function.
 
@@ -1298,7 +1262,6 @@ class Solarize(arithmetic.Invert):
 
     The outputs are identical to PIL's ``solarize()``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1363,6 +1326,7 @@ class Solarize(arithmetic.Invert):
         )
 
 
+@legacy(version="0.4.0")
 class Posterize(colorlib.Posterize):
     """Augmenter with identical outputs to PIL's ``posterize()`` function.
 
@@ -1374,7 +1338,6 @@ class Posterize(colorlib.Posterize):
     i.e. all three classes are right now guarantueed to have the same
     outputs as PIL's function.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1383,12 +1346,12 @@ class Posterize(colorlib.Posterize):
     """
 
 
+@legacy(version="0.4.0")
 class Equalize(meta.Augmenter):
     """Equalize the image histogram.
 
     This augmenter has identical outputs to ``PIL.ImageOps.equalize``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1422,7 +1385,7 @@ class Equalize(meta.Augmenter):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         seed: RNGInput = None,
@@ -1434,7 +1397,7 @@ class Equalize(meta.Augmenter):
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1442,18 +1405,18 @@ class Equalize(meta.Augmenter):
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
     ) -> _BatchInAugmentation:
-        # pylint: disable=no-self-use
         if batch.images is not None:
             for image in batch.images:
                 image[...] = equalize_(image)
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return []
 
 
+@legacy(version="0.4.0")
 class Autocontrast(contrastlib._ContrastFuncWrapper):
     """Adjust contrast by cutting off ``p%`` of lowest/highest histogram values.
 
@@ -1461,7 +1424,6 @@ class Autocontrast(contrastlib._ContrastFuncWrapper):
 
     See :func:`~imgaug2.augmenters.pillike.autocontrast` for more details.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1520,9 +1482,7 @@ class Autocontrast(contrastlib._ContrastFuncWrapper):
 
     """
 
-    # pylint: disable=protected-access
-
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         cutoff: ParamInput = (0, 20),
@@ -1554,9 +1514,9 @@ class Autocontrast(contrastlib._ContrastFuncWrapper):
         )
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _EnhanceBase(meta.Augmenter):
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         func: object,
@@ -1579,7 +1539,7 @@ class _EnhanceBase(meta.Augmenter):
             list_to_choice=True,
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1595,22 +1555,22 @@ class _EnhanceBase(meta.Augmenter):
             image[...] = self.func(image, factor)
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(self, nb_rows: int, random_state: iarandom.RNG) -> Array:
         return self.factor.draw_samples((nb_rows,), random_state=random_state)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.factor]
 
 
+@legacy(version="0.4.0")
 class EnhanceColor(_EnhanceBase):
     """Convert images to grayscale.
 
     This augmenter has identical outputs to ``PIL.ImageEnhance.Color``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1658,7 +1618,7 @@ class EnhanceColor(_EnhanceBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         factor: ParamInput = (0.0, 3.0),
@@ -1678,12 +1638,12 @@ class EnhanceColor(_EnhanceBase):
         )
 
 
+@legacy(version="0.4.0")
 class EnhanceContrast(_EnhanceBase):
     """Change the contrast of images.
 
     This augmenter has identical outputs to ``PIL.ImageEnhance.Contrast``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1732,7 +1692,7 @@ class EnhanceContrast(_EnhanceBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         factor: ParamInput = (0.5, 1.5),
@@ -1752,13 +1712,13 @@ class EnhanceContrast(_EnhanceBase):
         )
 
 
+@legacy(version="0.4.0")
 class EnhanceBrightness(_EnhanceBase):
     """Change the brightness of images.
 
     This augmenter has identical outputs to
     ``PIL.ImageEnhance.Brightness``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1806,7 +1766,7 @@ class EnhanceBrightness(_EnhanceBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         factor: ParamInput = (0.5, 1.5),
@@ -1826,13 +1786,13 @@ class EnhanceBrightness(_EnhanceBase):
         )
 
 
+@legacy(version="0.4.0")
 class EnhanceSharpness(_EnhanceBase):
     """Change the sharpness of images.
 
     This augmenter has identical outputs to
     ``PIL.ImageEnhance.Sharpness``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1880,7 +1840,7 @@ class EnhanceSharpness(_EnhanceBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         factor: ParamInput = (0.0, 2.0),
@@ -1900,9 +1860,9 @@ class EnhanceSharpness(_EnhanceBase):
         )
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _FilterBase(meta.Augmenter):
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         func: object,
@@ -1916,7 +1876,7 @@ class _FilterBase(meta.Augmenter):
         )
         self.func = func
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1929,19 +1889,19 @@ class _FilterBase(meta.Augmenter):
                 image[...] = self.func(image)
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return []
 
 
+@legacy(version="0.4.0")
 class FilterBlur(_FilterBase):
     """Apply a blur filter kernel to images.
 
     This augmenter has identical outputs to
     calling ``PIL.Image.filter`` with kernel ``PIL.ImageFilter.BLUR``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1975,7 +1935,7 @@ class FilterBlur(_FilterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         seed: RNGInput = None,
@@ -1992,13 +1952,13 @@ class FilterBlur(_FilterBase):
         )
 
 
+@legacy(version="0.4.0")
 class FilterSmooth(_FilterBase):
     """Apply a smoothening filter kernel to images.
 
     This augmenter has identical outputs to
     calling ``PIL.Image.filter`` with kernel ``PIL.ImageFilter.SMOOTH``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2032,7 +1992,7 @@ class FilterSmooth(_FilterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         seed: RNGInput = None,
@@ -2049,13 +2009,13 @@ class FilterSmooth(_FilterBase):
         )
 
 
+@legacy(version="0.4.0")
 class FilterSmoothMore(_FilterBase):
     """Apply a strong smoothening filter kernel to images.
 
     This augmenter has identical outputs to
     calling ``PIL.Image.filter`` with kernel ``PIL.ImageFilter.BLUR``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2090,7 +2050,7 @@ class FilterSmoothMore(_FilterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         seed: RNGInput = None,
@@ -2107,6 +2067,7 @@ class FilterSmoothMore(_FilterBase):
         )
 
 
+@legacy(version="0.4.0")
 class FilterEdgeEnhance(_FilterBase):
     """Apply an edge enhance filter kernel to images.
 
@@ -2114,7 +2075,6 @@ class FilterEdgeEnhance(_FilterBase):
     calling ``PIL.Image.filter`` with kernel
     ``PIL.ImageFilter.EDGE_ENHANCE``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2149,7 +2109,7 @@ class FilterEdgeEnhance(_FilterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         seed: RNGInput = None,
@@ -2166,6 +2126,7 @@ class FilterEdgeEnhance(_FilterBase):
         )
 
 
+@legacy(version="0.4.0")
 class FilterEdgeEnhanceMore(_FilterBase):
     """Apply a strong edge enhancement filter kernel to images.
 
@@ -2173,7 +2134,6 @@ class FilterEdgeEnhanceMore(_FilterBase):
     calling ``PIL.Image.filter`` with kernel
     ``PIL.ImageFilter.EDGE_ENHANCE_MORE``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2208,7 +2168,7 @@ class FilterEdgeEnhanceMore(_FilterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         seed: RNGInput = None,
@@ -2225,6 +2185,7 @@ class FilterEdgeEnhanceMore(_FilterBase):
         )
 
 
+@legacy(version="0.4.0")
 class FilterFindEdges(_FilterBase):
     """Apply a edge detection kernel to images.
 
@@ -2232,7 +2193,6 @@ class FilterFindEdges(_FilterBase):
     calling ``PIL.Image.filter`` with kernel
     ``PIL.ImageFilter.FIND_EDGES``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2266,7 +2226,7 @@ class FilterFindEdges(_FilterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         seed: RNGInput = None,
@@ -2283,13 +2243,13 @@ class FilterFindEdges(_FilterBase):
         )
 
 
+@legacy(version="0.4.0")
 class FilterContour(_FilterBase):
     """Apply a contour detection filter kernel to images.
 
     This augmenter has identical outputs to
     calling ``PIL.Image.filter`` with kernel ``PIL.ImageFilter.CONTOUR``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2324,7 +2284,7 @@ class FilterContour(_FilterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         seed: RNGInput = None,
@@ -2341,13 +2301,13 @@ class FilterContour(_FilterBase):
         )
 
 
+@legacy(version="0.4.0")
 class FilterEmboss(_FilterBase):
     """Apply an emboss filter kernel to images.
 
     This augmenter has identical outputs to
     calling ``PIL.Image.filter`` with kernel ``PIL.ImageFilter.EMBOSS``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2381,7 +2341,7 @@ class FilterEmboss(_FilterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         seed: RNGInput = None,
@@ -2398,13 +2358,13 @@ class FilterEmboss(_FilterBase):
         )
 
 
+@legacy(version="0.4.0")
 class FilterSharpen(_FilterBase):
     """Apply a sharpening filter kernel to images.
 
     This augmenter has identical outputs to
     calling ``PIL.Image.filter`` with kernel ``PIL.ImageFilter.SHARPEN``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2438,7 +2398,7 @@ class FilterSharpen(_FilterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         seed: RNGInput = None,
@@ -2455,13 +2415,13 @@ class FilterSharpen(_FilterBase):
         )
 
 
+@legacy(version="0.4.0")
 class FilterDetail(_FilterBase):
     """Apply a detail enhancement filter kernel to images.
 
     This augmenter has identical outputs to
     calling ``PIL.Image.filter`` with kernel ``PIL.ImageFilter.DETAIL``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2496,7 +2456,7 @@ class FilterDetail(_FilterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         seed: RNGInput = None,
@@ -2513,6 +2473,7 @@ class FilterDetail(_FilterBase):
         )
 
 
+@legacy(version="0.4.0")
 class Affine(geometric.Affine):
     """Apply PIL-like affine transformations to images.
 
@@ -2535,7 +2496,6 @@ class Affine(geometric.Affine):
         top left corner as the transformation center. To mirror that
         behaviour, use ``center=(0.0, 0.0)``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2616,7 +2576,7 @@ class Affine(geometric.Affine):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         scale: AffineParam = 1.0,
@@ -2647,10 +2607,9 @@ class Affine(geometric.Affine):
             random_state=random_state,
             deterministic=deterministic,
         )
-        # TODO move that func to iap
-        self.center = sizelib._handle_position_parameter(center)
+        self.center = iap.handle_position_parameter(center)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -2667,7 +2626,7 @@ class Affine(geometric.Affine):
 
         return super()._augment_batch_(batch, random_state, parents, hooks)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_images_by_samples(
         self,
         images: Images,
@@ -2702,7 +2661,7 @@ class Affine(geometric.Affine):
 
         return images
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(self, nb_samples: int, random_state: iarandom.RNG) -> _AffineSamplingResult:
         # standard affine samples
         samples = super()._draw_samples(nb_samples, random_state)
@@ -2721,7 +2680,7 @@ class Affine(geometric.Affine):
         samples.center_y = yy
         return samples
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.scale, self.translate, self.rotate, self.shear, self.cval, self.center]

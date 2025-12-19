@@ -9,20 +9,20 @@ JPEG operations on the CPU.
 
 Examples
 --------
->>> import numpy as np
->>> from imgaug2.mlx.compression import jpeg_compression
->>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
->>> compressed = jpeg_compression(img, quality=50)
+>>> import numpy as np  # doctest: +SKIP
+>>> from imgaug2.mlx.compression import jpeg_compression  # doctest: +SKIP
+>>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # doctest: +SKIP
+>>> compressed = jpeg_compression(img, quality=50)  # doctest: +SKIP
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeAlias, overload
 
+import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from imgaug2.errors import DependencyMissingError
 from ._core import is_mlx_array, require, to_mlx, to_numpy
 
 if TYPE_CHECKING:
@@ -142,12 +142,6 @@ def jpeg_compression(image: object, quality: int) -> object:
     is_input_mlx = is_mlx_array(image)
     if is_input_mlx:
         require()
-    try:
-        import cv2
-    except Exception as exc:  # pragma: no cover
-        raise DependencyMissingError(
-            "jpeg_compression requires OpenCV. Install `opencv-python` (or `opencv-python-headless`)."
-        ) from exc
 
     q = int(quality)
     if q < 1 or q > 100:

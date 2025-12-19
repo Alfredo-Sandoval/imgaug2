@@ -1,33 +1,14 @@
-"""
-Augmenters that perform simple arithmetic changes.
+"""Augmenters that perform simple arithmetic changes.
 
-List of augmenters:
+This module provides augmenters for pixel-level arithmetic operations including
+adding/multiplying values, dropout, noise, and compression artifacts.
 
-    * :class:`Add`
-    * :class:`AddElementwise`
-    * :class:`AdditiveGaussianNoise`
-    * :class:`AdditiveLaplaceNoise`
-    * :class:`AdditivePoissonNoise`
-    * :class:`Multiply`
-    * :class:`MultiplyElementwise`
-    * :class:`Cutout`
-    * :class:`Dropout`
-    * :class:`CoarseDropout`
-    * :class:`Dropout2d`
-    * :class:`TotalDropout`
-    * :class:`ReplaceElementwise`
-    * :class:`ImpulseNoise`
-    * :class:`SaltAndPepper`
-    * :class:`CoarseSaltAndPepper`
-    * :class:`Salt`
-    * :class:`CoarseSalt`
-    * :class:`Pepper`
-    * :class:`CoarsePepper`
-    * :class:`Invert`
-    * :class:`Solarize`
-    * :class:`ContrastNormalization`
-    * :class:`JpegCompression`
-
+Key Augmenters:
+    - `Add`, `Multiply`, `AddElementwise`, `MultiplyElementwise`: Arithmetic ops.
+    - `Dropout`, `CoarseDropout`, `Cutout`, `ChannelShuffle`: Random masking.
+    - `SaltAndPepper`, `AdditiveGaussianNoise`, `AdditiveLaplaceNoise`: Noise.
+    - `JpegCompression`: Add JPEG compression artifacts.
+    - `Solarize`, `Invert`, `Posterize`: Pixel value transformations.
 """
 
 from __future__ import annotations
@@ -45,6 +26,8 @@ import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
+from imgaug2.compat.markers import legacy
+from imgaug2.augmenters import contrast as contrast_lib
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, Images, Number, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
@@ -252,7 +235,7 @@ def _add_scalar_to_non_uint8(image: Array, value: ScalarInput) -> Array:
     # samples (32*2 = 64bit).
     # TODO limit value ranges of samples to int16/uint16 for
     #      security
-    image, value = iadt.promote_array_dtypes_(
+    image, value = iadt.promote_arrays_to_minimal_dtype_(
         [image, value], dtypes=[image.dtype, dtype_target], increase_itemsize_factor=1
     )
     image = np.add(image, value, out=image, casting="no")
@@ -406,7 +389,7 @@ def _add_elementwise_np_to_non_uint8(image: Array, values: Array) -> Array:
         values = np.tile(values, (1, 1, nb_channels))
 
     # Decreased itemsize from 2 to 1 here, see explanation in Add.
-    image, values = iadt.promote_array_dtypes_(
+    image, values = iadt.promote_arrays_to_minimal_dtype_(
         [image, values], dtypes=[image.dtype, dtype_target], increase_itemsize_factor=1
     )
     image = np.add(image, values, out=image, casting="no")
@@ -475,6 +458,7 @@ def multiply_scalar(image: Array, multiplier: ScalarInput) -> Array:
     return multiply_scalar_(np.copy(image), multiplier)
 
 
+@legacy(version="0.5.0")
 def multiply_scalar_(image: Array, multiplier: ScalarInput) -> Array:
     """Multiply in-place an image by a single scalar or one scalar per channel.
 
@@ -494,7 +478,6 @@ def multiply_scalar_(image: Array, multiplier: ScalarInput) -> Array:
         same number of bytes (two) as ``uint16``. This is done to make
         overflows less likely to occur.
 
-    Added in 0.5.0.
 
     **Supported dtypes**:
 
@@ -561,7 +544,7 @@ def multiply_scalar_(image: Array, multiplier: ScalarInput) -> Array:
 
 
 # TODO add a c++/cython method here to compute the LUT tables
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 def _multiply_scalar_to_uint8_lut_(image: Array, multiplier: ScalarInput) -> Array:
     is_single_value = (
         ia.is_single_number(multiplier)
@@ -596,7 +579,7 @@ def _multiply_scalar_to_uint8_lut_(image: Array, multiplier: ScalarInput) -> Arr
     return ia.apply_lut_(image, value_range)
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 def _multiply_scalar_to_uint8_cv2_mul_(image: Array, multiplier: ScalarInput) -> Array:
     # multiplier must already be an array_like
     if multiplier.size > 1:
@@ -648,7 +631,7 @@ def _multiply_scalar_to_non_uint8(image: Array, multiplier: ScalarInput) -> Arra
     dtype_target = np.dtype(f"{multiplier.dtype.kind}{itemsize}")
     multiplier = iadt.clip_to_dtype_value_range_(multiplier, dtype_target, validate=True)
 
-    image, multiplier = iadt.promote_array_dtypes_(
+    image, multiplier = iadt.promote_arrays_to_minimal_dtype_(
         [image, multiplier],
         dtypes=[image.dtype, dtype_target],
         # increase_itemsize_factor=(
@@ -716,6 +699,7 @@ def multiply_elementwise(image: Array, multipliers: Array) -> Array:
     return multiply_elementwise_(np.copy(image), multipliers)
 
 
+@legacy(version="0.5.0")
 def multiply_elementwise_(image: Array, multipliers: Array) -> Array:
     """Multiply in-place an image with an array of values.
 
@@ -734,7 +718,6 @@ def multiply_elementwise_(image: Array, multipliers: Array) -> Array:
         same number of bytes (two) as ``uint16``. This is done to make
         overflows less likely to occur.
 
-    Added in 0.5.0.
 
     **Supported dtypes**:
 
@@ -790,7 +773,7 @@ def multiply_elementwise_(image: Array, multipliers: Array) -> Array:
     return _multiply_elementwise_to_non_uint8(image, multipliers)
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 def _multiply_elementwise_to_uint8_(image: Array, multipliers: Array) -> Array:
     dt = multipliers.dtype
     kind = dt.kind
@@ -854,7 +837,7 @@ def _multiply_elementwise_to_non_uint8(image: Array, multipliers: Array) -> Arra
         nb_channels = image.shape[-1]
         multipliers = np.tile(multipliers, (1, 1, nb_channels))
 
-    image, multipliers = iadt.promote_array_dtypes_(
+    image, multipliers = iadt.promote_arrays_to_minimal_dtype_(
         [image, multipliers],
         dtypes=[image, dtype_target],
         increase_itemsize_factor=1,
@@ -865,6 +848,7 @@ def _multiply_elementwise_to_non_uint8(image: Array, multipliers: Array) -> Arra
     return iadt.restore_dtypes_(image, input_dtype)
 
 
+@legacy(version="0.4.0")
 def cutout(
     image: Array,
     x1: float | int,
@@ -891,7 +875,6 @@ def cutout(
 
     See :func:`~imgaug2.augmenters.arithmetic.cutout_`.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -931,6 +914,7 @@ def cutout(
     return cutout_(np.copy(image), x1, y1, x2, y2, fill_mode, cval, fill_per_channel, seed)
 
 
+@legacy(version="0.4.0")
 def cutout_(
     image: Array,
     x1: float | int,
@@ -953,7 +937,6 @@ def cutout_(
         in the interval ``[0.0, 1.0]`` and hence sample values from a
         gaussian within that interval, i.e. from ``N(0.5, std=0.5/3)``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1034,6 +1017,7 @@ def cutout_(
     return image
 
 
+@legacy(version="0.4.0")
 def _fill_rectangle_gaussian_(
     image: Array,
     x1: int,
@@ -1046,7 +1030,6 @@ def _fill_rectangle_gaussian_(
 ) -> Array:
     """Fill a rectangular image area with samples from a gaussian.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1107,6 +1090,7 @@ def _fill_rectangle_gaussian_(
     return image
 
 
+@legacy(version="0.4.0")
 def _fill_rectangle_constant_(
     image: Array,
     x1: int,
@@ -1123,7 +1107,6 @@ def _fill_rectangle_constant_(
     in `cval` does not match the number of channels in `image`, it may
     be tiled up to the number of channels.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1312,6 +1295,7 @@ def invert(
     )
 
 
+@legacy(version="0.4.0")
 def invert_(
     image: Array,
     min_value: Number | None = None,
@@ -1321,7 +1305,6 @@ def invert_(
 ) -> Array:
     """Invert an array in-place.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1467,7 +1450,7 @@ def _invert_bool(arr: Array, min_value: Number, max_value: Number) -> Array:
     return ~arr
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _invert_uint8_(
     arr: Array,
     min_value: int,
@@ -1490,7 +1473,7 @@ def _invert_uint8_(
     )
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 def _invert_uint8_lut_pregenerated_(
     arr: Array,
     min_value: int,
@@ -1508,7 +1491,7 @@ def _invert_uint8_lut_pregenerated_(
     return arr
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 def _invert_uint8_subtract_(arr: Array, max_value: int) -> Array:
     if arr.size == 0:
         return arr
@@ -1537,7 +1520,7 @@ def _invert_uint8_subtract_(arr: Array, max_value: int) -> Array:
     return arr
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _invert_uint16_or_larger_(arr: Array, min_value: int, max_value: int) -> Array:
     min_max_is_vr = min_value == 0 and max_value == np.iinfo(arr.dtype).max
     if min_max_is_vr:
@@ -1545,7 +1528,7 @@ def _invert_uint16_or_larger_(arr: Array, min_value: int, max_value: int) -> Arr
     return _invert_by_distance(np.clip(arr, min_value, max_value), min_value, max_value)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _invert_int_(arr: Array, min_value: int, max_value: int) -> Array:
     # note that for int dtypes the max value is
     #   (-1) * min_value - 1
@@ -1605,7 +1588,7 @@ def _invert_by_distance(arr: Array, min_value: Number, max_value: Number) -> Arr
     return arr_inv
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _generate_table_for_invert_uint8(
     min_value: int, max_value: int, threshold: Number | None, invert_above_threshold: bool
 ) -> Array:
@@ -1632,13 +1615,13 @@ def _generate_table_for_invert_uint8(
     return table_inv
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 class _InvertTables:
-    # Added in 0.5.0.
+    @legacy(version="0.5.0")
     def __init__(self) -> None:
         self.tables = {}
 
-    # Added in 0.5.0.
+    @legacy(version="0.5.0")
     def get_table(
         self, min_value: int, max_value: int, threshold: Number | None, invert_above_threshold: bool
     ) -> Array:
@@ -1656,22 +1639,22 @@ class _InvertTables:
         )
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 class _InvertTablesSingleton:
     _INSTANCE = None
 
-    # Added in 0.5.0.
     @classmethod
+    @legacy(version="0.5.0")
     def get_instance(cls) -> _InvertTables:
         if cls._INSTANCE is None:
             cls._INSTANCE = _InvertTables()
         return cls._INSTANCE
 
 
+@legacy(version="0.4.0")
 def solarize(image: Array, threshold: Number | None = 128) -> Array:
     """Invert pixel values above a threshold.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1694,6 +1677,7 @@ def solarize(image: Array, threshold: Number | None = 128) -> Array:
     return solarize_(np.copy(image), threshold=threshold)
 
 
+@legacy(version="0.4.0")
 def solarize_(image: Array, threshold: Number | None = 128) -> Array:
     """Invert pixel values above a threshold in-place.
 
@@ -1702,7 +1686,6 @@ def solarize_(image: Array, threshold: Number | None = 128) -> Array:
     This function performs the same transformation as
     :func:`PIL.ImageOps.solarize`.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1925,7 +1908,7 @@ class Add(meta.Augmenter):
         )
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -2080,7 +2063,7 @@ class AddElementwise(meta.Augmenter):
         )
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -2238,8 +2221,6 @@ class AdditiveGaussianNoise(AddElementwise):
         )
 
 
-# TODO add tests
-# TODO rename to AddLaplaceNoise?
 class AdditiveLaplaceNoise(AddElementwise):
     """
     Add noise sampled from laplace distributions elementwise to images.
@@ -2373,8 +2354,6 @@ class AdditiveLaplaceNoise(AddElementwise):
         )
 
 
-# TODO add tests
-# TODO rename to AddPoissonNoise?
 class AdditivePoissonNoise(AddElementwise):
     """
     Add noise sampled from poisson distributions elementwise to images.
@@ -2590,7 +2569,7 @@ class Multiply(meta.Augmenter):
         )
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -2743,7 +2722,7 @@ class MultiplyElementwise(meta.Augmenter):
         )
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -2785,9 +2764,9 @@ class MultiplyElementwise(meta.Augmenter):
         return [self.mul, self.per_channel]
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _CutoutSamples:
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         nb_iterations: Array,
@@ -2811,6 +2790,7 @@ class _CutoutSamples:
         self.fill_per_channel = fill_per_channel
 
 
+@legacy(version="0.4.0")
 class Cutout(meta.Augmenter):
     """Fill one or more rectangular areas in an image using a fill mode.
 
@@ -2837,7 +2817,6 @@ class Cutout(meta.Augmenter):
         in the interval ``[0.0, 1.0]`` and hence sample values from a
         gaussian within that interval, i.e. from ``N(0.5, std=0.5/3)``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2978,7 +2957,7 @@ class Cutout(meta.Augmenter):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         nb_iterations: IntParamInput = 1,
@@ -2993,9 +2972,6 @@ class Cutout(meta.Augmenter):
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        from imgaug2.augmenters.geometric import _handle_cval_arg  # TODO move to iap
-        from imgaug2.augmenters.size import _handle_position_parameter  # TODO move to iap
-
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -3007,17 +2983,17 @@ class Cutout(meta.Augmenter):
             list_to_choice=True,
             allow_floats=False,
         )
-        self.position = _handle_position_parameter(position)
+        self.position = iap.handle_position_parameter(position)
         self.size = iap.handle_continuous_param(
             size, "size", value_range=(0.0, 1.0 + 1e-4), tuple_to_uniform=True, list_to_choice=True
         )
         self.squared = iap.handle_probability_param(squared, "squared")
         self.fill_mode = self._handle_fill_mode_param(fill_mode)
-        self.cval = _handle_cval_arg(cval)
+        self.cval = iap.handle_cval_arg(cval)
         self.fill_per_channel = iap.handle_probability_param(fill_per_channel, "fill_per_channel")
 
-    # Added in 0.4.0.
     @classmethod
+    @legacy(version="0.4.0")
     def _handle_fill_mode_param(
         cls, fill_mode: FillModeInput | Sequence[FillModeInput] | iap.StochasticParameter
     ) -> iap.StochasticParameter:
@@ -3034,7 +3010,7 @@ class Cutout(meta.Augmenter):
         )
         return iap.Choice(fill_mode)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -3081,7 +3057,7 @@ class Cutout(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(self, images: Images, random_state: iarandom.RNG) -> _CutoutSamples:
         rngs = random_state.duplicate(8)
         nb_rows = len(images)
@@ -3120,8 +3096,8 @@ class Cutout(meta.Augmenter):
             fill_per_channel=fill_per_channel,
         )
 
-    # Added in 0.4.0.
     @classmethod
+    @legacy(version="0.4.0")
     def _augment_image_by_samples(
         cls,
         image: Array,
@@ -3156,7 +3132,7 @@ class Cutout(meta.Augmenter):
             )
         return image
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [
@@ -3274,7 +3250,7 @@ class Dropout(MultiplyElementwise):
         )
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _handle_dropout_probability_param(p: ParamInput, name: str) -> iap.StochasticParameter:
     if ia.is_single_number(p):
         p_param = iap.Binomial(1 - p)
@@ -3508,6 +3484,7 @@ class CoarseDropout(MultiplyElementwise):
         )
 
 
+@legacy(version="0.4.0")
 class Dropout2d(meta.Augmenter):
     """Drop random channels from images.
 
@@ -3521,7 +3498,6 @@ class Dropout2d(meta.Augmenter):
         It does so if and only if *all* channels of an image are dropped.
         If ``nb_keep_channels >= 1`` then that never happens.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -3600,7 +3576,7 @@ class Dropout2d(meta.Augmenter):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         p: ParamInput = 0.1,
@@ -3627,7 +3603,7 @@ class Dropout2d(meta.Augmenter):
         self._heatmaps_cval = 0.0
         self._segmentation_maps_cval = 0
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -3667,7 +3643,7 @@ class Dropout2d(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(
         self, batch: _BatchInAugmentation, random_state: iarandom.RNG
     ) -> tuple[list[Array], list[int]]:
@@ -3709,12 +3685,13 @@ class Dropout2d(meta.Augmenter):
 
         return imagewise_channels_to_drop, all_dropped_ids
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.p, self.nb_keep_channels]
 
 
+@legacy(version="0.4.0")
 class TotalDropout(meta.Augmenter):
     """Drop all channels of a defined fraction of all images.
 
@@ -3726,7 +3703,6 @@ class TotalDropout(meta.Augmenter):
         maps to zero and removes all coordinate-based data (e.g. it removes
         all bounding boxes on images that were filled with zeros).
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -3795,7 +3771,7 @@ class TotalDropout(meta.Augmenter):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         p: ParamInput = 1,
@@ -3820,7 +3796,7 @@ class TotalDropout(meta.Augmenter):
         self._heatmaps_cval = 0.0
         self._segmentation_maps_cval = 0
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -3863,20 +3839,20 @@ class TotalDropout(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(self, batch: _BatchInAugmentation, random_state: iarandom.RNG) -> Array:
         p = self.p.draw_samples((batch.nb_rows,), random_state=random_state)
         drop_mask = p < 0.5
         return drop_mask
 
-    # Added in 0.4.0.
     @classmethod
+    @legacy(version="0.4.0")
     def _generate_drop_ids_once(cls, drop_mask: Array, drop_ids: Array | None) -> Array:
         if drop_ids is None:
             drop_ids = np.nonzero(drop_mask)[0]
         return drop_ids
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.p]
@@ -4008,7 +3984,7 @@ class ReplaceElementwise(meta.Augmenter):
         self.replacement = iap.handle_continuous_param(replacement, "replacement")
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -4031,8 +4007,6 @@ class ReplaceElementwise(meta.Augmenter):
             mask_samples = self.mask.draw_samples(sampling_shape, random_state=rs_mask)
 
             # TODO add separate per_channels for mask and replacement
-            # TODO add test that replacement with per_channel=False is not
-            #      sampled per channel
             if per_channel_i <= 0.5:
                 nb_channels = image.shape[-1]
                 replacement_samples = self.replacement.draw_samples(
@@ -4454,8 +4428,10 @@ class Salt(ReplaceElementwise):
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
         replacement01 = iap.ForceSign(iap.Beta(0.5, 0.5) - 0.5, positive=True, mode="invert") + 0.5
-        # FIXME max replacement seems to essentially never exceed 254
-        replacement = replacement01 * 255
+        # `replacement01` is in [0.5, 1.0) with floating-point sampling, so
+        # scaling by 255 makes values near 255 very rare after rounding.
+        # Scale by 256 and rely on later dtype clipping to allow pure white.
+        replacement = replacement01 * 256
 
         super().__init__(
             mask=p,
@@ -5012,7 +4988,7 @@ class Invert(meta.Augmenter):
             invert_above_threshold, "invert_above_threshold"
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -5046,7 +5022,7 @@ class Invert(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(
         self, batch: _BatchInAugmentation, random_state: iarandom.RNG
     ) -> _InvertSamples:
@@ -5090,9 +5066,9 @@ class Invert(meta.Augmenter):
         ]
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _InvertSamples:
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         p: Array,
@@ -5110,6 +5086,7 @@ class _InvertSamples:
         self.invert_above_threshold = invert_above_threshold
 
 
+@legacy(version="0.4.0")
 class Solarize(Invert):
     """Invert all pixel values above a threshold.
 
@@ -5119,7 +5096,6 @@ class Solarize(Invert):
 
     See :class:`Invert` for more details.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -5279,10 +5255,6 @@ def ContrastNormalization(
     all channels.
 
     """
-    # pylint: disable=invalid-name
-    # placed here to avoid cyclic dependency
-    from imgaug2.augmenters import contrast as contrast_lib
-
     return contrast_lib.LinearContrast(
         alpha=alpha,
         per_channel=per_channel,
@@ -5384,7 +5356,7 @@ class JpegCompression(meta.Augmenter):
             list_to_choice=True,
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,

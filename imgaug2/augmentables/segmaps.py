@@ -13,8 +13,9 @@ import numpy as np
 from numpy.typing import NDArray
 
 import imgaug2.imgaug as ia
-from imgaug2.augmentables.base import IAugmentable
-from imgaug2.augmenters import blend as blendlib
+
+from imgaug2.augmenters._blend_utils import blend_alpha
+from imgaug2.augmenters._size_utils import pad, pad_to_aspect_ratio
 
 
 @ia.deprecated(
@@ -23,7 +24,6 @@ from imgaug2.augmenters import blend as blendlib
 )
 def SegmentationMapOnImage(*args: object, **kwargs: object) -> SegmentationMapsOnImage:
     """Object representing a segmentation map associated with an image."""
-    # pylint: disable=invalid-name
     return SegmentationMapsOnImage(*args, **kwargs)
 
 
@@ -34,7 +34,28 @@ _SegmapArrayInt32 = NDArray[np.int32]
 _RGBImage = NDArray[np.uint8]
 
 
-class SegmentationMapsOnImage(IAugmentable):
+def _generate_default_segment_colors() -> list[_Color]:
+    import matplotlib
+
+    colors: list[_Color] = [(0, 0, 0)]
+    cmap_names = ("tab20", "tab20b", "tab20c")
+    if hasattr(matplotlib, "colormaps"):
+        get_cmap = matplotlib.colormaps.__getitem__
+    else:
+        import matplotlib.cm as cm
+
+        get_cmap = cm.get_cmap
+
+    for cmap_name in cmap_names:
+        cmap = get_cmap(cmap_name)
+        samples = np.linspace(0, 1, cmap.N, endpoint=False)
+        rgba = cmap(samples)
+        rgb = np.rint(rgba[:, :3] * 255).astype(np.uint8)
+        colors.extend([tuple(int(channel) for channel in row) for row in rgb])
+    return colors[:42]
+
+
+class SegmentationMapsOnImage:
     """
     Object representing a segmentation map associated with an image.
 
@@ -42,6 +63,8 @@ class SegmentationMapsOnImage(IAugmentable):
     ----------
     DEFAULT_SEGMENT_COLORS : list of tuple of int
         Standard RGB colors to use during drawing, ordered by class index.
+        Generated from the matplotlib ``tab20``, ``tab20b`` and ``tab20c``
+        colormaps (with black as the background color at index 0).
 
     Parameters
     ----------
@@ -65,52 +88,7 @@ class SegmentationMapsOnImage(IAugmentable):
 
     """
 
-    # TODO replace this by matplotlib colormap
-    DEFAULT_SEGMENT_COLORS = [
-        (0, 0, 0),  # black
-        (230, 25, 75),  # red
-        (60, 180, 75),  # green
-        (255, 225, 25),  # yellow
-        (0, 130, 200),  # blue
-        (245, 130, 48),  # orange
-        (145, 30, 180),  # purple
-        (70, 240, 240),  # cyan
-        (240, 50, 230),  # magenta
-        (210, 245, 60),  # lime
-        (250, 190, 190),  # pink
-        (0, 128, 128),  # teal
-        (230, 190, 255),  # lavender
-        (170, 110, 40),  # brown
-        (255, 250, 200),  # beige
-        (128, 0, 0),  # maroon
-        (170, 255, 195),  # mint
-        (128, 128, 0),  # olive
-        (255, 215, 180),  # coral
-        (0, 0, 128),  # navy
-        (128, 128, 128),  # grey
-        (255, 255, 255),  # white
-        # --
-        (115, 12, 37),  # dark red
-        (30, 90, 37),  # dark green
-        (127, 112, 12),  # dark yellow
-        (0, 65, 100),  # dark blue
-        (122, 65, 24),  # dark orange
-        (72, 15, 90),  # dark purple
-        (35, 120, 120),  # dark cyan
-        (120, 25, 115),  # dark magenta
-        (105, 122, 30),  # dark lime
-        (125, 95, 95),  # dark pink
-        (0, 64, 64),  # dark teal
-        (115, 95, 127),  # dark lavender
-        (85, 55, 20),  # dark brown
-        (127, 125, 100),  # dark beige
-        (64, 0, 0),  # dark maroon
-        (85, 127, 97),  # dark mint
-        (64, 64, 0),  # dark olive
-        (127, 107, 90),  # dark coral
-        (0, 0, 64),  # dark navy
-        (64, 64, 64),  # dark grey
-    ]
+    DEFAULT_SEGMENT_COLORS = _generate_default_segment_colors()
 
     def __init__(
         self, arr: _SegmapArray, shape: _ImageShape, nb_classes: int | None = None
@@ -221,7 +199,6 @@ class SegmentationMapsOnImage(IAugmentable):
     @ia.deprecated(alt_func="SegmentationMapsOnImage.get_arr()")
     def get_arr_int(self, *args: object, **kwargs: object) -> _SegmapArray:
         """Return the seg.map array, with original dtype and shape ndim."""
-        # pylint: disable=unused-argument
         return self.get_arr()
 
     def draw(
@@ -385,8 +362,7 @@ class SegmentationMapsOnImage(IAugmentable):
                 segmap_drawn, image.shape[0:2], interpolation="nearest"
             )
 
-            # Lazy import to avoid circular import
-            segmap_on_image = blendlib.blend_alpha(segmap_drawn, image, alpha)
+            segmap_on_image = blend_alpha(segmap_drawn, image, alpha)
 
             if draw_background:
                 mix = segmap_on_image
@@ -446,9 +422,7 @@ class SegmentationMapsOnImage(IAugmentable):
             width ``W'=W+left+right``.
 
         """
-        from imgaug2.augmenters import size as iasize
-
-        arr_padded = iasize.pad(
+        arr_padded = pad(
             self.arr,
             top=top,
             right=right,
@@ -507,9 +481,7 @@ class SegmentationMapsOnImage(IAugmentable):
             ``True``.
 
         """
-        from imgaug2.augmenters import size as iasize
-
-        arr_padded, pad_amounts = iasize.pad_to_aspect_ratio(
+        arr_padded, pad_amounts = pad_to_aspect_ratio(
             self.arr,
             aspect_ratio=aspect_ratio,
             mode=mode,
@@ -540,7 +512,9 @@ class SegmentationMapsOnImage(IAugmentable):
         """Resize the seg.map(s) array given a target size and interpolation."""
         return self.resize(*args, **kwargs)
 
-    def resize(self, sizes: object, interpolation: str | int | None = "nearest") -> SegmentationMapsOnImage:
+    def resize(
+        self, sizes: object, interpolation: str | int | None = "nearest"
+    ) -> SegmentationMapsOnImage:
         """Resize the seg.map(s) array given a target size and interpolation.
 
         Parameters
@@ -561,11 +535,18 @@ class SegmentationMapsOnImage(IAugmentable):
             Resized segmentation map object.
 
         """
+        if interpolation not in [None, "nearest"]:
+            assert self.arr.dtype.kind not in ["i", "u"], (
+                "Non-nearest interpolation is not allowed for integer segmentation maps. "
+                "Use interpolation='nearest'."
+            )
         arr_resized = ia.imresize_single_image(self.arr, sizes, interpolation=interpolation)
         return self.deepcopy(arr_resized)
 
     # TODO how best to handle changes to _input_was due to changed 'arr'?
-    def copy(self, arr: _SegmapArrayInt32 | None = None, shape: _ImageShape | None = None) -> SegmentationMapsOnImage:
+    def copy(
+        self, arr: _SegmapArrayInt32 | None = None, shape: _ImageShape | None = None
+    ) -> SegmentationMapsOnImage:
         """Create a shallow copy of the segmentation map object.
 
         Parameters
@@ -590,7 +571,6 @@ class SegmentationMapsOnImage(IAugmentable):
             Shallow copy.
 
         """
-        # pylint: disable=protected-access
         segmap = SegmentationMapsOnImage(
             self.arr if arr is None else arr,
             shape=self.shape if shape is None else shape,
@@ -625,7 +605,6 @@ class SegmentationMapsOnImage(IAugmentable):
             Deep copy.
 
         """
-        # pylint: disable=protected-access
         segmap = SegmentationMapsOnImage(
             np.copy(self.arr if arr is None else arr),
             shape=self.shape if shape is None else shape,

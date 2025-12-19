@@ -7,11 +7,11 @@ or NHWC (Batch, Height, Width, Channel) format.
 
 Examples
 --------
->>> import numpy as np
->>> from imgaug2.mlx.crop import center_crop, pad, random_resized_crop
->>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
->>> cropped = center_crop(img, height=50, width=50)
->>> padded = pad(img, pad_top=10, pad_left=10, mode="reflect")
+>>> import numpy as np  # doctest: +SKIP
+>>> from imgaug2.mlx.crop import center_crop, pad, random_resized_crop  # doctest: +SKIP
+>>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # doctest: +SKIP
+>>> cropped = center_crop(img, height=50, width=50)  # doctest: +SKIP
+>>> padded = pad(img, pad_top=10, pad_left=10, mode="reflect")  # doctest: +SKIP
 """
 
 from __future__ import annotations

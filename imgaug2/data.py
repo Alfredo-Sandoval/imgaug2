@@ -1,8 +1,4 @@
-"""Functions to generate example data, e.g. example images or segmaps.
-
-Added in 0.5.0.
-
-"""
+"""Functions to generate example data, e.g. example images or segmaps."""
 
 from __future__ import annotations
 
@@ -13,15 +9,12 @@ from typing import TYPE_CHECKING, Literal, TypeAlias
 import imageio.v2 as imageio
 import numpy as np
 from numpy.typing import NDArray
+from imgaug2.compat.markers import legacy
 
 # filepath to the quokka image, its annotations and depth map
-# Added in 0.5.0.
 _FILE_DIR = Path(__file__).parent
-# Added in 0.5.0.
 _QUOKKA_FP = _FILE_DIR / "quokka.jpg"
-# Added in 0.5.0.
 _QUOKKA_ANNOTATIONS_FP = _FILE_DIR / "quokka_annotations.json"
-# Added in 0.5.0.
 _QUOKKA_DEPTH_MAP_HALFRES_FP = _FILE_DIR / "quokka_depth_map_halfres.png"
 
 if TYPE_CHECKING:
@@ -49,28 +42,29 @@ QuokkaExtract: TypeAlias = (
 )
 
 
+@legacy(version="0.5.0")
 def _quokka_normalize_extract(extract: QuokkaExtract) -> BoundingBox:
     """Generate a normalized rectangle for the standard quokka image.
 
-    Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
+    Moved from ``imgaug2.imgaug``.
 
     Parameters
     ----------
     extract : 'square' or tuple of number or imgaug2.augmentables.bbs.BoundingBox or imgaug2.augmentables.bbs.BoundingBoxesOnImage
         Unnormalized representation of the image subarea to be extracted.
 
-            * If ``str`` ``square``, then a squared area
-              ``(x: 0 to max 643, y: 0 to max 643)`` will be extracted from
-              the image.
-            * If a ``tuple``, then expected to contain four ``number`` s
-              denoting ``(x1, y1, x2, y2)``.
-            * If a :class:`~imgaug2.augmentables.bbs.BoundingBox`, then that
-              bounding box's area will be extracted from the image.
-            * If a :class:`~imgaug2.augmentables.bbs.BoundingBoxesOnImage`,
-              then expected to contain exactly one bounding box and a shape
-              matching the full image dimensions (i.e. ``(643, 960, *)``).
-              Then the one bounding box will be used similar to
-              ``BoundingBox`` above.
+        * If ``str`` ``square``, then a squared area
+          ``(x: 0 to max 643, y: 0 to max 643)`` will be extracted from
+          the image.
+        * If a ``tuple``, then expected to contain four ``number`` s
+          denoting ``(x1, y1, x2, y2)``.
+        * If a :class:`~imgaug2.augmentables.bbs.BoundingBox`, then that
+          bounding box's area will be extracted from the image.
+        * If a :class:`~imgaug2.augmentables.bbs.BoundingBoxesOnImage`,
+          then expected to contain exactly one bounding box and a shape
+          matching the full image dimensions (i.e. ``(643, 960, *)``).
+          Then the one bounding box will be used similar to
+          ``BoundingBox`` above.
 
     Returns
     -------
@@ -79,16 +73,15 @@ def _quokka_normalize_extract(extract: QuokkaExtract) -> BoundingBox:
         quokka image.
 
     """
-    # TODO get rid of this deferred import
-    from imgaug2.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+    from imgaug2.augmentables import bbs
 
     if extract == "square":
-        bb = BoundingBox(x1=0, y1=0, x2=643, y2=643)
+        bb = bbs.BoundingBox(x1=0, y1=0, x2=643, y2=643)
     elif isinstance(extract, tuple) and len(extract) == 4:
-        bb = BoundingBox(x1=extract[0], y1=extract[1], x2=extract[2], y2=extract[3])
-    elif isinstance(extract, BoundingBox):
+        bb = bbs.BoundingBox(x1=extract[0], y1=extract[1], x2=extract[2], y2=extract[3])
+    elif isinstance(extract, bbs.BoundingBox):
         bb = extract
-    elif isinstance(extract, BoundingBoxesOnImage):
+    elif isinstance(extract, bbs.BoundingBoxesOnImage):
         assert len(extract.bounding_boxes) == 1, (
             "Provided BoundingBoxesOnImage instance may currently only "
             "contain a single bounding box."
@@ -107,11 +100,11 @@ def _quokka_normalize_extract(extract: QuokkaExtract) -> BoundingBox:
     return bb
 
 
-# TODO is this the same as the project functions in augmentables?
+@legacy(version="0.5.0")
 def _compute_resized_shape(from_shape: Shape | Array, to_shape: ResizeInput) -> Shape:
     """Compute the intended new shape of an image-like array after resizing.
 
-    Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
+    Moved from ``imgaug2.imgaug``.
 
     Parameters
     ----------
@@ -186,10 +179,11 @@ def _compute_resized_shape(from_shape: Shape | Array, to_shape: ResizeInput) -> 
     return tuple(to_shape_computed)
 
 
+@legacy(version="0.5.0")
 def quokka(size: ResizeInput = None, extract: QuokkaExtract | None = None) -> ImageArray:
     """Return an image of a quokka as a numpy array.
 
-    Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
+    Moved from ``imgaug2.imgaug``.
 
     Parameters
     ----------
@@ -234,10 +228,11 @@ def quokka(size: ResizeInput = None, extract: QuokkaExtract | None = None) -> Im
     return img
 
 
+@legacy(version="0.5.0")
 def quokka_square(size: ResizeInput = None) -> ImageArray:
     """Return an (square) image of a quokka as a numpy array.
 
-    Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
+    Moved from ``imgaug2.imgaug``.
 
     Parameters
     ----------
@@ -256,13 +251,14 @@ def quokka_square(size: ResizeInput = None) -> ImageArray:
     return quokka(size=size, extract="square")
 
 
+@legacy(version="0.5.0")
 def quokka_heatmap(
     size: ResizeInput = None,
     extract: QuokkaExtract | None = None,
 ) -> HeatmapsOnImage:
     """Return a heatmap (here: depth map) for the standard example quokka image.
 
-    Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
+    Moved from ``imgaug2.imgaug``.
 
     Parameters
     ----------
@@ -280,9 +276,8 @@ def quokka_heatmap(
         that are furthest away (among all shown objects).
 
     """
-    # TODO get rid of this deferred import
     import imgaug2.imgaug as ia
-    from imgaug2.augmentables.heatmaps import HeatmapsOnImage
+    from imgaug2.augmentables import heatmaps
 
     img = imageio.imread(str(_QUOKKA_DEPTH_MAP_HALFRES_FP), mode="RGB")
     img = ia.imresize_single_image(img, (643, 960), interpolation="cubic")
@@ -299,16 +294,17 @@ def quokka_heatmap(
     img_0to1 = img_0to1.astype(np.float32) / 255.0
     img_0to1 = 1 - img_0to1  # depth map was saved as 0 being furthest away
 
-    return HeatmapsOnImage(img_0to1, shape=img_0to1.shape[0:2] + (3,))
+    return heatmaps.HeatmapsOnImage(img_0to1, shape=img_0to1.shape[0:2] + (3,))
 
 
+@legacy(version="0.5.0")
 def quokka_segmentation_map(
     size: ResizeInput = None,
     extract: QuokkaExtract | None = None,
 ) -> SegmentationMapsOnImage:
     """Return a segmentation map for the standard example quokka image.
 
-    Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
+    Moved from ``imgaug2.imgaug``.
 
     Parameters
     ----------
@@ -324,11 +320,8 @@ def quokka_segmentation_map(
         Segmentation map object.
 
     """
-    # pylint: disable=invalid-name
     import skimage.draw
-
-    # TODO get rid of this deferred import
-    from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
+    from imgaug2.augmentables import segmaps
 
     with _QUOKKA_ANNOTATIONS_FP.open() as f:
         json_dict = json.load(f)
@@ -349,7 +342,7 @@ def quokka_segmentation_map(
         bb = _quokka_normalize_extract(extract)
         img_seg = bb.extract_from_image(img_seg)
 
-    segmap = SegmentationMapsOnImage(img_seg, shape=img_seg.shape[0:2] + (3,))
+    segmap = segmaps.SegmentationMapsOnImage(img_seg, shape=img_seg.shape[0:2] + (3,))
 
     if size is not None:
         shape_resized = _compute_resized_shape(img_seg.shape, size)
@@ -359,6 +352,7 @@ def quokka_segmentation_map(
     return segmap
 
 
+@legacy(version="0.5.0")
 def quokka_keypoints(
     size: ResizeInput = None,
     extract: QuokkaExtract | None = None,
@@ -367,7 +361,7 @@ def quokka_keypoints(
 
     The keypoints cover the eyes, ears, nose and paws.
 
-    Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
+    Moved from ``imgaug2.imgaug``.
 
     Parameters
     ----------
@@ -386,8 +380,7 @@ def quokka_keypoints(
         Example keypoints on the quokka image.
 
     """
-    # TODO get rid of this deferred import
-    from imgaug2.augmentables.kps import Keypoint, KeypointsOnImage
+    from imgaug2.augmentables import kps
 
     left, top = 0, 0
     if extract is not None:
@@ -398,18 +391,19 @@ def quokka_keypoints(
         json_dict = json.load(f)
     keypoints = []
     for kp_dict in json_dict["keypoints"]:
-        keypoints.append(Keypoint(x=kp_dict["x"] - left, y=kp_dict["y"] - top))
+        keypoints.append(kps.Keypoint(x=kp_dict["x"] - left, y=kp_dict["y"] - top))
     if extract is not None:
         shape = (bb_extract.height, bb_extract.width, 3)
     else:
         shape = (643, 960, 3)
-    kpsoi = KeypointsOnImage(keypoints, shape=shape)
+    kpsoi = kps.KeypointsOnImage(keypoints, shape=shape)
     if size is not None:
         shape_resized = _compute_resized_shape(shape, size)
         kpsoi = kpsoi.on(shape_resized)
     return kpsoi
 
 
+@legacy(version="0.5.0")
 def quokka_bounding_boxes(
     size: ResizeInput = None,
     extract: QuokkaExtract | None = None,
@@ -418,7 +412,7 @@ def quokka_bounding_boxes(
 
     Currently only a single bounding box is returned that covers the quokka.
 
-    Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
+    Moved from ``imgaug2.imgaug``.
 
     Parameters
     ----------
@@ -437,8 +431,7 @@ def quokka_bounding_boxes(
         Example BBs on the quokka image.
 
     """
-    # TODO get rid of this deferred import
-    from imgaug2.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+    from imgaug2.augmentables import bbs
 
     left, top = 0, 0
     if extract is not None:
@@ -447,10 +440,10 @@ def quokka_bounding_boxes(
         top = bb_extract.y1
     with _QUOKKA_ANNOTATIONS_FP.open() as f:
         json_dict = json.load(f)
-    bbs = []
+    bbs_list = []
     for bb_dict in json_dict["bounding_boxes"]:
-        bbs.append(
-            BoundingBox(
+        bbs_list.append(
+            bbs.BoundingBox(
                 x1=bb_dict["x1"] - left,
                 y1=bb_dict["y1"] - top,
                 x2=bb_dict["x2"] - left,
@@ -461,13 +454,14 @@ def quokka_bounding_boxes(
         shape = (bb_extract.height, bb_extract.width, 3)
     else:
         shape = (643, 960, 3)
-    bbsoi = BoundingBoxesOnImage(bbs, shape=shape)
+    bbsoi = bbs.BoundingBoxesOnImage(bbs_list, shape=shape)
     if size is not None:
         shape_resized = _compute_resized_shape(shape, size)
         bbsoi = bbsoi.on(shape_resized)
     return bbsoi
 
 
+@legacy(version="0.5.0")
 def quokka_polygons(
     size: ResizeInput = None,
     extract: QuokkaExtract | None = None,
@@ -477,7 +471,7 @@ def quokka_polygons(
 
     The result contains one polygon, covering the quokka's outline.
 
-    Added in 0.5.0. (Moved from ``imgaug2.imgaug``.)
+    Moved from ``imgaug2.imgaug``.
 
     Parameters
     ----------
@@ -496,8 +490,7 @@ def quokka_polygons(
         Example polygons on the quokka image.
 
     """
-    # TODO get rid of this deferred import
-    from imgaug2.augmentables.polys import Polygon, PolygonsOnImage
+    from imgaug2.augmentables import polys
 
     left, top = 0, 0
     if extract is not None:
@@ -509,13 +502,13 @@ def quokka_polygons(
     polygons = []
     for poly_json in json_dict["polygons"]:
         polygons.append(
-            Polygon([(point["x"] - left, point["y"] - top) for point in poly_json["keypoints"]])
+            polys.Polygon([(point["x"] - left, point["y"] - top) for point in poly_json["keypoints"]])
         )
     if extract is not None:
         shape = (bb_extract.height, bb_extract.width, 3)
     else:
         shape = (643, 960, 3)
-    psoi = PolygonsOnImage(polygons, shape=shape)
+    psoi = polys.PolygonsOnImage(polygons, shape=shape)
     if size is not None:
         shape_resized = _compute_resized_shape(shape, size)
         psoi = psoi.on(shape_resized)

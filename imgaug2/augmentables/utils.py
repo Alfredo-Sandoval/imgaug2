@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Protocol, TypeVar, cast, overload
 import numpy as np
 
 import imgaug2.imgaug as ia
+from imgaug2.compat.markers import legacy
 
 if TYPE_CHECKING:
     from imgaug2.augmentables.kps import KeypointsOnImage
@@ -44,7 +45,6 @@ class _SupportsInvertToKeypointsOnImage(Protocol):
     def invert_to_keypoints_on_image_(self: _TCbInvert, kpsoi: KeypointsOnImage) -> _TCbInvert: ...
 
 
-# TODO add tests
 def copy_augmentables(augmentables: object) -> object:
     from imgaug2.mlx._core import is_mlx_array
 
@@ -65,7 +65,7 @@ def copy_augmentables(augmentables: object) -> object:
     return result
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def deepcopy_fast(obj: object) -> object:
     from imgaug2.mlx._core import is_mlx_array
 
@@ -86,7 +86,7 @@ def deepcopy_fast(obj: object) -> object:
     return copylib.deepcopy(obj)
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 def _handle_on_image_shape(shape: Shape | np.ndarray, obj: object) -> Shape:
     if hasattr(shape, "shape"):
         ia.warn_deprecated(
@@ -125,10 +125,10 @@ def normalize_shape(shape: Shape | np.ndarray) -> Shape:
     return shape.shape
 
 
+@legacy(version="0.5.0")
 def normalize_imglike_shape(shape: ImgLikeShape | np.ndarray) -> ImgLikeShape:
     """Normalize a shape tuple or image-like ``array`` to a shape tuple.
 
-    Added in 0.5.0.
 
     Parameters
     ----------
@@ -154,6 +154,7 @@ def normalize_imglike_shape(shape: ImgLikeShape | np.ndarray) -> ImgLikeShape:
     return cast(ImgLikeShape, shape)
 
 
+@legacy(version="0.4.0")
 def project_coords_(
     coords: np.ndarray | Point2DList, from_shape: Shape | np.ndarray, to_shape: Shape | np.ndarray
 ) -> np.ndarray:
@@ -162,7 +163,6 @@ def project_coords_(
     This performs a relative projection, e.g. a point at ``60%`` of the old
     image width will be at ``60%`` of the new image width after projection.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -371,12 +371,12 @@ def convert_cbaois_to_kpsois(cbaois: _TCbToKps) -> KeypointsOnImage: ...
 def convert_cbaois_to_kpsois(cbaois: list[_TCbToKps]) -> list[KeypointsOnImage]: ...
 
 
+@legacy(version="0.4.0")
 def convert_cbaois_to_kpsois(
     cbaois: _TCbToKps | list[_TCbToKps],
 ) -> KeypointsOnImage | list[KeypointsOnImage]:
     """Convert coordinate-based augmentables to KeypointsOnImage instances.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -409,6 +409,7 @@ def invert_convert_cbaois_to_kpsois_(
 ) -> list[_TCbInvert]: ...
 
 
+@legacy(version="0.4.0")
 def invert_convert_cbaois_to_kpsois_(
     cbaois: _TCbInvert | list[_TCbInvert],
     kpsois: KeypointsOnImage | list[KeypointsOnImage],
@@ -417,7 +418,6 @@ def invert_convert_cbaois_to_kpsois_(
 
     This function writes in-place into `cbaois`.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -451,7 +451,7 @@ def invert_convert_cbaois_to_kpsois_(
     return result
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _remove_out_of_image_fraction_(cbaoi: _TCBAOI, fraction: float) -> _TCBAOI:
     cbaoi.items = [
         item for item in cbaoi.items if item.compute_out_of_image_fraction(cbaoi.shape) < fraction
@@ -459,7 +459,7 @@ def _remove_out_of_image_fraction_(cbaoi: _TCBAOI, fraction: float) -> _TCBAOI:
     return cbaoi
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _normalize_shift_args(
     x: float,
     y: float,

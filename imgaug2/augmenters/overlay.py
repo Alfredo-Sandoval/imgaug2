@@ -19,14 +19,12 @@ _DEPRECATION_COMMENT = (
 @ia.deprecated(alt_func="imgaug2.augmenters.blend.blend_alpha()", comment=_DEPRECATION_COMMENT)
 def blend_alpha(*args: object, **kwargs: object) -> object:
     """See :func:`~imgaug2.augmenters.blend.blend_alpha`."""
-    # pylint: disable=invalid-name
     return blend.blend_alpha(*args, **kwargs)
 
 
 @ia.deprecated(alt_func="imgaug2.augmenters.blend.BlendAlpha", comment=_DEPRECATION_COMMENT)
 def Alpha(*args: object, **kwargs: object) -> object:
     """See :class:`~imgaug2.augmenters.blend.BlendAlpha`."""
-    # pylint: disable=invalid-name
     return blend.Alpha(*args, **kwargs)
 
 
@@ -35,7 +33,6 @@ def Alpha(*args: object, **kwargs: object) -> object:
 )
 def AlphaElementwise(*args: object, **kwargs: object) -> object:
     """See :class:`~imgaug2.augmenters.blend.BlendAlphaElementwise`."""
-    # pylint: disable=invalid-name
     return blend.AlphaElementwise(*args, **kwargs)
 
 
@@ -44,7 +41,6 @@ def AlphaElementwise(*args: object, **kwargs: object) -> object:
 )
 def SimplexNoiseAlpha(*args: object, **kwargs: object) -> object:
     """See :class:`~imgaug2.augmenters.blend.BlendAlphaSimplexNoise`."""
-    # pylint: disable=invalid-name
     return blend.SimplexNoiseAlpha(*args, **kwargs)
 
 
@@ -53,5 +49,4 @@ def SimplexNoiseAlpha(*args: object, **kwargs: object) -> object:
 )
 def FrequencyNoiseAlpha(*args: object, **kwargs: object) -> object:
     """See :class:`~imgaug2.augmenters.blend.BlendAlphaFrequencyNoise`."""
-    # pylint: disable=invalid-name
     return blend.FrequencyNoiseAlpha(*args, **kwargs)

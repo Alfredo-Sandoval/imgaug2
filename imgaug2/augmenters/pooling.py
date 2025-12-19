@@ -1,13 +1,13 @@
-"""
-Augmenters that apply pooling operations to images.
+"""Augmenters that apply pooling operations to images.
 
-List of augmenters:
+This module provides augmenters for various pooling operations that reduce
+image resolution by aggregating pixel values within windows.
 
-    * :class:`AveragePooling`
-    * :class:`MaxPooling`
-    * :class:`MinPooling`
-    * :class:`MedianPooling`
-
+Key Augmenters:
+    - `AveragePooling`: Pool using the average of pixel values.
+    - `MaxPooling`: Pool using the maximum pixel value.
+    - `MinPooling`: Pool using the minimum pixel value.
+    - `MedianPooling`: Pool using the median pixel value.
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import RNGInput
+from imgaug2.compat.markers import legacy
 
 ImageArray: TypeAlias = NDArray[np.generic]
 IntArray: TypeAlias = NDArray[np.integer]
@@ -95,7 +96,7 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
             kernel_sizes_w = self.kernel_size[1].draw_samples((nb_rows,), random_state=rss[1])
         return (np.clip(kernel_sizes_h, 1, None), np.clip(kernel_sizes_w, 1, None))
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -112,7 +113,7 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
             setattr(batch, column.attr_name, value_aug)
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_images_by_samples(
         self, images: Sequence[ImageArray] | ImageArray, samples: tuple[IntArray, IntArray]
     ) -> Sequence[ImageArray] | ImageArray:
@@ -131,19 +132,19 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
 
         return images
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_heatmaps_by_samples(
         self, heatmaps: list[object], samples: tuple[IntArray, IntArray]
     ) -> list[object]:
         return self._augment_hms_and_segmaps_by_samples(heatmaps, samples, "arr_0to1")
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_segmentation_maps_by_samples(
         self, segmaps: list[object], samples: tuple[IntArray, IntArray]
     ) -> list[object]:
         return self._augment_hms_and_segmaps_by_samples(segmaps, samples, "arr")
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_hms_and_segmaps_by_samples(
         self, augmentables: list[object], samples: tuple[IntArray, IntArray], arr_attr_name: str
     ) -> list[object]:
@@ -172,7 +173,7 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
 
         return augmentables
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_keypoints_by_samples(
         self, keypoints_on_images: list[KeypointsOnImageLike], samples: tuple[IntArray, IntArray]
     ) -> list[KeypointsOnImageLike]:
@@ -190,21 +191,21 @@ class _AbstractPoolingBase(meta.Augmenter, metaclass=ABCMeta):
 
         return keypoints_on_images
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_polygons_by_samples(
         self, polygons_on_images: list[object], samples: tuple[IntArray, IntArray]
     ) -> list[object]:
         func = functools.partial(self._augment_keypoints_by_samples, samples=samples)
         return self._apply_to_polygons_as_keypoints(polygons_on_images, func, recoverer=None)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_line_strings_by_samples(
         self, line_strings_on_images: list[object], samples: tuple[IntArray, IntArray]
     ) -> list[object]:
         func = functools.partial(self._augment_keypoints_by_samples, samples=samples)
         return self._apply_to_cbaois_as_keypoints(line_strings_on_images, func)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_bounding_boxes_by_samples(
         self, bounding_boxes_on_images: list[object], samples: tuple[IntArray, IntArray]
     ) -> list[object]:

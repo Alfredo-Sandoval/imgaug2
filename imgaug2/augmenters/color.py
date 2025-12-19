@@ -1,35 +1,24 @@
-"""
-Augmenters that affect image colors or image colorspaces.
+"""Augmenters that affect image colors or image colorspaces.
 
-List of augmenters:
+This module provides augmenters for color manipulation including channel-wise
+operations, colorspace conversions, and color-based adjustments.
 
-    * :class:`InColorspace` (deprecated)
-    * :class:`WithColorspace`
-    * :class:`WithBrightnessChannels`
-    * :class:`MultiplyAndAddToBrightness`
-    * :class:`MultiplyBrightness`
-    * :class:`AddToBrightness`
-    * :class:`WithHueAndSaturation`
-    * :class:`MultiplyHueAndSaturation`
-    * :class:`MultiplyHue`
-    * :class:`MultiplySaturation`
-    * :class:`RemoveSaturation`
-    * :class:`AddToHueAndSaturation`
-    * :class:`AddToHue`
-    * :class:`AddToSaturation`
-    * :class:`ChangeColorspace`
-    * :class:`Grayscale`
-    * :class:`ChangeColorTemperature`
-    * :class:`KMeansColorQuantization`
-    * :class:`UniformColorQuantization`
-    * :class:`Posterize`
-
+Key Augmenters:
+    - `WithColorspace`, `WithBrightnessChannels`, `WithHueAndSaturation`:
+      Apply augmentations in specific colorspaces.
+    - `MultiplyAndAddToBrightness`, `MultiplyHue`, `MultiplySaturation`:
+      Modify specific color components.
+    - `Grayscale`, `RemoveSaturation`, `ChangeColorTemperature`: Color effects.
+    - `KMeansColorQuantization`, `UniformColorQuantization`: Reduce colors.
 """
 
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from collections.abc import Sequence
+import json
+from pathlib import Path
+from types import ModuleType
 from typing import Any, Literal, TypeAlias, Union, cast
 
 import cv2
@@ -40,11 +29,13 @@ import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
-from imgaug2.augmenters import arithmetic, blend, meta
+from imgaug2.augmenters import meta
+from imgaug2.augmenters._blend_utils import blend_alpha
 from imgaug2.augmenters._typing import Array, Images, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
-
-# pylint: disable=invalid-name
+from imgaug2.mlx._core import is_mlx_array
+import imgaug2.mlx.color as mlx_color
+from imgaug2.compat.markers import legacy
 CSPACE_RGB = "RGB"
 CSPACE_BGR = "BGR"
 CSPACE_GRAY = "GRAY"
@@ -68,7 +59,18 @@ CSPACE_ALL = {
     CSPACE_YUV,
     CSPACE_CIE,
 }
-# pylint: enable=invalid-name
+
+_ARITHMETIC: ModuleType | None = None
+_KELVIN_TO_RGB_TABLE_FP = Path(__file__).resolve().with_name("kelvin_to_rgb_table.json")
+
+
+def _get_arithmetic() -> ModuleType:
+    global _ARITHMETIC
+    if _ARITHMETIC is None:
+        from imgaug2.augmenters import arithmetic as arithmetic_lib
+
+        _ARITHMETIC = arithmetic_lib
+    return _ARITHMETIC
 
 ColorSpace: TypeAlias = Literal[
     "RGB",
@@ -411,11 +413,11 @@ def change_colorspaces_(
     return images
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _KelvinToRGBTableSingleton:
     _INSTANCE = None
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def get_instance(cls) -> _KelvinToRGBTable:
         if cls._INSTANCE is None:
@@ -423,14 +425,15 @@ class _KelvinToRGBTableSingleton:
         return cls._INSTANCE
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _KelvinToRGBTable:
     _TABLE = None
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(self) -> None:
         self.table = self.create_table()
 
+    @legacy(version="0.4.0")
     def transform_kelvins_to_rgb_multipliers(self, kelvins: Array) -> Array:
         """Transform kelvin values to corresponding multipliers for RGB images.
 
@@ -438,7 +441,6 @@ class _KelvinToRGBTable:
         in the range ``[0.0, 1.0]`` to apply to an image to change its kelvin
         value to the desired one.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -469,411 +471,97 @@ class _KelvinToRGBTable:
 
         return multipliers
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def create_table(cls) -> Array:
-        table = (
-            np.float32(
-                [
-                    [255, 56, 0],  # K=1000
-                    [255, 71, 0],  # K=1100
-                    [255, 83, 0],  # K=1200
-                    [255, 93, 0],  # K=1300
-                    [255, 101, 0],  # K=1400
-                    [255, 109, 0],  # K=1500
-                    [255, 115, 0],  # K=1600
-                    [255, 121, 0],  # K=1700
-                    [255, 126, 0],  # K=1800
-                    [255, 131, 0],  # K=1900
-                    [255, 137, 18],  # K=2000
-                    [255, 142, 33],  # K=2100
-                    [255, 147, 44],  # K=2200
-                    [255, 152, 54],  # K=2300
-                    [255, 157, 63],  # K=2400
-                    [255, 161, 72],  # K=2500
-                    [255, 165, 79],  # K=2600
-                    [255, 169, 87],  # K=2700
-                    [255, 173, 94],  # K=2800
-                    [255, 177, 101],  # K=2900
-                    [255, 180, 107],  # K=3000
-                    [255, 184, 114],  # K=3100
-                    [255, 187, 120],  # K=3200
-                    [255, 190, 126],  # K=3300
-                    [255, 193, 132],  # K=3400
-                    [255, 196, 137],  # K=3500
-                    [255, 199, 143],  # K=3600
-                    [255, 201, 148],  # K=3700
-                    [255, 204, 153],  # K=3800
-                    [255, 206, 159],  # K=3900
-                    [255, 209, 163],  # K=4000
-                    [255, 211, 168],  # K=4100
-                    [255, 213, 173],  # K=4200
-                    [255, 215, 177],  # K=4300
-                    [255, 217, 182],  # K=4400
-                    [255, 219, 186],  # K=4500
-                    [255, 221, 190],  # K=4600
-                    [255, 223, 194],  # K=4700
-                    [255, 225, 198],  # K=4800
-                    [255, 227, 202],  # K=4900
-                    [255, 228, 206],  # K=5000
-                    [255, 230, 210],  # K=5100
-                    [255, 232, 213],  # K=5200
-                    [255, 233, 217],  # K=5300
-                    [255, 235, 220],  # K=5400
-                    [255, 236, 224],  # K=5500
-                    [255, 238, 227],  # K=5600
-                    [255, 239, 230],  # K=5700
-                    [255, 240, 233],  # K=5800
-                    [255, 242, 236],  # K=5900
-                    [255, 243, 239],  # K=6000
-                    [255, 244, 242],  # K=6100
-                    [255, 245, 245],  # K=6200
-                    [255, 246, 248],  # K=6300
-                    [255, 248, 251],  # K=6400
-                    [255, 249, 253],  # K=6500
-                    [254, 249, 255],  # K=6600
-                    [252, 247, 255],  # K=6700
-                    [249, 246, 255],  # K=6800
-                    [247, 245, 255],  # K=6900
-                    [245, 243, 255],  # K=7000
-                    [243, 242, 255],  # K=7100
-                    [240, 241, 255],  # K=7200
-                    [239, 240, 255],  # K=7300
-                    [237, 239, 255],  # K=7400
-                    [235, 238, 255],  # K=7500
-                    [233, 237, 255],  # K=7600
-                    [231, 236, 255],  # K=7700
-                    [230, 235, 255],  # K=7800
-                    [228, 234, 255],  # K=7900
-                    [227, 233, 255],  # K=8000
-                    [225, 232, 255],  # K=8100
-                    [224, 231, 255],  # K=8200
-                    [222, 230, 255],  # K=8300
-                    [221, 230, 255],  # K=8400
-                    [220, 229, 255],  # K=8500
-                    [218, 228, 255],  # K=8600
-                    [217, 227, 255],  # K=8700
-                    [216, 227, 255],  # K=8800
-                    [215, 226, 255],  # K=8900
-                    [214, 225, 255],  # K=9000
-                    [212, 225, 255],  # K=9100
-                    [211, 224, 255],  # K=9200
-                    [210, 223, 255],  # K=9300
-                    [209, 223, 255],  # K=9400
-                    [208, 222, 255],  # K=9500
-                    [207, 221, 255],  # K=9600
-                    [207, 221, 255],  # K=9700
-                    [206, 220, 255],  # K=9800
-                    [205, 220, 255],  # K=9900
-                    [204, 219, 255],  # K=10000
-                    [203, 219, 255],  # K=10100
-                    [202, 218, 255],  # K=10200
-                    [201, 218, 255],  # K=10300
-                    [201, 217, 255],  # K=10400
-                    [200, 217, 255],  # K=10500
-                    [199, 216, 255],  # K=10600
-                    [199, 216, 255],  # K=10700
-                    [198, 216, 255],  # K=10800
-                    [197, 215, 255],  # K=10900
-                    [196, 215, 255],  # K=11000
-                    [196, 214, 255],  # K=11100
-                    [195, 214, 255],  # K=11200
-                    [195, 214, 255],  # K=11300
-                    [194, 213, 255],  # K=11400
-                    [193, 213, 255],  # K=11500
-                    [193, 212, 255],  # K=11600
-                    [192, 212, 255],  # K=11700
-                    [192, 212, 255],  # K=11800
-                    [191, 211, 255],  # K=11900
-                    [191, 211, 255],  # K=12000
-                    [190, 211, 255],  # K=12100
-                    [190, 210, 255],  # K=12200
-                    [189, 210, 255],  # K=12300
-                    [189, 210, 255],  # K=12400
-                    [188, 210, 255],  # K=12500
-                    [188, 209, 255],  # K=12600
-                    [187, 209, 255],  # K=12700
-                    [187, 209, 255],  # K=12800
-                    [186, 208, 255],  # K=12900
-                    [186, 208, 255],  # K=13000
-                    [185, 208, 255],  # K=13100
-                    [185, 208, 255],  # K=13200
-                    [185, 207, 255],  # K=13300
-                    [184, 207, 255],  # K=13400
-                    [184, 207, 255],  # K=13500
-                    [183, 207, 255],  # K=13600
-                    [183, 206, 255],  # K=13700
-                    [183, 206, 255],  # K=13800
-                    [182, 206, 255],  # K=13900
-                    [182, 206, 255],  # K=14000
-                    [182, 205, 255],  # K=14100
-                    [181, 205, 255],  # K=14200
-                    [181, 205, 255],  # K=14300
-                    [181, 205, 255],  # K=14400
-                    [180, 205, 255],  # K=14500
-                    [180, 204, 255],  # K=14600
-                    [180, 204, 255],  # K=14700
-                    [179, 204, 255],  # K=14800
-                    [179, 204, 255],  # K=14900
-                    [179, 204, 255],  # K=15000
-                    [178, 203, 255],  # K=15100
-                    [178, 203, 255],  # K=15200
-                    [178, 203, 255],  # K=15300
-                    [178, 203, 255],  # K=15400
-                    [177, 203, 255],  # K=15500
-                    [177, 202, 255],  # K=15600
-                    [177, 202, 255],  # K=15700
-                    [177, 202, 255],  # K=15800
-                    [176, 202, 255],  # K=15900
-                    [176, 202, 255],  # K=16000
-                    [176, 202, 255],  # K=16100
-                    [175, 201, 255],  # K=16200
-                    [175, 201, 255],  # K=16300
-                    [175, 201, 255],  # K=16400
-                    [175, 201, 255],  # K=16500
-                    [175, 201, 255],  # K=16600
-                    [174, 201, 255],  # K=16700
-                    [174, 201, 255],  # K=16800
-                    [174, 200, 255],  # K=16900
-                    [174, 200, 255],  # K=17000
-                    [173, 200, 255],  # K=17100
-                    [173, 200, 255],  # K=17200
-                    [173, 200, 255],  # K=17300
-                    [173, 200, 255],  # K=17400
-                    [173, 200, 255],  # K=17500
-                    [172, 199, 255],  # K=17600
-                    [172, 199, 255],  # K=17700
-                    [172, 199, 255],  # K=17800
-                    [172, 199, 255],  # K=17900
-                    [172, 199, 255],  # K=18000
-                    [171, 199, 255],  # K=18100
-                    [171, 199, 255],  # K=18200
-                    [171, 199, 255],  # K=18300
-                    [171, 198, 255],  # K=18400
-                    [171, 198, 255],  # K=18500
-                    [170, 198, 255],  # K=18600
-                    [170, 198, 255],  # K=18700
-                    [170, 198, 255],  # K=18800
-                    [170, 198, 255],  # K=18900
-                    [170, 198, 255],  # K=19000
-                    [170, 198, 255],  # K=19100
-                    [169, 198, 255],  # K=19200
-                    [169, 197, 255],  # K=19300
-                    [169, 197, 255],  # K=19400
-                    [169, 197, 255],  # K=19500
-                    [169, 197, 255],  # K=19600
-                    [169, 197, 255],  # K=19700
-                    [169, 197, 255],  # K=19800
-                    [168, 197, 255],  # K=19900
-                    [168, 197, 255],  # K=20000
-                    [168, 197, 255],  # K=20100
-                    [168, 197, 255],  # K=20200
-                    [168, 196, 255],  # K=20300
-                    [168, 196, 255],  # K=20400
-                    [168, 196, 255],  # K=20500
-                    [167, 196, 255],  # K=20600
-                    [167, 196, 255],  # K=20700
-                    [167, 196, 255],  # K=20800
-                    [167, 196, 255],  # K=20900
-                    [167, 196, 255],  # K=21000
-                    [167, 196, 255],  # K=21100
-                    [167, 196, 255],  # K=21200
-                    [166, 196, 255],  # K=21300
-                    [166, 195, 255],  # K=21400
-                    [166, 195, 255],  # K=21500
-                    [166, 195, 255],  # K=21600
-                    [166, 195, 255],  # K=21700
-                    [166, 195, 255],  # K=21800
-                    [166, 195, 255],  # K=21900
-                    [166, 195, 255],  # K=22000
-                    [165, 195, 255],  # K=22100
-                    [165, 195, 255],  # K=22200
-                    [165, 195, 255],  # K=22300
-                    [165, 195, 255],  # K=22400
-                    [165, 195, 255],  # K=22500
-                    [165, 195, 255],  # K=22600
-                    [165, 194, 255],  # K=22700
-                    [165, 194, 255],  # K=22800
-                    [165, 194, 255],  # K=22900
-                    [164, 194, 255],  # K=23000
-                    [164, 194, 255],  # K=23100
-                    [164, 194, 255],  # K=23200
-                    [164, 194, 255],  # K=23300
-                    [164, 194, 255],  # K=23400
-                    [164, 194, 255],  # K=23500
-                    [164, 194, 255],  # K=23600
-                    [164, 194, 255],  # K=23700
-                    [164, 194, 255],  # K=23800
-                    [164, 194, 255],  # K=23900
-                    [163, 194, 255],  # K=24000
-                    [163, 194, 255],  # K=24100
-                    [163, 193, 255],  # K=24200
-                    [163, 193, 255],  # K=24300
-                    [163, 193, 255],  # K=24400
-                    [163, 193, 255],  # K=24500
-                    [163, 193, 255],  # K=24600
-                    [163, 193, 255],  # K=24700
-                    [163, 193, 255],  # K=24800
-                    [163, 193, 255],  # K=24900
-                    [163, 193, 255],  # K=25000
-                    [162, 193, 255],  # K=25100
-                    [162, 193, 255],  # K=25200
-                    [162, 193, 255],  # K=25300
-                    [162, 193, 255],  # K=25400
-                    [162, 193, 255],  # K=25500
-                    [162, 193, 255],  # K=25600
-                    [162, 193, 255],  # K=25700
-                    [162, 193, 255],  # K=25800
-                    [162, 192, 255],  # K=25900
-                    [162, 192, 255],  # K=26000
-                    [162, 192, 255],  # K=26100
-                    [162, 192, 255],  # K=26200
-                    [162, 192, 255],  # K=26300
-                    [161, 192, 255],  # K=26400
-                    [161, 192, 255],  # K=26500
-                    [161, 192, 255],  # K=26600
-                    [161, 192, 255],  # K=26700
-                    [161, 192, 255],  # K=26800
-                    [161, 192, 255],  # K=26900
-                    [161, 192, 255],  # K=27000
-                    [161, 192, 255],  # K=27100
-                    [161, 192, 255],  # K=27200
-                    [161, 192, 255],  # K=27300
-                    [161, 192, 255],  # K=27400
-                    [161, 192, 255],  # K=27500
-                    [161, 192, 255],  # K=27600
-                    [161, 192, 255],  # K=27700
-                    [160, 192, 255],  # K=27800
-                    [160, 192, 255],  # K=27900
-                    [160, 191, 255],  # K=28000
-                    [160, 191, 255],  # K=28100
-                    [160, 191, 255],  # K=28200
-                    [160, 191, 255],  # K=28300
-                    [160, 191, 255],  # K=28400
-                    [160, 191, 255],  # K=28500
-                    [160, 191, 255],  # K=28600
-                    [160, 191, 255],  # K=28700
-                    [160, 191, 255],  # K=28800
-                    [160, 191, 255],  # K=28900
-                    [160, 191, 255],  # K=29000
-                    [160, 191, 255],  # K=29100
-                    [160, 191, 255],  # K=29200
-                    [159, 191, 255],  # K=29300
-                    [159, 191, 255],  # K=29400
-                    [159, 191, 255],  # K=29500
-                    [159, 191, 255],  # K=29600
-                    [159, 191, 255],  # K=29700
-                    [159, 191, 255],  # K=29800
-                    [159, 191, 255],  # K=29900
-                    [159, 191, 255],  # K=30000
-                    [159, 191, 255],  # K=30100
-                    [159, 191, 255],  # K=30200
-                    [159, 191, 255],  # K=30300
-                    [159, 190, 255],  # K=30400
-                    [159, 190, 255],  # K=30500
-                    [159, 190, 255],  # K=30600
-                    [159, 190, 255],  # K=30700
-                    [159, 190, 255],  # K=30800
-                    [159, 190, 255],  # K=30900
-                    [159, 190, 255],  # K=31000
-                    [158, 190, 255],  # K=31100
-                    [158, 190, 255],  # K=31200
-                    [158, 190, 255],  # K=31300
-                    [158, 190, 255],  # K=31400
-                    [158, 190, 255],  # K=31500
-                    [158, 190, 255],  # K=31600
-                    [158, 190, 255],  # K=31700
-                    [158, 190, 255],  # K=31800
-                    [158, 190, 255],  # K=31900
-                    [158, 190, 255],  # K=32000
-                    [158, 190, 255],  # K=32100
-                    [158, 190, 255],  # K=32200
-                    [158, 190, 255],  # K=32300
-                    [158, 190, 255],  # K=32400
-                    [158, 190, 255],  # K=32500
-                    [158, 190, 255],  # K=32600
-                    [158, 190, 255],  # K=32700
-                    [158, 190, 255],  # K=32800
-                    [158, 190, 255],  # K=32900
-                    [158, 190, 255],  # K=33000
-                    [158, 190, 255],  # K=33100
-                    [157, 190, 255],  # K=33200
-                    [157, 190, 255],  # K=33300
-                    [157, 189, 255],  # K=33400
-                    [157, 189, 255],  # K=33500
-                    [157, 189, 255],  # K=33600
-                    [157, 189, 255],  # K=33700
-                    [157, 189, 255],  # K=33800
-                    [157, 189, 255],  # K=33900
-                    [157, 189, 255],  # K=34000
-                    [157, 189, 255],  # K=34100
-                    [157, 189, 255],  # K=34200
-                    [157, 189, 255],  # K=34300
-                    [157, 189, 255],  # K=34400
-                    [157, 189, 255],  # K=34500
-                    [157, 189, 255],  # K=34600
-                    [157, 189, 255],  # K=34700
-                    [157, 189, 255],  # K=34800
-                    [157, 189, 255],  # K=34900
-                    [157, 189, 255],  # K=35000
-                    [157, 189, 255],  # K=35100
-                    [157, 189, 255],  # K=35200
-                    [157, 189, 255],  # K=35300
-                    [157, 189, 255],  # K=35400
-                    [157, 189, 255],  # K=35500
-                    [156, 189, 255],  # K=35600
-                    [156, 189, 255],  # K=35700
-                    [156, 189, 255],  # K=35800
-                    [156, 189, 255],  # K=35900
-                    [156, 189, 255],  # K=36000
-                    [156, 189, 255],  # K=36100
-                    [156, 189, 255],  # K=36200
-                    [156, 189, 255],  # K=36300
-                    [156, 189, 255],  # K=36400
-                    [156, 189, 255],  # K=36500
-                    [156, 189, 255],  # K=36600
-                    [156, 189, 255],  # K=36700
-                    [156, 189, 255],  # K=36800
-                    [156, 189, 255],  # K=36900
-                    [156, 189, 255],  # K=37000
-                    [156, 189, 255],  # K=37100
-                    [156, 188, 255],  # K=37200
-                    [156, 188, 255],  # K=37300
-                    [156, 188, 255],  # K=37400
-                    [156, 188, 255],  # K=37500
-                    [156, 188, 255],  # K=37600
-                    [156, 188, 255],  # K=37700
-                    [156, 188, 255],  # K=37800
-                    [156, 188, 255],  # K=37900
-                    [156, 188, 255],  # K=38000
-                    [156, 188, 255],  # K=38100
-                    [156, 188, 255],  # K=38200
-                    [156, 188, 255],  # K=38300
-                    [155, 188, 255],  # K=38400
-                    [155, 188, 255],  # K=38500
-                    [155, 188, 255],  # K=38600
-                    [155, 188, 255],  # K=38700
-                    [155, 188, 255],  # K=38800
-                    [155, 188, 255],  # K=38900
-                    [155, 188, 255],  # K=39000
-                    [155, 188, 255],  # K=39100
-                    [155, 188, 255],  # K=39200
-                    [155, 188, 255],  # K=39300
-                    [155, 188, 255],  # K=39400
-                    [155, 188, 255],  # K=39500
-                    [155, 188, 255],  # K=39600
-                    [155, 188, 255],  # K=39700
-                    [155, 188, 255],  # K=39800
-                    [155, 188, 255],  # K=39900
-                    [155, 188, 255],  # K=40000
-                ]
-            )
-            / 255.0
-        )
+        with _KELVIN_TO_RGB_TABLE_FP.open("r", encoding="utf-8") as table_file:
+            table_values = json.load(table_file)
+        table = np.asarray(table_values, dtype=np.float32) / 255.0
         _KelvinToRGBTable._TABLE = table
         return cast(Array, table)
 
 
+_PLANCKIAN_XYZ_TO_SRGB = np.array(
+    [
+        [3.2406, -1.5372, -0.4986],
+        [-0.9689, 1.8758, 0.0415],
+        [0.0557, -0.2040, 1.0570],
+    ],
+    dtype=np.float64,
+)
+
+
+def _kelvin_to_rgb_planckian(kelvins: Array) -> Array:
+    """Approximate black-body temperature -> RGB multipliers via Planckian locus.
+
+    Uses the Hernandez-Andres et al. approximation for CIE xy chromaticities,
+    then converts to sRGB (D65). Inputs are clipped to [1667, 25000] K and
+    each output row is normalized to a max channel value of 1.0.
+    Currently unused; reserved for a future release.
+    """
+    kelvins_arr = np.asarray(kelvins, dtype=np.float64).reshape(-1)
+    kelvins_arr = np.clip(kelvins_arr, 1667.0, 25000.0)
+
+    x = np.empty_like(kelvins_arr)
+    mask_low = kelvins_arr <= 4000.0
+    t_low = kelvins_arr[mask_low]
+    t_high = kelvins_arr[~mask_low]
+    x[mask_low] = (
+        -0.2661239e9 / (t_low**3)
+        - 0.2343580e6 / (t_low**2)
+        + 0.8776956e3 / t_low
+        + 0.179910
+    )
+    x[~mask_low] = (
+        -3.0258469e9 / (t_high**3)
+        + 2.1070379e6 / (t_high**2)
+        + 0.2226347e3 / t_high
+        + 0.240390
+    )
+
+    y = np.empty_like(kelvins_arr)
+    mask_low_y = kelvins_arr <= 2222.0
+    mask_mid = (kelvins_arr > 2222.0) & (kelvins_arr <= 4000.0)
+    mask_high = kelvins_arr > 4000.0
+    y[mask_low_y] = (
+        -1.1063814 * (x[mask_low_y] ** 3)
+        - 1.34811020 * (x[mask_low_y] ** 2)
+        + 2.18555832 * x[mask_low_y]
+        - 0.20219683
+    )
+    y[mask_mid] = (
+        -0.9549476 * (x[mask_mid] ** 3)
+        - 1.37418593 * (x[mask_mid] ** 2)
+        + 2.09137015 * x[mask_mid]
+        - 0.16748867
+    )
+    y[mask_high] = (
+        3.0817580 * (x[mask_high] ** 3)
+        - 5.87338670 * (x[mask_high] ** 2)
+        + 3.75112997 * x[mask_high]
+        - 0.37001483
+    )
+
+    y_safe = np.clip(y, 1e-12, None)
+    x_xyz = x / y_safe
+    z_xyz = (1.0 - x - y_safe) / y_safe
+    xyz = np.stack([x_xyz, np.ones_like(x_xyz), z_xyz], axis=1)
+
+    rgb_linear = xyz @ _PLANCKIAN_XYZ_TO_SRGB.T
+    rgb_linear = np.clip(rgb_linear, 0.0, None)
+    rgb = np.where(
+        rgb_linear <= 0.0031308,
+        12.92 * rgb_linear,
+        1.055 * np.power(rgb_linear, 1.0 / 2.4) - 0.055,
+    )
+    rgb = np.clip(rgb, 0.0, None)
+
+    max_channel = np.max(rgb, axis=1, keepdims=True)
+    rgb_norm = np.where(max_channel > 0.0, rgb / max_channel, 0.0)
+    return rgb_norm.astype(np.float32)
+
+
+@legacy(version="0.4.0")
 def change_color_temperatures_(
     images: Images,
     kelvins: KelvinInput,
@@ -881,7 +569,6 @@ def change_color_temperatures_(
 ) -> Images:
     """Change in-place the temperature of images to given values in Kelvin.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -983,12 +670,12 @@ def change_color_temperatures_(
     return images
 
 
+@legacy(version="0.4.0")
 def change_color_temperature(
     image: Array, kelvin: float | int, from_colorspace: ColorSpace = CSPACE_RGB
 ) -> Array:
     """Change the temperature of an image to a given value in Kelvin.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1031,7 +718,6 @@ def InColorspace(
     deterministic: bool | Literal["deprecated"] = "deprecated",
 ) -> WithColorspace:
     """Convert images to another colorspace."""
-    # pylint: disable=invalid-name
     return WithColorspace(
         to_colorspace,
         from_colorspace,
@@ -1043,7 +729,6 @@ def InColorspace(
     )
 
 
-# TODO add tests
 class WithColorspace(meta.Augmenter):
     """
     Apply child augmenters within a specific colorspace.
@@ -1121,7 +806,7 @@ class WithColorspace(meta.Augmenter):
         self.from_colorspace = from_colorspace
         self.children = meta.handle_children_list(children, self.name, "then")
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1171,6 +856,7 @@ class WithColorspace(meta.Augmenter):
         )
 
 
+@legacy(version="0.4.0")
 class WithBrightnessChannels(meta.Augmenter):
     """Augmenter to apply child augmenters to brightness-related image channels.
 
@@ -1180,7 +866,6 @@ class WithBrightnessChannels(meta.Augmenter):
     it reintegrates the augmented channel into the full image and converts
     back to the input colorspace.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1274,18 +959,17 @@ class WithBrightnessChannels(meta.Augmenter):
 
     _VALID_COLORSPACES = set(_CSPACE_TO_CHANNEL_ID.keys())
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
-        children: ChildrenInput = None, # type: ignore
-        to_colorspace: ToColorspaceParamInput = None, # type: ignore
+        children: ChildrenInput = None,  # type: ignore
+        to_colorspace: ToColorspaceParamInput = None,  # type: ignore
         from_colorspace: ColorSpace = "RGB",
         seed: RNGInput = None,
         name: str | None = None,
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # pylint: disable=dangerous-default-value
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -1298,7 +982,7 @@ class WithBrightnessChannels(meta.Augmenter):
         )
         self.from_colorspace = from_colorspace
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1336,7 +1020,7 @@ class WithBrightnessChannels(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _extract_brightness_channels(
         self, images: Images, colorspaces: Sequence[ColorSpace]
     ) -> list[Array]:
@@ -1349,7 +1033,7 @@ class WithBrightnessChannels(meta.Augmenter):
             result.append(channel)
         return result
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _invert_extract_brightness_channels(
         self, channels: Sequence[Array], images: Images, colorspaces: Sequence[ColorSpace]
     ) -> Images:
@@ -1358,7 +1042,7 @@ class WithBrightnessChannels(meta.Augmenter):
             image[:, :, channel_id : channel_id + 1] = channel
         return images
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _to_deterministic(self) -> meta.Augmenter:
         aug = self.copy()
         aug.children = aug.children.to_deterministic()
@@ -1366,17 +1050,17 @@ class WithBrightnessChannels(meta.Augmenter):
         aug.random_state = self.random_state.derive_rng_()
         return aug
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.to_colorspace, self.from_colorspace]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_children_lists(self) -> list[list[meta.Augmenter]]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
         return cast(list[list[meta.Augmenter]], [self.children])
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __str__(self) -> str:
         return (
             "WithBrightnessChannels("
@@ -1388,13 +1072,13 @@ class WithBrightnessChannels(meta.Augmenter):
         )
 
 
+@legacy(version="0.4.0")
 class MultiplyAndAddToBrightness(WithBrightnessChannels):
     """Multiply and add to the brightness channels of input images.
 
     This is a wrapper around :class:`WithBrightnessChannels` and hence
     performs internally the same projection to random colorspaces.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1448,7 +1132,7 @@ class MultiplyAndAddToBrightness(WithBrightnessChannels):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         mul: ParamInput = (0.7, 1.3),
@@ -1461,7 +1145,6 @@ class MultiplyAndAddToBrightness(WithBrightnessChannels):
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # pylint: disable=dangerous-default-value
         if to_colorspace is None:
             to_colorspace = [
                 CSPACE_YCrCb,
@@ -1471,12 +1154,13 @@ class MultiplyAndAddToBrightness(WithBrightnessChannels):
                 CSPACE_Luv,
                 CSPACE_YUV,
             ]
+        arithmetic_lib = _get_arithmetic()
         mul = (
             meta.Identity()
             if ia.is_single_number(mul) and np.isclose(mul, 1.0)
-            else arithmetic.Multiply(mul)
+            else arithmetic_lib.Multiply(mul)
         )
-        add = meta.Identity() if add == 0 else arithmetic.Add(add)
+        add = meta.Identity() if add == 0 else arithmetic_lib.Add(add)
 
         super().__init__(
             children=meta.Sequential([mul, add], random_order=random_order),
@@ -1488,7 +1172,7 @@ class MultiplyAndAddToBrightness(WithBrightnessChannels):
             deterministic=deterministic,
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __str__(self) -> str:
         return (
             "MultiplyAndAddToBrightness("
@@ -1502,13 +1186,13 @@ class MultiplyAndAddToBrightness(WithBrightnessChannels):
         )
 
 
+@legacy(version="0.4.0")
 class MultiplyBrightness(MultiplyAndAddToBrightness):
     """Multiply the brightness channels of input images.
 
     This is a wrapper around :class:`WithBrightnessChannels` and hence
     performs internally the same projection to random colorspaces.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1553,7 +1237,7 @@ class MultiplyBrightness(MultiplyAndAddToBrightness):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         mul: ParamInput = (0.7, 1.3),
@@ -1564,7 +1248,6 @@ class MultiplyBrightness(MultiplyAndAddToBrightness):
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # pylint: disable=dangerous-default-value
         if to_colorspace is None:
             to_colorspace = [
                 CSPACE_YCrCb,
@@ -1587,13 +1270,13 @@ class MultiplyBrightness(MultiplyAndAddToBrightness):
         )
 
 
+@legacy(version="0.4.0")
 class AddToBrightness(MultiplyAndAddToBrightness):
     """Add to the brightness channels of input images.
 
     This is a wrapper around :class:`WithBrightnessChannels` and hence
     performs internally the same projection to random colorspaces.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1638,18 +1321,17 @@ class AddToBrightness(MultiplyAndAddToBrightness):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         add: ParamInput = (-30, 30),
-        to_colorspace: ToColorspaceParamInput = None, # type: ignore
+        to_colorspace: ToColorspaceParamInput = None,  # type: ignore
         from_colorspace: ColorSpace = "RGB",
         seed: RNGInput = None,
         name: str | None = None,
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # pylint: disable=dangerous-default-value
         if to_colorspace is None:
             to_colorspace = [
                 CSPACE_YCrCb,
@@ -1670,7 +1352,6 @@ class AddToBrightness(MultiplyAndAddToBrightness):
             random_state=random_state,
             deterministic=deterministic,
         )
-
 
 
 # TODO Merge this into WithColorspace? A bit problematic due to int16
@@ -1775,7 +1456,7 @@ class WithHueAndSaturation(meta.Augmenter):
         # for Add or Multiply
         self._internal_dtype = np.int16
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1793,7 +1474,7 @@ class WithHueAndSaturation(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _images_to_hsv_(self, images: Images | None) -> tuple[Images | None, Images | None]:
         if images is None:
             return None, None
@@ -1816,7 +1497,7 @@ class WithHueAndSaturation(meta.Augmenter):
             images_hs = np.stack(images_hs, axis=0)
         return images_hs, images_hsv
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _hs_to_images_(self, images_hs: Images | None, images_hsv: Images | None) -> Images | None:
         if images_hs is None:
             return None
@@ -2037,10 +1718,17 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
         else:
             rss = iarandom.RNG.create_if_not_rng_(seed).derive_rngs_(5)
 
+        # Store parameters for MLX fast-path
+        self.mul = mul
+        self.mul_hue = mul_hue
+        self.mul_saturation = mul_saturation
+        self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
+
+        arithmetic_lib = _get_arithmetic()
         children = []
         if mul is not None:
             children.append(
-                arithmetic.Multiply(
+                arithmetic_lib.Multiply(
                     mul,
                     per_channel=per_channel,
                     seed=rss[0],
@@ -2054,7 +1742,7 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
                 children.append(
                     meta.WithChannels(
                         0,
-                        arithmetic.Multiply(
+                        arithmetic_lib.Multiply(
                             mul_hue,
                             seed=rss[0],
                             name=f"{name}-MultiplyHue",
@@ -2071,7 +1759,7 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
                 children.append(
                     meta.WithChannels(
                         1,
-                        arithmetic.Multiply(
+                        arithmetic_lib.Multiply(
                             mul_saturation,
                             seed=rss[2],
                             name=f"{name}-MultiplySaturation",
@@ -2093,6 +1781,113 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
             random_state=random_state,
             deterministic=deterministic,
         )
+
+    @legacy(version="0.4.0")
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
+        if batch.images is None:
+            return batch
+
+        # MLX fast-path
+        if is_mlx_array(batch.images):
+            from imgaug2.mlx._core import to_mlx, mx
+
+            images_mlx = batch.images
+            nb_images = len(images_mlx)
+
+            # RGB -> HSV
+            images_hsv = mlx_color.rgb_to_hsv(images_mlx)
+
+            h = images_hsv[..., 0]
+            s = images_hsv[..., 1]
+            v = images_hsv[..., 2]
+
+            rss = random_state.duplicate(3)
+
+            # Apply mul (affects both H and S)
+            if self.mul is not None:
+                # Per-channel handling
+                # If per_channel is True, we sample ONE value for H and ONE for S per image.
+                # If False, one value for both.
+                # But MultiplyHueAndSaturation init logic for children:
+                # Multiply(mul, per_channel=per_channel)
+                # Multiply with per_channel=True on 2-channel image (HS) samples 2 values per image.
+
+                # We need to replicate Multiply's sampling.
+                # Multiply(mul) logic:
+                # samples = self.mul.draw_samples((nb_images, nb_channels))
+                # For HS image, nb_channels=2.
+
+                # Check per_channel param
+                # But MultiplyHueAndSaturation doesn't store per_channel!
+                # It passes it to child Multiply.
+                # I need to store per_channel in __init__ too if I want to support it accurately.
+                # However, looking at __init__, it receives per_channel.
+                # I better modify __init__ to store per_channel as well.
+                # Assuming I added self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
+                # Wait, I didn't add it yet. I need to add it in the first chunk.
+
+                # For now, let's assume I added it.
+                # Actually, standard MultiplyHueAndSaturation doesn't store it.
+                # I will add self.per_channel storage in __init__.
+
+                p_channel = self.per_channel.draw_samples((nb_images,), random_state=rss[0])
+                samples = self.mul.draw_samples((nb_images, 2), random_state=rss[1])  # (N, 2)
+
+                # If not per_channel, use first sample for both?
+                # Multiply logic: if p > 0.5: use samples[i, :] (different)
+                # else: use samples[i, 0] broadcasted.
+
+                # Vectorized:
+                # mask = p_channel > 0.5 (N,)
+                # final_samples (N, 2)
+                # final_samples[mask] = samples[mask]
+                # final_samples[~mask] = samples[~mask, 0:1] (broadcast)
+
+                p_mask = to_mlx(p_channel > 0.5).reshape(-1, 1)
+                samples_mlx = to_mlx(samples)
+
+                # Use scalar from col 0 for non-per-channel
+                samples_scalar = samples_mlx[:, 0:1]
+
+                final_samples = mx.where(p_mask, samples_mlx, samples_scalar)  # (N, 2)
+
+                scales_h = final_samples[:, 0].reshape(-1, 1, 1)
+                scales_s = final_samples[:, 1].reshape(-1, 1, 1)
+
+                h = h * scales_h
+                s = s * scales_s
+
+            # Apply mul_hue
+            if self.mul_hue is not None:
+                scales_h = to_mlx(
+                    self.mul_hue.draw_samples((nb_images,), random_state=rss[0])
+                ).reshape(-1, 1, 1)
+                h = h * scales_h
+
+            # Apply mul_saturation
+            if self.mul_saturation is not None:
+                scales_s = to_mlx(
+                    self.mul_saturation.draw_samples((nb_images,), random_state=rss[1])
+                ).reshape(-1, 1, 1)
+                s = s * scales_s
+
+            # Clip/Modulo
+            h = h % 360.0
+            s = mx.clip(s, 0.0, 1.0)
+
+            # Reconstruct
+            images_hsv_aug = mx.stack([h, s, v], axis=-1)
+            batch.images = mlx_color.hsv_to_rgb(images_hsv_aug)
+
+            return batch
+
+        return super()._augment_batch_(batch, random_state, parents, hooks)
 
 
 class MultiplyHue(MultiplyHueAndSaturation):
@@ -2254,6 +2049,7 @@ class MultiplySaturation(MultiplyHueAndSaturation):
         )
 
 
+@legacy(version="0.4.0")
 class RemoveSaturation(MultiplySaturation):
     """Decrease the saturation of images by varying degrees.
 
@@ -2261,7 +2057,6 @@ class RemoveSaturation(MultiplySaturation):
 
     This augmenter is the same as ``MultiplySaturation((0.0, 1.0))``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2322,7 +2117,7 @@ class RemoveSaturation(MultiplySaturation):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         mul: ParamInput = 1,
@@ -2357,10 +2152,9 @@ class RemoveSaturation(MultiplySaturation):
 #      and are supposed to be angular representations, i.e. if values go below
 #      0 or above 180 they are supposed to overflow
 #      to 180 and 0
-# pylint: disable=pointless-string-statement
 """
 def AddToHueAndSaturation(value=0, per_channel=False, from_colorspace="RGB",
-                          channels=[0, 1], name=None):  # pylint: disable=locally-disabled, dangerous-default-value, line-too-long
+                          channels=[0, 1], name=None):
     ""
     Augmenter that transforms images into HSV space, selects the H and S
     channels and then adds a given range of values to these.
@@ -2404,7 +2198,6 @@ def AddToHueAndSaturation(value=0, per_channel=False, from_colorspace="RGB",
         name=name
     )
 """
-# pylint: enable=pointless-string-statement
 
 
 class AddToHueAndSaturation(meta.Augmenter):
@@ -2545,7 +2338,9 @@ class AddToHueAndSaturation(meta.Augmenter):
         if self.backend == "cv2" and AddToHueAndSaturation._LUT_CACHE is None:
             AddToHueAndSaturation._LUT_CACHE = self._generate_lut_table()
 
-    def _draw_samples(self, augmentables: Images, random_state: iarandom.RNG) -> tuple[Array, Array]:
+    def _draw_samples(
+        self, augmentables: Images, random_state: iarandom.RNG
+    ) -> tuple[Array, Array]:
         nb_images = len(augmentables)
         rss = random_state.duplicate(2)
 
@@ -2584,7 +2379,7 @@ class AddToHueAndSaturation(meta.Augmenter):
 
         return samples_hue, samples_saturation
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -2593,6 +2388,43 @@ class AddToHueAndSaturation(meta.Augmenter):
         hooks: ia.HooksImages | None,
     ) -> _BatchInAugmentation:
         if batch.images is None:
+            return batch
+
+        # MLX fast-path
+        if is_mlx_array(batch.images):
+            from imgaug2.mlx._core import to_mlx, mx
+
+            images_mlx = batch.images
+            # RGB -> HSV
+            images_hsv = mlx_color.rgb_to_hsv(images_mlx)
+
+            samples = self._draw_samples(batch.images, random_state)
+            hues_shift = samples[0]  # (N,) int32
+            sats_shift = samples[1]  # (N,) int32
+
+            # Convert to MLX and floats
+            hues_shift_mlx = to_mlx(hues_shift).reshape(-1, 1, 1).astype(mx.float32)
+            sats_shift_mlx = to_mlx(sats_shift).reshape(-1, 1, 1).astype(mx.float32)
+
+            # H: samples are 0-180 scale. 1 unit = 2 deg.
+            # MLX H is 0-360.
+            # So we add hues_shift * 2.0.
+            hues_shift_deg = hues_shift_mlx * 2.0
+
+            # S: samples are 0-255 scale.
+            # MLX S is 0-1.
+            # So we add sats_shift / 255.0.
+            sats_shift_norm = sats_shift_mlx / 255.0
+
+            h = images_hsv[..., 0]
+            s = images_hsv[..., 1]
+            v = images_hsv[..., 2]
+
+            h = (h + hues_shift_deg) % 360.0
+            s = mx.clip(s + sats_shift_norm, 0.0, 1.0)
+
+            images_hsv_aug = mx.stack([h, s, v], axis=-1)
+            batch.images = mlx_color.hsv_to_rgb(images_hsv_aug)
             return batch
 
         images = batch.images
@@ -2676,7 +2508,10 @@ class AddToHueAndSaturation(meta.Augmenter):
 
     @classmethod
     def _handle_value_arg(
-        cls, value: ParamInput | None, value_hue: ParamInput | None, value_saturation: ParamInput | None
+        cls,
+        value: ParamInput | None,
+        value_hue: ParamInput | None,
+        value_saturation: ParamInput | None,
     ) -> iap.StochasticParameter | None:
         if value is not None:
             assert value_hue is None, (
@@ -2915,17 +2750,9 @@ class AddToSaturation(AddToHueAndSaturation):
         )
 
 
-# TODO tests
-# TODO rename to ChangeColorspace3D and then introduce ChangeColorspace, which
-#      does not enforce 3d images?
 class ChangeColorspace(meta.Augmenter):
     """
     Augmenter to change the colorspace of images.
-
-    .. note::
-
-        This augmenter is not tested. Some colorspaces might work, others
-        might not.
 
     ..note::
 
@@ -3103,7 +2930,11 @@ class ChangeColorspace(meta.Augmenter):
         to_colorspaces = self.to_colorspace.draw_samples((n_augmentables,), random_state=rss[1])
         return alphas, to_colorspaces
 
-    # Added in 0.4.0.
+    def _draw_to_colorspace(self, random_state: iarandom.RNG) -> ColorSpace:
+        _, to_colorspaces = self._draw_samples(1, random_state)
+        return to_colorspaces[0]
+
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -3129,7 +2960,7 @@ class ChangeColorspace(meta.Augmenter):
                 pass  # no change necessary
             else:
                 image_aug = change_colorspace_(image, to_colorspace, self.from_colorspace)
-                batch.images[i] = blend.blend_alpha(image_aug, image, alpha, self.eps)
+                batch.images[i] = blend_alpha(image_aug, image, alpha, self.eps)
 
         return batch
 
@@ -3229,7 +3060,45 @@ class Grayscale(ChangeColorspace):
             deterministic=deterministic,
         )
 
+    @legacy(version="0.4.0")
+    def _augment_batch_(
+        self,
+        batch: _BatchInAugmentation,
+        random_state: iarandom.RNG,
+        parents: list[meta.Augmenter],
+        hooks: ia.HooksImages | None,
+    ) -> _BatchInAugmentation:
+        if batch.images is None:
+            return batch
 
+        # MLX fast-path
+        from imgaug2.mlx._core import to_mlx
+
+        if is_mlx_array(batch.images):
+            images_mlx = batch.images
+            nb_images = len(images_mlx)
+            rss = random_state.duplicate(2)
+            alphas = self.alpha.draw_samples((nb_images,), random_state=rss[0])
+
+            # Convert alphas to MLX array and reshape for broadcasting: (N, 1, 1, 1)
+            # We assume images are (N, H, W, C)
+            alphas_mlx = to_mlx(alphas).reshape(-1, 1, 1, 1)
+
+            # Get full grayscale version (alpha=1.0)
+            gray_mlx = mlx_color.grayscale(images_mlx, alpha=1.0)
+
+            # Blend: constant float/int math works with MLX arrays
+            # image * (1 - alpha) + gray * alpha
+            # Ensure alphas are float32 for blending
+            alphas_mlx = alphas_mlx.astype(images_mlx.dtype)
+
+            batch.images = images_mlx * (1 - alphas_mlx) + gray_mlx * alphas_mlx
+            return batch
+
+        return super()._augment_batch_(batch, random_state, parents, hooks)
+
+
+@legacy(version="0.4.0")
 class ChangeColorTemperature(meta.Augmenter):
     """Change the temperature to a provided Kelvin value.
 
@@ -3243,7 +3112,6 @@ class ChangeColorTemperature(meta.Augmenter):
     Basic method to change color temperatures taken from
     `<https://stackoverflow.com/a/11888449>`_
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -3273,7 +3141,7 @@ class ChangeColorTemperature(meta.Augmenter):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         kelvin: ParamInput = (1000, 11000),
@@ -3292,7 +3160,7 @@ class ChangeColorTemperature(meta.Augmenter):
         )
         self.from_colorspace = from_colorspace
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -3310,7 +3178,7 @@ class ChangeColorTemperature(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.kelvin, self.from_colorspace]
@@ -3330,7 +3198,6 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # pylint: disable=dangerous-default-value
         if to_colorspace is None:
             to_colorspace = [CSPACE_RGB, CSPACE_Lab]
         super().__init__(
@@ -3362,7 +3229,7 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
 
         return counts
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -3382,10 +3249,8 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
         return batch
 
     def _augment_single_image(self, image: Array, counts: int, random_state: iarandom.RNG) -> Array:
-        # pylint: disable=protected-access, invalid-name
         assert image.shape[-1] in [1, 3, 4], (
-            "Expected image with 1, 3 or 4 channels, "
-            f"got {image.shape[-1]} (shape: {image.shape})."
+            f"Expected image with 1, 3 or 4 channels, got {image.shape[-1]} (shape: {image.shape})."
         )
 
         orig_shape = image.shape
@@ -3405,10 +3270,6 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
                 cs = meta.Identity()
                 cs_inv = meta.Identity()
             else:
-                # TODO quite hacky to recover the sampled to_colorspace here
-                #      by accessing _draw_samples(). Would be better to have
-                #      an inverse augmentation method in ChangeColorspace.
-
                 # We use random_state.copy() in this method, but that is not
                 # expected to cause unchanged an random_state, because
                 # _augment_batch_() uses an un-copied one for _draw_samples()
@@ -3417,9 +3278,9 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
                     to_colorspace=self.to_colorspace,
                     random_state=random_state.copy(),
                 )
-                _, to_colorspaces = cs._draw_samples(1, random_state.copy())
+                to_colorspace = cs._draw_to_colorspace(random_state.copy())
                 cs_inv = ChangeColorspace(
-                    from_colorspace=to_colorspaces[0],
+                    from_colorspace=to_colorspace,
                     to_colorspace=self.from_colorspace,
                     random_state=random_state.copy(),
                 )
@@ -3452,8 +3313,6 @@ class _AbstractColorQuantization(meta.Augmenter, metaclass=ABCMeta):
             self.interpolation,
         ]
 
-    # TODO this is the same function as in Superpixels._ensure_max_size
-    #      make DRY
     @classmethod
     def _ensure_max_size(cls, image: Array, max_size: int | None, interpolation: str) -> Array:
         if max_size is not None:
@@ -3613,7 +3472,6 @@ class KMeansColorQuantization(_AbstractColorQuantization):
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # pylint: disable=dangerous-default-value
         super().__init__(
             counts=n_colors,
             from_colorspace=from_colorspace,
@@ -3626,11 +3484,11 @@ class KMeansColorQuantization(_AbstractColorQuantization):
             deterministic=deterministic,
         )
 
+    @legacy(version="0.4.0")
     @property
     def n_colors(self) -> iap.StochasticParameter:
         """Alias for property ``counts``.
 
-        Added in 0.4.0.
 
         """
         return self.counts
@@ -3651,6 +3509,7 @@ def quantize_colors_kmeans(
     return quantize_kmeans(arr=image, nb_clusters=n_colors, nb_max_iter=n_max_iter, eps=eps)
 
 
+@legacy(version="0.4.0")
 def quantize_kmeans(arr: Array, nb_clusters: int, nb_max_iter: int = 10, eps: float = 1.0) -> Array:
     """Quantize an array into N bins using k-means clustering.
 
@@ -3667,7 +3526,7 @@ def quantize_kmeans(arr: Array, nb_clusters: int, nb_max_iter: int = 10, eps: fl
         internal RNG and imgaug's global RNG. This is necessary in order
         to ensure that the k-means clustering happens deterministically.
 
-    Added in 0.4.0. (Previously called ``quantize_colors_kmeans()``.)
+    Previously called ``quantize_colors_kmeans()``.
 
     **Supported dtypes**:
 
@@ -3750,12 +3609,10 @@ def quantize_kmeans(arr: Array, nb_clusters: int, nb_max_iter: int = 10, eps: fl
     # is non-deterministic (tested). In C++ the function has an rgn argument,
     # but not in python. In python there also seems to be no way to read out
     # cv2's RNG state, so we can't set it back after executing this function.
-    # TODO this is quite hacky
     cv2.setRNGSeed(1)
     _compactness, labels, centers = cv2.kmeans(
         pixel_vectors, nb_clusters, None, criteria, attempts, cv2.KMEANS_RANDOM_CENTERS
     )
-    # TODO replace by sample_seed function
     # cv2 seems to be able to handle SEED_MAX_VALUE (tested) but not floats
     cv2.setRNGSeed(iarandom.get_global_rng().generate_seed_())
 
@@ -3903,7 +3760,6 @@ class UniformColorQuantization(_AbstractColorQuantization):
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # pylint: disable=dangerous-default-value
         super().__init__(
             counts=n_colors,
             from_colorspace=from_colorspace,
@@ -3916,11 +3772,11 @@ class UniformColorQuantization(_AbstractColorQuantization):
             deterministic=deterministic,
         )
 
+    @legacy(version="0.4.0")
     @property
     def n_colors(self) -> iap.StochasticParameter:
         """Alias for property ``counts``.
 
-        Added in 0.4.0.
 
         """
         return self.counts
@@ -3929,6 +3785,7 @@ class UniformColorQuantization(_AbstractColorQuantization):
         return quantize_uniform_(image, counts)
 
 
+@legacy(version="0.4.0")
 class UniformColorQuantizationToNBits(_AbstractColorQuantization):
     """Quantize images by setting ``8-B`` bits of each component to zero.
 
@@ -3951,7 +3808,6 @@ class UniformColorQuantizationToNBits(_AbstractColorQuantization):
         images have 4 channels, it is assumed that the 4th channel is an alpha
         channel and it will not be quantized.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4055,7 +3911,7 @@ class UniformColorQuantizationToNBits(_AbstractColorQuantization):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         nb_bits: ParamInput = (1, 8),
@@ -4068,7 +3924,6 @@ class UniformColorQuantizationToNBits(_AbstractColorQuantization):
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # pylint: disable=dangerous-default-value
 
         # wrt value range: for discrete params, (1, 8) results in
         # DiscreteUniform with interval [1, 8]
@@ -4085,15 +3940,15 @@ class UniformColorQuantizationToNBits(_AbstractColorQuantization):
             deterministic=deterministic,
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _quantize(self, image: Array, counts: int) -> Array:
         return quantize_uniform_to_n_bits_(image, counts)
 
 
+@legacy(version="0.4.0")
 class Posterize(UniformColorQuantizationToNBits):
     """Alias for :class:`UniformColorQuantizationToNBits`.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4112,12 +3967,13 @@ def quantize_colors_uniform(image: Array, n_colors: int) -> Array:
     return quantize_uniform(arr=image, nb_bins=n_colors)
 
 
+@legacy(version="0.4.0")
 def quantize_uniform(arr: Array, nb_bins: int, to_bin_centers: bool = True) -> Array:
     """Quantize an array into N equally-sized bins.
 
     See :func:`quantize_uniform_` for details.
 
-    Added in 0.4.0. (Previously called ``quantize_colors_uniform()``.)
+    Previously called ``quantize_colors_uniform()``.
 
     **Supported dtypes**:
 
@@ -4143,6 +3999,7 @@ def quantize_uniform(arr: Array, nb_bins: int, to_bin_centers: bool = True) -> A
     return quantize_uniform_(np.copy(arr), nb_bins=nb_bins, to_bin_centers=to_bin_centers)
 
 
+@legacy(version="0.4.0")
 def quantize_uniform_(arr: Array, nb_bins: int, to_bin_centers: bool = True) -> Array:
     """Quantize an array into N equally-sized bins in-place.
 
@@ -4153,7 +4010,6 @@ def quantize_uniform_(arr: Array, nb_bins: int, to_bin_centers: bool = True) -> 
     the target number of bins (roughly matches number of colors) after
     quantization.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4226,15 +4082,15 @@ def quantize_uniform_(arr: Array, nb_bins: int, to_bin_centers: bool = True) -> 
     return arr
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _QuantizeUniformCenterizedLUTTableSingleton:
     _INSTANCE = None
 
+    @legacy(version="0.4.0")
     @classmethod
     def get_instance(cls) -> _QuantizeUniformLUTTable:
         """Get singleton instance of :class:`_QuantizeUniformLUTTable`.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -4247,17 +4103,17 @@ class _QuantizeUniformCenterizedLUTTableSingleton:
         return cls._INSTANCE
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _QuantizeUniformNotCenterizedLUTTableSingleton:
     """Table for :func:`quantize_uniform` with ``to_bin_centers=False``."""
 
     _INSTANCE = None
 
+    @legacy(version="0.4.0")
     @classmethod
     def get_instance(cls) -> _QuantizeUniformLUTTable:
         """Get singleton instance of :class:`_QuantizeUniformLUTTable`.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -4270,20 +4126,20 @@ class _QuantizeUniformNotCenterizedLUTTableSingleton:
         return cls._INSTANCE
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _QuantizeUniformLUTTable:
     def __init__(self, centerize: bool) -> None:
         self.table = self._generate_quantize_uniform_table(centerize)
 
+    @legacy(version="0.4.0")
     def get_for_nb_bins(self, nb_bins: int) -> Array:
         """Get LUT ndarray for a provided number of bins.
 
-        Added in 0.4.0.
 
         """
         return self.table[nb_bins, :]
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _generate_quantize_uniform_table(cls, centerize: bool) -> Array:
         # For simplicity, we generate here the tables for nb_bins=0 (results
@@ -4305,12 +4161,12 @@ class _QuantizeUniformLUTTable:
         return table_all_nb_bins
 
 
+@legacy(version="0.4.0")
 def quantize_uniform_to_n_bits(arr: Array, nb_bits: int) -> Array:
     """Reduce each component in an array to a maximum number of bits.
 
     See :func:`quantize_uniform_to_n_bits` for details.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4333,6 +4189,7 @@ def quantize_uniform_to_n_bits(arr: Array, nb_bits: int) -> Array:
     return quantize_uniform_to_n_bits_(np.copy(arr), nb_bits=nb_bits)
 
 
+@legacy(version="0.4.0")
 def quantize_uniform_to_n_bits_(arr: Array, nb_bits: int) -> Array:
     """Reduce each component in an array to a maximum number of bits in-place.
 
@@ -4347,7 +4204,6 @@ def quantize_uniform_to_n_bits_(arr: Array, nb_bits: int) -> Array:
     This function produces the same outputs as :func:`PIL.ImageOps.posterize`,
     but is significantly faster.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4383,19 +4239,18 @@ def quantize_uniform_to_n_bits_(arr: Array, nb_bits: int) -> Array:
 
     """
     assert 1 <= nb_bits <= 8, (
-        "Expected nb_bits to be in the discrete interval [1..8]. "
-        f"Got a value of {nb_bits} instead."
+        f"Expected nb_bits to be in the discrete interval [1..8]. Got a value of {nb_bits} instead."
     )
     return quantize_uniform_(arr, nb_bins=2**nb_bits, to_bin_centers=False)
 
 
+@legacy(version="0.4.0")
 def posterize(arr: Array, nb_bits: int) -> Array:
     """Alias for :func:`quantize_uniform_to_n_bits`.
 
     This function is an alias for :func:`quantize_uniform_to_n_bits` and was
     added for users familiar with the same function in PIL.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 

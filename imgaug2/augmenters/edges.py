@@ -1,14 +1,12 @@
-"""
-Augmenters that deal with edge detection.
+"""Augmenters that deal with edge detection.
 
-List of augmenters:
+This module provides augmenters for detecting and visualizing edges in images.
 
-    * :class:`Canny`
+Key Augmenters:
+    - `Canny`: Apply Canny edge detection with configurable thresholds.
 
-:class:`~imgaug2.augmenters.convolutional.EdgeDetect` and
-:class:`~imgaug2.augmenters.convolutional.DirectedEdgeDetect` are currently
-still in ``convolutional.py``.
-
+Note:
+    `EdgeDetect` and `DirectedEdgeDetect` are in ``convolutional.py``.
 """
 
 from __future__ import annotations
@@ -29,6 +27,7 @@ from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import blend, meta
 from imgaug2.augmenters._typing import ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
+from imgaug2.compat.markers import legacy
 
 ImageArray: TypeAlias = NDArray[np.generic]
 BinaryMask: TypeAlias = NDArray[np.bool_]
@@ -43,8 +42,6 @@ DiscreteParamInput: TypeAlias = int | tuple[int, int] | list[int] | iap.Stochast
 HysteresisThresholdsInput: TypeAlias = ParamInput | tuple[ParamInput, ParamInput]
 
 
-# TODO this should be placed in some other file than edges.py as it could be
-#      re-used wherever a binary image is the result
 class IBinaryImageColorizer(metaclass=ABCMeta):
     """Interface for classes that convert binary masks to color images."""
 
@@ -81,7 +78,6 @@ class IBinaryImageColorizer(metaclass=ABCMeta):
         """
 
 
-# TODO see above, this should be moved to another file
 class RandomColorsBinaryImageColorizer(IBinaryImageColorizer):
     """
     Colorizer using two randomly sampled foreground/background colors.
@@ -153,8 +149,7 @@ class RandomColorsBinaryImageColorizer(IBinaryImageColorizer):
             f"got dtype kind {image_binary.dtype.kind}."
         )
         assert image_original.ndim == 3, (
-            "Expected original image to be 3-dimensional, got "
-            f"{image_original.ndim} dimensions."
+            f"Expected original image to be 3-dimensional, got {image_original.ndim} dimensions."
         )
         assert image_original.shape[-1] in [1, 3, 4], (
             "Expected original image to have 1, 3 or 4 channels. Got "
@@ -457,7 +452,7 @@ class Canny(meta.Augmenter):
 
         return alpha_samples, hthresh_samples, sobel_samples
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,

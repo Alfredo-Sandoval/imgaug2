@@ -1,34 +1,16 @@
-"""
-Augmenters that somehow change the size of the images.
+"""Augmenters that modify the size of images.
 
-List of augmenters:
+This module provides augmenters for resizing, cropping, and padding images
+to various target sizes, aspect ratios, or multiples.
 
-    * :class:`Resize`
-    * :class:`CropAndPad`
-    * :class:`Crop`
-    * :class:`Pad`
-    * :class:`PadToFixedSize`
-    * :class:`CenterPadToFixedSize`
-    * :class:`CropToFixedSize`
-    * :class:`CenterCropToFixedSize`
-    * :class:`CropToMultiplesOf`
-    * :class:`CenterCropToMultiplesOf`
-    * :class:`PadToMultiplesOf`
-    * :class:`CenterPadToMultiplesOf`
-    * :class:`CropToPowersOf`
-    * :class:`CenterCropToPowersOf`
-    * :class:`PadToPowersOf`
-    * :class:`CenterPadToPowersOf`
-    * :class:`CropToAspectRatio`
-    * :class:`CenterCropToAspectRatio`
-    * :class:`PadToAspectRatio`
-    * :class:`CenterPadToAspectRatio`
-    * :class:`CropToSquare`
-    * :class:`CenterCropToSquare`
-    * :class:`PadToSquare`
-    * :class:`CenterPadToSquare`
-    * :class:`KeepSizeByResize`
-
+Key Augmenters:
+    - `Resize`: Resize images to given sizes.
+    - `CropAndPad`: Crop and/or pad images by specified amounts.
+    - `Crop`, `Pad`: Crop or pad images on specific sides.
+    - `PadToFixedSize`, `CropToFixedSize`: Pad/crop to exact pixel dimensions.
+    - `PadToAspectRatio`, `CropToAspectRatio`: Adjust to target aspect ratios.
+    - `PadToMultiplesOf`, `CropToMultiplesOf`: Ensure dimensions are multiples.
+    - `KeepSizeByResize`: Wrap augmenters to restore original size after.
 """
 
 from __future__ import annotations
@@ -49,7 +31,8 @@ import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, Images, ParamInput, RNGInput
-from imgaug2.imgaug import _normalize_cv2_input_arr_
+from imgaug2.imgaug import _assert_two_or_three_dims, _normalize_cv2_input_arr_
+from imgaug2.compat.markers import legacy
 
 __all__ = [
     "pad",
@@ -97,9 +80,13 @@ XYXY: TypeAlias = tuple[int, int, int, int]
 ResizeSizeScalar: TypeAlias = float | int
 ResizeSizeTuple: TypeAlias = tuple[ResizeSizeScalar, ResizeSizeScalar]
 ResizeSizeList: TypeAlias = list[ResizeSizeScalar]
-ResizeSizeDictValue: TypeAlias = Literal["keep", "keep-aspect-ratio"] | ResizeSizeScalar | ResizeSizeTuple | ResizeSizeList
+ResizeSizeDictValue: TypeAlias = (
+    Literal["keep", "keep-aspect-ratio"] | ResizeSizeScalar | ResizeSizeTuple | ResizeSizeList
+)
 ResizeSizeDict: TypeAlias = dict[str, ResizeSizeDictValue]
-ResizeSizeParam: TypeAlias = iap.StochasticParameter | tuple[iap.StochasticParameter, iap.StochasticParameter]
+ResizeSizeParam: TypeAlias = (
+    iap.StochasticParameter | tuple[iap.StochasticParameter, iap.StochasticParameter]
+)
 ResizeSizeInput: TypeAlias = (
     Literal["keep"]
     | ResizeSizeScalar
@@ -347,7 +334,9 @@ def _prevent_zero_size_after_crop_trbl_(height: int, width: int, crop_trbl: TRBL
     return (crop_top, crop_right, crop_bottom, crop_left)
 
 
-def _prevent_zero_size_after_crop_(axis_size: int, crop_start: int, crop_end: int) -> tuple[int, int]:
+def _prevent_zero_size_after_crop_(
+    axis_size: int, crop_start: int, crop_end: int
+) -> tuple[int, int]:
     crops_start, crops_end = _prevent_zero_sizes_after_crops_(
         np.array([axis_size], dtype=np.int32),
         np.array([crop_start], dtype=np.int32),
@@ -460,74 +449,7 @@ def _handle_pad_mode_param(
     )
 
 
-@iap._prefetchable
-def _handle_position_parameter(
-    position: str
-    | tuple[float | int | iap.StochasticParameter, float | int | iap.StochasticParameter]
-    | iap.StochasticParameter,
-) -> iap.StochasticParameter | tuple[iap.StochasticParameter, iap.StochasticParameter]:
-    if position == "uniform":
-        return iap.Uniform(0.0, 1.0), iap.Uniform(0.0, 1.0)
-    if position == "normal":
-        return (
-            iap.Clip(iap.Normal(loc=0.5, scale=0.35 / 2), minval=0.0, maxval=1.0),
-            iap.Clip(iap.Normal(loc=0.5, scale=0.35 / 2), minval=0.0, maxval=1.0),
-        )
-    if position == "center":
-        return iap.Deterministic(0.5), iap.Deterministic(0.5)
-    if ia.is_string(position) and re.match(r"^(left|center|right)-(top|center|bottom)$", position):
-        mapping = {"top": 0.0, "center": 0.5, "bottom": 1.0, "left": 0.0, "right": 1.0}
-        return (
-            iap.Deterministic(mapping[position.split("-")[0]]),
-            iap.Deterministic(mapping[position.split("-")[1]]),
-        )
-    if isinstance(position, iap.StochasticParameter):
-        return position
-    if isinstance(position, tuple):
-        assert len(position) == 2, (
-            "Expected tuple with two entries as position parameter. "
-            f"Got {len(position)} entries with types {str([type(item) for item in position])}."
-        )
-        for item in position:
-            if ia.is_single_number(item) and (item < 0 or item > 1.0):
-                raise Exception(
-                    "Both position values must be within the value range "
-                    f"[0.0, 1.0]. Got type {type(item)} with value {item:.8f}."
-                )
-        position = [
-            iap.Deterministic(item) if ia.is_single_number(item) else item for item in position
-        ]
-
-        only_sparams = all(isinstance(item, iap.StochasticParameter) for item in position)
-        assert only_sparams, (
-            "Expected tuple with two entries that are both either "
-            f"StochasticParameter or float/int. Got types {str([type(item) for item in position])}."
-        )
-        return tuple(position)
-    raise Exception(
-        "Expected one of the following as position parameter: string "
-        "'uniform', string 'normal', string 'center', a string matching "
-        "regex ^(left|center|right)-(top|center|bottom)$, a single "
-        "StochasticParameter or a tuple of two entries, both being either "
-        "StochasticParameter or floats or int. Got instead type {} with "
-        "content '{}'.".format(
-            type(position),
-            (str(position) if len(str(position)) < 20 else str(position)[0:20] + "..."),
-        )
-    )
-
-
-# TODO this is the same as in imgaug2.py, make DRY
-# Added in 0.4.0.
-def _assert_two_or_three_dims(shape: Shape | Array) -> None:
-    if hasattr(shape, "shape"):
-        shape = shape.shape
-    assert len(shape) in [2, 3], (
-        f"Expected image with two or three dimensions, but got {len(shape)} dimensions "
-        f"and shape {shape}."
-    )
-
-
+@legacy(version="0.4.0")
 def pad(
     arr: Array,
     top: int = 0,
@@ -541,7 +463,7 @@ def pad(
 
     This function is a wrapper around :func:`numpy.pad`.
 
-    Added in 0.4.0. (Previously named ``imgaug2.imgaug2.pad()``.)
+    Previously named ``imgaug2.imgaug2.pad()``.
 
     **Supported dtypes**:
 
@@ -626,7 +548,7 @@ def pad(
         # for whatever reason, so we check first if the constant is not None
         # (i.e. if float128 exists).
         if iadt._FLOAT128_DTYPE is not None and arr.dtype == iadt._FLOAT128_DTYPE:
-            cval = np.float128(cval)  # pylint: disable=no-member
+            cval = np.float128(cval)
 
         if is_multi_cval:
             cval = np.clip(cval, min_value, max_value)
@@ -665,7 +587,6 @@ def pad(
         )
 
         # OpenCV turns the channel axis for arrays with 0 channels to 512
-        # TODO add direct test for this. indirectly tested via Pad
         bad_shape_cv2 = arr.ndim == 3 and arr.shape[-1] == 0
 
         if not bad_datatype_cv2 and not bad_mode_cv2 and not bad_shape_cv2:
@@ -748,6 +669,7 @@ def pad(
     return np.copy(arr)
 
 
+@legacy(version="0.4.0")
 def pad_to_aspect_ratio(
     arr: Array,
     aspect_ratio: float,
@@ -761,7 +683,7 @@ def pad_to_aspect_ratio(
     explanation of how the required padding amounts are distributed per
     image axis.
 
-    Added in 0.4.0. (Previously named ``imgaug2.imgaug2.pad_to_aspect_ratio()``.)
+    Previously named ``imgaug2.imgaug2.pad_to_aspect_ratio()``.
 
     **Supported dtypes**:
 
@@ -816,6 +738,7 @@ def pad_to_aspect_ratio(
     return arr_padded
 
 
+@legacy(version="0.4.0")
 def pad_to_multiples_of(
     arr: Array,
     height_multiple: int | None,
@@ -830,7 +753,7 @@ def pad_to_multiples_of(
     explanation of how the required padding amounts are distributed per
     image axis.
 
-    Added in 0.4.0. (Previously named ``imgaug2.imgaug2.pad_to_multiples_of()``.)
+    Previously named ``imgaug2.imgaug2.pad_to_multiples_of()``.
 
     **Supported dtypes**:
 
@@ -890,6 +813,7 @@ def pad_to_multiples_of(
     return arr_padded
 
 
+@legacy(version="0.4.0")
 def compute_paddings_to_reach_aspect_ratio(arr: Array | Shape, aspect_ratio: float) -> TRBL:
     """Compute pad amounts required to fulfill an aspect ratio.
 
@@ -907,7 +831,7 @@ def compute_paddings_to_reach_aspect_ratio(arr: Array | Shape, aspect_ratio: flo
     will always add such a left over pixel to the bottom (y-axis) or
     right (x-axis) side.
 
-    Added in 0.4.0. (Previously named
+    (Previously named
     ``imgaug2.imgaug2.compute_paddings_to_reach_aspect_ratio()``.)
 
     Parameters
@@ -960,6 +884,7 @@ def compute_paddings_to_reach_aspect_ratio(arr: Array | Shape, aspect_ratio: flo
     return pad_top, pad_right, pad_bottom, pad_left
 
 
+@legacy(version="0.4.0")
 def compute_croppings_to_reach_aspect_ratio(arr: Array | Shape, aspect_ratio: float) -> TRBL:
     """Compute crop amounts required to fulfill an aspect ratio.
 
@@ -980,7 +905,6 @@ def compute_croppings_to_reach_aspect_ratio(arr: Array | Shape, aspect_ratio: fl
     If an aspect ratio cannot be reached exactly, this function will return
     rather one pixel too few than one pixel too many.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -1030,6 +954,7 @@ def compute_croppings_to_reach_aspect_ratio(arr: Array | Shape, aspect_ratio: fl
     return top, right, bottom, left
 
 
+@legacy(version="0.4.0")
 def compute_paddings_to_reach_multiples_of(
     arr: Array | Shape, height_multiple: int | None, width_multiple: int | None
 ) -> TRBL:
@@ -1039,7 +964,7 @@ def compute_paddings_to_reach_multiples_of(
     explanation of how the required padding amounts are distributed per
     image axis.
 
-    Added in 0.4.0. (Previously named
+    (Previously named
     ``imgaug2.imgaug2.compute_paddings_to_reach_multiples_of()``.)
 
     Parameters
@@ -1096,6 +1021,7 @@ def compute_paddings_to_reach_multiples_of(
     return top, right, bottom, left
 
 
+@legacy(version="0.4.0")
 def compute_croppings_to_reach_multiples_of(
     arr: Array | Shape, height_multiple: int | None, width_multiple: int | None
 ) -> TRBL:
@@ -1105,7 +1031,6 @@ def compute_croppings_to_reach_multiples_of(
     explanation of how the required cropping amounts are distributed per
     image axis.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -1161,6 +1086,7 @@ def compute_croppings_to_reach_multiples_of(
     return top, right, bottom, left
 
 
+@legacy(version="0.4.0")
 def compute_paddings_to_reach_powers_of(
     arr: Array | Shape,
     height_base: int | None,
@@ -1177,7 +1103,7 @@ def compute_paddings_to_reach_powers_of(
     explanation of how the required padding amounts are distributed per
     image axis.
 
-    Added in 0.4.0. (Previously named
+    (Previously named
     ``imgaug2.imgaug2.compute_paddings_to_reach_exponents_of()``.)
 
     Parameters
@@ -1236,6 +1162,7 @@ def compute_paddings_to_reach_powers_of(
     return top, right, bottom, left
 
 
+@legacy(version="0.4.0")
 def compute_croppings_to_reach_powers_of(
     arr: Array | Shape,
     height_base: int | None,
@@ -1259,7 +1186,6 @@ def compute_croppings_to_reach_powers_of(
 
         For axes where ``1 <= S < B`` see parameter `allow_zero_exponent`.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -1320,7 +1246,6 @@ def compute_croppings_to_reach_powers_of(
 @ia.deprecated(alt_func="Resize", comment="Resize has the exactly same interface as Scale.")
 def Scale(*args: object, **kwargs: object) -> Resize:
     """Augmenter that resizes images to specified heights and widths."""
-    # pylint: disable=invalid-name
     return Resize(*args, **kwargs)
 
 
@@ -1570,7 +1495,9 @@ class Resize(meta.Augmenter):
         return result, size_order
 
     @classmethod
-    def _handle_interpolation_arg(cls, interpolation: ResizeInterpolationInput) -> iap.StochasticParameter:
+    def _handle_interpolation_arg(
+        cls, interpolation: ResizeInterpolationInput
+    ) -> iap.StochasticParameter:
         if interpolation == ia.ALL:
             interpolation = iap.Choice(["nearest", "linear", "area", "cubic"])
         elif ia.is_single_integer(interpolation):
@@ -1588,7 +1515,7 @@ class Resize(meta.Augmenter):
             )
         return interpolation
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1621,7 +1548,7 @@ class Resize(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_images_by_samples(self, images: Images, samples: ResizeSamplingResult) -> Images:
         input_was_array = False
         input_dtype = None
@@ -1645,7 +1572,7 @@ class Resize(meta.Augmenter):
 
         return result
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_maps_by_samples(
         self,
         augmentables: list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage],
@@ -1677,7 +1604,7 @@ class Resize(meta.Augmenter):
 
         return result
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_keypoints_by_samples(
         self, kpsois: list[ia.KeypointsOnImage], samples: ResizeSamplingResult
     ) -> list[ia.KeypointsOnImage]:
@@ -2051,7 +1978,6 @@ class CropAndPad(meta.Augmenter):
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # pylint: disable=invalid-name
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -2089,7 +2015,6 @@ class CropAndPad(meta.Augmenter):
     def _handle_px_and_percent_args(
         cls, px: CropAndPadPxInput | None, percent: CropAndPadPercentInput | None
     ) -> CropAndPadParamReturn:
-        # pylint: disable=invalid-name
         all_sides = None
         top, right, bottom, left = None, None, None, None
 
@@ -2115,7 +2040,6 @@ class CropAndPad(meta.Augmenter):
         iap.StochasticParameter | None,
         iap.StochasticParameter | None,
     ]:
-        # pylint: disable=invalid-name
         all_sides = None
         top, right, bottom, left = None, None, None, None
 
@@ -2126,7 +2050,9 @@ class CropAndPad(meta.Augmenter):
                 f"Expected 'px' given as a tuple to contain 2 or 4 entries, got {len(px)}."
             )
 
-            def handle_param(p: CropAndPadPxSingleParam | tuple[int, int]) -> iap.StochasticParameter:
+            def handle_param(
+                p: CropAndPadPxSingleParam | tuple[int, int],
+            ) -> iap.StochasticParameter:
                 if ia.is_single_integer(p):
                     return iap.Deterministic(p)
                 if isinstance(p, tuple):
@@ -2242,7 +2168,7 @@ class CropAndPad(meta.Augmenter):
             )
         return all_sides, top, right, bottom, left
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -2278,7 +2204,7 @@ class CropAndPad(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_images_by_samples(
         self, images: Images, samples: _CropAndPadSamplingResult
     ) -> Images:
@@ -2305,7 +2231,7 @@ class CropAndPad(meta.Augmenter):
 
         return result
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_maps_by_samples(
         self,
         augmentables: list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage],
@@ -2328,7 +2254,7 @@ class CropAndPad(meta.Augmenter):
 
         return result
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_keypoints_by_samples(
         self, keypoints_on_images: list[ia.KeypointsOnImage], samples: _CropAndPadSamplingResult
     ) -> list[ia.KeypointsOnImage]:
@@ -2873,11 +2799,6 @@ class Crop(CropAndPad):
         )
 
 
-# TODO maybe rename this to PadToMinimumSize?
-# TODO this is very similar to CropAndPad, maybe add a way to generate crop
-#      values imagewise via a callback in in CropAndPad?
-# TODO why is padding mode and cval here called pad_mode, pad_cval but in other
-#      cases mode/cval?
 class PadToFixedSize(meta.Augmenter):
     """Pad images to a predefined minimum width and/or height.
 
@@ -3032,7 +2953,7 @@ class PadToFixedSize(meta.Augmenter):
         # to only add at the bottom right. Analogously (0.5, 0.5) pads equally
         # on both axis, (0.0, 1.0) pads left and bottom, (1.0, 0.0) pads right
         # and top.
-        self.position = _handle_position_parameter(position)
+        self.position = iap.handle_position_parameter(position)
 
         self.pad_mode = _handle_pad_mode_param(pad_mode)
         # TODO enable ALL here like in eg Affine
@@ -3052,7 +2973,7 @@ class PadToFixedSize(meta.Augmenter):
         self._pad_cval_heatmaps = 0.0
         self._pad_cval_segmentation_maps = 0
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -3088,7 +3009,7 @@ class PadToFixedSize(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_images_by_samples(
         self, images: Images, samples: PadToFixedSizeSamplingResult
     ) -> list[Array]:
@@ -3112,7 +3033,7 @@ class PadToFixedSize(meta.Augmenter):
         #      some might have been larger than desired height/width)
         return result
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_keypoints_by_samples(
         self, keypoints_on_images: list[ia.KeypointsOnImage], samples: PadToFixedSizeSamplingResult
     ) -> list[ia.KeypointsOnImage]:
@@ -3133,7 +3054,7 @@ class PadToFixedSize(meta.Augmenter):
 
         return result
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_maps_by_samples(
         self,
         augmentables: list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage],
@@ -3221,6 +3142,7 @@ class PadToFixedSize(meta.Augmenter):
         return [self.size[0], self.size[1], self.pad_mode, self.pad_cval, self.position]
 
 
+@legacy(version="0.4.0")
 class CenterPadToFixedSize(PadToFixedSize):
     """Pad images equally on all sides up to given minimum heights/widths.
 
@@ -3229,7 +3151,6 @@ class CenterPadToFixedSize(PadToFixedSize):
     all image sides, while :class:`~imgaug2.augmenters.size.PadToFixedSize`
     by defaults spreads them randomly.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -3277,7 +3198,7 @@ class CenterPadToFixedSize(PadToFixedSize):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         width: int | None,
@@ -3453,9 +3374,9 @@ class CropToFixedSize(meta.Augmenter):
         # (Deterministic(1.0), Deterministic(1.0)) to only crop at the bottom
         # right. Analogously (0.5, 0.5) crops equally on both axis,
         # (0.0, 1.0) crops left and bottom, (1.0, 0.0) crops right and top.
-        self.position = _handle_position_parameter(position)
+        self.position = iap.handle_position_parameter(position)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -3489,7 +3410,7 @@ class CropToFixedSize(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_images_by_samples(
         self, images: Images, samples: CropToFixedSizeSamplingResult
     ) -> list[Array]:
@@ -3509,7 +3430,7 @@ class CropToFixedSize(meta.Augmenter):
 
         return result
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_keypoints_by_samples(
         self, kpsois: list[ia.KeypointsOnImage], samples: CropToFixedSizeSamplingResult
     ) -> list[ia.KeypointsOnImage]:
@@ -3531,7 +3452,7 @@ class CropToFixedSize(meta.Augmenter):
 
         return result
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_maps_by_samples(
         self,
         augmentables: list[ia.HeatmapsOnImage] | list[ia.SegmentationMapsOnImage],
@@ -3603,6 +3524,7 @@ class CropToFixedSize(meta.Augmenter):
         return [self.size[0], self.size[1], self.position]
 
 
+@legacy(version="0.4.0")
 class CenterCropToFixedSize(CropToFixedSize):
     """Take a crop from the center of each image.
 
@@ -3616,7 +3538,6 @@ class CenterCropToFixedSize(CropToFixedSize):
         respective axis. Hence, resulting images can be smaller than the
         provided axis sizes.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -3657,7 +3578,7 @@ class CenterCropToFixedSize(CropToFixedSize):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         width: int | None,
@@ -3678,6 +3599,7 @@ class CenterCropToFixedSize(CropToFixedSize):
         )
 
 
+@legacy(version="0.4.0")
 class CropToMultiplesOf(CropToFixedSize):
     """Crop images down until their height/width is a multiple of a value.
 
@@ -3688,7 +3610,6 @@ class CropToMultiplesOf(CropToFixedSize):
         As a result, this augmenter can still produce axis sizes that are
         not multiples of the given values.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -3739,7 +3660,7 @@ class CropToMultiplesOf(CropToFixedSize):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         width_multiple: int | None,
@@ -3764,7 +3685,7 @@ class CropToMultiplesOf(CropToFixedSize):
         self.width_multiple = width_multiple
         self.height_multiple = height_multiple
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(
         self, batch: _BatchInAugmentation, random_state: iarandom.RNG
     ) -> CropToFixedSizeSamplingResult:
@@ -3786,12 +3707,13 @@ class CropToMultiplesOf(CropToFixedSize):
 
         return sizes, offset_xs, offset_ys
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.width_multiple, self.height_multiple, self.position]
 
 
+@legacy(version="0.4.0")
 class CenterCropToMultiplesOf(CropToMultiplesOf):
     """Crop images equally on all sides until H/W are multiples of given values.
 
@@ -3801,7 +3723,6 @@ class CenterCropToMultiplesOf(CropToMultiplesOf):
     :class:`~imgaug2.augmenters.size.CropToMultiplesOf` by default spreads
     them randomly.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -3845,7 +3766,7 @@ class CenterCropToMultiplesOf(CropToMultiplesOf):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         width_multiple: int | None,
@@ -3866,10 +3787,10 @@ class CenterCropToMultiplesOf(CropToMultiplesOf):
         )
 
 
+@legacy(version="0.4.0")
 class PadToMultiplesOf(PadToFixedSize):
     """Pad images until their height/width is a multiple of a value.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -3926,7 +3847,7 @@ class PadToMultiplesOf(PadToFixedSize):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         width_multiple: int | None,
@@ -3955,7 +3876,7 @@ class PadToMultiplesOf(PadToFixedSize):
         self.width_multiple = width_multiple
         self.height_multiple = height_multiple
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(
         self, batch: _BatchInAugmentation, random_state: iarandom.RNG
     ) -> PadToFixedSizeSamplingResult:
@@ -3977,7 +3898,7 @@ class PadToMultiplesOf(PadToFixedSize):
 
         return sizes, pad_xs, pad_ys, pad_modes, pad_cvals
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [
@@ -3989,6 +3910,7 @@ class PadToMultiplesOf(PadToFixedSize):
         ]
 
 
+@legacy(version="0.4.0")
 class CenterPadToMultiplesOf(PadToMultiplesOf):
     """Pad images equally on all sides until H/W are multiples of given values.
 
@@ -3998,7 +3920,6 @@ class CenterPadToMultiplesOf(PadToMultiplesOf):
     :class:`~imgaug2.augmenters.size.PadToMultiplesOf` by default spreads them
     randomly.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4048,7 +3969,7 @@ class CenterPadToMultiplesOf(PadToMultiplesOf):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         width_multiple: int | None,
@@ -4073,6 +3994,7 @@ class CenterPadToMultiplesOf(PadToMultiplesOf):
         )
 
 
+@legacy(version="0.4.0")
 class CropToPowersOf(CropToFixedSize):
     """Crop images until their height/width is a power of a base.
 
@@ -4088,7 +4010,6 @@ class CropToPowersOf(CropToFixedSize):
         to combine this augmenter with a padding augmenter that pads each
         axis up to ``B``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4141,7 +4062,7 @@ class CropToPowersOf(CropToFixedSize):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         width_base: int | None,
@@ -4166,7 +4087,7 @@ class CropToPowersOf(CropToFixedSize):
         self.width_base = width_base
         self.height_base = height_base
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(
         self, batch: _BatchInAugmentation, random_state: iarandom.RNG
     ) -> CropToFixedSizeSamplingResult:
@@ -4188,12 +4109,13 @@ class CropToPowersOf(CropToFixedSize):
 
         return sizes, offset_xs, offset_ys
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.width_base, self.height_base, self.position]
 
 
+@legacy(version="0.4.0")
 class CenterCropToPowersOf(CropToPowersOf):
     """Crop images equally on all sides until H/W is a power of a base.
 
@@ -4203,7 +4125,6 @@ class CenterCropToPowersOf(CropToPowersOf):
     :class:`~imgaug2.augmenters.size.CropToPowersOf` by default spreads them
     randomly.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4247,7 +4168,7 @@ class CenterCropToPowersOf(CropToPowersOf):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         width_base: int | None,
@@ -4268,6 +4189,7 @@ class CenterCropToPowersOf(CropToPowersOf):
         )
 
 
+@legacy(version="0.4.0")
 class PadToPowersOf(PadToFixedSize):
     """Pad images until their height/width is a power of a base.
 
@@ -4276,7 +4198,6 @@ class PadToPowersOf(PadToFixedSize):
     provided base (e.g. ``2``) and ``E`` is an exponent from the discrete
     interval ``[1 .. inf)``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4335,7 +4256,7 @@ class PadToPowersOf(PadToFixedSize):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         width_base: int | None,
@@ -4364,7 +4285,7 @@ class PadToPowersOf(PadToFixedSize):
         self.width_base = width_base
         self.height_base = height_base
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(
         self, batch: _BatchInAugmentation, random_state: iarandom.RNG
     ) -> PadToFixedSizeSamplingResult:
@@ -4386,12 +4307,13 @@ class PadToPowersOf(PadToFixedSize):
 
         return sizes, pad_xs, pad_ys, pad_modes, pad_cvals
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.width_base, self.height_base, self.pad_mode, self.pad_cval, self.position]
 
 
+@legacy(version="0.4.0")
 class CenterPadToPowersOf(PadToPowersOf):
     """Pad images equally on all sides until H/W is a power of a base.
 
@@ -4400,7 +4322,6 @@ class CenterPadToPowersOf(PadToPowersOf):
     over all image sides, while :class:`~imgaug2.augmenters.size.PadToPowersOf`
     by default spreads them randomly.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4450,7 +4371,7 @@ class CenterPadToPowersOf(PadToPowersOf):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         width_base: int | None,
@@ -4475,6 +4396,7 @@ class CenterPadToPowersOf(PadToPowersOf):
         )
 
 
+@legacy(version="0.4.0")
 class CropToAspectRatio(CropToFixedSize):
     """Crop images until their width/height matches an aspect ratio.
 
@@ -4484,7 +4406,6 @@ class CropToAspectRatio(CropToFixedSize):
     side to crop reaches a size of ``1``. If any side of the image starts
     with a size of ``0``, the image will not be changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4529,7 +4450,7 @@ class CropToAspectRatio(CropToFixedSize):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         aspect_ratio: float | int,
@@ -4552,7 +4473,7 @@ class CropToAspectRatio(CropToFixedSize):
         )
         self.aspect_ratio = aspect_ratio
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(
         self, batch: _BatchInAugmentation, random_state: iarandom.RNG
     ) -> CropToFixedSizeSamplingResult:
@@ -4578,12 +4499,13 @@ class CropToAspectRatio(CropToFixedSize):
 
         return sizes, offset_xs, offset_ys
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.aspect_ratio, self.position]
 
 
+@legacy(version="0.4.0")
 class CenterCropToAspectRatio(CropToAspectRatio):
     """Crop images equally on all sides until they reach an aspect ratio.
 
@@ -4593,7 +4515,6 @@ class CenterCropToAspectRatio(CropToAspectRatio):
     :class:`~imgaug2.augmenters.size.CropToAspectRatio` by default spreads
     them randomly.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4634,7 +4555,7 @@ class CenterCropToAspectRatio(CropToAspectRatio):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         aspect_ratio: float | int,
@@ -4653,13 +4574,13 @@ class CenterCropToAspectRatio(CropToAspectRatio):
         )
 
 
+@legacy(version="0.4.0")
 class PadToAspectRatio(PadToFixedSize):
     """Pad images until their width/height matches an aspect ratio.
 
     This augmenter adds either rows or columns until the image reaches
     the desired aspect ratio given in ``width / height``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4710,7 +4631,7 @@ class PadToAspectRatio(PadToFixedSize):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         aspect_ratio: float | int,
@@ -4737,7 +4658,7 @@ class PadToAspectRatio(PadToFixedSize):
         )
         self.aspect_ratio = aspect_ratio
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(
         self, batch: _BatchInAugmentation, random_state: iarandom.RNG
     ) -> PadToFixedSizeSamplingResult:
@@ -4758,12 +4679,13 @@ class PadToAspectRatio(PadToFixedSize):
 
         return sizes, pad_xs, pad_ys, pad_modes, pad_cvals
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.aspect_ratio, self.pad_mode, self.pad_cval, self.position]
 
 
+@legacy(version="0.4.0")
 class CenterPadToAspectRatio(PadToAspectRatio):
     """Pad images equally on all sides until H/W matches an aspect ratio.
 
@@ -4773,7 +4695,6 @@ class CenterPadToAspectRatio(PadToAspectRatio):
     :class:`~imgaug2.augmenters.size.PadToAspectRatio` by default spreads them
     randomly.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4812,7 +4733,7 @@ class CenterPadToAspectRatio(PadToAspectRatio):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         aspect_ratio: float | int,
@@ -4835,6 +4756,7 @@ class CenterPadToAspectRatio(PadToAspectRatio):
         )
 
 
+@legacy(version="0.4.0")
 class CropToSquare(CropToAspectRatio):
     """Crop images until their width and height are identical.
 
@@ -4843,7 +4765,6 @@ class CropToSquare(CropToAspectRatio):
 
     Images with axis sizes of ``0`` will not be altered.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4883,7 +4804,7 @@ class CropToSquare(CropToAspectRatio):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         position: str
@@ -4904,6 +4825,7 @@ class CropToSquare(CropToAspectRatio):
         )
 
 
+@legacy(version="0.4.0")
 class CenterCropToSquare(CropToSquare):
     """Crop images equally on all sides until their height/width are identical.
 
@@ -4920,7 +4842,6 @@ class CenterCropToSquare(CropToSquare):
 
     Images with axis sizes of ``0`` will not be altered.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -4957,7 +4878,7 @@ class CenterCropToSquare(CropToSquare):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         seed: RNGInput = None,
@@ -4974,13 +4895,13 @@ class CenterCropToSquare(CropToSquare):
         )
 
 
+@legacy(version="0.4.0")
 class PadToSquare(PadToAspectRatio):
     """Pad images until their height and width are identical.
 
     This augmenter is identical to
     :class:`~imgaug2.augmenters.size.PadToAspectRatio` with ``aspect_ratio=1.0``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -5026,7 +4947,7 @@ class PadToSquare(PadToAspectRatio):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"] = "constant",
@@ -5051,6 +4972,7 @@ class PadToSquare(PadToAspectRatio):
         )
 
 
+@legacy(version="0.4.0")
 class CenterPadToSquare(PadToSquare):
     """Pad images equally on all sides until their height & width are identical.
 
@@ -5061,7 +4983,6 @@ class CenterPadToSquare(PadToSquare):
     :class:`~imgaug2.augmenters.size.PadToAspectRatio` with
     ``aspect_ratio=1.0, position="center"``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -5096,7 +5017,7 @@ class CenterPadToSquare(PadToSquare):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         pad_mode: str | list[str] | iap.StochasticParameter | Literal["ALL"] = "constant",
@@ -5288,7 +5209,7 @@ class KeepSizeByResize(meta.Augmenter):
         self.interpolation_heatmaps = _validate_param(interpolation_heatmaps, True)
         self.interpolation_segmaps = _validate_param(interpolation_segmaps, True)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -5338,7 +5259,7 @@ class KeepSizeByResize(meta.Augmenter):
                     setattr(batch, augm_name, cbaois)
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _keep_size_images(
         cls,
@@ -5367,7 +5288,7 @@ class KeepSizeByResize(meta.Augmenter):
 
         return result
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _keep_size_maps(
         cls,
@@ -5388,7 +5309,7 @@ class KeepSizeByResize(meta.Augmenter):
 
         return result
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _keep_size_keypoints(
         cls, kpsois_aug: list[ia.KeypointsOnImage], shapes_orig: list[Shape], interpolations: Array
@@ -5403,7 +5324,7 @@ class KeepSizeByResize(meta.Augmenter):
 
         return result
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     @classmethod
     def _get_shapes(cls, batch: _BatchInAugmentation) -> dict[str, list[Shape]]:
         result = dict()

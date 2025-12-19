@@ -1,71 +1,30 @@
-"""
-Augmenters that wrap methods from ``imagecorruptions`` package.
+"""Augmenters that wrap methods from the ``imagecorruptions`` package.
 
-See `https://github.com/bethgelab/imagecorruptions`_ for the package.
+This module provides augmenters for common image corruptions used to benchmark
+neural network robustness. Derived from the imagecorruptions package based on
+Hendrycks & Dietterich's research on robustness benchmarking.
 
-The package is derived from `https://github.com/hendrycks/robustness`_.
-The corresponding `paper <https://arxiv.org/abs/1807.01697>`_ is::
+Key Augmenters:
+    - Noise: `GaussianNoise`, `ShotNoise`, `ImpulseNoise`, `SpeckleNoise`
+    - Blur: `DefocusBlur`, `GlassBlur`, `MotionBlur`, `ZoomBlur`, `GaussianBlur`
+    - Weather: `Snow`, `Frost`, `Fog`, `Spatter`
+    - Digital: `Contrast`, `Brightness`, `Saturate`, `JpegCompression`, `Pixelate`
+    - Special: `ElasticTransform`
 
-    Hendrycks, Dan and Dietterich, Thomas G.
-    Benchmarking Neural Network Robustness to Common Corruptions and
-    Surface Variations
+Note:
+    Outputs are identical to ``imagecorruptions.corrupt()`` (always ``uint8``).
 
-with the `newer version <https://arxiv.org/abs/1903.12261>`_ being::
+References:
+    - Package: https://github.com/bethgelab/imagecorruptions
+    - Paper: https://arxiv.org/abs/1903.12261
 
-    Hendrycks, Dan and Dietterich, Thomas G.
-    Benchmarking Neural Network Robustness to Common Corruptions and
-    Perturbations
+Example::
 
-List of augmenters:
-
-    * :class:`GaussianNoise`
-    * :class:`ShotNoise`
-    * :class:`ImpulseNoise`
-    * :class:`SpeckleNoise`
-    * :class:`GaussianBlur`
-    * :class:`GlassBlur`
-    * :class:`DefocusBlur`
-    * :class:`MotionBlur`
-    * :class:`ZoomBlur`
-    * :class:`Fog`
-    * :class:`Frost`
-    * :class:`Snow`
-    * :class:`Spatter`
-    * :class:`Contrast`
-    * :class:`Brightness`
-    * :class:`Saturate`
-    * :class:`JpegCompression`
-    * :class:`Pixelate`
-    * :class:`ElasticTransform`
-
-.. note::
-
-    The functions provided here have identical outputs to the ones in
-    ``imagecorruptions`` when called using the ``corrupt()`` function of
-    that package. E.g. the outputs are always ``uint8`` and not
-    ``float32`` or ``float64``.
-
-Example usage::
-
-    >>> # Skip the doctests in this file as the imagecorruptions package is
-    >>> # not available in all python versions that are otherwise supported
-    >>> # by imgaug2.
-    >>> # doctest: +SKIP
-    >>> import imgaug2 as ia
-    >>> import imgaug2.augmenters as iaa
     >>> import numpy as np
-    >>> image = np.zeros((64, 64, 3), dtype=np.uint8)
-    >>> names, funcs = iaa.imgcorruptlike.get_corruption_names("validation")
-    >>> for name, func in zip(names, funcs):
-    >>>     image_aug = func(image, severity=5, seed=1)
-    >>>     image_aug = ia.draw_text(image_aug, x=20, y=20, text=name)
-    >>>     ia.imshow(image_aug)
-
-    Use e.g. ``iaa.imgcorruptlike.GaussianNoise(severity=2)(images=...)`` to
-    create and apply a specific augmenter.
-
-Added in 0.4.0.
-
+    >>> import imgaug2.augmenters as iaa
+    >>> images = [np.zeros((64, 64, 3), dtype=np.uint8)]
+    >>> aug = iaa.imgcorruptlike.GaussianNoise(severity=2)
+    >>> image_aug = aug(images=images)
 """
 
 from __future__ import annotations
@@ -88,6 +47,7 @@ from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 from imgaug2.imgaug import _numbajit
+from imgaug2.compat.markers import legacy
 
 # TODO add optional dependency
 
@@ -108,7 +68,7 @@ class CorruptionFunc(Protocol):
     def __call__(self, x: Array, severity: int = 1, seed: int | None = None) -> Array: ...
 
 
-# Added in 0.6.0.
+@legacy(version="0.6.0")
 def _patch_imagecorruptions_modules_() -> tuple[ModuleType, ModuleType]:
     """Patch `imagecorruptions` for compatibility with newer numpy/skimage.
 
@@ -192,7 +152,7 @@ def _patch_imagecorruptions_modules_() -> tuple[ModuleType, ModuleType]:
     return imagecorruptions, corruptions
 
 
-# Added in 0.6.0.
+@legacy(version="0.6.0")
 def _gaussian_skimage_compat(image: Array, sigma: float, multichannel: bool) -> Array:
     """Call `skimage.filters.gaussian` across skimage versions."""
     try:
@@ -204,7 +164,7 @@ def _gaussian_skimage_compat(image: Array, sigma: float, multichannel: bool) -> 
         return skimage.filters.gaussian(image, sigma=sigma, multichannel=multichannel)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _clipped_zoom_no_scipy_warning(img: Array, zoom_factor: float) -> Array:
     from scipy.ndimage import zoom as scizoom
 
@@ -226,6 +186,7 @@ def _clipped_zoom_no_scipy_warning(img: Array, zoom_factor: float) -> Array:
         return img
 
 
+@legacy(version="0.4.0")
 def _call_imgcorrupt_func(
     fname: str | Callable[[Array, int], Array],
     seed: int | None,
@@ -238,7 +199,6 @@ def _call_imgcorrupt_func(
     The dtype support below is basically a placeholder to which the
     augmentation functions can point to decrease the amount of documentation.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -312,6 +272,7 @@ def _call_imgcorrupt_func(
     return cast(Array, image_aug)
 
 
+@legacy(version="0.4.0")
 def get_corruption_names(
     subset: Literal["common", "validation", "all"] = "common",
 ) -> tuple[list[str], list[Callable[..., Array]]]:
@@ -323,7 +284,6 @@ def get_corruption_names(
         corresponding augmentation functions, while ``get_corruption_names()``
         in ``imagecorruptions`` only returns the augmentation names.
 
-    Added in 0.4.0.
 
     Parameters
     ----------
@@ -368,10 +328,10 @@ def get_corruption_names(
 # further below at the start of the augmenter section for details.
 
 
+@legacy(version="0.4.0")
 def apply_gaussian_noise(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``gaussian_noise`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -400,10 +360,10 @@ def apply_gaussian_noise(x: Array, severity: int = 1, seed: int | None = None) -
     return _call_imgcorrupt_func("gaussian_noise", seed, False, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_shot_noise(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``shot_noise`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -432,10 +392,10 @@ def apply_shot_noise(x: Array, severity: int = 1, seed: int | None = None) -> Ar
     return _call_imgcorrupt_func("shot_noise", seed, False, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_impulse_noise(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``impulse_noise`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -464,10 +424,10 @@ def apply_impulse_noise(x: Array, severity: int = 1, seed: int | None = None) ->
     return _call_imgcorrupt_func("impulse_noise", seed, False, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_speckle_noise(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``speckle_noise`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -496,10 +456,10 @@ def apply_speckle_noise(x: Array, severity: int = 1, seed: int | None = None) ->
     return _call_imgcorrupt_func("speckle_noise", seed, False, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_gaussian_blur(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``gaussian_blur`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -528,10 +488,10 @@ def apply_gaussian_blur(x: Array, severity: int = 1, seed: int | None = None) ->
     return _call_imgcorrupt_func("gaussian_blur", seed, False, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_glass_blur(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``glass_blur`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -560,11 +520,10 @@ def apply_glass_blur(x: Array, severity: int = 1, seed: int | None = None) -> Ar
     return _call_imgcorrupt_func(_apply_glass_blur_imgaug, seed, False, x, severity)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _apply_glass_blur_imgaug(x: Array, severity: int = 1) -> Array:
     # false positive on x_shape[0]
     # invalid name for dx, dy
-    # pylint: disable=unsubscriptable-object, invalid-name
 
     # original function implementation from
     # https://github.com/bethgelab/imagecorruptions/blob/master/imagecorruptions/corruptions.py
@@ -590,7 +549,7 @@ def _apply_glass_blur_imgaug(x: Array, severity: int = 1) -> Array:
     return np.clip(_gaussian_skimage_compat(x / 255.0, sigma=sigma, multichannel=True), 0, 1) * 255
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 @_numbajit(nopython=True, nogil=True, cache=True)
 def _apply_glass_blur_imgaug_loop(
     x: UIntArray, iterations: int, max_delta: int, dxxdyy: IntArray
@@ -613,10 +572,10 @@ def _apply_glass_blur_imgaug_loop(
     return x
 
 
+@legacy(version="0.4.0")
 def apply_defocus_blur(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``defocus_blur`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -645,10 +604,10 @@ def apply_defocus_blur(x: Array, severity: int = 1, seed: int | None = None) -> 
     return _call_imgcorrupt_func("defocus_blur", seed, False, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_motion_blur(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``motion_blur`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -677,10 +636,10 @@ def apply_motion_blur(x: Array, severity: int = 1, seed: int | None = None) -> A
     return _call_imgcorrupt_func("motion_blur", seed, False, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_zoom_blur(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``zoom_blur`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -709,10 +668,10 @@ def apply_zoom_blur(x: Array, severity: int = 1, seed: int | None = None) -> Arr
     return _call_imgcorrupt_func("zoom_blur", seed, False, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_fog(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``fog`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -741,10 +700,10 @@ def apply_fog(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     return _call_imgcorrupt_func("fog", seed, False, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_frost(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``frost`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -773,10 +732,10 @@ def apply_frost(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     return _call_imgcorrupt_func("frost", seed, False, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_snow(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``snow`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -805,10 +764,10 @@ def apply_snow(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     return _call_imgcorrupt_func("snow", seed, False, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_spatter(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``spatter`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -837,10 +796,10 @@ def apply_spatter(x: Array, severity: int = 1, seed: int | None = None) -> Array
     return _call_imgcorrupt_func("spatter", seed, True, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_contrast(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``contrast`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -869,10 +828,10 @@ def apply_contrast(x: Array, severity: int = 1, seed: int | None = None) -> Arra
     return _call_imgcorrupt_func("contrast", seed, False, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_brightness(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``brightness`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -901,10 +860,10 @@ def apply_brightness(x: Array, severity: int = 1, seed: int | None = None) -> Ar
     return _call_imgcorrupt_func("brightness", seed, False, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_saturate(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``saturate`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -933,10 +892,10 @@ def apply_saturate(x: Array, severity: int = 1, seed: int | None = None) -> Arra
     return _call_imgcorrupt_func("saturate", seed, False, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_jpeg_compression(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``jpeg_compression`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -965,10 +924,10 @@ def apply_jpeg_compression(x: Array, severity: int = 1, seed: int | None = None)
     return _call_imgcorrupt_func("jpeg_compression", seed, True, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_pixelate(x: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``pixelate`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -997,10 +956,10 @@ def apply_pixelate(x: Array, severity: int = 1, seed: int | None = None) -> Arra
     return _call_imgcorrupt_func("pixelate", seed, True, x, severity)
 
 
+@legacy(version="0.4.0")
 def apply_elastic_transform(image: Array, severity: int = 1, seed: int | None = None) -> Array:
     """Apply ``elastic_transform`` from ``imagecorruptions``.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1039,7 +998,7 @@ def apply_elastic_transform(image: Array, severity: int = 1, seed: int | None = 
 # would also be generated dynamically, which leads to numerous problems:
 # (1) users couldn't easily read the documentation while scrolling through
 # the code file, (2) IDEs might not be able to use it for code suggestions,
-# (3) tools like pylint can't detect and validate it, (4) the imgaug-doc
+# (3) linting tools can't detect and validate it, (4) the imgaug-doc
 # tools to parse dtype support don't work with dynamically generated
 # documentation (and neither with dynamically generated classes).
 # Even though it's by far more code, it seems like the better choice overall
@@ -1095,7 +1054,7 @@ def apply_elastic_transform(image: Array, severity: int = 1, seed: int | None = 
 #     return augmenter_class
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _ImgcorruptAugmenterBase(meta.Augmenter):
     def __init__(
         self,
@@ -1120,7 +1079,7 @@ class _ImgcorruptAugmenterBase(meta.Augmenter):
             allow_floats=False,
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1138,19 +1097,20 @@ class _ImgcorruptAugmenterBase(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(self, nb_rows: int, random_state: iarandom.RNG) -> tuple[IntArray, IntArray]:
         severities = self.severity.draw_samples((nb_rows,), random_state=random_state)
         seeds = random_state.generate_seeds_(nb_rows)
 
         return severities, seeds
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[iap.StochasticParameter]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.severity]
 
 
+@legacy(version="0.4.0")
 class GaussianNoise(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.gaussian_noise``.
@@ -1159,7 +1119,6 @@ class GaussianNoise(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1200,7 +1159,7 @@ class GaussianNoise(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -1219,6 +1178,7 @@ class GaussianNoise(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class ShotNoise(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.shot_noise``.
@@ -1227,7 +1187,6 @@ class ShotNoise(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1268,7 +1227,7 @@ class ShotNoise(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -1287,6 +1246,7 @@ class ShotNoise(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class ImpulseNoise(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.impulse_noise``.
@@ -1295,7 +1255,6 @@ class ImpulseNoise(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1336,7 +1295,7 @@ class ImpulseNoise(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -1355,6 +1314,7 @@ class ImpulseNoise(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class SpeckleNoise(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.speckle_noise``.
@@ -1363,7 +1323,6 @@ class SpeckleNoise(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1404,7 +1363,7 @@ class SpeckleNoise(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -1423,6 +1382,7 @@ class SpeckleNoise(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class GaussianBlur(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.gaussian_blur``.
@@ -1431,7 +1391,6 @@ class GaussianBlur(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1472,7 +1431,7 @@ class GaussianBlur(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -1491,6 +1450,7 @@ class GaussianBlur(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class GlassBlur(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.glass_blur``.
@@ -1499,7 +1459,6 @@ class GlassBlur(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1540,7 +1499,7 @@ class GlassBlur(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -1559,6 +1518,7 @@ class GlassBlur(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class DefocusBlur(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.defocus_blur``.
@@ -1567,7 +1527,6 @@ class DefocusBlur(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1608,7 +1567,7 @@ class DefocusBlur(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -1627,6 +1586,7 @@ class DefocusBlur(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class MotionBlur(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.motion_blur``.
@@ -1635,7 +1595,6 @@ class MotionBlur(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1676,7 +1635,7 @@ class MotionBlur(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -1695,6 +1654,7 @@ class MotionBlur(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class ZoomBlur(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.zoom_blur``.
@@ -1703,7 +1663,6 @@ class ZoomBlur(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1744,7 +1703,7 @@ class ZoomBlur(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -1763,6 +1722,7 @@ class ZoomBlur(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class Fog(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.fog``.
@@ -1771,7 +1731,6 @@ class Fog(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1812,7 +1771,7 @@ class Fog(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -1831,6 +1790,7 @@ class Fog(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class Frost(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.frost``.
@@ -1839,7 +1799,6 @@ class Frost(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1880,7 +1839,7 @@ class Frost(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -1899,6 +1858,7 @@ class Frost(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class Snow(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.snow``.
@@ -1907,7 +1867,6 @@ class Snow(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1948,7 +1907,7 @@ class Snow(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -1967,6 +1926,7 @@ class Snow(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class Spatter(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.spatter``.
@@ -1975,7 +1935,6 @@ class Spatter(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2016,7 +1975,7 @@ class Spatter(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -2035,6 +1994,7 @@ class Spatter(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class Contrast(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.contrast``.
@@ -2043,7 +2003,6 @@ class Contrast(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2084,7 +2043,7 @@ class Contrast(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -2103,6 +2062,7 @@ class Contrast(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class Brightness(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.brightness``.
@@ -2111,7 +2071,6 @@ class Brightness(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2152,7 +2111,7 @@ class Brightness(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -2171,6 +2130,7 @@ class Brightness(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class Saturate(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.saturate``.
@@ -2179,7 +2139,6 @@ class Saturate(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2220,7 +2179,7 @@ class Saturate(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -2239,6 +2198,7 @@ class Saturate(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class JpegCompression(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.jpeg_compression``.
@@ -2247,7 +2207,6 @@ class JpegCompression(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2288,7 +2247,7 @@ class JpegCompression(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -2307,6 +2266,7 @@ class JpegCompression(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class Pixelate(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.pixelate``.
@@ -2315,7 +2275,6 @@ class Pixelate(_ImgcorruptAugmenterBase):
 
         This augmenter only affects images. Other data is not changed.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2356,7 +2315,7 @@ class Pixelate(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -2375,6 +2334,7 @@ class Pixelate(_ImgcorruptAugmenterBase):
         )
 
 
+@legacy(version="0.4.0")
 class ElasticTransform(_ImgcorruptAugmenterBase):
     """
     Wrapper around ``imagecorruptions.corruptions.elastic_transform``.
@@ -2387,7 +2347,6 @@ class ElasticTransform(_ImgcorruptAugmenterBase):
         Use :class:`~imgaug2.augmenters.geometric.ElasticTransformation` if
         you have to transform such inputs.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2428,7 +2387,7 @@ class ElasticTransform(_ImgcorruptAugmenterBase):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         severity: ParamInput = (1, 5),
@@ -2444,9 +2403,9 @@ class ElasticTransform(_ImgcorruptAugmenterBase):
             name=name,
             random_state=random_state,
             deterministic=deterministic,
-    )
+        )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,

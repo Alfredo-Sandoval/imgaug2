@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import multiprocessing
+import os
 import pickle
 import platform
 import random
@@ -21,6 +22,7 @@ import numpy as np
 import imgaug2.imgaug as ia
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import Batch, UnnormalizedBatch
+from imgaug2.compat.markers import legacy
 
 if TYPE_CHECKING:
     from imgaug2.augmenters.meta import Augmenter
@@ -28,7 +30,7 @@ if TYPE_CHECKING:
 _CONTEXT = None
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _get_context_method() -> str | None:
     method = None
     # Fix random hanging code in NixOS by switching to spawn method,
@@ -44,22 +46,22 @@ def _get_context_method() -> str | None:
     return method
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _set_context(method: str | None) -> None:
     globals()["_CONTEXT"] = multiprocessing.get_context(method)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _reset_context() -> None:
     globals()["_CONTEXT"] = None
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _autoset_context() -> None:
     _set_context(_get_context_method())
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _get_context() -> Any:  # noqa: ANN401
     if _CONTEXT is None:
         _autoset_context()
@@ -174,22 +176,23 @@ class Pool:
                 # BSD though.
                 # In python 3.4+, there is also os.cpu_count(), which
                 # multiprocessing.cpu_count() then redirects to.
-                # At least one guy on stackoverflow.com/questions/1006289
-                # reported that only os.* existed, not the multiprocessing
-                # method.
-                # TODO make this also check if os.cpu_count exists as a
-                #      fallback
                 try:
                     processes = _get_context().cpu_count() - abs(processes)
                     processes = max(processes, 1)
                 except (ImportError, NotImplementedError):
-                    ia.warn(
-                        "Could not find method multiprocessing.cpu_count(). "
-                        "This will likely lead to more CPU cores being used "
-                        "for the background augmentation than originally "
-                        "intended."
-                    )
-                    processes = None
+                    # Fallback to os.cpu_count() if multiprocessing.cpu_count() fails
+                    cpu_count = os.cpu_count()
+                    if cpu_count is not None:
+                        processes = cpu_count - abs(processes)
+                        processes = max(processes, 1)
+                    else:
+                        ia.warn(
+                            "Could not determine CPU count. "
+                            "This will likely lead to more CPU cores being used "
+                            "for the background augmentation than originally "
+                            "intended."
+                        )
+                        processes = None
 
             self._pool = _get_context().Pool(
                 processes,
@@ -315,7 +318,6 @@ class Pool:
         # buffer is either None or a Semaphore
         output_buffer_left = _create_output_buffer_left(output_buffer_size)
 
-        # TODO change this to 'yield from' once switched to 3.3+
         gen = self.pool.imap(
             _Pool_starworker,
             self._ibuffer_batch_loading(self._handle_batch_ids_gen(batches), output_buffer_left),
@@ -416,8 +418,6 @@ class Pool:
             self._pool.join()
             self._pool = None
 
-    # TODO why does this function exist if it may only be called after
-    #      close/terminate and both of these two already call join() themselves
     def join(self) -> None:
         """
         Wait for the workers to exit.
@@ -466,7 +466,6 @@ def _create_output_buffer_left(output_buffer_size: int | None) -> Any:  # noqa: 
 
 
 def _Pool_initialize_worker(augseq: Augmenter, seed_start: int | None) -> None:
-    # pylint: disable=invalid-name, protected-access
 
     # Not using this seems to have caused infinite hanging in the case
     # of gaussian blur on at least MacOSX.
@@ -475,12 +474,7 @@ def _Pool_initialize_worker(augseq: Augmenter, seed_start: int | None) -> None:
     cv2.setNumThreads(0)
 
     if seed_start is None:
-        # pylint falsely thinks in older versions that
-        # multiprocessing.current_process() was not callable, see
-        # https://github.com/PyCQA/pylint/issues/1699
-        # pylint: disable=not-callable
         process_name = _get_context().current_process().name
-        # pylint: enable=not-callable
 
         seed_offset = time.time_ns()
         seed = hash(process_name) + seed_offset
@@ -492,7 +486,6 @@ def _Pool_initialize_worker(augseq: Augmenter, seed_start: int | None) -> None:
 
 
 def _Pool_worker(batch_idx: int, batch: Batch | UnnormalizedBatch) -> Batch | UnnormalizedBatch:
-    # pylint: disable=invalid-name, protected-access
     assert ia.is_single_integer(batch_idx), (
         f"Expected `batch_idx` to be an integer. Got type {type(batch_idx)} instead."
     )
@@ -506,7 +499,6 @@ def _Pool_worker(batch_idx: int, batch: Batch | UnnormalizedBatch) -> Batch | Un
     )
 
     augseq = Pool._WORKER_AUGSEQ
-    # TODO why is this if here? _WORKER_SEED_START should always be set?
     if Pool._WORKER_SEED_START is not None:
         seed = Pool._WORKER_SEED_START + batch_idx
         _reseed_global_local(seed, augseq)
@@ -515,7 +507,6 @@ def _Pool_worker(batch_idx: int, batch: Batch | UnnormalizedBatch) -> Batch | Un
 
 
 def _Pool_starworker(inputs: tuple[int, Batch | UnnormalizedBatch]) -> Batch | UnnormalizedBatch:
-    # pylint: disable=invalid-name
     return _Pool_worker(*inputs)
 
 
@@ -675,7 +666,6 @@ class BatchLoader:
         join_signal: Any,  # noqa: ANN401
         seedval: int | None,
     ) -> None:
-        # pylint: disable=broad-except
         if seedval is not None:
             seedval_int = int(seedval)
             random.seed(seedval_int)
@@ -706,7 +696,6 @@ class BatchLoader:
 
     def terminate(self) -> None:
         """Stop all workers."""
-        # pylint: disable=protected-access
         if not self.join_signal.is_set():
             self.join_signal.set()
         # give minimal time to put generated batches in queue and gracefully
@@ -925,7 +914,6 @@ class BackgroundAugmenter:
         This will also free their RAM.
 
         """
-        # pylint: disable=protected-access
         for worker in self.workers:
             if worker.is_alive():
                 worker.terminate()

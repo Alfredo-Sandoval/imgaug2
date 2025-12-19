@@ -1,15 +1,13 @@
-"""
-Augmenters that blur images.
+"""Augmenters that blur images.
 
-List of augmenters:
+This module provides augmenters for various blur effects including Gaussian,
+average, median, motion, and bilateral blurring.
 
-    * :class:`GaussianBlur`
-    * :class:`AverageBlur`
-    * :class:`MedianBlur`
-    * :class:`BilateralBlur`
-    * :class:`MotionBlur`
-    * :class:`MeanShiftBlur`
-
+Key Augmenters:
+    - `GaussianBlur`: Apply Gaussian blur with configurable sigma.
+    - `AverageBlur`, `MedianBlur`: Apply average/median blurring.
+    - `BilateralBlur`: Edge-preserving bilateral filtering.
+    - `MotionBlur`: Simulate directional motion blur.
 """
 
 from __future__ import annotations
@@ -27,9 +25,11 @@ import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import convolutional as iaa_convolutional
+from imgaug2.augmenters import geometric as iaa_geometric
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
+from imgaug2.compat.markers import legacy
 
 Backend: TypeAlias = Literal["auto", "cv2", "scipy"]
 FloatArray: TypeAlias = NDArray[np.floating]
@@ -245,7 +245,7 @@ def blur_gaussian_(
     return image
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 def _blur_gaussian_scipy_(image: Array, sigma: float, ksize: int | None) -> Array:
     dtype = image.dtype
 
@@ -290,7 +290,7 @@ def _blur_gaussian_scipy_(image: Array, sigma: float, ksize: int | None) -> Arra
     return image
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 def _blur_gaussian_cv2(image: Array, sigma: float, ksize: int | None) -> Array:
     dtype = image.dtype
 
@@ -360,6 +360,7 @@ def _compute_gaussian_blur_ksize(sigma: float) -> int:
     return ksize
 
 
+@legacy(version="0.5.0")
 def blur_avg_(image: Array, k: int | tuple[int, int]) -> Array:
     """Blur an image in-place by computing averages over local neighbourhoods.
 
@@ -368,7 +369,6 @@ def blur_avg_(image: Array, k: int | tuple[int, int]) -> Array:
     The padding behaviour around the image borders is cv2's
     ``BORDER_REFLECT_101``.
 
-    Added in 0.5.0.
 
     **Supported dtypes**:
 
@@ -462,6 +462,7 @@ def blur_avg_(image: Array, k: int | tuple[int, int]) -> Array:
     return image_aug
 
 
+@legacy(version="0.4.0")
 def blur_mean_shift_(image: Array, spatial_window_radius: int, color_window_radius: int) -> Array:
     """Apply a pyramidic mean shift filter to the input image in-place.
 
@@ -481,7 +482,6 @@ def blur_mean_shift_(image: Array, spatial_window_radius: int, color_window_radi
 
         This function is quite slow.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -636,7 +636,7 @@ class GaussianBlur(meta.Augmenter):
         # apply the blur
         self.eps = 1e-3
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -812,7 +812,7 @@ class AverageBlur(meta.Augmenter):
 
         self.k = iap._wrap_leafs_of_param_in_prefetchers(self.k, iap._NB_PREFETCH)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -948,7 +948,7 @@ class MedianBlur(meta.Augmenter):
             )
         self.k = iap._wrap_leafs_of_param_in_prefetchers(self.k, iap._NB_PREFETCH)
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -989,7 +989,6 @@ class MedianBlur(meta.Augmenter):
         return [self.k]
 
 
-# TODO tests
 class BilateralBlur(meta.Augmenter):
     """Blur/Denoise an image using a bilateral filter.
 
@@ -1105,7 +1104,6 @@ class BilateralBlur(meta.Augmenter):
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # pylint: disable=invalid-name
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
@@ -1133,7 +1131,7 @@ class BilateralBlur(meta.Augmenter):
             list_to_choice=True,
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1141,7 +1139,6 @@ class BilateralBlur(meta.Augmenter):
         parents: list[meta.Augmenter],
         hooks: ia.HooksImages | None,
     ) -> _BatchInAugmentation:
-        # pylint: disable=invalid-name
         if batch.images is None:
             return batch
 
@@ -1301,9 +1298,9 @@ class MotionBlur(iaa_convolutional.Convolve):
         )
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 class _MotionBlurMatrixGenerator:
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         k: iap.StochasticParameter,
@@ -1316,11 +1313,8 @@ class _MotionBlurMatrixGenerator:
         self.direction = direction
         self.order = order
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __call__(self, _image: Array, nb_channels: int, random_state: iarandom.RNG) -> list[Array]:
-        # avoid cyclic import between blur and geometric
-        from imgaug2.augmenters import geometric as iaa_geometric
-
         # force discrete for k_sample via int() in case of stochastic
         # parameter
         k_sample = int(self.k.draw_sample(random_state=random_state))
@@ -1344,6 +1338,7 @@ class _MotionBlurMatrixGenerator:
 
 # TODO add a per_channel flag?
 # TODO make spatial_radius a fraction of the input image size?
+@legacy(version="0.4.0")
 class MeanShiftBlur(meta.Augmenter):
     """Apply a pyramidic mean shift filter to each image.
 
@@ -1356,7 +1351,6 @@ class MeanShiftBlur(meta.Augmenter):
 
         This augmenter is quite slow.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -1414,7 +1408,7 @@ class MeanShiftBlur(meta.Augmenter):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         spatial_radius: ParamInput = (5.0, 40.0),
@@ -1442,7 +1436,7 @@ class MeanShiftBlur(meta.Augmenter):
             list_to_choice=True,
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1459,7 +1453,7 @@ class MeanShiftBlur(meta.Augmenter):
 
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(
         self, batch: _BatchInAugmentation, random_state: iarandom.RNG
     ) -> tuple[FloatArray, FloatArray]:
@@ -1469,7 +1463,7 @@ class MeanShiftBlur(meta.Augmenter):
             self.color_window_radius.draw_samples((nb_rows,), random_state=random_state),
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [self.spatial_window_radius, self.color_window_radius]

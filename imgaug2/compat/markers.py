@@ -39,7 +39,7 @@ from __future__ import annotations
 import functools
 import warnings
 from collections.abc import Callable
-from typing import ParamSpec, Protocol, TypeVar, overload
+from typing import Any, ParamSpec, Protocol, TypeVar, overload
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -112,19 +112,19 @@ class FunctionMarker:
 
 
 def _apply_marker(
-    func: _NamedCallable[P, R],
+    func: _NamedCallable[P, R] | property,
     origin: str,
     version: str | None,
     deprecated: bool,
     replacement: str | None,
     notes: str | None,
-) -> Callable[P, R]:
+) -> Callable[P, R] | property:
     """Apply marker metadata to a function.
 
     Parameters
     ----------
-    func : callable
-        Function to mark.
+    func : callable or property
+        Function or property to mark.
     origin : str
         Origin identifier ('legacy' or 'new').
     version : str or None
@@ -138,8 +138,8 @@ def _apply_marker(
 
     Returns
     -------
-    callable
-        Marked function, wrapped with deprecation warning if deprecated.
+    callable or property
+        Marked function/property, wrapped with deprecation warning if deprecated.
     """
     marker = FunctionMarker(
         origin=origin,
@@ -148,6 +148,30 @@ def _apply_marker(
         replacement=replacement,
         notes=notes,
     )
+
+    if isinstance(func, property):
+        if deprecated:
+            # We need to wrap the getter
+            original_getter = func.fget
+            if original_getter is None:
+                raise ValueError("Cannot deprecate a property without a getter.")
+
+            @functools.wraps(original_getter)
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
+                msg = f"Property {original_getter.__name__} is deprecated."
+                if replacement:
+                    msg += f" Use {replacement} instead."
+                if notes:
+                    msg += f" {notes}"
+                warnings.warn(msg, DeprecationWarning, stacklevel=2)
+                return original_getter(*args, **kwargs)
+
+            setattr(wrapper, "__imgaug2_marker__", marker)
+            return property(wrapper, func.fset, func.fdel, func.__doc__)
+
+        if func.fget is not None:
+            setattr(func.fget, "__imgaug2_marker__", marker)
+        return func
 
     setattr(func, "__imgaug2_marker__", marker)
 
@@ -326,19 +350,21 @@ def new(
     return decorator
 
 
-def get_marker(func: Callable[..., object]) -> FunctionMarker | None:
+def get_marker(func: Callable[..., object] | property) -> FunctionMarker | None:
     """Get the marker metadata for a function.
 
     Parameters
     ----------
-    func : callable
-        Function to inspect.
+    func : callable or property
+        Function or property to inspect.
 
     Returns
     -------
     FunctionMarker or None
         Marker metadata if present, otherwise None.
     """
+    if isinstance(func, property):
+        return getattr(func.fget, "__imgaug2_marker__", None)
     return getattr(func, "__imgaug2_marker__", None)
 
 

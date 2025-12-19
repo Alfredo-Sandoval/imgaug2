@@ -13,7 +13,7 @@ import skimage.measure
 from numpy.typing import NDArray
 
 import imgaug2.imgaug as ia
-from imgaug2.augmentables.base import IAugmentable
+
 from imgaug2.augmentables.utils import (
     Number,
     Point2D,
@@ -26,6 +26,8 @@ from imgaug2.augmentables.utils import (
     normalize_imglike_shape,
     project_coords_,
 )
+from imgaug2.compat.markers import legacy
+from imgaug2.augmenters._blend_utils import blend_alpha
 
 if TYPE_CHECKING:
     from imgaug2.augmentables.bbs import BoundingBox
@@ -212,7 +214,6 @@ class LineString:
             plane (``True``) or not (``False``).
 
         """
-        # pylint: disable=misplaced-comparison-constant
         if len(self.coords) == 0:
             return np.zeros((0,), dtype=bool)
         shape = normalize_imglike_shape(image)
@@ -221,23 +222,34 @@ class LineString:
         y_within = np.logical_and(0 <= self.yy, self.yy < height)
         return np.logical_and(x_within, y_within)
 
-    # TODO add closed=False/True?
-    def compute_neighbour_distances(self) -> NDArray[np.float32]:
+    def compute_neighbour_distances(self, closed: bool = False) -> NDArray[np.float32]:
         """Compute the euclidean distance between each two consecutive points.
+
+        Parameters
+        ----------
+        closed : bool, optional
+            Whether to also include the distance between the last and first
+            point, effectively closing the line string.
 
         Returns
         -------
         ndarray
-            ``(N-1,)`` ``float32`` array of euclidean distances between point
-            pairs. Same order as in `coords`.
+            ``(N-1,)`` (or ``(N,)`` if `closed=True`) ``float32`` array of
+            euclidean distances between point pairs. Same order as in
+            `coords`.
 
         """
         if len(self.coords) <= 1:
             return np.zeros((0,), dtype=np.float32)
-        return np.sqrt(np.sum((self.coords[:-1, :] - self.coords[1:, :]) ** 2, axis=1))
+        diffs = self.coords[1:, :] - self.coords[:-1, :]
+        if closed and len(self.coords) >= 2:
+            diffs = np.vstack([diffs, self.coords[0, :] - self.coords[-1, :]])
+        return np.sqrt(np.sum(diffs**2, axis=1))
 
     # TODO change output to array
-    def compute_pointwise_distances(self, other: object, default: object | None = None) -> list[float] | object:
+    def compute_pointwise_distances(
+        self, other: object, default: object | None = None
+    ) -> list[float] | object:
         """Compute min distances between points of this and another line string.
 
         Parameters
@@ -299,14 +311,39 @@ class LineString:
             computed.
 
         """
-        # FIXME this computes distance pointwise, does not have to be identical
-        #       with the actual min distance (e.g. edge center to other's point)
-        distances = self.compute_pointwise_distances(other, default=[])
-        if len(distances) == 0:
-            return default
-        return min(distances)
+        import shapely.geometry
 
-    # TODO update BB's contains(), which can only accept Keypoint currently
+        from imgaug2.augmentables.kps import Keypoint
+
+        if len(self.coords) == 0:
+            return default
+
+        if len(self.coords) == 1:
+            geom_self = shapely.geometry.Point(self.coords[0, :])
+        else:
+            geom_self = shapely.geometry.LineString(self.coords)
+
+        if isinstance(other, Keypoint):
+            geom_other = shapely.geometry.Point((other.x, other.y))
+        elif isinstance(other, LineString):
+            if len(other.coords) == 0:
+                return default
+            if len(other.coords) == 1:
+                geom_other = shapely.geometry.Point(other.coords[0, :])
+            else:
+                geom_other = shapely.geometry.LineString(other.coords)
+        elif isinstance(other, tuple):
+            assert len(other) == 2, (
+                f"Expected tuple 'other' to contain exactly two entries, got {len(other)}."
+            )
+            geom_other = shapely.geometry.Point(other)
+        else:
+            raise ValueError(
+                f"Expected Keypoint or LineString or tuple (x,y), got type {type(other)}."
+            )
+
+        return geom_self.distance(geom_other)
+
     def contains(self, other: object, max_distance: float = 1e-4) -> bool:
         """Estimate whether a point is on this line string.
 
@@ -331,6 +368,7 @@ class LineString:
         """
         return self.compute_distance(other, default=np.inf) < max_distance
 
+    @legacy(version="0.4.0")
     def project_(self, from_shape: object, to_shape: object) -> LineString:
         """Project the line string onto a differently shaped image in-place.
 
@@ -342,7 +380,6 @@ class LineString:
         This is intended for cases where the original image is resized.
         It cannot be used for more complex changes (e.g. padding, cropping).
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -389,6 +426,7 @@ class LineString:
         """
         return self.deepcopy().project_(from_shape, to_shape)
 
+    @legacy(version="0.4.0")
     def compute_out_of_image_fraction(self, image: object) -> float:
         """Compute fraction of polygon area outside of the image plane.
 
@@ -396,7 +434,6 @@ class LineString:
         polygon that is outside of the image plane, while ``A`` is the
         total area of the bounding box.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -642,7 +679,6 @@ class LineString:
         lines = [line for line in lines if len(line) > 0]
         return [self.deepcopy(coords=line) for line in lines]
 
-    # TODO add tests for this
     # TODO extend this to non line string geometries
     def find_intersections_with(self, other: object) -> list[list[tuple[float, float]]]:
         """Find all intersection points between this line string and `other`.
@@ -700,12 +736,12 @@ class LineString:
             result.append(inter_sorted)
         return result
 
+    @legacy(version="0.4.0")
     def shift_(self, x: float = 0, y: float = 0) -> LineString:
         """Move this line string along the x/y-axis in-place.
 
         The origin ``(0, 0)`` is at the top left of the image.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -988,8 +1024,6 @@ class LineString:
         heatmap = np.dstack([heatmap_lines, heatmap_points])
         return np.max(heatmap, axis=2)
 
-    # TODO only draw line on image of size BB around line, then paste into full
-    #      sized image
     def draw_lines_on_image(
         self,
         image: NDArray[np.uint8] | tuple[int, ...],
@@ -998,6 +1032,7 @@ class LineString:
         size: int = 3,
         antialiased: bool = True,
         raise_if_out_of_image: bool = False,
+        copy: bool = True,
     ) -> NDArray[np.uint8]:
         """Draw the line segments of this line string on a given image.
 
@@ -1028,15 +1063,19 @@ class LineString:
             outside of the image. If set to ``False``, no error will be
             raised and only the parts inside the image will be drawn.
 
+        copy : bool, optional
+            Whether it is allowed to draw directly in the input array
+            (``False``) or it has to be copied (``True``).
+            The routine may still have to copy, even if ``copy=False`` was
+            used. Always use the return value.
+
         Returns
         -------
         ndarray
             `image` with line drawn on it.
 
         """
-        # pylint: disable=invalid-name, misplaced-comparison-constant
         import imgaug2.dtypes as iadt
-        from imgaug2.augmenters import blend as blendlib
 
         image_was_empty = False
         if isinstance(image, tuple):
@@ -1047,7 +1086,7 @@ class LineString:
         )
 
         if len(self.coords) <= 1 or alpha < 0 + 1e-4 or size < 1:
-            return np.copy(image)
+            return np.copy(image) if (copy and not image_was_empty) else image
 
         if raise_if_out_of_image and self.is_out_of_image(image, partly=False, fully=True):
             raise Exception(
@@ -1064,7 +1103,6 @@ class LineString:
         elif image.ndim == 3 and ia.is_single_number(color):
             color = [color] * image.shape[-1]
 
-        image = image.astype(np.float32)
         height, width = image.shape[0:2]
 
         # We can't trivially exclude lines outside of the image here, because
@@ -1078,6 +1116,30 @@ class LineString:
 
         # skimage.draw.line can only handle integers
         lines = np.round(np.float32(lines)).astype(np.int32)
+        if lines.size == 0:
+            return np.copy(image) if (copy and not image_was_empty) else image
+
+        min_y = int(np.min(lines[:, [0, 2]]))
+        max_y = int(np.max(lines[:, [0, 2]]))
+        min_x = int(np.min(lines[:, [1, 3]]))
+        max_x = int(np.max(lines[:, [1, 3]]))
+        pad = max(int(size), 1)
+
+        roi_y1 = max(min_y - pad, 0)
+        roi_y2 = min(max_y + pad, height - 1)
+        roi_x1 = max(min_x - pad, 0)
+        roi_x2 = min(max_x + pad, width - 1)
+        if roi_y1 > roi_y2 or roi_x1 > roi_x2:
+            return np.copy(image) if (copy and not image_was_empty) else image
+
+        lines = lines.copy()
+        lines[:, [0, 2]] -= roi_y1
+        lines[:, [1, 3]] -= roi_x1
+
+        image_out = image if (image_was_empty or not copy) else np.copy(image)
+        image_roi = image_out[roi_y1 : roi_y2 + 1, roi_x1 : roi_x2 + 1]
+        image_roi_f32 = image_roi.astype(np.float32)
+        roi_height, roi_width = image_roi_f32.shape[0:2]
 
         # size == 0 is already covered above
         # Note here that we have to be careful not to draw lines two times
@@ -1085,7 +1147,7 @@ class LineString:
         # end up drawing at p1 twice, leading to higher values if alpha is
         # used.
         color = np.float32(color)
-        heatmap = np.zeros(image.shape[0:2], dtype=np.float32)
+        heatmap = np.zeros((roi_height, roi_width), dtype=np.float32)
         for line in lines:
             if antialiased:
                 rr, cc, val = skimage.draw.line_aa(*line)
@@ -1095,8 +1157,8 @@ class LineString:
 
             # mask check here, because line() can generate coordinates
             # outside of the image plane
-            rr_mask = np.logical_and(0 <= rr, rr < height)
-            cc_mask = np.logical_and(0 <= cc, cc < width)
+            rr_mask = np.logical_and(0 <= rr, rr < roi_height)
+            cc_mask = np.logical_and(0 <= cc, cc < roi_width)
             mask = np.logical_and(rr_mask, cc_mask)
 
             if np.any(mask):
@@ -1110,16 +1172,17 @@ class LineString:
             heatmap = cv2.dilate(heatmap, kernel)
 
         if image_was_empty:
-            image_blend = image + heatmap * color
+            image_blend = image_roi_f32 + heatmap * color
         else:
-            image_color_shape = image.shape[0:2]
-            if image.ndim == 3:
+            image_color_shape = image_roi_f32.shape[0:2]
+            if image_roi_f32.ndim == 3:
                 image_color_shape = image_color_shape + (1,)
             image_color = np.tile(color, image_color_shape)
-            image_blend = blendlib.blend_alpha(image_color, image, heatmap)
+            image_blend = blend_alpha(image_color, image_roi_f32, heatmap)
 
         image_blend = cast(NDArray[np.uint8], iadt.restore_dtypes_(image_blend, np.uint8))
-        return image_blend
+        image_out[roi_y1 : roi_y2 + 1, roi_x1 : roi_x2 + 1] = image_blend
+        return image_out
 
     def draw_points_on_image(
         self,
@@ -1198,6 +1261,7 @@ class LineString:
         size_points: int | None = None,
         antialiased: bool = True,
         raise_if_out_of_image: bool = False,
+        copy: bool = True,
     ) -> NDArray[np.uint8]:
         """Draw this line string onto an image.
 
@@ -1257,6 +1321,12 @@ class LineString:
             outside of the image. If set to ``False``, no error will be
             raised and only the parts inside the image will be drawn.
 
+        copy : bool, optional
+            Whether it is allowed to draw directly in the input array
+            (``False``) or it has to be copied (``True``).
+            The routine may still have to copy, even if ``copy=False`` was
+            used. Always use the return value.
+
         Returns
         -------
         ndarray
@@ -1289,6 +1359,7 @@ class LineString:
             size=size_lines,
             antialiased=antialiased,
             raise_if_out_of_image=raise_if_out_of_image,
+            copy=copy,
         )
 
         image = self.draw_points_on_image(
@@ -1430,7 +1501,6 @@ class LineString:
             other = LineString(other)
         return self.deepcopy(coords=np.concatenate([self.coords, other.coords], axis=0))
 
-    # TODO add tests
     def subdivide(self, points_per_edge: int) -> LineString:
         """Derive a new line string with ``N`` interpolated points per edge.
 
@@ -1470,10 +1540,9 @@ class LineString:
             Points of the line string as keypoints.
 
         """
-        # TODO get rid of this deferred import
-        from imgaug2.augmentables.kps import Keypoint
+        from imgaug2.augmentables import kps
 
-        return [Keypoint(x=x, y=y) for (x, y) in self.coords]
+        return [kps.Keypoint(x=x, y=y) for (x, y) in self.coords]
 
     def to_bounding_box(self) -> BoundingBox | None:
         """Generate a bounding box encapsulating the line string.
@@ -1485,13 +1554,13 @@ class LineString:
             ``None`` if the line string contained no points.
 
         """
-        from imgaug2.augmentables.bbs import BoundingBox
+        from imgaug2.augmentables import bbs
 
         # we don't have to mind the case of len(.) == 1 here, because
         # zero-sized BBs are considered valid
         if len(self.coords) == 0:
             return None
-        return BoundingBox(
+        return bbs.BoundingBox(
             x1=np.min(self.xx),
             y1=np.min(self.yy),
             x2=np.max(self.xx),
@@ -1754,10 +1823,10 @@ class LineString:
             label=copylib.deepcopy(self.label) if label is None else label,
         )
 
+    @legacy(version="0.4.0")
     def __getitem__(self, indices: int | slice | Sequence[int]) -> NDArray[np.float32]:
         """Get the coordinate(s) with given indices.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -1767,10 +1836,10 @@ class LineString:
         """
         return self.coords[indices]
 
+    @legacy(version="0.4.0")
     def __iter__(self) -> Iterator[NDArray[np.float32]]:
         """Iterate over the coordinates of this instance.
 
-        Added in 0.4.0.
 
         Yields
         ------
@@ -1788,21 +1857,7 @@ class LineString:
         return f"LineString([{points_str}], label={self.label})"
 
 
-# TODO
-# distance
-# hausdorff_distance
-# is_fully_within_image()
-# is_partly_within_image()
-# is_out_of_image()
-# draw()
-# draw_mask()
-# extract_from_image()
-# to_keypoints()
-# intersects(other)
-# concat(other)
-# is_self_intersecting()
-# remove_self_intersections()
-class LineStringsOnImage(IAugmentable):
+class LineStringsOnImage:
     """Object that represents all line strings on a single image.
 
     Parameters
@@ -1846,11 +1901,11 @@ class LineStringsOnImage(IAugmentable):
         self.line_strings = line_strings_list
         self.shape = _handle_on_image_shape(shape, self)
 
+    @legacy(version="0.4.0")
     @property
     def items(self) -> list[LineString]:
         """Get the line strings in this container.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -1860,11 +1915,11 @@ class LineStringsOnImage(IAugmentable):
         """
         return self.line_strings
 
+    @legacy(version="0.4.0")
     @items.setter
     def items(self, value: list[LineString]) -> None:
         """Set the line strings in this container.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1886,10 +1941,10 @@ class LineStringsOnImage(IAugmentable):
         """
         return len(self.line_strings) == 0
 
+    @legacy(version="0.4.0")
     def on_(self, image: Shape | NDArray[np.generic]) -> LineStringsOnImage:
         """Project the line strings from one image shape to a new one in-place.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1905,7 +1960,6 @@ class LineStringsOnImage(IAugmentable):
             The object and its items may have been modified in-place.
 
         """
-        # pylint: disable=invalid-name
         on_shape = normalize_imglike_shape(image)
         if on_shape[0:2] == self.shape[0:2]:
             self.shape = on_shape  # channels may differ
@@ -1932,7 +1986,6 @@ class LineStringsOnImage(IAugmentable):
             Object containing all projected line strings.
 
         """
-        # pylint: disable=invalid-name
         return self.deepcopy().on_(image)
 
     @classmethod
@@ -2074,10 +2127,13 @@ class LineStringsOnImage(IAugmentable):
             Image with line strings drawn on it.
 
         """
-        # TODO improve efficiency here by copying only once
+        if len(self.line_strings) == 0:
+            return image
+
+        image_out = np.copy(image)
         for ls in self.line_strings:
-            image = ls.draw_on_image(
-                image,
+            image_out = ls.draw_on_image(
+                image_out,
                 color=color,
                 color_lines=color_lines,
                 color_points=color_points,
@@ -2089,15 +2145,16 @@ class LineStringsOnImage(IAugmentable):
                 size_points=size_points,
                 antialiased=antialiased,
                 raise_if_out_of_image=raise_if_out_of_image,
+                copy=False,
             )
 
-        return image
+        return image_out
 
+    @legacy(version="0.4.0")
     def remove_out_of_image_(self, fully: bool = True, partly: bool = False) -> LineStringsOnImage:
         """
         Remove all LS that are fully/partially outside of an image in-place.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -2145,12 +2202,12 @@ class LineStringsOnImage(IAugmentable):
         """
         return self.copy().remove_out_of_image_(fully=fully, partly=partly)
 
+    @legacy(version="0.4.0")
     def remove_out_of_image_fraction_(self, fraction: float) -> LineStringsOnImage:
         """Remove all LS with an OOI fraction of at least `fraction` in-place.
 
         'OOI' is the abbreviation for 'out of image'.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -2190,6 +2247,7 @@ class LineStringsOnImage(IAugmentable):
         """
         return self.copy().remove_out_of_image_fraction_(fraction)
 
+    @legacy(version="0.4.0")
     def clip_out_of_image_(self) -> LineStringsOnImage:
         """
         Clip off all parts of the LSs that are outside of an image in-place.
@@ -2207,7 +2265,6 @@ class LineStringsOnImage(IAugmentable):
             hence will be clipped off, resulting in two or more unconnected
             line string parts that are left in the image plane.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -2249,12 +2306,12 @@ class LineStringsOnImage(IAugmentable):
         """
         return self.copy().clip_out_of_image_()
 
+    @legacy(version="0.4.0")
     def shift_(self, x: Number = 0, y: Number = 0) -> LineStringsOnImage:
         """Move the line strings along the x/y-axis in-place.
 
         The origin ``(0, 0)`` is at the top left of the image.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -2329,10 +2386,10 @@ class LineStringsOnImage(IAugmentable):
         x, y = _normalize_shift_args(x, y, top=top, right=right, bottom=bottom, left=left)
         return self.deepcopy().shift_(x=x, y=y)
 
+    @legacy(version="0.4.0")
     def to_xy_array(self) -> NDArray[np.float32]:
         """Convert all line string coordinates to one array of shape ``(N,2)``.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -2345,6 +2402,7 @@ class LineStringsOnImage(IAugmentable):
             return np.zeros((0, 2), dtype=np.float32)
         return np.concatenate([ls.coords for ls in self.line_strings])
 
+    @legacy(version="0.4.0")
     def fill_from_xy_array_(
         self,
         xy: Sequence[Sequence[Number]] | NDArray[np.number],
@@ -2357,7 +2415,6 @@ class LineStringsOnImage(IAugmentable):
             coordinates as the line strings within this instance have corner
             points. Otherwise, an ``AssertionError`` will be raised.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -2375,7 +2432,7 @@ class LineStringsOnImage(IAugmentable):
         xy = np.array(xy, dtype=np.float32)
 
         # note that np.array([]) is (0,), not (0, 2)
-        assert xy.shape[0] == 0 or (xy.ndim == 2 and xy.shape[-1] == 2), (  # pylint: disable=unsubscriptable-object
+        assert xy.shape[0] == 0 or (xy.ndim == 2 and xy.shape[-1] == 2), (
             f"Expected input array to have shape (N,2), got shape {xy.shape}."
         )
 
@@ -2399,10 +2456,10 @@ class LineStringsOnImage(IAugmentable):
 
         return self
 
+    @legacy(version="0.4.0")
     def to_keypoints_on_image(self) -> KeypointsOnImage:
         """Convert the line strings to one ``KeypointsOnImage`` instance.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -2420,13 +2477,13 @@ class LineStringsOnImage(IAugmentable):
         coords = np.concatenate([ls.coords for ls in self.line_strings], axis=0)
         return KeypointsOnImage.from_xy_array(coords, shape=self.shape)
 
+    @legacy(version="0.4.0")
     def invert_to_keypoints_on_image_(self, kpsoi: KeypointsOnImage) -> LineStringsOnImage:
         """Invert the output of ``to_keypoints_on_image()`` in-place.
 
         This function writes in-place into this ``LineStringsOnImage``
         instance.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -2529,13 +2586,13 @@ class LineStringsOnImage(IAugmentable):
 
         return LineStringsOnImage(line_strings, shape)
 
+    @legacy(version="0.4.0")
     def __getitem__(
         self,
         indices: int | slice | Sequence[int],
     ) -> LineString | list[LineString]:
         """Get the line string(s) with given indices.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -2545,10 +2602,10 @@ class LineStringsOnImage(IAugmentable):
         """
         return self.line_strings[indices]
 
+    @legacy(version="0.4.0")
     def __iter__(self) -> Iterator[LineString]:
         """Iterate over the line strings in this container.
 
-        Added in 0.4.0.
 
         Yields
         ------
@@ -2560,10 +2617,10 @@ class LineStringsOnImage(IAugmentable):
         """
         return iter(self.line_strings)
 
+    @legacy(version="0.4.0")
     def __len__(self) -> int:
         """Get the number of items in this instance.
 
-        Added in 0.4.0.
 
         Returns
         -------

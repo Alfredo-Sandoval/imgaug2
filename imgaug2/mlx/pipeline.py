@@ -11,23 +11,23 @@ The main functions are:
 
 Examples
 --------
->>> import numpy as np
->>> from imgaug2.mlx.pipeline import chain, to_device, to_host
->>> from imgaug2.mlx.blur import gaussian_blur
->>> from imgaug2.mlx.pointwise import multiply
->>>
->>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
->>>
->>> # Efficient: single host-device roundtrip
->>> result = chain(
-...     img,
-...     lambda x: gaussian_blur(x, sigma=2.0),
-...     lambda x: multiply(x, 1.2),
-... )
->>>
->>> # Less efficient: multiple roundtrips
->>> result = gaussian_blur(img, sigma=2.0)
->>> result = multiply(result, 1.2)
+>>> import numpy as np  # doctest: +SKIP
+>>> from imgaug2.mlx.pipeline import chain, to_device, to_host  # doctest: +SKIP
+>>> from imgaug2.mlx.blur import gaussian_blur  # doctest: +SKIP
+>>> from imgaug2.mlx.pointwise import multiply  # doctest: +SKIP
+>>>  # doctest: +SKIP
+>>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # doctest: +SKIP
+>>>  # doctest: +SKIP
+>>> # Efficient: single host-device roundtrip  # doctest: +SKIP
+>>> result = chain(  # doctest: +SKIP
+...     img,  # doctest: +SKIP
+...     lambda x: gaussian_blur(x, sigma=2.0),  # doctest: +SKIP
+...     lambda x: multiply(x, 1.2),  # doctest: +SKIP
+... )  # doctest: +SKIP
+>>>  # doctest: +SKIP
+>>> # Less efficient: multiple roundtrips  # doctest: +SKIP
+>>> result = gaussian_blur(img, sigma=2.0)  # doctest: +SKIP
+>>> result = multiply(result, 1.2)  # doctest: +SKIP
 """
 
 from __future__ import annotations

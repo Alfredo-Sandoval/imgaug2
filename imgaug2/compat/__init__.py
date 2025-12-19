@@ -14,12 +14,16 @@ Examples
 --------
 Basic usage with bounding boxes and keypoints:
 
+    >>> import numpy as np
     >>> from imgaug2 import compat as A
     >>> transform = A.Compose(
     ...     [A.HorizontalFlip(p=0.5), A.RandomBrightnessContrast(p=0.2)],
-    ...     bbox_params=A.BboxParams(format="coco"),
+    ...     bbox_params=A.BboxParams(format="pascal_voc"),
     ...     keypoint_params=A.KeypointParams(),
     ... )
+    >>> image = np.zeros((100, 100, 3), dtype=np.uint8)
+    >>> bboxes = [[10, 10, 30, 30, 0]]  # Pascal VOC: [x_min, y_min, x_max, y_max, class]
+    >>> keypoints = [(50, 50)]
     >>> out = transform(image=image, bboxes=bboxes, keypoints=keypoints)
     >>> image_aug = out["image"]
     >>> bboxes_aug = out["bboxes"]

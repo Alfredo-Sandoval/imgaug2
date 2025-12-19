@@ -1,24 +1,39 @@
-"""Functions to interact/analyze with numpy dtypes."""
+"""Helpers for NumPy dtype normalization, ranges, and conversions."""
 
 from __future__ import annotations
 
+import math
+import numbers
 from collections.abc import Iterable, Sequence
-from typing import Any, Protocol, cast, overload
+from typing import Any, Protocol, TypeGuard, cast, overload
 
 import numpy as np
 from numpy.typing import NDArray
 
-import imgaug2.imgaug as ia
+from imgaug2._deprecations import deprecated, warn
+from imgaug2.compat.markers import legacy
 
 RangeValue = float | int | np.floating[Any] | np.integer[Any]
 
 
+def _is_np_array(val: object) -> TypeGuard[np.ndarray]:
+    return isinstance(val, np.ndarray)
+
+
+def _is_np_scalar(val: object) -> bool:
+    return isinstance(val, np.generic) and np.isscalar(val)
+
+
+def _is_iterable(val: object) -> bool:
+    return isinstance(val, Iterable)
+
+
+def _is_single_integer(val: object) -> bool:
+    return isinstance(val, numbers.Integral) and not isinstance(val, bool)
+
+
 class _AugmenterLike(Protocol):
     name: str
-
-
-class _HasWrappedAttr(Protocol):
-    __wrapped__: object
 
 
 class _HasDtypeAttr(Protocol):
@@ -32,29 +47,26 @@ KIND_TO_DTYPES: dict[str, list[str]] = {
     "f": ["float16", "float32", "float64", "float128"],
 }
 
-# Added in 0.5.0.
 _DTYPE_STR_TO_DTYPES_CACHE: dict[str, set[np.dtype[Any]]] = dict()
 
-_UINT8_DTYPE = np.dtype("uint8")  # Added in 0.5.0.
-_UINT16_DTYPE = np.dtype("uint16")  # Added in 0.5.0.
-_UINT32_DTYPE = np.dtype("uint32")  # Added in 0.5.0.
-_UINT64_DTYPE = np.dtype("uint64")  # Added in 0.5.0.
-_INT8_DTYPE = np.dtype("int8")  # Added in 0.5.0.
-_INT16_DTYPE = np.dtype("int16")  # Added in 0.5.0.
-_INT32_DTYPE = np.dtype("int32")  # Added in 0.5.0.
-_INT64_DTYPE = np.dtype("int64")  # Added in 0.5.0.
-_FLOAT16_DTYPE = np.dtype("float16")  # Added in 0.5.0.
-_FLOAT32_DTYPE = np.dtype("float32")  # Added in 0.5.0.
-_FLOAT64_DTYPE = np.dtype("float64")  # Added in 0.5.0.
-_BOOL_DTYPE = np.dtype("bool")  # Added in 0.5.0.
+_UINT8_DTYPE = np.dtype("uint8")
+_UINT16_DTYPE = np.dtype("uint16")
+_UINT32_DTYPE = np.dtype("uint32")
+_UINT64_DTYPE = np.dtype("uint64")
+_INT8_DTYPE = np.dtype("int8")
+_INT16_DTYPE = np.dtype("int16")
+_INT32_DTYPE = np.dtype("int32")
+_INT64_DTYPE = np.dtype("int64")
+_FLOAT16_DTYPE = np.dtype("float16")
+_FLOAT32_DTYPE = np.dtype("float32")
+_FLOAT64_DTYPE = np.dtype("float64")
+_BOOL_DTYPE = np.dtype("bool")
 
-# Added in 0.5.0.
 try:
     _FLOAT128_DTYPE = np.dtype("float128")
 except TypeError:
     _FLOAT128_DTYPE = None
 
-# Added in 0.5.0.
 _DTYPE_NAME_TO_DTYPE = {
     "uint8": _UINT8_DTYPE,
     "uint16": _UINT16_DTYPE,
@@ -82,7 +94,7 @@ def normalize_dtypes(dtypes: np.dtype[Any] | Iterable[np.dtype[Any]]) -> list[np
 def normalize_dtype(dtype: object) -> np.dtype[Any]:
     """Convert dtype-like to numpy dtype."""
     assert not isinstance(dtype, list), "Expected a single dtype-like, got a list instead."
-    if ia.is_np_array(dtype) or ia.is_np_scalar(dtype):
+    if _is_np_array(dtype) or _is_np_scalar(dtype):
         dtype_with_dtype = cast(_HasDtypeAttr, dtype)
         return dtype_with_dtype.dtype
     return np.dtype(dtype)
@@ -95,8 +107,7 @@ def change_dtype_(
     round: bool = True,
 ) -> NDArray[Any]:
     """Convert array to a specific dtype, optionally clipping and rounding."""
-    # pylint: disable=redefined-builtin
-    assert ia.is_np_array(arr), f"Expected array as input, got type {type(arr)}."
+    assert _is_np_array(arr), f"Expected array as input, got type {type(arr)}."
     dtype = normalize_dtype(dtype)
 
     if arr.dtype.name == dtype.name:
@@ -136,9 +147,8 @@ def change_dtypes_(
     clip: bool = True,
     round: bool = True,
 ) -> NDArray[Any] | list[NDArray[Any]]:
-    # pylint: disable=redefined-builtin
-    if ia.is_np_array(images):
-        if ia.is_iterable(dtypes):
+    if _is_np_array(images):
+        if _is_iterable(dtypes):
             dtypes = normalize_dtypes(dtypes)
             n_distinct_dtypes = len({dt.name for dt in dtypes})
             assert len(dtypes) == len(images), (
@@ -172,7 +182,7 @@ def change_dtypes_(
 
         result: list[NDArray[Any]] = images
         for i, (image, dtype) in enumerate(zip(images, dtypes, strict=True)):
-            assert ia.is_np_array(image), (
+            assert _is_np_array(image), (
                 f"Expected each image to be an ndarray, got type {type(image)} instead."
             )
             result[i] = change_dtype_(image, dtype, clip=clip, round=round)
@@ -183,8 +193,6 @@ def change_dtypes_(
     return result
 
 
-# TODO replace this everywhere in the library with change_dtypes_
-# TODO mark as deprecated
 @overload
 def restore_dtypes_(
     images: NDArray[Any],
@@ -203,14 +211,18 @@ def restore_dtypes_(
 ) -> list[NDArray[Any]]: ...
 
 
+@legacy(deprecated=True, replacement="change_dtypes_")
 def restore_dtypes_(
     images: NDArray[Any] | list[NDArray[Any]],
     dtypes: np.dtype[Any] | Sequence[np.dtype[Any]],
     clip: bool = True,
     round: bool = True,
 ) -> NDArray[Any] | list[NDArray[Any]]:
-    """Deprecated alias for change_dtypes_."""
-    # pylint: disable=redefined-builtin
+    """Deprecated alias for change_dtypes_.
+
+    .. deprecated::
+        Use :func:`change_dtypes_` instead.
+    """
     return change_dtypes_(images, dtypes, clip=clip, round=round)
 
 
@@ -219,7 +231,7 @@ def copy_dtypes_for_restore(
     force_list: bool = False,
 ) -> np.dtype[Any] | list[np.dtype[Any]]:
     """Copy dtypes from images for later restoration."""
-    if ia.is_np_array(images):
+    if _is_np_array(images):
         if force_list:
             return [images.dtype for _ in range(len(images))]
         return images.dtype
@@ -229,7 +241,7 @@ def copy_dtypes_for_restore(
 def increase_itemsize_of_dtype(dtype: np.dtype[Any] | str, factor: int) -> np.dtype[Any]:
     dtype = normalize_dtype(dtype)
 
-    assert ia.is_single_integer(factor), (
+    assert _is_single_integer(factor), (
         f"Expected 'factor' to be an integer, got type {type(factor)} instead."
     )
     # int8 -> int64 = factor 8
@@ -285,8 +297,7 @@ def get_minimal_dtype(
     return promoted_dt
 
 
-# TODO rename to: promote_arrays_to_minimal_dtype_
-def promote_array_dtypes_(
+def promote_arrays_to_minimal_dtype_(
     arrays: list[NDArray[Any]],
     dtypes: np.dtype[Any] | Sequence[np.dtype[Any]] | None = None,
     increase_itemsize_factor: int = 1,
@@ -309,7 +320,9 @@ def increase_array_resolutions_(
     return change_dtypes_(arrays, dts, round=False, clip=False)
 
 
-def get_value_range_of_dtype(dtype: np.dtype[Any] | str) -> tuple[RangeValue, RangeValue | None, RangeValue]:
+def get_value_range_of_dtype(
+    dtype: np.dtype[Any] | str,
+) -> tuple[RangeValue, RangeValue | None, RangeValue]:
     dtype = normalize_dtype(dtype)
 
     if dtype.kind == "f":
@@ -340,15 +353,21 @@ def clip_(
     min_value: float | int | None,
     max_value: float | int | None,
 ) -> NDArray[Any]:
-    # uint64 is disallowed, because numpy's clip seems to convert it to float64
-    # int64 is disallowed, because numpy's clip converts it to float64 since
-    # 1.17
-    # TODO find the cause for that
     gate_dtypes_strs(
         {array.dtype},
-        allowed="bool uint8 uint16 uint32 int8 int16 int32 float16 float32 float64 float128",
-        disallowed="uint64 int64",
+        allowed="bool uint8 uint16 uint32 uint64 int8 int16 int32 int64 float16 float32 float64 float128",
+        disallowed="",
     )
+
+    if array.size == 0:
+        return array
+
+    # Handle float bounds for integer arrays to avoid casting to float
+    if array.dtype.kind in ["i", "u"]:
+        if min_value is not None and isinstance(min_value, float):
+            min_value = math.ceil(min_value)
+        if max_value is not None and isinstance(max_value, float):
+            max_value = math.floor(max_value)
 
     # If the min of the input value range is above the allowed min, we do not
     # have to clip to the allowed min as we cannot exceed it anyways.
@@ -360,22 +379,33 @@ def clip_(
     #     array([-1], dtype=int32)
     # (observed on numpy version 1.15.2).
     min_value_arrdt, _, max_value_arrdt = get_value_range_of_dtype(array.dtype)
-    if min_value is not None and min_value < min_value_arrdt:
-        min_value = None
-    if max_value is not None and max_value_arrdt < max_value:
-        max_value = None
+    if min_value is not None:
+        if min_value < min_value_arrdt:
+            min_value = None
+        elif min_value > max_value_arrdt:
+            min_value = max_value_arrdt
+
+    if max_value is not None:
+        if max_value > max_value_arrdt:
+            max_value = None
+        elif max_value < min_value_arrdt:
+            max_value = min_value_arrdt
 
     if min_value is not None or max_value is not None:
+        # We cast the bounds to the array's dtype to avoid implicit type
+        # promotion in np.clip() (e.g. uint32 + int -> int64), which can cause
+        # errors when using out=array.
+        # We have already ensured that the bounds are within the permitted value
+        # range of the dtype.
+        if min_value is not None:
+            min_value = array.dtype.type(min_value)
+        if max_value is not None:
+            max_value = array.dtype.type(max_value)
+
         # for scalar arrays, i.e. with shape = (), "out" is not a valid
         # argument
         if len(array.shape) == 0:
             array = np.clip(array, min_value, max_value)
-        elif array.dtype.name == "int32":
-            # Since 1.17 (before maybe too?), numpy.clip() turns int32
-            # to float64. float64 should cover the whole value range of int32,
-            # so the dtype is not rejected here.
-            # TODO Verify this. Is rounding needed before conversion?
-            array = np.clip(array, min_value, max_value).astype(array.dtype)
         else:
             array = np.clip(array, min_value, max_value, out=array)
     return array
@@ -391,7 +421,7 @@ def clip_to_dtype_value_range_(
     min_value, _, max_value = get_value_range_of_dtype(dtype)
     if validate:
         array_val = array
-        if ia.is_single_integer(validate):
+        if _is_single_integer(validate):
             assert validate >= 1, (
                 f"If 'validate' is an integer, it must have a value >=1, got {validate} instead."
             )
@@ -417,6 +447,7 @@ def clip_to_dtype_value_range_(
     return clip_(array, min_value, max_value)
 
 
+@legacy(version="0.5.0")
 def gate_dtypes_strs(
     dtypes: NDArray[Any] | Iterable[NDArray[Any]] | Iterable[np.dtype[Any]],
     allowed: str,
@@ -425,7 +456,6 @@ def gate_dtypes_strs(
 ) -> None:
     """Verify that input dtypes match allowed/disallowed dtype strings.
 
-    Added in 0.5.0.
 
     Parameters
     ----------
@@ -449,7 +479,7 @@ def gate_dtypes_strs(
     return _gate_dtypes(dtypes, allowed, disallowed, augmenter=augmenter)
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 def _convert_gate_dtype_strs_to_types(
     allowed: str,
     disallowed: str,
@@ -468,7 +498,7 @@ def _convert_gate_dtype_strs_to_types(
     return allowed_types, disallowed_types
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 def _convert_dtype_strs_to_types_cached(dtypes: str) -> set[np.dtype[Any]]:
     """Convert dtype string to types with caching."""
     dtypes_parsed = _DTYPE_STR_TO_DTYPES_CACHE.get(dtypes, None)
@@ -478,7 +508,7 @@ def _convert_dtype_strs_to_types_cached(dtypes: str) -> set[np.dtype[Any]]:
     return dtypes_parsed
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 def _convert_dtype_strs_to_types(dtypes: str) -> set[np.dtype[Any]]:
     result = set()
     for name in dtypes.split(" "):
@@ -494,6 +524,7 @@ def _convert_dtype_strs_to_types(dtypes: str) -> set[np.dtype[Any]]:
 
 
 # Deprecated since 0.5.0.
+@deprecated("imgaug2.dtypes.gate_dtypes_strs")
 def gate_dtypes(
     dtypes: NDArray[Any] | Iterable[NDArray[Any]] | Iterable[np.dtype[Any]],
     allowed: NDArray[Any] | Iterable[NDArray[Any]] | Iterable[np.dtype[Any]],
@@ -521,6 +552,7 @@ def gate_dtypes(
     return _gate_dtypes(dtypes_norm, allowed_norm, disallowed_norm, augmenter=augmenter)
 
 
+@legacy(version="0.5.0")
 def _gate_dtypes(
     dtypes: (
         NDArray[Any]
@@ -534,7 +566,6 @@ def _gate_dtypes(
 ) -> None:
     """Verify that input dtypes are among allowed and not disallowed dtypes.
 
-    Added in 0.5.0.
 
     Parameters
     ----------
@@ -597,13 +628,13 @@ def _gate_dtypes(
     if dts_undefined:
         for dtype in dts_undefined:
             if augmenter is None:
-                ia.warn(
+                warn(
                     f"Got dtype '{dtype.name}', which was neither explicitly allowed "
                     f"({_dtype_names_to_string(allowed)}), nor explicitly disallowed ({_dtype_names_to_string(disallowed)}). Generated "
                     "outputs may contain errors."
                 )
             else:
-                ia.warn(
+                warn(
                     f"Got dtype '{dtype.name}' in augmenter '{augmenter.name}' (class '{augmenter.__class__.__name__}'), which was "
                     f"neither explicitly allowed ({_dtype_names_to_string(allowed)}), nor explicitly "
                     f"disallowed ({_dtype_names_to_string(disallowed)}). Generated outputs may contain "
@@ -611,7 +642,7 @@ def _gate_dtypes(
                 )
 
 
-# Added in 0.5.0.
+@legacy(version="0.5.0")
 def _dtype_names_to_string(dtypes: set[np.dtype[Any]] | Iterable[np.dtype[Any]]) -> str:
     """Convert dtype set to comma-separated string."""
     if isinstance(dtypes, set):
@@ -619,13 +650,13 @@ def _dtype_names_to_string(dtypes: set[np.dtype[Any]] | Iterable[np.dtype[Any]])
     return ", ".join([np.dtype(dt).name for dt in dtypes])
 
 
+@legacy(version="0.5.0")
 def allow_only_uint8(
     dtypes: NDArray[Any] | Iterable[NDArray[Any]] | Iterable[np.dtype[Any]],
     augmenter: _AugmenterLike | None = None,
 ) -> None:
     """Verify that input dtypes are uint8.
 
-    Added in 0.5.0.
 
     Parameters
     ----------
@@ -647,18 +678,3 @@ def allow_only_uint8(
         "bool",
         augmenter=augmenter,
     )
-
-
-# Apply deprecation decorator after module loads to avoid circular imports
-def _apply_deprecated_decorator() -> None:
-    """Apply deprecation decorator to gate_dtypes function."""
-    import imgaug2.imgaug as ia
-
-    func = globals()["gate_dtypes"]
-    assert callable(func), "Expected gate_dtypes to be callable."
-    func_wrapped = cast(_HasWrappedAttr, func)
-    func_wrapped.__wrapped__ = func
-    globals()["gate_dtypes"] = ia.deprecated("imgaug2.dtypes.gate_dtypes_strs")(func)
-
-
-_apply_deprecated_decorator()

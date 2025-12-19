@@ -1,12 +1,10 @@
-"""
-Augmenters that apply artistic image filters.
+"""Augmenters that apply artistic image filters.
 
-List of augmenters:
+This module provides augmenters that transform images into stylized versions
+using artistic effects.
 
-    * :class:`Cartoon`
-
-Added in 0.4.0.
-
+Key Augmenters:
+    - `Cartoon`: Convert images to a cartoon/comic book style.
 """
 
 from __future__ import annotations
@@ -26,11 +24,13 @@ from imgaug2.augmenters import color as colorlib
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
+from imgaug2.compat.markers import legacy
 
 Image: TypeAlias = NDArray[np.uint8]
 FloatArray: TypeAlias = NDArray[np.floating]
 
 
+@legacy(version="0.4.0")
 def stylize_cartoon(
     image: Image,
     blur_ksize: int = 3,
@@ -53,7 +53,6 @@ def stylize_cartoon(
     This method is loosely based on the one proposed in
     https://stackoverflow.com/a/11614479/3760780
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -163,7 +162,7 @@ def stylize_cartoon(
     return _saturate(_blend_edges(image_seg, edges), saturation, from_colorspace)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _find_edges_canny(image: Image, edge_multiplier: float, from_colorspace: str) -> Image:
     image_gray = colorlib.change_colorspace_(
         np.copy(image), to_colorspace=colorlib.CSPACE_GRAY, from_colorspace=from_colorspace
@@ -174,7 +173,7 @@ def _find_edges_canny(image: Image, edge_multiplier: float, from_colorspace: str
     return edges.astype(np.uint8, copy=False)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _find_edges_laplacian(image: Image, edge_multiplier: float, from_colorspace: str) -> Image:
     image_gray = colorlib.change_colorspace_(
         np.copy(image), to_colorspace=colorlib.CSPACE_GRAY, from_colorspace=from_colorspace
@@ -192,7 +191,7 @@ def _find_edges_laplacian(image: Image, edge_multiplier: float, from_colorspace:
     return edges_uint8
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _blur_median(image: Image, ksize: int) -> Image:
     if ksize % 2 == 0:
         ksize += 1
@@ -202,7 +201,7 @@ def _blur_median(image: Image, ksize: int) -> Image:
     return blurred.astype(np.uint8, copy=False)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _threshold(image: Image, thresh: int) -> Image:
     mask = image < thresh
     result = np.copy(image)
@@ -210,7 +209,7 @@ def _threshold(image: Image, thresh: int) -> Image:
     return result
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _suppress_edge_blobs(edges: Image, size: int, thresh: int, inverse: bool) -> Image:
     kernel = np.ones((size, size), dtype=np.float32)
     counts = cv2.filter2D(_normalize_cv2_input_arr_(edges / 255.0), -1, kernel)
@@ -225,7 +224,7 @@ def _suppress_edge_blobs(edges: Image, size: int, thresh: int, inverse: bool) ->
     return edges
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _saturate(image: Image, factor: float, from_colorspace: str) -> Image:
     image = np.copy(image)
     if np.isclose(factor, 1.0, atol=1e-2):
@@ -243,13 +242,14 @@ def _saturate(image: Image, factor: float, from_colorspace: str) -> Image:
     return cast(Image, image_sat)
 
 
-# Added in 0.4.0.
+@legacy(version="0.4.0")
 def _blend_edges(image: Image, image_edges: Image) -> Image:
     image_edges = 1.0 - (image_edges / 255.0)
     image_edges = np.tile(image_edges[..., np.newaxis], (1, 1, 3))
     return np.clip(np.round(image * image_edges), 0.0, 255.0).astype(np.uint8)
 
 
+@legacy(version="0.4.0")
 class Cartoon(meta.Augmenter):
     """Convert the style of images to a more cartoonish one.
 
@@ -261,7 +261,6 @@ class Cartoon(meta.Augmenter):
     edges or also too many detected edges are probably the most significant
     drawbacks.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -357,7 +356,7 @@ class Cartoon(meta.Augmenter):
 
     """
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def __init__(
         self,
         blur_ksize: ParamInput = (1, 5),
@@ -404,7 +403,7 @@ class Cartoon(meta.Augmenter):
         )
         self.from_colorspace = from_colorspace
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -425,7 +424,7 @@ class Cartoon(meta.Augmenter):
                 )
         return batch
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _draw_samples(
         self, batch: _BatchInAugmentation, random_state: iarandom.RNG
     ) -> tuple[FloatArray, FloatArray, FloatArray, FloatArray]:
@@ -437,7 +436,7 @@ class Cartoon(meta.Augmenter):
             self.edge_prevalence.draw_samples((nb_rows,), random_state=random_state),
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
         """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
         return [

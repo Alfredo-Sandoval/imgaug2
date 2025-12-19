@@ -1,11 +1,11 @@
-"""
-Augmenters that apply mirroring/flipping operations to images.
+"""Augmenters that apply mirroring/flipping operations to images.
 
-List of augmenters:
+This module provides augmenters for horizontally and vertically flipping images
+and their associated augmentables (keypoints, bounding boxes, etc.).
 
-    * :class:`Fliplr`
-    * :class:`Flipud`
-
+Key Augmenters:
+    - `Fliplr`: Flip images horizontally (left-right mirror).
+    - `Flipud`: Flip images vertically (up-down mirror).
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import meta
 from imgaug2.imgaug import _normalize_cv2_input_arr_
+from imgaug2.compat.markers import legacy
 
 NumpyArray: TypeAlias = NDArray[np.generic]
 
@@ -193,13 +194,11 @@ def flipud(arr: object) -> object:
 
 def HorizontalFlip(*args: object, **kwargs: object) -> Fliplr:
     """Alias for Fliplr."""
-    # pylint: disable=invalid-name
     return Fliplr(*args, **kwargs)
 
 
 def VerticalFlip(*args: object, **kwargs: object) -> Flipud:
     """Alias for Flipud."""
-    # pylint: disable=invalid-name
     return Flipud(*args, **kwargs)
 
 
@@ -265,7 +264,7 @@ class Fliplr(meta.Augmenter):
         )
         self.p = iap.handle_probability_param(p, "p")
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -385,7 +384,7 @@ class Flipud(meta.Augmenter):
         )
         self.p = iap.handle_probability_param(p, "p")
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,

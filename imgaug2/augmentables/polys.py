@@ -15,7 +15,9 @@ from numpy.typing import NDArray
 
 import imgaug2.imgaug as ia
 import imgaug2.random as iarandom
+
 from imgaug2.augmentables.base import IAugmentable
+
 from imgaug2.augmentables.utils import (
     Number,
     Point2D,
@@ -28,6 +30,7 @@ from imgaug2.augmentables.utils import (
     normalize_imglike_shape,
     project_coords_,
 )
+from imgaug2.compat.markers import legacy
 
 if TYPE_CHECKING:
     from imgaug2.augmentables.bbs import BoundingBox
@@ -173,11 +176,12 @@ class Polygon:
     """
 
     def __init__(
-        self, exterior: NDArray[np.number] | list[Point2D] | list[Keypoint], label: str | None = None
+        self,
+        exterior: NDArray[np.number] | list[Point2D] | list[Keypoint],
+        label: str | None = None,
     ) -> None:
         """Create a new Polygon instance."""
-        # TODO get rid of this deferred import
-        from imgaug2.augmentables.kps import Keypoint
+        from imgaug2.augmentables import kps
 
         self.exterior: NDArray[np.float32]
 
@@ -187,17 +191,19 @@ class Polygon:
                 # not (0,) as that is also expected when the input is a numpy
                 # array
                 self.exterior = np.zeros((0, 2), dtype=np.float32).view(_PolygonExteriorFloat32)
-            elif isinstance(exterior[0], Keypoint):
+            elif isinstance(exterior[0], kps.Keypoint):
                 # list of Keypoint
                 self.exterior = np.float32([[point.x, point.y] for point in exterior]).view(
                     _PolygonExteriorFloat32
                 )
             else:
                 # list of tuples (x, y)
-                # TODO just np.float32(exterior) here?
-                self.exterior = np.float32([[point[0], point[1]] for point in exterior]).view(
-                    _PolygonExteriorFloat32
+                self.exterior = np.asarray(exterior, dtype=np.float32)
+                assert self.exterior.ndim == 2 and self.exterior.shape[1] == 2, (
+                    "Expected exterior to be a list of tuples (x, y) or "
+                    f"an (N, 2) array, got an array of shape {self.exterior.shape}"
                 )
+                self.exterior = self.exterior.view(_PolygonExteriorFloat32)
         else:
             assert ia.is_np_array(exterior), (
                 "Expected exterior to be a list of tuples (x, y) or "
@@ -207,7 +213,6 @@ class Polygon:
                 "Expected exterior to be a list of tuples (x, y) or "
                 f"an (N, 2) array, got an array of shape {exterior.shape}"
             )
-            # TODO deal with int inputs here?
             self.exterior = np.float32(exterior).view(_PolygonExteriorFloat32)
 
         # Remove last point if it is essentially the same as the first
@@ -222,11 +227,11 @@ class Polygon:
 
         self.label = label
 
+    @legacy(version="0.4.0")
     @property
     def coords(self) -> NDArray[np.float32]:
         """Alias for attribute ``exterior``.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -329,6 +334,19 @@ class Polygon:
         return poly.area
 
     @property
+    def centroid(self) -> NDArray[np.float32]:
+        """Compute the centroid of the polygon.
+
+        Returns
+        -------
+        (2,) ndarray
+            Centroid (center of mass) of the polygon as (x, y).
+
+        """
+        poly = self.to_shapely_polygon()
+        return np.array([poly.centroid.x, poly.centroid.y], dtype=np.float32)
+
+    @property
     def height(self) -> float:
         """Compute the height of a bounding box encapsulating the polygon.
 
@@ -360,6 +378,7 @@ class Polygon:
         xx = self.xx
         return max(xx) - min(xx)
 
+    @legacy(version="0.4.0")
     def project_(self, from_shape: ShapeLike, to_shape: ShapeLike) -> Polygon:
         """Project the polygon onto an image with different shape in-place.
 
@@ -371,7 +390,6 @@ class Polygon:
         This is intended for cases where the original image is resized.
         It cannot be used for more complex changes (e.g. padding, cropping).
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -426,7 +444,9 @@ class Polygon:
     ) -> int: ...
 
     @overload
-    def find_closest_point_index(self, x: Number, y: Number, return_distance: Literal[True]) -> tuple[int, float]: ...
+    def find_closest_point_index(
+        self, x: Number, y: Number, return_distance: Literal[True]
+    ) -> tuple[int, float]: ...
 
     def find_closest_point_index(
         self, x: Number, y: Number, return_distance: bool = False
@@ -472,10 +492,10 @@ class Polygon:
             return closest_idx, float(distances[closest_idx])
         return closest_idx
 
+    @legacy(version="0.4.0")
     def compute_out_of_image_area(self, image: ShapeLike) -> float:
         """Compute the area of the BB that is outside of the image plane.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -497,6 +517,7 @@ class Polygon:
             return self.area
         return self.area - sum([poly.area for poly in polys_clipped])
 
+    @legacy(version="0.4.0")
     def compute_out_of_image_fraction(self, image: ShapeLike) -> float:
         """Compute fraction of polygon area outside of the image plane.
 
@@ -504,7 +525,6 @@ class Polygon:
         polygon that is outside of the image plane, while ``A`` is the
         total area of the bounding box.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -738,12 +758,12 @@ class Polygon:
 
         return polygons_reordered
 
+    @legacy(version="0.4.0")
     def shift_(self, x: Number = 0, y: Number = 0) -> Polygon:
         """Move this polygon along the x/y-axis in-place.
 
         The origin ``(0, 0)`` is at the top left of the image.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -819,7 +839,6 @@ class Polygon:
         return self.deepcopy().shift_(x=x, y=y)
 
     # TODO separate this into draw_face_on_image() and draw_border_on_image()
-    # TODO add tests for line thickness
     def draw_on_image(
         self,
         image: NDArray[np.generic],
@@ -919,7 +938,6 @@ class Polygon:
 
         """
 
-        # pylint: disable=invalid-name
         def _assert_not_none(arg_name: str, arg_value: object) -> None:
             assert arg_value is not None, (
                 f"Expected '{arg_name}' to not be None, got type {type(arg_value)}."
@@ -934,11 +952,19 @@ class Polygon:
         _assert_not_none("alpha", alpha)
         _assert_not_none("size", size)
 
-        # FIXME due to the np.array(.) and the assert at ndim==2 below, this
-        #       will always fail on 2D images?
-        color_face = _default_to(color_face, np.array(color))
-        color_lines = _default_to(color_lines, np.array(color) * 0.5)
-        color_points = _default_to(color_points, np.array(color) * 0.5)
+        if image.ndim == 2:
+            assert ia.is_single_number(color), (
+                "Got a 2D image. Expected then 'color' to be a single number, "
+                f"but got {str(color)}."
+            )
+
+            color_face = _default_to(color_face, color)
+            color_lines = _default_to(color_lines, float(color) * 0.5)
+            color_points = _default_to(color_points, float(color) * 0.5)
+        else:
+            color_face = _default_to(color_face, np.array(color))
+            color_lines = _default_to(color_lines, np.array(color) * 0.5)
+            color_points = _default_to(color_points, np.array(color) * 0.5)
 
         alpha_face = _default_to(alpha_face, alpha * 0.5)
         alpha_lines = _default_to(alpha_lines, alpha)
@@ -947,13 +973,7 @@ class Polygon:
         size_lines = _default_to(size_lines, size)
         size_points = _default_to(size_points, size * 3)
 
-        if image.ndim == 2:
-            assert ia.is_single_number(color_face), (
-                "Got a 2D image. Expected then 'color_face' to be a single "
-                f"number, but got {str(color_face)}."
-            )
-            color_face = [color_face]
-        elif image.ndim == 3 and ia.is_single_number(color_face):
+        if image.ndim == 3 and ia.is_single_number(color_face):
             color_face = [color_face] * image.shape[-1]
 
         if alpha_face < 0.01:
@@ -1004,13 +1024,21 @@ class Polygon:
             if len(rr_face) == 0:
                 pass
             if alpha_face == 1:
-                result[rr_face, cc_face] = np.float32(color_face)
+                if image.ndim == 2:
+                    result[rr_face, cc_face] = float(color_face)
+                else:
+                    result[rr_face, cc_face] = np.float32(color_face)
             elif alpha_face == 0:
                 pass
             else:
-                result[rr_face, cc_face] = (1 - alpha_face) * result[
-                    rr_face, cc_face, :
-                ] + alpha_face * np.float32(color_face)
+                if image.ndim == 2:
+                    result[rr_face, cc_face] = (1 - alpha_face) * result[
+                        rr_face, cc_face
+                    ] + alpha_face * float(color_face)
+                else:
+                    result[rr_face, cc_face] = (1 - alpha_face) * result[
+                        rr_face, cc_face, :
+                    ] + alpha_face * np.float32(color_face)
 
         result = ls_closed.draw_lines_on_image(
             result,
@@ -1035,16 +1063,19 @@ class Polygon:
 
         return result
 
-    # TODO add pad, similar to LineStrings
-    # TODO add pad_max, similar to LineStrings
-    # TODO add prevent_zero_size, similar to LineStrings
-    def extract_from_image(self, image: NDArray[np.generic]) -> NDArray[np.generic]:
+    def extract_from_image(
+        self,
+        image: NDArray[np.generic],
+        pad: bool = True,
+        pad_max: int | None = None,
+        prevent_zero_size: bool = True,
+    ) -> NDArray[np.generic]:
         """Extract all image pixels within the polygon area.
 
         This method returns a rectangular image array. All pixels within
         that rectangle that do not belong to the polygon area will be filled
         with zeros (i.e. they will be black).
-        The method will also zero-pad the image if the polygon is
+        The method will by default zero-pad the image if the polygon is
         partially/fully outside of the image.
 
         Parameters
@@ -1052,11 +1083,33 @@ class Polygon:
         image : (H,W) ndarray or (H,W,C) ndarray
             The image from which to extract the pixels within the polygon.
 
+        pad : bool, optional
+            Whether to zero-pad the image if the object is partially/fully
+            outside of it.
+
+        pad_max : None or int, optional
+            The maximum number of pixels that may be zero-paded on any side,
+            i.e. if this has value ``N`` the total maximum of added pixels
+            is ``4*N``.
+            This option exists to prevent extremely large images as a result of
+            single points being moved very far away during augmentation.
+
+        prevent_zero_size : bool, optional
+            Whether to prevent height or width of the extracted image from
+            becoming zero. If this is set to ``True`` and height or width of
+            the polygon is below ``1``, the height/width will be increased
+            to ``1``. This can be useful to prevent problems, e.g. with image
+            saving or plotting. If it is set to ``False``, images will be
+            returned as ``(H', W')`` or ``(H', W', C)`` with ``H`` or ``W``
+            potentially being ``0``.
+
         Returns
         -------
         (H',W') ndarray or (H',W',C) ndarray
             Pixels within the polygon. Zero-padded if the polygon is
-            partially/fully outside of the image.
+            partially/fully outside of the image and ``pad=True``.
+            If `prevent_zero_size` is activated, it is guarantueed that
+            ``H'>0`` and ``W'>0``, otherwise only ``H'>=0`` and ``W'>=0``.
 
         """
         assert image.ndim in [2, 3], f"Expected image of shape (H,W,[C]), got shape {image.shape}."
@@ -1067,7 +1120,9 @@ class Polygon:
             )
 
         bb = self.to_bounding_box()
-        bb_area = bb.extract_from_image(image)
+        bb_area = bb.extract_from_image(
+            image, pad=pad, pad_max=pad_max, prevent_zero_size=prevent_zero_size
+        )
         if self.is_out_of_image(image, fully=True, partly=False):
             return bb_area
 
@@ -1179,12 +1234,12 @@ class Polygon:
         )
         return self.deepcopy(exterior=exterior)
 
+    @legacy(version="0.4.0")
     def subdivide_(self, points_per_edge: int) -> Polygon:
         """Derive a new poly with ``N`` interpolated points per edge in-place.
 
         See :func:`~imgaug2.augmentables.lines.LineString.subdivide` for details.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1209,12 +1264,12 @@ class Polygon:
         )
         return self
 
+    @legacy(version="0.4.0")
     def subdivide(self, points_per_edge: int) -> Polygon:
         """Derive a new polygon with ``N`` interpolated points per edge.
 
         See :func:`~imgaug2.augmentables.lines.LineString.subdivide` for details.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1275,12 +1330,11 @@ class Polygon:
             Bounding box that tightly encapsulates the polygon.
 
         """
-        # TODO get rid of this deferred import
-        from imgaug2.augmentables.bbs import BoundingBox
+        from imgaug2.augmentables import bbs
 
         xx = self.xx
         yy = self.yy
-        return BoundingBox(
+        return bbs.BoundingBox(
             x1=float(np.min(xx)),
             x2=float(np.max(xx)),
             y1=float(np.min(yy)),
@@ -1298,10 +1352,9 @@ class Polygon:
             instances.
 
         """
-        # TODO get rid of this deferred import
-        from imgaug2.augmentables.kps import Keypoint
+        from imgaug2.augmentables import kps
 
-        return [Keypoint(x=point[0], y=point[1]) for point in self.exterior]
+        return [kps.Keypoint(x=point[0], y=point[1]) for point in self.exterior]
 
     def to_line_string(self, closed: bool = True) -> LineString:
         """Convert this polygon's exterior to a ``LineString`` instance.
@@ -1369,7 +1422,10 @@ class Polygon:
         return Polygon(exterior, label=label)
 
     def coords_almost_equals(
-        self, other: Polygon | Point2D | Point2DList | NDArray[np.number], max_distance: float = 1e-4, points_per_edge: int = 8
+        self,
+        other: Polygon | Point2D | Point2DList | NDArray[np.number],
+        max_distance: float = 1e-4,
+        points_per_edge: int = 8,
     ) -> bool:
         """Alias for :func:`Polygon.exterior_almost_equals`.
 
@@ -1399,7 +1455,10 @@ class Polygon:
         )
 
     def exterior_almost_equals(
-        self, other: Polygon | Point2D | Point2DList | NDArray[np.number], max_distance: float = 1e-4, points_per_edge: int = 8
+        self,
+        other: Polygon | Point2D | Point2DList | NDArray[np.number],
+        max_distance: float = 1e-4,
+        points_per_edge: int = 8,
     ) -> bool:
         """Estimate if this and another polygon's exterior are almost identical.
 
@@ -1459,7 +1518,9 @@ class Polygon:
             points_per_edge=points_per_edge,
         )
 
-    def almost_equals(self, other: Polygon, max_distance: float = 1e-4, points_per_edge: int = 8) -> bool:
+    def almost_equals(
+        self, other: Polygon, max_distance: float = 1e-4, points_per_edge: int = 8
+    ) -> bool:
         """
         Estimate if this polygon's and another's geometry/labels are similar.
 
@@ -1493,7 +1554,11 @@ class Polygon:
             other, max_distance=max_distance, points_per_edge=points_per_edge
         )
 
-    def copy(self, exterior: NDArray[np.number] | list[Point2D] | list[Keypoint] | None = None, label: str | None = None) -> Polygon:
+    def copy(
+        self,
+        exterior: NDArray[np.number] | list[Point2D] | list[Keypoint] | None = None,
+        label: str | None = None,
+    ) -> Polygon:
         """Create a shallow copy of this object.
 
         Parameters
@@ -1515,7 +1580,9 @@ class Polygon:
         return self.deepcopy(exterior=exterior, label=label)
 
     def deepcopy(
-        self, exterior: NDArray[np.number] | list[Point2D] | list[Keypoint] | None = None, label: str | None = None
+        self,
+        exterior: NDArray[np.number] | list[Point2D] | list[Keypoint] | None = None,
+        label: str | None = None,
     ) -> Polygon:
         """Create a deep copy of this object.
 
@@ -1540,10 +1607,10 @@ class Polygon:
             label=self.label if label is None else label,
         )
 
+    @legacy(version="0.4.0")
     def __getitem__(self, indices: int | slice | Sequence[int]) -> NDArray[np.float32]:
         """Get the coordinate(s) with given indices.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -1553,10 +1620,10 @@ class Polygon:
         """
         return self.exterior[indices]
 
+    @legacy(version="0.4.0")
     def __iter__(self) -> Iterator[NDArray[np.float64]]:
         """Iterate over the coordinates of this instance.
 
-        Added in 0.4.0.
 
         Yields
         ------
@@ -1574,8 +1641,7 @@ class Polygon:
         return f"Polygon([{points_str}] ({len(self.exterior)} points), label={self.label})"
 
 
-# TODO add tests for this
-class PolygonsOnImage(IAugmentable):
+class PolygonsOnImage:
     """Container for all polygons on a single image.
 
     Parameters
@@ -1605,11 +1671,11 @@ class PolygonsOnImage(IAugmentable):
         self.polygons: list[Polygon] = polygons
         self.shape = _handle_on_image_shape(shape, self)
 
+    @legacy(version="0.4.0")
     @property
     def items(self) -> list[Polygon]:
         """Get the polygons in this container.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -1619,11 +1685,11 @@ class PolygonsOnImage(IAugmentable):
         """
         return self.polygons
 
+    @legacy(version="0.4.0")
     @items.setter
     def items(self, value: list[Polygon]) -> None:
         """Set the polygons in this container.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1645,10 +1711,10 @@ class PolygonsOnImage(IAugmentable):
         """
         return len(self.polygons) == 0
 
+    @legacy(version="0.4.0")
     def on_(self, image: ShapeLike) -> PolygonsOnImage:
         """Project all polygons from one image shape to a new one in-place.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1663,7 +1729,6 @@ class PolygonsOnImage(IAugmentable):
             The object and its items may have been modified in-place.
 
         """
-        # pylint: disable=invalid-name
         on_shape = normalize_imglike_shape(image)
         if on_shape[0:2] == self.shape[0:2]:
             self.shape = on_shape  # channels may differ
@@ -1689,7 +1754,6 @@ class PolygonsOnImage(IAugmentable):
             Object containing all projected polygons.
 
         """
-        # pylint: disable=invalid-name
         return self.deepcopy().on_(image)
 
     def draw_on_image(
@@ -1810,12 +1874,12 @@ class PolygonsOnImage(IAugmentable):
             )
         return image
 
+    @legacy(version="0.4.0")
     def remove_out_of_image_(self, fully: bool = True, partly: bool = False) -> PolygonsOnImage:
         """Remove all polygons that are fully/partially OOI in-place.
 
         'OOI' is the abbreviation for 'out of image'.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1860,10 +1924,10 @@ class PolygonsOnImage(IAugmentable):
         """
         return self.deepcopy().remove_out_of_image_(fully, partly)
 
+    @legacy(version="0.4.0")
     def remove_out_of_image_fraction_(self, fraction: float) -> PolygonsOnImage:
         """Remove all Polys with an OOI fraction of ``>=fraction`` in-place.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1883,10 +1947,10 @@ class PolygonsOnImage(IAugmentable):
         """
         return _remove_out_of_image_fraction_(self, fraction)
 
+    @legacy(version="0.4.0")
     def remove_out_of_image_fraction(self, fraction: float) -> PolygonsOnImage:
         """Remove all Polys with an out of image fraction of ``>=fraction``.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -1905,6 +1969,7 @@ class PolygonsOnImage(IAugmentable):
         """
         return self.copy().remove_out_of_image_fraction_(fraction)
 
+    @legacy(version="0.4.0")
     def clip_out_of_image_(self) -> PolygonsOnImage:
         """Clip off all parts from all polygons that are OOI in-place.
 
@@ -1923,7 +1988,6 @@ class PolygonsOnImage(IAugmentable):
             will be clipped off, resulting in two or more unconnected polygon
             parts that are left in the image plane.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -1965,12 +2029,12 @@ class PolygonsOnImage(IAugmentable):
         """
         return self.copy().clip_out_of_image_()
 
+    @legacy(version="0.4.0")
     def shift_(self, x: Number = 0, y: Number = 0) -> PolygonsOnImage:
         """Move the polygons along the x/y-axis in-place.
 
         The origin ``(0, 0)`` is at the top left of the image.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -2044,10 +2108,10 @@ class PolygonsOnImage(IAugmentable):
         x, y = _normalize_shift_args(x, y, top=top, right=right, bottom=bottom, left=left)
         return self.deepcopy().shift_(x=x, y=y)
 
+    @legacy(version="0.4.0")
     def subdivide_(self, points_per_edge: int) -> PolygonsOnImage:
         """Interpolate ``N`` points on each polygon.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -2064,10 +2128,10 @@ class PolygonsOnImage(IAugmentable):
             self.polygons[i] = poly.subdivide_(points_per_edge)
         return self
 
+    @legacy(version="0.4.0")
     def subdivide(self, points_per_edge: int) -> PolygonsOnImage:
         """Interpolate ``N`` points on each polygon.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -2082,10 +2146,10 @@ class PolygonsOnImage(IAugmentable):
         """
         return self.deepcopy().subdivide_(points_per_edge)
 
+    @legacy(version="0.4.0")
     def to_xy_array(self) -> NDArray[np.float32]:
         """Convert all polygon coordinates to one array of shape ``(N,2)``.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -2098,6 +2162,7 @@ class PolygonsOnImage(IAugmentable):
             return np.zeros((0, 2), dtype=np.float32)
         return np.concatenate([poly.exterior for poly in self.polygons])
 
+    @legacy(version="0.4.0")
     def fill_from_xy_array_(self, xy: NDArray[np.number] | Point2DList) -> PolygonsOnImage:
         """Modify the corner coordinates of all polygons in-place.
 
@@ -2113,7 +2178,6 @@ class PolygonsOnImage(IAugmentable):
             polygons. If bad coordinates are provided, the result will be
             invalid polygons (e.g. self-intersections).
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -2131,7 +2195,7 @@ class PolygonsOnImage(IAugmentable):
         xy = np.array(xy, dtype=np.float32)
 
         # note that np.array([]) is (0,), not (0, 2)
-        assert xy.shape[0] == 0 or (xy.ndim == 2 and xy.shape[-1] == 2), (  # pylint: disable=unsubscriptable-object
+        assert xy.shape[0] == 0 or (xy.ndim == 2 and xy.shape[-1] == 2), (
             f"Expected input array to have shape (N,2), got shape {xy.shape}."
         )
 
@@ -2154,10 +2218,10 @@ class PolygonsOnImage(IAugmentable):
 
         return self
 
+    @legacy(version="0.4.0")
     def to_keypoints_on_image(self) -> KeypointsOnImage:
         """Convert the polygons to one ``KeypointsOnImage`` instance.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -2174,13 +2238,13 @@ class PolygonsOnImage(IAugmentable):
         exteriors = np.concatenate([poly.exterior for poly in self.polygons], axis=0)
         return KeypointsOnImage.from_xy_array(exteriors, shape=self.shape)
 
+    @legacy(version="0.4.0")
     def invert_to_keypoints_on_image_(self, kpsoi: KeypointsOnImage) -> PolygonsOnImage:
         """Invert the output of ``to_keypoints_on_image()`` in-place.
 
         This function writes in-place into this ``PolygonsOnImage``
         instance.
 
-        Added in 0.4.0.
 
         Parameters
         ----------
@@ -2212,7 +2276,9 @@ class PolygonsOnImage(IAugmentable):
         self.shape = kpsoi.shape
         return self
 
-    def copy(self, polygons: list[Polygon] | None = None, shape: Shape | None = None) -> PolygonsOnImage:
+    def copy(
+        self, polygons: list[Polygon] | None = None, shape: Shape | None = None
+    ) -> PolygonsOnImage:
         """Create a shallow copy of this object.
 
         Parameters
@@ -2283,10 +2349,10 @@ class PolygonsOnImage(IAugmentable):
     @overload
     def __getitem__(self, indices: slice) -> list[Polygon]: ...
 
+    @legacy(version="0.4.0")
     def __getitem__(self, indices: int | slice) -> Polygon | list[Polygon]:
         """Get the polygon(s) with given indices.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -2296,10 +2362,10 @@ class PolygonsOnImage(IAugmentable):
         """
         return self.polygons[indices]
 
+    @legacy(version="0.4.0")
     def __iter__(self) -> Iterator[Polygon]:
         """Iterate over the polygons in this container.
 
-        Added in 0.4.0.
 
         Yields
         ------
@@ -2311,10 +2377,10 @@ class PolygonsOnImage(IAugmentable):
         """
         return iter(self.polygons)
 
+    @legacy(version="0.4.0")
     def __len__(self) -> int:
         """Get the number of items in this instance.
 
-        Added in 0.4.0.
 
         Returns
         -------
@@ -2589,7 +2655,6 @@ class _ConcavePolygonRecoverer:
     def _generate_intersection_points(
         self, exterior: Points2DLike, one_point_per_intersection: bool = True, decimals: int = 4
     ) -> list[list[tuple[float, float]]]:
-        # pylint: disable=broad-except
         largest_value = np.max(np.abs(np.array(exterior, dtype=np.float32)))
         too_large_values = largest_value > self.limit_coords_values_for_inter_search
         if too_large_values:
@@ -2702,7 +2767,9 @@ class _ConcavePolygonRecoverer:
         return segment_add_points_sorted
 
     def _oversample_intersection_points(
-        self, exterior: Sequence[Sequence[float]], segment_add_points: list[list[tuple[float, float]]]
+        self,
+        exterior: Sequence[Sequence[float]],
+        segment_add_points: list[list[tuple[float, float]]],
     ) -> list[list[tuple[float, float]]]:
         # segment_add_points must be sorted
 

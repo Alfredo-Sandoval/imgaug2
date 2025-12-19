@@ -7,10 +7,11 @@ from collections.abc import Sequence
 import numpy as np
 
 import imgaug2.imgaug as ia
-from imgaug2.augmentables.base import IAugmentable
+
+from imgaug2.augmenters._size_utils import pad, pad_to_aspect_ratio
 
 
-class HeatmapsOnImage(IAugmentable):
+class HeatmapsOnImage:
     """Object representing heatmaps on a single image.
 
     Parameters
@@ -129,10 +130,6 @@ class HeatmapsOnImage(IAugmentable):
 
         diff = self.max_value - self.min_value
         return self.min_value + diff * arr
-
-    # TODO
-    # def find_global_maxima(self):
-    #    raise NotImplementedError()
 
     def draw(
         self,
@@ -336,9 +333,7 @@ class HeatmapsOnImage(IAugmentable):
             width ``W'=W+left+right``.
 
         """
-        from imgaug2.augmenters import size as iasize
-
-        arr_0to1_padded = iasize.pad(
+        arr_0to1_padded = pad(
             self.arr_0to1,
             top=top,
             right=right,
@@ -402,9 +397,7 @@ class HeatmapsOnImage(IAugmentable):
             ``True``.
 
         """
-        from imgaug2.augmenters import size as iasize
-
-        arr_0to1_padded, pad_amounts = iasize.pad_to_aspect_ratio(
+        arr_0to1_padded, pad_amounts = pad_to_aspect_ratio(
             self.arr_0to1,
             aspect_ratio=aspect_ratio,
             mode=mode,

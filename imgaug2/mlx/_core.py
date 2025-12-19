@@ -18,23 +18,35 @@ Notes
 
 Examples
 --------
->>> from imgaug2.mlx import is_available, to_mlx
->>> if is_available():
-...     arr = to_mlx(np.zeros((32, 32, 3)))
+>>> from imgaug2.mlx import is_available, to_mlx  # doctest: +SKIP
+>>> if is_available():  # doctest: +SKIP
+...     arr = to_mlx(np.zeros((32, 32, 3)))  # doctest: +SKIP
 """
 
 from __future__ import annotations
 
+import platform
+import sys
 from typing import TYPE_CHECKING, Any, TypeAlias, TypeGuard, cast
 
 import numpy as np
 
 from imgaug2.errors import BackendUnavailableError, DependencyMissingError
 
-try:
-    import mlx.core as mx
 
-    MLX_AVAILABLE = True
+def _is_mlx_supported_platform() -> bool:
+    if sys.platform != "darwin":
+        return False
+    machine = platform.machine().lower()
+    return machine in {"arm64", "arm64e", "aarch64"}
+
+_MLX_PLATFORM_SUPPORTED = _is_mlx_supported_platform()
+try:
+    if _MLX_PLATFORM_SUPPORTED:
+        import mlx.core as mx
+    else:  # pragma: no cover
+        mx = None
+    MLX_AVAILABLE = mx is not None
     _MLX_IMPORT_ERROR: Exception | None = None
 except Exception as exc:
     MLX_AVAILABLE = False
@@ -66,6 +78,8 @@ def is_available() -> bool:
     >>> if is_available():
     ...     print("MLX ready")
     """
+    if not _MLX_PLATFORM_SUPPORTED:
+        return False
     if not MLX_AVAILABLE or mx is None:
         return False
     try:
@@ -86,6 +100,10 @@ def require() -> None:
     BackendUnavailableError
         If MLX is installed but not functional on this system.
     """
+    if not _MLX_PLATFORM_SUPPORTED:
+        raise BackendUnavailableError(
+            "MLX backend is only supported on Apple Silicon macOS (arm64)."
+        )
     if not MLX_AVAILABLE or mx is None:
         raise DependencyMissingError(
             "MLX backend is not available because `mlx` could not be imported. "
@@ -113,7 +131,7 @@ def is_mlx_array(arr: object) -> TypeGuard[MxArray]:
     bool
         True if ``arr`` is an ``mlx.core.array``, False otherwise.
     """
-    if not MLX_AVAILABLE or mx is None:
+    if not _MLX_PLATFORM_SUPPORTED or not MLX_AVAILABLE or mx is None:
         return False
     return isinstance(arr, mx.array)
 

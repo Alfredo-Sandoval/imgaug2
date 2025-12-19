@@ -18,7 +18,10 @@ import numpy as np
 import skimage.draw
 import skimage.measure
 
-from imgaug2.compat.markers import legacy, new
+import imgaug2.dtypes as iadt
+from imgaug2._deprecations import deprecated, warn, warn_deprecated
+from imgaug2._deprecations import DeprecationWarning  # noqa: F401
+from imgaug2.compat.markers import legacy
 
 try:
     import numba
@@ -123,164 +126,11 @@ IMRESIZE_VALID_INTERPOLATIONS = [
 ]
 
 # Cache dict to save kernels used for pooling.
-# Added in 0.5.0.
 _POOLING_KERNELS_CACHE = {}
 
-# Added in 0.5.0.
 _NUMBA_INSTALLED = numba is not None
 
-# Added in 0.5.0.
 _UINT8_DTYPE = np.dtype("uint8")
-
-
-###############################################################################
-# Helpers for deprecation
-###############################################################################
-
-
-@legacy
-class DeprecationWarning(Warning):  # pylint: disable=redefined-builtin
-    """Warning for deprecated calls.
-
-    We define our own DeprecationWarning subclass so that deprecations in
-    imgaug2 are consistently visible and distinguishable.
-
-    """
-
-
-@legacy
-def warn(msg: str, category: type[Warning] = UserWarning, stacklevel: int = 2) -> None:
-    """Generate a a warning with stacktrace.
-
-    Parameters
-    ----------
-    msg : str
-        The message of the warning.
-
-    category : class
-        The class of the warning to produce.
-
-    stacklevel : int, optional
-        How many steps above this function to "jump" in the stacktrace when
-        displaying file and line number of the error message.
-        Usually ``2``.
-
-    """
-    import warnings
-
-    warnings.warn(msg, category=category, stacklevel=stacklevel)
-
-
-@legacy
-def warn_deprecated(msg: str, stacklevel: int = 2) -> None:
-    """Generate a non-silent deprecation warning with stacktrace.
-
-    The used warning is ``imgaug2.imgaug2.DeprecationWarning``.
-
-    Parameters
-    ----------
-    msg : str
-        The message of the warning.
-
-    stacklevel : int, optional
-        How many steps above this function to "jump" in the stacktrace when
-        displaying file and line number of the error message.
-        Usually ``2``
-
-    """
-    warn(msg, category=DeprecationWarning, stacklevel=stacklevel)
-
-
-@legacy
-class deprecated:  # pylint: disable=invalid-name
-    """Decorator to mark deprecated functions with warning.
-
-    Adapted from
-    <https://github.com/scikit-image/scikit-image/blob/master/skimage/_shared/utils.py>.
-
-    Parameters
-    ----------
-    alt_func : None or str, optional
-        If given, tell user what function to use instead.
-
-    behavior : {'warn', 'raise'}, optional
-        Behavior during call to deprecated function: ``warn`` means that the
-        user is warned that the function is deprecated; ``raise`` means that
-        an error is raised.
-
-    removed_version : None or str, optional
-        The package version in which the deprecated function will be removed.
-
-    comment : None or str, optional
-        An optional comment that will be appended to the warning message.
-
-    """
-
-    def __init__(
-        self,
-        alt_func: str | None = None,
-        behavior: Literal["warn", "raise"] = "warn",
-        removed_version: str | None = None,
-        comment: str | None = None,
-    ) -> None:
-        self.alt_func = alt_func
-        self.behavior = behavior
-        self.removed_version = removed_version
-        self.comment = comment
-
-    def __call__(self, func: Callable[_P, _R]) -> Callable[_P, _R]:
-        alt_msg = None
-        if self.alt_func is not None:
-            alt_msg = f"Use ``{self.alt_func}`` instead."
-
-        rmv_msg = None
-        if self.removed_version is not None:
-            rmv_msg = f"It will be removed in version {self.removed_version}."
-
-        comment_msg = None
-        if self.comment is not None and len(self.comment) > 0:
-            comment_msg = "{}.".format(self.comment.rstrip(". "))
-
-        addendum = " ".join(
-            [submsg for submsg in [alt_msg, rmv_msg, comment_msg] if submsg is not None]
-        )
-
-        @functools.wraps(func)
-        def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
-            # getargpec() is deprecated
-            # pylint: disable=deprecated-method
-
-            # TODO add class name if class method
-            import inspect
-            # arg_names = func.__code__.co_varnames
-
-            arg_names = inspect.getfullargspec(func)[0]
-
-            func_name = getattr(func, "__name__", func.__class__.__name__)
-
-            if "self" in arg_names or "cls" in arg_names:
-                main_msg = (
-                    f"Method ``{args[0].__class__.__name__}.{func_name}()`` is deprecated."
-                )
-            else:
-                main_msg = f"Function ``{func_name}()`` is deprecated."
-
-            msg = (main_msg + " " + addendum).rstrip(" ").replace("``", "`")
-
-            if self.behavior == "warn":
-                warn_deprecated(msg, stacklevel=3)
-            elif self.behavior == "raise":
-                raise DeprecationWarning(msg)
-            return func(*args, **kwargs)
-
-        # modify doc string to display deprecation warning
-        doc = "**Deprecated**. " + addendum
-        if wrapped.__doc__ is None:
-            wrapped.__doc__ = doc
-        else:
-            wrapped.__doc__ = doc + "\n\n    " + wrapped.__doc__
-
-        return wrapped
 
 
 ###############################################################################
@@ -404,10 +254,12 @@ def is_iterable(val: object) -> bool:
     return isinstance(val, Iterable)
 
 
-# TODO convert to is_single_string() or rename is_single_integer/float/number()
-@legacy
-def is_string(val: object) -> bool:
-    """Check whether a variable is a string.
+def is_single_string(val: object) -> bool:
+    """Check whether a variable is a single string.
+
+    This function checks if the input is a string instance.
+    The name follows the naming convention of related functions
+    like ``is_single_integer()``, ``is_single_float()``, etc.
 
     Parameters
     ----------
@@ -421,6 +273,28 @@ def is_string(val: object) -> bool:
 
     """
     return isinstance(val, str)
+
+
+@legacy
+def is_string(val: object) -> bool:
+    """Check whether a variable is a string.
+
+    .. deprecated::
+        Use :func:`is_single_string` instead for consistency with other
+        naming conventions like ``is_single_integer()``.
+
+    Parameters
+    ----------
+    val
+        The variable to check.
+
+    Returns
+    -------
+    bool
+        ``True`` if the variable is a string. Otherwise ``False``.
+
+    """
+    return is_single_string(val)
 
 
 @legacy
@@ -548,7 +422,6 @@ def flatten(nested_iterable: NestedIterable[_T]) -> Iterator[_T]:
                 yield i
 
 
-# TODO no longer used anywhere. deprecate?
 @legacy
 def caller_name() -> str:
     """Return the name of the caller, e.g. a function.
@@ -559,7 +432,6 @@ def caller_name() -> str:
         The name of the caller as a string
 
     """
-    # pylint: disable=protected-access
     return sys._getframe(1).f_code.co_name
 
 
@@ -610,7 +482,6 @@ def seed(entropy: int | None = None, seedval: int | None = None) -> None:
 
 
 @legacy(deprecated=True, replacement="imgaug2.random.normalize_generator")
-@deprecated("imgaug2.random.normalize_generator")
 def normalize_random_state(random_state: RNGInput) -> NumpyGenerator:
     # NOTE: Despite the name, this returns a numpy Generator/RandomState.
     # The legacy name is kept for backwards compatibility.
@@ -673,7 +544,6 @@ def new_random_state(seed: int | None = None, fully_random: bool = False) -> RNG
         Both are initialized with the provided seed.
 
     """
-    # pylint: disable=redefined-outer-name
     import imgaug2.random
 
     if seed is None:
@@ -683,7 +553,6 @@ def new_random_state(seed: int | None = None, fully_random: bool = False) -> RNG
     return imgaug2.random.RNG(seed)
 
 
-# TODO seems to not be used anywhere anymore
 @legacy
 @deprecated("imgaug2.random.convert_seed_to_rng")
 def dummy_random_state() -> RNG:
@@ -825,7 +694,6 @@ def angle_between_vectors(v1: np.ndarray, v2: np.ndarray) -> float:
     3.141592...
 
     """
-    # pylint: disable=invalid-name
     length1 = np.linalg.norm(v1)
     length2 = np.linalg.norm(v2)
     v1_unit = (v1 / length1) if length1 > 0 else np.float32(v1) * 0
@@ -834,9 +702,6 @@ def angle_between_vectors(v1: np.ndarray, v2: np.ndarray) -> float:
     return float(np.arccos(np.clip(np.dot(v1_unit, v2_unit), -1.0, 1.0)))
 
 
-# TODO is this used anywhere?
-# TODO this might also be covered by augmentables.utils or
-#      augmentables.polys/lines
 @legacy
 def compute_line_intersection_point(
     x1: Number,
@@ -894,8 +759,6 @@ def compute_line_intersection_point(
         of them), the result is ``False``.
 
     """
-
-    # pylint: disable=invalid-name
     def _make_line(
         point1: tuple[Number, Number],
         point2: tuple[Number, Number],
@@ -1110,7 +973,6 @@ def imresize_many_images(
     height ``16`` and width ``32``.
 
     """
-    # pylint: disable=too-many-statements
 
     # we just do nothing if the input contains zero images
     # one could also argue that an exception would be appropriate here
@@ -1210,9 +1072,6 @@ def imresize_many_images(
     else:  # if ip in ["cubic", cv2.INTER_CUBIC]:
         inter = cv2.INTER_CUBIC
 
-    # TODO find more beautiful way to avoid circular imports
-    import imgaug2.dtypes as iadt
-
     if inter == cv2.INTER_NEAREST:
         iadt.gate_dtypes_strs(
             images,
@@ -1265,14 +1124,8 @@ def imresize_many_images(
         if input_dtype_name == "bool":
             result_img = result_img > 127
         elif input_dtype_name == "int8" and inter != cv2.INTER_NEAREST:
-            # TODO somehow better avoid circular imports here
-            import imgaug2.dtypes as iadt
-
             result_img = iadt.restore_dtypes_(result_img, np.int8)
         elif input_dtype_name == "float16":
-            # TODO see above
-            import imgaug2.dtypes as iadt
-
             result_img = iadt.restore_dtypes_(result_img, np.float16)
         result[i] = result_img
     return result
@@ -1406,10 +1259,6 @@ def pool(
         Array after pooling.
 
     """
-    # TODO find better way to avoid circular import
-    import imgaug2.dtypes as iadt
-    from imgaug2.augmenters import size as iasize
-
     if arr.size == 0:
         return np.copy(arr)
 
@@ -1444,7 +1293,7 @@ def pool(
     # We use custom padding here instead of the one from block_reduce(),
     # because (1) it is expected to be faster and (2) it allows us more
     # flexibility wrt to padding modes.
-    arr = iasize.pad_to_multiples_of(
+    arr = pad_to_multiples_of(
         arr,
         height_multiple=block_size[0],
         width_multiple=block_size[1],
@@ -1462,7 +1311,6 @@ def pool(
 
 # This automatically calls a special uint8 method if it fulfills standard
 # cv2 criteria. Otherwise it falls back to pool().
-# Added in 0.5.0.
 @legacy
 def _pool_dispatcher_(
     arr: np.ndarray,
@@ -1570,7 +1418,6 @@ def avg_pool(
     )
 
 
-# Added in 0.5.0.
 @legacy
 def _avg_pool_uint8(
     arr: np.ndarray,
@@ -1578,8 +1425,6 @@ def _avg_pool_uint8(
     pad_mode: str = "reflect",
     pad_cval: Number = 128,
 ) -> np.ndarray:
-    from imgaug2.augmenters.size import pad_to_multiples_of
-
     ndim_in = arr.ndim
 
     shape = arr.shape
@@ -1677,7 +1522,6 @@ def max_pool_(
     Defaults to ``pad_mode="edge"`` to ensure that padded values do not affect
     the maximum, even if the dtype was something else than ``uint8``.
 
-    Added in 0.5.0.
 
     **Supported dtypes**:
 
@@ -1797,7 +1641,6 @@ def min_pool_(
     Defaults to ``pad_mode="edge"`` to ensure that padded values do not affect
     the minimum, even if the dtype was something else than ``uint8``.
 
-    Added in 0.5.0.
 
     **Supported dtypes**:
 
@@ -1845,7 +1688,6 @@ def min_pool_(
     )
 
 
-# Added in 0.5.0.
 @legacy
 def _min_pool_uint8_(
     arr: np.ndarray,
@@ -1856,7 +1698,6 @@ def _min_pool_uint8_(
     return _minmax_pool_uint8_(arr, block_size, cv2.erode, pad_mode=pad_mode, pad_cval=pad_cval)
 
 
-# Added in 0.5.0.
 @legacy
 def _max_pool_uint8_(
     arr: np.ndarray,
@@ -1867,7 +1708,6 @@ def _max_pool_uint8_(
     return _minmax_pool_uint8_(arr, block_size, cv2.dilate, pad_mode=pad_mode, pad_cval=pad_cval)
 
 
-# Added in 0.5.0.
 @legacy
 def _minmax_pool_uint8_(
     arr: np.ndarray,
@@ -1876,8 +1716,6 @@ def _minmax_pool_uint8_(
     pad_mode: str,
     pad_cval: Number,
 ) -> np.ndarray:
-    from imgaug2.augmenters.size import pad_to_multiples_of
-
     ndim_in = arr.ndim
 
     shape = arr.shape
@@ -1896,7 +1734,6 @@ def _minmax_pool_uint8_(
         if block_size[0] <= 30 and block_size[1] <= 30:
             globals()["_POOLING_KERNELS_CACHE"][block_size] = kernel
 
-    # TODO why was this done with image flips instead of kernel flips?
     arr = cv2.flip(arr, -1)
     arr = func(arr, kernel, iterations=1)
     arr = cv2.flip(arr, -1)
@@ -1995,7 +1832,6 @@ def median_pool(
 
 # block_size must be a single integer here, in contrast to the other cv2
 # pool methods that support (int, int).
-# Added in 0.5.0.
 @legacy
 def _median_pool_cv2(
     arr: np.ndarray,
@@ -2003,8 +1839,6 @@ def _median_pool_cv2(
     pad_mode: str,
     pad_cval: Number,
 ) -> np.ndarray:
-    from imgaug2.augmenters.size import pad_to_multiples_of
-
     ndim_in = arr.ndim
 
     shape = arr.shape
@@ -2256,7 +2090,6 @@ def do_assert(condition: bool, message: str = "Assertion failed.") -> None:
         raise AssertionError(str(message))
 
 
-# Added in 0.4.0.
 @legacy
 def _normalize_cv2_input_arr_(arr: np.ndarray) -> np.ndarray:
     flags = arr.flags
@@ -2272,7 +2105,6 @@ def _normalize_cv2_input_arr_(arr: np.ndarray) -> np.ndarray:
 def apply_lut(image: np.ndarray, table: np.ndarray | list[np.ndarray]) -> np.ndarray:
     """Map an input image to a new one using a lookup table.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2301,7 +2133,6 @@ def apply_lut(image: np.ndarray, table: np.ndarray | list[np.ndarray]) -> np.nda
 def apply_lut_(image: np.ndarray, table: np.ndarray | list[np.ndarray]) -> np.ndarray:
     """Map an input image in-place to a new one using a lookup table.
 
-    Added in 0.4.0.
 
     **Supported dtypes**:
 
@@ -2384,7 +2215,6 @@ def apply_lut_(image: np.ndarray, table: np.ndarray | list[np.ndarray]) -> np.nd
     return image
 
 
-# Added in 0.5.0.
 @legacy
 def _identity_decorator(  # noqa: ANN401 - signature mirrors numba.jit and accepts any args.
     *_dec_args: Any,  # noqa: ANN401 - decorator args are intentionally unconstrained.
@@ -2400,7 +2230,6 @@ def _identity_decorator(  # noqa: ANN401 - signature mirrors numba.jit and accep
     return _decorator
 
 
-# Added in 0.5.0.
 if numba is not None:
     _numbajit = numba.jit
 else:
@@ -2669,7 +2498,6 @@ def _mark_moved_class_or_function(  # noqa: ANN401 - return depends on moved tar
     module_name_new: str,
     name_new: str | None,
 ) -> Callable[..., Any] | type:
-    # pylint: disable=redefined-outer-name
     name_new = name_new if name_new is not None else name_old
 
     if _is_moved_class_name(name_old):

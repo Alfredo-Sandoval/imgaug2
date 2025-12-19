@@ -1,23 +1,19 @@
-"""
-Augmenters that perform contrast changes.
+"""Augmenters that perform contrast changes.
 
-List of augmenters:
+This module provides augmenters for adjusting image contrast using various
+algorithms including histogram-based and curve-based methods.
 
-    * :class:`GammaContrast`
-    * :class:`SigmoidContrast`
-    * :class:`LogContrast`
-    * :class:`LinearContrast`
-    * :class:`AllChannelsHistogramEqualization`
-    * :class:`HistogramEqualization`
-    * :class:`AllChannelsCLAHE`
-    * :class:`CLAHE`
-
+Key Augmenters:
+    - `GammaContrast`, `SigmoidContrast`, `LogContrast`, `LinearContrast`:
+      Apply various contrast curve transformations.
+    - `HistogramEqualization`, `AllChannelsHistogramEqualization`: Equalize histograms.
+    - `CLAHE`, `AllChannelsCLAHE`: Contrast Limited Adaptive Histogram Equalization.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Literal, TypeAlias, cast
+from typing import Any, Literal, TypeAlias, cast
 
 import cv2
 import numpy as np
@@ -33,15 +29,18 @@ from imgaug2.augmenters import color as color_lib
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
+from imgaug2.mlx import is_mlx_array
+import imgaug2.mlx.pointwise as mlx_pointwise
+from imgaug2.compat.markers import legacy
 
 KernelSize: TypeAlias = int | tuple[int, int]
 FloatArray: TypeAlias = NDArray[np.floating]
 DTypeStrs: TypeAlias = str | Sequence[str]
 ContrastFunc: TypeAlias = Callable[..., Array]
 KernelSizeParamInput: TypeAlias = int | tuple[int, int] | list[int] | iap.StochasticParameter
-KernelSizeParamInput2D: TypeAlias = KernelSizeParamInput | tuple[
-    KernelSizeParamInput, KernelSizeParamInput
-]
+KernelSizeParamInput2D: TypeAlias = (
+    KernelSizeParamInput | tuple[KernelSizeParamInput, KernelSizeParamInput]
+)
 IntensityChannelFunc: TypeAlias = Callable[[list[Array | None], iarandom.RNG], list[Array]]
 
 
@@ -57,17 +56,19 @@ class _ContrastFuncWrapper(meta.Augmenter):
         name: str | None = None,
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
+        func_mlx: Callable[..., Any] | None = None,
     ) -> None:
         super().__init__(
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
         self.func = func
+        self.func_mlx = func_mlx
         self.params1d = params1d
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
         self.dtypes_allowed = dtypes_allowed
         self.dtypes_disallowed = dtypes_disallowed
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -79,6 +80,36 @@ class _ContrastFuncWrapper(meta.Augmenter):
             return batch
 
         images = batch.images
+
+        if self.func_mlx is not None and is_mlx_array(images):
+            # MLX Fast-path
+            nb_images = len(images)
+            rss = random_state.duplicate(1 + nb_images)
+            per_channel = self.per_channel.draw_samples((nb_images,), random_state=rss[0])
+
+            # Since MLX ops support broadcasting, we try to gather all params
+            # and invoke the op once per image (or ideally batched if params allow).
+            # Current structure samples params per image/channel.
+            # To stay consistent with standard augmentation logic, we loop but keep data on GPU.
+
+            gen = enumerate(zip(images, per_channel, rss[1:], strict=True))
+            for i, (image, per_channel_i, rs) in gen:
+                nb_channels = 1 if per_channel_i <= 0.5 else image.shape[2]
+                samples_i = [
+                    param.draw_samples((nb_channels,), random_state=rs) for param in self.params1d
+                ]
+
+                # If per_channel is active, we might have different params per channel.
+                # MLX pointwise ops usually broadcast. If samples_i has shape (C,),
+                # and image has (H, W, C), it will broadcast correctly.
+
+                # samples_i is a list of arrays (one per parameter), each array is (nb_channels,)
+                # We simply pass these arrays to the function.
+
+                args = tuple([image] + samples_i)
+                batch.images[i] = self.func_mlx(*args)
+
+            return batch
 
         if self.dtypes_allowed is not None:
             iadt.gate_dtypes_strs(
@@ -124,7 +155,6 @@ class _ContrastFuncWrapper(meta.Augmenter):
         return list(self.params1d)
 
 
-# TODO quite similar to the other adjust_contrast_*() functions, make DRY
 def adjust_contrast_gamma(arr: Array, gamma: float) -> Array:
     """
     Adjust image contrast by scaling pixel values to ``255*((v/255)**gamma)``.
@@ -198,8 +228,7 @@ def adjust_contrast_gamma(arr: Array, gamma: float) -> Array:
     return ski_exposure.adjust_gamma(arr, gamma)
 
 
-# TODO quite similar to the other adjust_contrast_*() functions, make DRY
-def adjust_contrast_sigmoid(arr: Array, gain: float, cutoff: float) -> Array:
+def adjust_contrast_sigmoid(arr: Array, gain: float, cutoff: float, inv: bool = False) -> Array:
     """
     Adjust image contrast to ``255*1/(1+exp(gain*(cutoff-I_ij/255)))``.
 
@@ -250,12 +279,16 @@ def adjust_contrast_sigmoid(arr: Array, gain: float, cutoff: float) -> Array:
         Higher values mean that the switch from dark to light pixels happens
         later, i.e. the pixels will remain darker.
 
+    inv : bool
+        Whether to invert the sigmoid correction.
+
     Returns
     -------
     numpy.ndarray
         Array with adjusted contrast.
 
     """
+    inv = bool(np.asarray(inv).item() > 0.5)
     if arr.size == 0:
         return np.copy(arr)
 
@@ -274,15 +307,15 @@ def adjust_contrast_sigmoid(arr: Array, gain: float, cutoff: float) -> Array:
         gain = np.float32(gain)
         cutoff = np.float32(cutoff)
         table = min_value + dynamic_range * 1 / (1 + np.exp(gain * (cutoff - value_range)))
+        if inv:
+            table = min_value + dynamic_range - table
         table = np.clip(table, min_value, max_value).astype(arr.dtype)
         arr_aug = ia.apply_lut(arr, table)
         return arr_aug
-    return ski_exposure.adjust_sigmoid(arr, cutoff=cutoff, gain=gain)
+    return ski_exposure.adjust_sigmoid(arr, cutoff=cutoff, gain=gain, inv=inv)
 
 
-# TODO quite similar to the other adjust_contrast_*() functions, make DRY
-# TODO add dtype gating
-def adjust_contrast_log(arr: Array, gain: float) -> Array:
+def adjust_contrast_log(arr: Array, gain: float, inv: bool = False) -> Array:
     """
     Adjust image contrast by scaling pixels to ``255*gain*log_2(1+v/255)``.
 
@@ -331,12 +364,16 @@ def adjust_contrast_log(arr: Array, gain: float) -> Array:
         contrast-adjusted images. Values above 1.0 quickly lead to partially
         broken images due to exceeding the datatype's value range.
 
+    inv : bool
+        Whether to invert the logarithmic correction.
+
     Returns
     -------
     numpy.ndarray
         Array with adjusted contrast.
 
     """
+    inv = bool(np.asarray(inv).item() > 0.5)
     if arr.size == 0:
         return np.copy(arr)
 
@@ -349,18 +386,20 @@ def adjust_contrast_log(arr: Array, gain: float) -> Array:
 
         value_range = np.linspace(0, 1.0, num=dynamic_range + 1, dtype=np.float32)
 
-        # 255 * 1/(1 + exp(gain*(cutoff - I_ij/255)))
+        # 255 * gain * log2(1 + I_ij/255)
         # using np.float32(.) here still works when the input is a numpy array
         # of size 1
         gain = np.float32(gain)
-        table = min_value + dynamic_range * gain * np.log2(1 + value_range)
+        if inv:
+            table = min_value + dynamic_range * gain * (2**value_range - 1)
+        else:
+            table = min_value + dynamic_range * gain * np.log2(1 + value_range)
         table = np.clip(table, min_value, max_value).astype(arr.dtype)
         arr_aug = ia.apply_lut(arr, table)
         return arr_aug
-    return ski_exposure.adjust_log(arr, gain=gain)
+    return ski_exposure.adjust_log(arr, gain=gain, inv=inv)
 
 
-# TODO quite similar to the other adjust_contrast_*() functions, make DRY
 def adjust_contrast_linear(arr: Array, alpha: float) -> Array:
     """Adjust contrast by scaling each pixel to ``127 + alpha*(v-127)``.
 
@@ -404,7 +443,6 @@ def adjust_contrast_linear(arr: Array, alpha: float) -> Array:
         Array with adjusted contrast.
 
     """
-    # pylint: disable=no-else-return
     if arr.size == 0:
         return np.copy(arr)
 
@@ -413,7 +451,6 @@ def adjust_contrast_linear(arr: Array, alpha: float) -> Array:
     # but here it seemed like `d` was 0 for CV_8S, causing that to fail
     if arr.dtype == iadt._UINT8_DTYPE:
         min_value, center_value, max_value = iadt.get_value_range_of_dtype(arr.dtype)
-        # TODO get rid of this int(...)
         center_value = int(center_value)
 
         value_range = np.arange(0, 256, dtype=np.float32)
@@ -429,7 +466,6 @@ def adjust_contrast_linear(arr: Array, alpha: float) -> Array:
     else:
         input_dtype = arr.dtype
         _min_value, center_value, _max_value = iadt.get_value_range_of_dtype(input_dtype)
-        # TODO get rid of this int(...)
         if input_dtype.kind in ["u", "i"]:
             center_value = int(center_value)
         image_aug = center_value + alpha * (arr.astype(np.float64) - center_value)
@@ -525,6 +561,7 @@ class GammaContrast(_ContrastFuncWrapper):
             name=name,
             random_state=random_state,
             deterministic=deterministic,
+            func_mlx=mlx_pointwise.gamma_contrast,
         )
 
 
@@ -568,6 +605,11 @@ class SigmoidContrast(_ContrastFuncWrapper):
               per image.
             * If a ``StochasticParameter``, then a value will be sampled per
               image from that parameter.
+
+    inv : bool or float or imgaug2.parameters.StochasticParameter, optional
+        Whether to invert the sigmoid correction. If this value is a float
+        ``p``, then for ``p`` percent of all images `inv` will be treated as
+        ``True``, otherwise as ``False``.
 
     per_channel : bool or float, optional
         Whether to use the same value for all channels (``False``) or to
@@ -615,13 +657,13 @@ class SigmoidContrast(_ContrastFuncWrapper):
         self,
         gain: ParamInput = (5, 6),
         cutoff: ParamInput = (0.3, 0.6),
+        inv: ParamInput = False,
         per_channel: ParamInput = False,
         seed: RNGInput = None,
         name: str | None = None,
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # TODO add inv parameter?
         params1d = [
             iap.handle_continuous_param(
                 gain, "gain", value_range=(0, None), tuple_to_uniform=True, list_to_choice=True
@@ -629,6 +671,7 @@ class SigmoidContrast(_ContrastFuncWrapper):
             iap.handle_continuous_param(
                 cutoff, "cutoff", value_range=(0, 1.0), tuple_to_uniform=True, list_to_choice=True
             ),
+            iap.handle_probability_param(inv, "inv"),
         ]
         func = adjust_contrast_sigmoid
 
@@ -643,6 +686,7 @@ class SigmoidContrast(_ContrastFuncWrapper):
             name=name,
             random_state=random_state,
             deterministic=deterministic,
+            func_mlx=mlx_pointwise.sigmoid_contrast,
         )
 
 
@@ -670,6 +714,11 @@ class LogContrast(_ContrastFuncWrapper):
               per image.
             * If a ``StochasticParameter``, then a value will be sampled per
               image from that parameter.
+
+    inv : bool or float or imgaug2.parameters.StochasticParameter, optional
+        Whether to invert the logarithmic correction. If this value is a
+        float ``p``, then for ``p`` percent of all images `inv` will be
+        treated as ``True``, otherwise as ``False``.
 
     per_channel : bool or float, optional
         Whether to use the same value for all channels (``False``) or to
@@ -713,17 +762,18 @@ class LogContrast(_ContrastFuncWrapper):
     def __init__(
         self,
         gain: ParamInput = (0.4, 1.6),
+        inv: ParamInput = False,
         per_channel: ParamInput = False,
         seed: RNGInput = None,
         name: str | None = None,
         random_state: RNGInput | Literal["deprecated"] = "deprecated",
         deterministic: bool | Literal["deprecated"] = "deprecated",
     ) -> None:
-        # TODO add inv parameter?
         params1d = [
             iap.handle_continuous_param(
                 gain, "gain", value_range=(0, None), tuple_to_uniform=True, list_to_choice=True
-            )
+            ),
+            iap.handle_probability_param(inv, "inv"),
         ]
         func = adjust_contrast_log
 
@@ -738,6 +788,7 @@ class LogContrast(_ContrastFuncWrapper):
             name=name,
             random_state=random_state,
             deterministic=deterministic,
+            func_mlx=mlx_pointwise.log_contrast,
         )
 
 
@@ -828,6 +879,7 @@ class LinearContrast(_ContrastFuncWrapper):
             name=name,
             random_state=random_state,
             deterministic=deterministic,
+            func_mlx=mlx_pointwise.linear_contrast,
         )
 
 
@@ -911,7 +963,9 @@ class _IntensityChannelBasedApplier:
                 from_colorspaces=self.from_colorspace,
             )
 
-            for image_new_cs, target_idx in zip(images_new_cs, images_change_cs_indices, strict=True):
+            for image_new_cs, target_idx in zip(
+                images_new_cs, images_change_cs_indices, strict=True
+            ):
                 chan_idx = self._CHANNEL_MAPPING[self.to_colorspace]
                 images_normalized[target_idx] = image_new_cs[..., chan_idx : chan_idx + 1]
                 images_after_color_conversion[target_idx] = image_new_cs
@@ -944,7 +998,9 @@ class _IntensityChannelBasedApplier:
                 to_colorspaces=self.from_colorspace,
                 from_colorspaces=self.to_colorspace,
             )
-            for image_new_cs, target_idx in zip(images_new_cs, images_change_cs_indices, strict=True):
+            for image_new_cs, target_idx in zip(
+                images_new_cs, images_change_cs_indices, strict=True
+            ):
                 if result[target_idx] is None:
                     result[target_idx] = image_new_cs
                 else:
@@ -1083,7 +1139,7 @@ class AllChannelsCLAHE(meta.Augmenter):
         self.tile_grid_size_px_min = tile_grid_size_px_min
         self.per_channel = iap.handle_probability_param(per_channel, "per_channel")
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1366,7 +1422,7 @@ class CLAHE(meta.Augmenter):
             from_colorspace, to_colorspace
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1384,7 +1440,6 @@ class CLAHE(meta.Augmenter):
         def _augment_all_channels_clahe(
             images_normalized: list[Array], random_state_derived: iarandom.RNG
         ) -> list[Array]:
-            # pylint: disable=protected-access
             # TODO would .augment_batch() be sufficient here?
             batch_imgs = _BatchInAugmentation(images=images_normalized)
             batch_out = self.all_channel_clahe._augment_batch_(
@@ -1466,7 +1521,7 @@ class AllChannelsHistogramEqualization(meta.Augmenter):
     Create an augmenter that applies histogram equalization to all channels
     of input images in the original colorspaces.
 
-    >>> aug = iaa.Alpha((0.0, 1.0), iaa.AllChannelsHistogramEqualization())
+    >>> aug = iaa.BlendAlpha((0.0, 1.0), iaa.AllChannelsHistogramEqualization())
 
     Same as in the previous example, but alpha-blends the contrast-enhanced
     augmented images with the original input images using random blend
@@ -1485,7 +1540,7 @@ class AllChannelsHistogramEqualization(meta.Augmenter):
             seed=seed, name=name, random_state=random_state, deterministic=deterministic
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1609,7 +1664,7 @@ class HistogramEqualization(meta.Augmenter):
     applies histogram equalization to these channels and converts back to the
     input colorspace.
 
-    >>> aug = iaa.Alpha((0.0, 1.0), iaa.HistogramEqualization())
+    >>> aug = iaa.BlendAlpha((0.0, 1.0), iaa.HistogramEqualization())
 
     Same as in the previous example, but alpha blends the result, leading
     to various strengths of contrast normalization.
@@ -1651,7 +1706,7 @@ class HistogramEqualization(meta.Augmenter):
             from_colorspace, to_colorspace
         )
 
-    # Added in 0.4.0.
+    @legacy(version="0.4.0")
     def _augment_batch_(
         self,
         batch: _BatchInAugmentation,
@@ -1669,7 +1724,6 @@ class HistogramEqualization(meta.Augmenter):
         def _augment_all_channels_histogram_equalization(
             images_normalized: list[Array], random_state_derived: iarandom.RNG
         ) -> list[Array]:
-            # pylint: disable=protected-access
             # TODO would .augment_batch() be sufficient here
             batch_imgs = _BatchInAugmentation(images=images_normalized)
             batch_out = self.all_channel_histogram_equalization._augment_batch_(
