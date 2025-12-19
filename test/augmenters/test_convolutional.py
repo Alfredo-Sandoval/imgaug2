@@ -9,8 +9,6 @@ from imgaug2 import parameters as iap
 from imgaug2 import random as iarandom
 from imgaug2.testutils import reseed, runtest_pickleable_uint8_img
 
-# TODO add tests for EdgeDetect
-# TODO add tests for DirectedEdgeDetect
 
 
 class Test_convolve(unittest.TestCase):
@@ -862,3 +860,234 @@ class TestEmboss(unittest.TestCase):
     def test_pickleable(self):
         aug = iaa.Emboss(alpha=(0.0, 1.0), strength=(1, 3), seed=1)
         runtest_pickleable_uint8_img(aug, iterations=20)
+
+
+class TestEdgeDetect(unittest.TestCase):
+    def setUp(self):
+        reseed()
+
+    def test___init___defaults(self):
+        aug = iaa.EdgeDetect()
+        # Default alpha is (0.0, 0.75)
+        assert hasattr(aug, 'matrix')
+
+    def test___init___alpha_is_number(self):
+        aug = iaa.EdgeDetect(alpha=0.5)
+        assert hasattr(aug, 'matrix')
+
+    def test___init___alpha_is_tuple(self):
+        aug = iaa.EdgeDetect(alpha=(0.0, 1.0))
+        assert hasattr(aug, 'matrix')
+
+    def test___init___alpha_out_of_range_fails(self):
+        with self.assertRaises(AssertionError):
+            _ = iaa.EdgeDetect(alpha=1.5)
+        with self.assertRaises(AssertionError):
+            _ = iaa.EdgeDetect(alpha=-0.5)
+
+    def test_alpha_zero_no_edge_detection(self):
+        image = np.full((20, 20, 3), 128, dtype=np.uint8)
+        aug = iaa.EdgeDetect(alpha=0.0)
+
+        image_aug = aug.augment_image(image)
+
+        # With alpha=0, the image should not change
+        assert np.array_equal(image_aug, image)
+
+    def test_alpha_one_full_edge_detection(self):
+        image = np.full((20, 20, 3), 128, dtype=np.uint8)
+        # Add an edge
+        image[10:, :, :] = 255
+        aug = iaa.EdgeDetect(alpha=1.0)
+
+        image_aug = aug.augment_image(image)
+
+        # With alpha=1, edge detection should be fully applied
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape == image.shape
+        # The result should differ from the original
+        assert not np.array_equal(image_aug, image)
+
+    def test_produces_edges(self):
+        # Create an image with clear horizontal edge
+        image = np.zeros((20, 20, 1), dtype=np.uint8)
+        image[10:, :, :] = 255
+        aug = iaa.EdgeDetect(alpha=1.0)
+
+        image_aug = aug.augment_image(image)
+
+        # The edge detection should highlight the horizontal edge
+        assert image_aug.dtype.name == "uint8"
+        # There should be bright pixels around row 10 (the edge)
+        edge_region = image_aug[8:12, :, 0]
+        non_edge_region = np.concatenate([image_aug[:5, :, 0], image_aug[15:, :, 0]])
+        # Edge region should have higher average brightness than non-edge regions
+        assert np.mean(edge_region) > np.mean(non_edge_region)
+
+    def test_alpha_tuple_varies_output(self):
+        image = np.full((20, 20, 3), 128, dtype=np.uint8)
+        image[10:, :, :] = 255
+        aug = iaa.EdgeDetect(alpha=(0.0, 1.0))
+
+        results = set()
+        for _ in range(20):
+            image_aug = aug.augment_image(image)
+            results.add(image_aug.tobytes())
+
+        # With varying alpha, we should get different results
+        assert len(results) > 1
+
+    def test_keypoints_not_changed(self):
+        image = np.full((20, 20, 3), 128, dtype=np.uint8)
+        kps = ia.KeypointsOnImage(
+            [ia.Keypoint(x=5, y=5), ia.Keypoint(x=15, y=15)],
+            shape=image.shape,
+        )
+        aug = iaa.EdgeDetect(alpha=1.0)
+
+        kps_aug = aug.augment_keypoints([kps])[0]
+
+        for kp_orig, kp_aug in zip(kps.keypoints, kps_aug.keypoints, strict=False):
+            assert np.isclose(kp_orig.x, kp_aug.x)
+            assert np.isclose(kp_orig.y, kp_aug.y)
+
+    def test_zero_sized_axes(self):
+        shapes = [(0, 0, 3), (0, 1, 3), (1, 0, 3)]
+
+        for shape in shapes:
+            with self.subTest(shape=shape):
+                image = np.zeros(shape, dtype=np.uint8)
+                aug = iaa.EdgeDetect(alpha=1.0)
+
+                image_aug = aug(image=image)
+
+                assert image_aug.dtype.name == "uint8"
+                assert image_aug.shape == image.shape
+
+    def test_pickleable(self):
+        aug = iaa.EdgeDetect(alpha=(0.0, 1.0), seed=1)
+        runtest_pickleable_uint8_img(aug, iterations=10, shape=(20, 20, 3))
+
+
+class TestDirectedEdgeDetect(unittest.TestCase):
+    def setUp(self):
+        reseed()
+
+    def test___init___defaults(self):
+        aug = iaa.DirectedEdgeDetect()
+        # Default alpha is (0.0, 0.75), direction is (0.0, 1.0)
+        assert hasattr(aug, 'matrix')
+
+    def test___init___alpha_is_number(self):
+        aug = iaa.DirectedEdgeDetect(alpha=0.5)
+        assert hasattr(aug, 'matrix')
+
+    def test___init___alpha_is_tuple(self):
+        aug = iaa.DirectedEdgeDetect(alpha=(0.0, 1.0))
+        assert hasattr(aug, 'matrix')
+
+    def test___init___direction_is_number(self):
+        aug = iaa.DirectedEdgeDetect(direction=0.5)
+        assert hasattr(aug, 'matrix')
+
+    def test___init___direction_is_tuple(self):
+        aug = iaa.DirectedEdgeDetect(direction=(0.0, 1.0))
+        assert hasattr(aug, 'matrix')
+
+    def test___init___alpha_out_of_range_fails(self):
+        with self.assertRaises(AssertionError):
+            _ = iaa.DirectedEdgeDetect(alpha=1.5)
+        with self.assertRaises(AssertionError):
+            _ = iaa.DirectedEdgeDetect(alpha=-0.5)
+
+    def test_alpha_zero_no_edge_detection(self):
+        image = np.full((20, 20, 3), 128, dtype=np.uint8)
+        aug = iaa.DirectedEdgeDetect(alpha=0.0, direction=0.0)
+
+        image_aug = aug.augment_image(image)
+
+        # With alpha=0, the image should not change
+        assert np.array_equal(image_aug, image)
+
+    def test_alpha_one_direction_zero(self):
+        # Create an image with horizontal edge
+        image = np.zeros((20, 20, 1), dtype=np.uint8)
+        image[10:, :, :] = 255
+        aug = iaa.DirectedEdgeDetect(alpha=1.0, direction=0)
+
+        image_aug = aug.augment_image(image)
+
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape == image.shape
+        # Should produce edge-detected image
+        assert not np.array_equal(image_aug, image)
+
+    def test_alpha_one_direction_quarter(self):
+        # Create an image with vertical edge
+        image = np.zeros((20, 20, 1), dtype=np.uint8)
+        image[:, 10:, :] = 255
+        aug = iaa.DirectedEdgeDetect(alpha=1.0, direction=0.25)  # 90 degrees
+
+        image_aug = aug.augment_image(image)
+
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape == image.shape
+
+    def test_different_directions_produce_different_results(self):
+        image = np.zeros((30, 30, 1), dtype=np.uint8)
+        # Create a cross pattern
+        image[14:16, :, :] = 255
+        image[:, 14:16, :] = 255
+
+        aug_dir0 = iaa.DirectedEdgeDetect(alpha=1.0, direction=0.0)
+        aug_dir90 = iaa.DirectedEdgeDetect(alpha=1.0, direction=0.25)
+
+        image_aug_dir0 = aug_dir0.augment_image(image)
+        image_aug_dir90 = aug_dir90.augment_image(image)
+
+        # Different directions should produce different edge patterns
+        assert not np.array_equal(image_aug_dir0, image_aug_dir90)
+
+    def test_direction_tuple_varies_output(self):
+        image = np.zeros((20, 20, 1), dtype=np.uint8)
+        image[10:, :, :] = 255
+        aug = iaa.DirectedEdgeDetect(alpha=1.0, direction=(0.0, 1.0))
+
+        results = set()
+        for _ in range(20):
+            image_aug = aug.augment_image(image)
+            results.add(image_aug.tobytes())
+
+        # With varying direction, we should get different results
+        assert len(results) > 1
+
+    def test_keypoints_not_changed(self):
+        image = np.full((20, 20, 3), 128, dtype=np.uint8)
+        kps = ia.KeypointsOnImage(
+            [ia.Keypoint(x=5, y=5), ia.Keypoint(x=15, y=15)],
+            shape=image.shape,
+        )
+        aug = iaa.DirectedEdgeDetect(alpha=1.0, direction=0.0)
+
+        kps_aug = aug.augment_keypoints([kps])[0]
+
+        for kp_orig, kp_aug in zip(kps.keypoints, kps_aug.keypoints, strict=False):
+            assert np.isclose(kp_orig.x, kp_aug.x)
+            assert np.isclose(kp_orig.y, kp_aug.y)
+
+    def test_zero_sized_axes(self):
+        shapes = [(0, 0, 3), (0, 1, 3), (1, 0, 3)]
+
+        for shape in shapes:
+            with self.subTest(shape=shape):
+                image = np.zeros(shape, dtype=np.uint8)
+                aug = iaa.DirectedEdgeDetect(alpha=1.0, direction=0.0)
+
+                image_aug = aug(image=image)
+
+                assert image_aug.dtype.name == "uint8"
+                assert image_aug.shape == image.shape
+
+    def test_pickleable(self):
+        aug = iaa.DirectedEdgeDetect(alpha=(0.0, 1.0), direction=(0.0, 1.0), seed=1)
+        runtest_pickleable_uint8_img(aug, iterations=10, shape=(20, 20, 3))

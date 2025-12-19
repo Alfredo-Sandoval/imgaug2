@@ -78,6 +78,42 @@ class TestBoundingBox_project_(unittest.TestCase):
         else:
             assert bb2 is not bb
 
+    def test_project_with_ndarray_inputs(self):
+        bb = ia.BoundingBox(y1=10, x1=20, y2=30, x2=40)
+
+        # Test with ndarray shapes
+        from_shape = np.zeros((10, 10, 3), dtype=np.uint8)
+        to_shape = np.zeros((20, 20, 3), dtype=np.uint8)
+
+        bb2 = self._func(bb, from_shape, to_shape)
+
+        assert np.isclose(bb2.y1, 10 * 2)
+        assert np.isclose(bb2.x1, 20 * 2)
+        assert np.isclose(bb2.y2, 30 * 2)
+        assert np.isclose(bb2.x2, 40 * 2)
+
+    def test_project_with_ndarray_from_and_tuple_to(self):
+        bb = ia.BoundingBox(y1=10, x1=20, y2=30, x2=40)
+
+        from_shape = np.zeros((10, 10, 3), dtype=np.uint8)
+        to_shape = (20, 20, 3)
+
+        bb2 = self._func(bb, from_shape, to_shape)
+
+        assert np.isclose(bb2.y1, 10 * 2)
+        assert np.isclose(bb2.x1, 20 * 2)
+
+    def test_project_with_tuple_from_and_ndarray_to(self):
+        bb = ia.BoundingBox(y1=10, x1=20, y2=30, x2=40)
+
+        from_shape = (10, 10, 3)
+        to_shape = np.zeros((20, 20, 3), dtype=np.uint8)
+
+        bb2 = self._func(bb, from_shape, to_shape)
+
+        assert np.isclose(bb2.y1, 10 * 2)
+        assert np.isclose(bb2.x1, 20 * 2)
+
 
 class TestBoundingBox_project(TestBoundingBox_project_):
     @property
@@ -511,6 +547,19 @@ class TestBoundingBox(unittest.TestCase):
         assert bb.contains(ia.Keypoint(x=2, y=1)) is True
         assert bb.contains(ia.Keypoint(x=0, y=0)) is False
 
+    def test_contains_with_tuple(self):
+        bb = ia.BoundingBox(y1=1, x1=2, y2=1 + 4, x2=2 + 5, label=None)
+        # Test with tuple of numbers
+        assert bb.contains((2.5, 1.5)) is True
+        assert bb.contains((2, 1)) is True
+        assert bb.contains((0, 0)) is False
+        # Edge cases
+        assert bb.contains((2, 5)) is True  # on bottom edge
+        assert bb.contains((7, 1)) is True  # on right edge
+        assert bb.contains((7, 5)) is True  # on corner
+        assert bb.contains((8, 1)) is False  # just outside right
+        assert bb.contains((2, 6)) is False  # just outside bottom
+
     def test_intersection(self):
         bb1 = ia.BoundingBox(y1=10, x1=20, y2=30, x2=40)
         bb2 = ia.BoundingBox(y1=10, x1=39, y2=30, x2=59)
@@ -901,6 +950,25 @@ class TestBoundingBox(unittest.TestCase):
         expected = bb.draw_label_on_image(expected)
         assert np.array_equal(image_drawn, expected)
 
+    def test_draw_on_image_zero_sized_bb(self):
+        # Test that zero-sized bounding boxes can be drawn without error
+        image = np.zeros((100, 70, 3), dtype=np.uint8)
+
+        # Zero height BB (y1 == y2)
+        bb_zero_height = ia.BoundingBox(y1=40, x1=10, y2=40, x2=40, label=None)
+        image_drawn = bb_zero_height.draw_on_image(image)
+        assert image_drawn.shape == image.shape
+
+        # Zero width BB (x1 == x2)
+        bb_zero_width = ia.BoundingBox(y1=40, x1=10, y2=50, x2=10, label=None)
+        image_drawn = bb_zero_width.draw_on_image(image)
+        assert image_drawn.shape == image.shape
+
+        # Zero height and width BB (point BB)
+        bb_point = ia.BoundingBox(y1=40, x1=10, y2=40, x2=10, label=None)
+        image_drawn = bb_point.draw_on_image(image)
+        assert image_drawn.shape == image.shape
+
     def test_extract_from_image(self):
         image = iarandom.RNG(1234).integers(0, 255, size=(10, 10, 3))
         bb = ia.BoundingBox(y1=1, y2=3, x1=1, x2=3)
@@ -969,6 +1037,73 @@ class TestBoundingBox(unittest.TestCase):
         image_sub = bb.extract_from_image(image)
 
         assert np.array_equal(image_sub, image[1 : 1 + 1, 2 : 2 + 1, :])
+
+    def test_extract_from_image_pad_false(self):
+        image = iarandom.RNG(1234).integers(0, 255, size=(10, 10, 3))
+
+        # BB partially outside image, pad=False should not pad
+        bb = ia.BoundingBox(y1=8, y2=12, x1=1, x2=3)
+        image_sub = bb.extract_from_image(image, pad=False)
+
+        # Should only extract the part within the image
+        assert image_sub.shape[0] == 2  # Only rows 8, 9 (not 10, 11)
+        assert image_sub.shape[1] == 2
+        assert np.array_equal(image_sub, image[8:10, 1:3, :])
+
+    def test_extract_from_image_pad_max(self):
+        image = iarandom.RNG(1234).integers(0, 255, size=(10, 10, 3))
+
+        # BB far outside image
+        bb = ia.BoundingBox(y1=8, y2=20, x1=1, x2=3)
+        image_sub = bb.extract_from_image(image, pad=True, pad_max=2)
+
+        # Should only pad up to pad_max=2 pixels
+        assert image_sub.shape[0] == 2 + 2  # 2 rows from image + 2 padding
+        assert image_sub.shape[1] == 2
+
+    def test_extract_from_image_pad_max_exceeded_on_multiple_sides(self):
+        image = iarandom.RNG(1234).integers(0, 255, size=(10, 10, 3))
+
+        # BB outside on all sides
+        bb = ia.BoundingBox(y1=-5, y2=15, x1=-5, x2=15)
+        image_sub = bb.extract_from_image(image, pad=True, pad_max=2)
+
+        # Should be limited by pad_max on all sides
+        assert image_sub.shape[0] == 10 + 2 + 2  # image height + 2 top + 2 bottom
+        assert image_sub.shape[1] == 10 + 2 + 2
+
+    def test_extract_from_image_prevent_zero_size_false(self):
+        image = iarandom.RNG(1234).integers(0, 255, size=(10, 10, 3))
+
+        # BB with zero height
+        bb = ia.BoundingBox(y1=5, y2=5, x1=2, x2=4)
+        image_sub = bb.extract_from_image(image, prevent_zero_size=False)
+
+        # Should have zero height
+        assert image_sub.shape[0] == 0
+        assert image_sub.shape[1] == 2
+
+    def test_extract_from_image_prevent_zero_size_true(self):
+        image = iarandom.RNG(1234).integers(0, 255, size=(10, 10, 3))
+
+        # BB with zero height
+        bb = ia.BoundingBox(y1=5, y2=5, x1=2, x2=4)
+        image_sub = bb.extract_from_image(image, prevent_zero_size=True)
+
+        # Should have at least height 1
+        assert image_sub.shape[0] >= 1
+        assert image_sub.shape[1] == 2
+
+    def test_extract_from_image_prevent_zero_size_width(self):
+        image = iarandom.RNG(1234).integers(0, 255, size=(10, 10, 3))
+
+        # BB with zero width
+        bb = ia.BoundingBox(y1=2, y2=4, x1=5, x2=5)
+        image_sub = bb.extract_from_image(image, prevent_zero_size=True)
+
+        # Should have at least width 1
+        assert image_sub.shape[0] == 2
+        assert image_sub.shape[1] >= 1
 
     def test_to_keypoints(self):
         bb = ia.BoundingBox(y1=1, y2=3, x1=1, x2=3)

@@ -1399,10 +1399,75 @@ class TestMedianBlur(unittest.TestCase):
         runtest_pickleable_uint8_img(aug, iterations=10)
 
 
-# TODO extend these tests
 class TestBilateralBlur(unittest.TestCase):
     def setUp(self):
         reseed()
+
+    def test___init___defaults(self):
+        aug = iaa.BilateralBlur()
+        # Parameters may be wrapped in AutoPrefetcher, check repr instead
+        assert "DiscreteUniform" in repr(aug.d)
+        assert "Uniform" in repr(aug.sigma_color)
+        assert "Uniform" in repr(aug.sigma_space)
+
+    def test___init___d_is_int(self):
+        aug = iaa.BilateralBlur(d=5)
+        assert "Deterministic" in repr(aug.d)
+
+    def test___init___d_is_tuple(self):
+        aug = iaa.BilateralBlur(d=(3, 7))
+        assert "DiscreteUniform" in repr(aug.d)
+
+    def test___init___d_is_list(self):
+        aug = iaa.BilateralBlur(d=[3, 5, 7])
+        assert "Choice" in repr(aug.d)
+
+    def test___init___sigma_color_is_number(self):
+        aug = iaa.BilateralBlur(sigma_color=50)
+        assert "Deterministic" in repr(aug.sigma_color)
+
+    def test___init___sigma_color_is_tuple(self):
+        aug = iaa.BilateralBlur(sigma_color=(10, 100))
+        assert "Uniform" in repr(aug.sigma_color)
+
+    def test___init___sigma_space_is_number(self):
+        aug = iaa.BilateralBlur(sigma_space=50)
+        assert "Deterministic" in repr(aug.sigma_space)
+
+    def test___init___sigma_space_is_tuple(self):
+        aug = iaa.BilateralBlur(sigma_space=(10, 100))
+        assert "Uniform" in repr(aug.sigma_space)
+
+    def test_blur_modifies_image(self):
+        # Create image with noise/texture that bilateral blur will smooth
+        rng = np.random.RandomState(42)
+        image = rng.randint(0, 256, size=(64, 64, 3), dtype=np.uint8)
+
+        aug = iaa.BilateralBlur(d=9, sigma_color=75, sigma_space=75)
+        image_aug = aug(image=image)
+
+        # Image should be different (blurred/smoothed)
+        assert not np.array_equal(image, image_aug)
+
+    def test_blur_with_deterministic_parameters(self):
+        image = np.zeros((32, 32, 3), dtype=np.uint8)
+        image[10:20, 10:20] = 200
+
+        aug = iaa.BilateralBlur(d=5, sigma_color=75, sigma_space=75)
+        images_aug = [aug(image=image) for _ in range(3)]
+
+        # Same augmenter with deterministic params should give same results
+        for i in range(1, len(images_aug)):
+            assert np.array_equal(images_aug[0], images_aug[i])
+
+    def test_get_parameters(self):
+        aug = iaa.BilateralBlur(d=5, sigma_color=50, sigma_space=30)
+        params = aug.get_parameters()
+
+        assert len(params) == 3
+        assert params[0] is aug.d
+        assert params[1] is aug.sigma_color
+        assert params[2] is aug.sigma_space
 
     def test_zero_sized_axes(self):
         shapes = [(0, 0, 3), (0, 1, 3), (1, 0, 3)]

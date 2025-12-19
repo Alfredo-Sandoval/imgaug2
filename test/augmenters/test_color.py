@@ -2741,3 +2741,276 @@ class Test_posterize(unittest.TestCase):
 
         mock_qu.assert_called_once_with(image, nb_bits)
         assert result == "foo"
+
+
+class TestChangeColorspace(unittest.TestCase):
+    def setUp(self):
+        reseed()
+
+    def test___init___to_colorspace_is_string(self):
+        aug = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_HSV)
+        assert isinstance(aug.to_colorspace, iap.Deterministic)
+
+    def test___init___to_colorspace_is_list(self):
+        aug = iaa.ChangeColorspace(to_colorspace=[iaa.CSPACE_HSV, iaa.CSPACE_BGR])
+        assert isinstance(aug.to_colorspace, iap.Choice)
+
+    def test___init___to_colorspace_is_stochastic_parameter(self):
+        aug = iaa.ChangeColorspace(to_colorspace=iap.Choice([iaa.CSPACE_HSV]))
+        assert isinstance(aug.to_colorspace, iap.Choice)
+
+    def test___init___invalid_to_colorspace_fails(self):
+        with self.assertRaises(AssertionError):
+            _ = iaa.ChangeColorspace(to_colorspace="INVALID")
+
+    def test___init___invalid_from_colorspace_fails(self):
+        with self.assertRaises(AssertionError):
+            _ = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_HSV, from_colorspace="INVALID")
+
+    def test___init___from_colorspace_gray_fails(self):
+        with self.assertRaises(AssertionError):
+            _ = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_HSV, from_colorspace=iaa.CSPACE_GRAY)
+
+    def test___init___alpha_is_number(self):
+        aug = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_HSV, alpha=0.5)
+        assert isinstance(aug.alpha, iap.Deterministic)
+        assert np.isclose(aug.alpha.value, 0.5)
+
+    def test___init___alpha_is_tuple(self):
+        aug = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_HSV, alpha=(0.0, 1.0))
+        assert isinstance(aug.alpha, iap.Uniform)
+
+    def test_rgb_to_hsv(self):
+        image = np.arange(4 * 5 * 3).astype(np.uint8).reshape((4, 5, 3))
+        aug = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_HSV, from_colorspace=iaa.CSPACE_RGB)
+
+        image_aug = aug.augment_image(image)
+
+        expected = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape == image.shape
+        assert np.array_equal(image_aug, expected)
+
+    def test_rgb_to_bgr(self):
+        image = np.arange(4 * 5 * 3).astype(np.uint8).reshape((4, 5, 3))
+        aug = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_BGR, from_colorspace=iaa.CSPACE_RGB)
+
+        image_aug = aug.augment_image(image)
+
+        expected = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape == image.shape
+        assert np.array_equal(image_aug, expected)
+
+    def test_rgb_to_gray(self):
+        image = np.arange(4 * 5 * 3).astype(np.uint8).reshape((4, 5, 3))
+        aug = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_GRAY, from_colorspace=iaa.CSPACE_RGB)
+
+        image_aug = aug.augment_image(image)
+
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape == (4, 5, 3)
+
+    def test_same_colorspace_no_change(self):
+        image = np.arange(4 * 5 * 3).astype(np.uint8).reshape((4, 5, 3))
+        aug = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_RGB, from_colorspace=iaa.CSPACE_RGB)
+
+        image_aug = aug.augment_image(image)
+
+        assert np.array_equal(image_aug, image)
+
+    def test_alpha_zero_no_change(self):
+        image = np.arange(4 * 5 * 3).astype(np.uint8).reshape((4, 5, 3))
+        aug = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_HSV, alpha=0.0)
+
+        image_aug = aug.augment_image(image)
+
+        assert np.array_equal(image_aug, image)
+
+    def test_alpha_one_full_conversion(self):
+        image = np.arange(4 * 5 * 3).astype(np.uint8).reshape((4, 5, 3))
+        aug = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_HSV, alpha=1.0)
+
+        image_aug = aug.augment_image(image)
+
+        expected = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+        assert np.array_equal(image_aug, expected)
+
+    def test_alpha_partial_blending(self):
+        image = np.full((10, 10, 3), 128, dtype=np.uint8)
+        aug = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_HSV, alpha=0.5)
+
+        image_aug = aug.augment_image(image)
+
+        image_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+        # With alpha=0.5, result should be blend of original and converted
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape == image.shape
+
+    def test_to_colorspace_list_random_sampling(self):
+        image = np.arange(4 * 5 * 3).astype(np.uint8).reshape((4, 5, 3))
+        aug = iaa.ChangeColorspace(
+            to_colorspace=[iaa.CSPACE_HSV, iaa.CSPACE_BGR],
+            from_colorspace=iaa.CSPACE_RGB,
+        )
+
+        results_hsv = 0
+        results_bgr = 0
+        expected_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+        expected_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+        for _ in range(50):
+            image_aug = aug.augment_image(image)
+            if np.array_equal(image_aug, expected_hsv):
+                results_hsv += 1
+            elif np.array_equal(image_aug, expected_bgr):
+                results_bgr += 1
+
+        assert results_hsv > 10
+        assert results_bgr > 10
+
+    def test_keypoints_not_changed(self):
+        image = np.arange(4 * 5 * 3).astype(np.uint8).reshape((4, 5, 3))
+        kps = ia.KeypointsOnImage(
+            [ia.Keypoint(x=1, y=2), ia.Keypoint(x=3, y=4)],
+            shape=image.shape,
+        )
+        aug = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_HSV)
+
+        kps_aug = aug.augment_keypoints([kps])[0]
+
+        for kp_orig, kp_aug in zip(kps.keypoints, kps_aug.keypoints, strict=False):
+            assert np.isclose(kp_orig.x, kp_aug.x)
+            assert np.isclose(kp_orig.y, kp_aug.y)
+
+    def test_heatmaps_not_changed(self):
+        aug = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_HSV)
+        hm = ia.HeatmapsOnImage(
+            np.linspace(0, 1, 20).reshape((4, 5, 1)).astype(np.float32),
+            shape=(4, 5, 3),
+        )
+
+        hm_aug = aug.augment_heatmaps([hm])[0]
+
+        assert np.allclose(hm.arr_0to1, hm_aug.arr_0to1)
+
+    def test_zero_sized_axes(self):
+        shapes = [(0, 0, 3), (0, 1, 3), (1, 0, 3)]
+
+        for shape in shapes:
+            with self.subTest(shape=shape):
+                image = np.zeros(shape, dtype=np.uint8)
+                aug = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_HSV)
+
+                image_aug = aug(image=image)
+
+                assert image_aug.dtype.name == "uint8"
+                assert image_aug.shape == image.shape
+
+    def test_get_parameters(self):
+        aug = iaa.ChangeColorspace(to_colorspace=iaa.CSPACE_HSV, alpha=0.5)
+        params = aug.get_parameters()
+        assert len(params) == 3
+        assert params[0] is aug.to_colorspace
+        assert aug.from_colorspace == iaa.CSPACE_RGB
+        assert params[2] is aug.alpha
+
+    def test_pickleable(self):
+        aug = iaa.ChangeColorspace(
+            to_colorspace=[iaa.CSPACE_HSV, iaa.CSPACE_BGR],
+            alpha=(0.5, 1.0),
+            seed=1,
+        )
+        runtest_pickleable_uint8_img(aug, iterations=10, shape=(10, 10, 3))
+
+
+class TestWithColorspace(unittest.TestCase):
+    def setUp(self):
+        reseed()
+
+    def test___init___stores_colorspaces(self):
+        aug = iaa.WithColorspace(
+            to_colorspace=iaa.CSPACE_HSV, from_colorspace=iaa.CSPACE_RGB
+        )
+        assert aug.to_colorspace == iaa.CSPACE_HSV
+        assert aug.from_colorspace == iaa.CSPACE_RGB
+
+    def test___init___with_children(self):
+        child = iaa.Add(10)
+        aug = iaa.WithColorspace(
+            to_colorspace=iaa.CSPACE_HSV, from_colorspace=iaa.CSPACE_RGB, children=child
+        )
+        assert aug.children is not None
+
+    def test_augments_in_target_colorspace_then_converts_back(self):
+        # Create a simple image
+        image = np.zeros((32, 32, 3), dtype=np.uint8)
+        image[10:20, 10:20] = [100, 150, 200]
+
+        # Apply augmentation in HSV space (add to H channel)
+        aug = iaa.WithColorspace(
+            to_colorspace=iaa.CSPACE_HSV,
+            from_colorspace=iaa.CSPACE_RGB,
+            children=iaa.WithChannels(0, iaa.Add(30)),
+        )
+
+        image_aug = aug(image=image)
+
+        # Output should be RGB (same shape), but modified
+        assert image_aug.shape == image.shape
+        assert image_aug.dtype == image.dtype
+        assert not np.array_equal(image, image_aug)
+
+    def test_roundtrip_without_children_is_identity(self):
+        # Convert to HSV and back without any augmentation should be near-identity
+        image = np.arange(4 * 5 * 3).astype(np.uint8).reshape((4, 5, 3))
+        aug = iaa.WithColorspace(
+            to_colorspace=iaa.CSPACE_HSV,
+            from_colorspace=iaa.CSPACE_RGB,
+            children=iaa.Identity(),
+        )
+
+        image_aug = aug(image=image)
+
+        # Due to colorspace conversion rounding, may not be exact
+        assert np.allclose(image, image_aug, atol=2)
+
+    def test_get_parameters(self):
+        aug = iaa.WithColorspace(
+            to_colorspace=iaa.CSPACE_HSV, from_colorspace=iaa.CSPACE_BGR
+        )
+        params = aug.get_parameters()
+        assert len(params) == 2
+        assert params[0] == iaa.CSPACE_HSV
+        assert params[1] == iaa.CSPACE_BGR
+
+    def test_get_children_lists(self):
+        child = iaa.Add(10)
+        aug = iaa.WithColorspace(
+            to_colorspace=iaa.CSPACE_HSV, from_colorspace=iaa.CSPACE_RGB, children=child
+        )
+        children_lists = aug.get_children_lists()
+        assert len(children_lists) == 1
+        assert children_lists[0] is aug.children
+
+    def test_zero_sized_axes(self):
+        shapes = [(0, 0, 3), (0, 1, 3), (1, 0, 3)]
+
+        for shape in shapes:
+            with self.subTest(shape=shape):
+                image = np.zeros(shape, dtype=np.uint8)
+                aug = iaa.WithColorspace(
+                    to_colorspace=iaa.CSPACE_HSV, children=iaa.Identity()
+                )
+
+                image_aug = aug(image=image)
+
+                assert image_aug.shape == image.shape
+
+    def test_pickleable(self):
+        aug = iaa.WithColorspace(
+            to_colorspace=iaa.CSPACE_HSV,
+            children=iaa.Add((-10, 10)),
+            seed=1,
+        )
+        runtest_pickleable_uint8_img(aug, iterations=5, shape=(10, 10, 3))

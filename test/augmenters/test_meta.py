@@ -1378,6 +1378,11 @@ class TestAssertShape(unittest.TestCase):
         with self.assertRaises(AssertionError):
             _ = aug.augment_heatmaps(self.heatmaps_h4)
 
+    def test_segmaps_with_exact_shape__fails(self):
+        aug = self.aug_exact_shape
+        with self.assertRaises(AssertionError):
+            _ = aug.augment_segmentation_maps(self.segmaps_h4)
+
     def test_keypoints_with_exact_shape__fails(self):
         aug = self.aug_exact_shape
         with self.assertRaises(AssertionError):
@@ -1487,6 +1492,11 @@ class TestAssertShape(unittest.TestCase):
         aug = self.aug_none_in_shape
         with self.assertRaises(AssertionError):
             _ = aug.augment_heatmaps(self.heatmaps_h4)
+
+    def test_segmaps_with_none_in_shape__fails(self):
+        aug = self.aug_none_in_shape
+        with self.assertRaises(AssertionError):
+            _ = aug.augment_segmentation_maps(self.segmaps_h4)
 
     def test_keypoints_with_none_in_shape__fails(self):
         aug = self.aug_none_in_shape

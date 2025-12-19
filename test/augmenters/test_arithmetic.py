@@ -4645,6 +4645,30 @@ class TestReplaceElementwise(unittest.TestCase):
         assert 150 < seen[0] < 250
         assert 150 < seen[1] < 250
 
+    def test_per_channel_false_replacement_same_across_channels(self):
+        # Test that when per_channel=False, the replacement value is the same
+        # across all channels for each pixel (not sampled per channel)
+        # Use a random replacement that could produce different values if sampled per channel
+        aug = iaa.ReplaceElementwise(
+            mask=1.0,  # Replace all pixels
+            replacement=iap.Uniform(0, 255),
+            per_channel=False
+        )
+
+        # Test with a multi-channel image
+        image = np.ones((10, 10, 3), dtype=np.uint8) * 100
+        observed = aug.augment_image(image)
+
+        # All channels for each pixel should have the same value
+        # because per_channel=False means the same replacement is used across channels
+        for y in range(observed.shape[0]):
+            for x in range(observed.shape[1]):
+                # All channels at this pixel should be the same
+                channels = observed[y, x, :]
+                assert np.all(channels == channels[0]), (
+                    f"per_channel=False but different values across channels at ({y},{x}): {channels}"
+                )
+
     def test___init___bad_datatypes(self):
         # test exceptions for wrong parameter types
         got_exception = False
@@ -6424,3 +6448,246 @@ class TestJpegCompression(unittest.TestCase):
     def test_pickleable(self):
         aug = iaa.JpegCompression((0, 100), seed=1)
         runtest_pickleable_uint8_img(aug, iterations=20)
+
+
+class TestAdditiveLaplaceNoise(unittest.TestCase):
+    def setUp(self):
+        reseed()
+
+    def test___init___defaults(self):
+        aug = iaa.AdditiveLaplaceNoise()
+        assert isinstance(aug.value, iap.Laplace)
+        # Parameters may be wrapped in AutoPrefetcher, check repr instead
+        assert "Deterministic" in repr(aug.value.loc)
+        assert "Uniform" in repr(aug.value.scale)
+
+    def test___init___loc_is_number(self):
+        aug = iaa.AdditiveLaplaceNoise(loc=5.0)
+        assert "Deterministic" in repr(aug.value.loc)
+
+    def test___init___loc_is_tuple(self):
+        aug = iaa.AdditiveLaplaceNoise(loc=(0, 10))
+        assert "Uniform" in repr(aug.value.loc)
+
+    def test___init___scale_is_number(self):
+        aug = iaa.AdditiveLaplaceNoise(scale=10.0)
+        assert "Deterministic" in repr(aug.value.scale)
+
+    def test___init___scale_is_tuple(self):
+        aug = iaa.AdditiveLaplaceNoise(scale=(5, 20))
+        assert "Uniform" in repr(aug.value.scale)
+
+    def test___init___scale_negative_fails(self):
+        with self.assertRaises(AssertionError):
+            _ = iaa.AdditiveLaplaceNoise(scale=-1)
+
+    def test_noise_is_added(self):
+        base_img = np.ones((100, 100, 3), dtype=np.uint8) * 128
+        aug = iaa.AdditiveLaplaceNoise(scale=25)
+
+        observed = aug.augment_image(base_img)
+
+        assert observed.shape == base_img.shape
+        assert observed.dtype.name == "uint8"
+        # Noise should change some pixel values
+        assert not np.array_equal(observed, base_img)
+
+    def test_noise_varies_between_pixels(self):
+        base_img = np.ones((100, 100, 1), dtype=np.uint8) * 128
+        aug = iaa.AdditiveLaplaceNoise(scale=25)
+
+        observed = aug.augment_image(base_img)
+
+        # Laplace noise should vary between pixels
+        unique_values = len(np.unique(observed))
+        assert unique_values > 5
+
+    def test_scale_zero_no_noise(self):
+        base_img = np.ones((100, 100, 3), dtype=np.uint8) * 128
+        aug = iaa.AdditiveLaplaceNoise(scale=0)
+
+        observed = aug.augment_image(base_img)
+
+        assert np.array_equal(observed, base_img)
+
+    def test_per_channel_true(self):
+        base_img = np.ones((50, 50, 3), dtype=np.uint8) * 128
+        aug = iaa.AdditiveLaplaceNoise(scale=25, per_channel=True)
+
+        observed = aug.augment_image(base_img)
+
+        # Check that channels are different when per_channel is True
+        # by running multiple iterations
+        found_different = False
+        for _ in range(20):
+            observed = aug.augment_image(base_img)
+            if not np.array_equal(observed[..., 0], observed[..., 1]):
+                found_different = True
+                break
+        assert found_different
+
+    def test_per_channel_false(self):
+        base_img = np.ones((50, 50, 3), dtype=np.uint8) * 128
+        aug = iaa.AdditiveLaplaceNoise(scale=25, per_channel=False)
+
+        observed = aug.augment_image(base_img)
+
+        # With per_channel=False, all channels should get the same noise
+        assert np.array_equal(observed[..., 0], observed[..., 1])
+        assert np.array_equal(observed[..., 1], observed[..., 2])
+
+    def test_keypoints_not_changed(self):
+        base_img = np.ones((50, 50, 3), dtype=np.uint8) * 128
+        kps = ia.KeypointsOnImage(
+            [ia.Keypoint(x=10, y=10), ia.Keypoint(x=20, y=30)],
+            shape=base_img.shape,
+        )
+        aug = iaa.AdditiveLaplaceNoise(scale=25)
+
+        kps_aug = aug.augment_keypoints([kps])[0]
+
+        assert keypoints_equal([kps], [kps_aug])
+
+    def test_heatmaps_not_changed(self):
+        aug = iaa.AdditiveLaplaceNoise(scale=25)
+        hm = ia.HeatmapsOnImage(
+            np.linspace(0, 1, 50 * 50).reshape((50, 50, 1)).astype(np.float32),
+            shape=(50, 50, 3),
+        )
+
+        hm_aug = aug.augment_heatmaps([hm])[0]
+
+        assert np.allclose(hm.arr_0to1, hm_aug.arr_0to1)
+
+    def test_zero_sized_axes(self):
+        shapes = [(0, 0, 3), (0, 1, 3), (1, 0, 3)]
+
+        for shape in shapes:
+            with self.subTest(shape=shape):
+                image = np.zeros(shape, dtype=np.uint8)
+                aug = iaa.AdditiveLaplaceNoise(scale=10)
+
+                image_aug = aug(image=image)
+
+                assert image_aug.dtype.name == "uint8"
+                assert image_aug.shape == image.shape
+
+    def test_pickleable(self):
+        aug = iaa.AdditiveLaplaceNoise(scale=(5, 25), per_channel=True, seed=1)
+        runtest_pickleable_uint8_img(aug, iterations=10, shape=(50, 50, 3))
+
+
+class TestAdditivePoissonNoise(unittest.TestCase):
+    def setUp(self):
+        reseed()
+
+    def test___init___defaults(self):
+        aug = iaa.AdditivePoissonNoise()
+        assert isinstance(aug.value, iap.RandomSign)
+        assert isinstance(aug.value.other_param, iap.Poisson)
+        # Parameters may be wrapped in AutoPrefetcher, check repr instead
+        assert "Uniform" in repr(aug.value.other_param.lam)
+
+    def test___init___lam_is_number(self):
+        aug = iaa.AdditivePoissonNoise(lam=5.0)
+        assert "Deterministic" in repr(aug.value.other_param.lam)
+
+    def test___init___lam_is_tuple(self):
+        aug = iaa.AdditivePoissonNoise(lam=(2, 10))
+        assert "Uniform" in repr(aug.value.other_param.lam)
+
+    def test___init___lam_negative_fails(self):
+        with self.assertRaises(AssertionError):
+            _ = iaa.AdditivePoissonNoise(lam=-1)
+
+    def test_noise_is_added(self):
+        base_img = np.ones((100, 100, 3), dtype=np.uint8) * 128
+        aug = iaa.AdditivePoissonNoise(lam=10)
+
+        observed = aug.augment_image(base_img)
+
+        assert observed.shape == base_img.shape
+        assert observed.dtype.name == "uint8"
+        # Noise should change some pixel values
+        assert not np.array_equal(observed, base_img)
+
+    def test_noise_varies_between_pixels(self):
+        base_img = np.ones((100, 100, 1), dtype=np.uint8) * 128
+        aug = iaa.AdditivePoissonNoise(lam=10)
+
+        observed = aug.augment_image(base_img)
+
+        # Poisson noise should vary between pixels
+        unique_values = len(np.unique(observed))
+        assert unique_values > 5
+
+    def test_lam_zero_no_noise(self):
+        base_img = np.ones((100, 100, 3), dtype=np.uint8) * 128
+        aug = iaa.AdditivePoissonNoise(lam=0)
+
+        observed = aug.augment_image(base_img)
+
+        assert np.array_equal(observed, base_img)
+
+    def test_per_channel_true(self):
+        base_img = np.ones((50, 50, 3), dtype=np.uint8) * 128
+        aug = iaa.AdditivePoissonNoise(lam=10, per_channel=True)
+
+        # Check that channels are different when per_channel is True
+        found_different = False
+        for _ in range(20):
+            observed = aug.augment_image(base_img)
+            if not np.array_equal(observed[..., 0], observed[..., 1]):
+                found_different = True
+                break
+        assert found_different
+
+    def test_per_channel_false(self):
+        base_img = np.ones((50, 50, 3), dtype=np.uint8) * 128
+        aug = iaa.AdditivePoissonNoise(lam=10, per_channel=False)
+
+        observed = aug.augment_image(base_img)
+
+        # With per_channel=False, all channels should get the same noise
+        assert np.array_equal(observed[..., 0], observed[..., 1])
+        assert np.array_equal(observed[..., 1], observed[..., 2])
+
+    def test_keypoints_not_changed(self):
+        base_img = np.ones((50, 50, 3), dtype=np.uint8) * 128
+        kps = ia.KeypointsOnImage(
+            [ia.Keypoint(x=10, y=10), ia.Keypoint(x=20, y=30)],
+            shape=base_img.shape,
+        )
+        aug = iaa.AdditivePoissonNoise(lam=10)
+
+        kps_aug = aug.augment_keypoints([kps])[0]
+
+        assert keypoints_equal([kps], [kps_aug])
+
+    def test_heatmaps_not_changed(self):
+        aug = iaa.AdditivePoissonNoise(lam=10)
+        hm = ia.HeatmapsOnImage(
+            np.linspace(0, 1, 50 * 50).reshape((50, 50, 1)).astype(np.float32),
+            shape=(50, 50, 3),
+        )
+
+        hm_aug = aug.augment_heatmaps([hm])[0]
+
+        assert np.allclose(hm.arr_0to1, hm_aug.arr_0to1)
+
+    def test_zero_sized_axes(self):
+        shapes = [(0, 0, 3), (0, 1, 3), (1, 0, 3)]
+
+        for shape in shapes:
+            with self.subTest(shape=shape):
+                image = np.zeros(shape, dtype=np.uint8)
+                aug = iaa.AdditivePoissonNoise(lam=5)
+
+                image_aug = aug(image=image)
+
+                assert image_aug.dtype.name == "uint8"
+                assert image_aug.shape == image.shape
+
+    def test_pickleable(self):
+        aug = iaa.AdditivePoissonNoise(lam=(0, 15), per_channel=True, seed=1)
+        runtest_pickleable_uint8_img(aug, iterations=10, shape=(50, 50, 3))

@@ -5,17 +5,131 @@ import numpy as np
 
 import imgaug2 as ia
 
-# TODO add tests for:
-#      hooks is_activated
-#      hooks is_propagating
-#      hooks preprocess
-#      hooks postprocess
-#      HeatmapsOnImage.__init__()
-#      HeatmapsOnImage.get_arr()
-#      HeatmapsOnImage.to_uint8()
-#      HeatmapsOnImage.from_0to1()
-#      HeatmapsOnImage.copy()
-#      HeatmapsOnImage.deepcopy()
+
+class TestHooksHeatmaps(unittest.TestCase):
+    def test_is_activated_uses_default_without_activator(self):
+        hooks = ia.HooksHeatmaps()
+        heatmaps = np.zeros((1, 1, 1), dtype=np.float32)
+        assert hooks.is_activated(heatmaps, augmenter=mock.Mock(), parents=[], default=True)
+        assert not hooks.is_activated(heatmaps, augmenter=mock.Mock(), parents=[], default=False)
+
+    def test_is_activated_calls_activator(self):
+        called = {}
+
+        def activator(heatmaps, augmenter, parents, default):
+            called["heatmaps"] = heatmaps
+            called["augmenter"] = augmenter
+            called["parents"] = parents
+            called["default"] = default
+            return False
+
+        hooks = ia.HooksHeatmaps(activator=activator)
+        heatmaps = np.zeros((1, 1, 1), dtype=np.float32)
+        augmenter = mock.Mock()
+        parents = [mock.Mock()]
+
+        assert not hooks.is_activated(heatmaps, augmenter=augmenter, parents=parents, default=True)
+        assert called["heatmaps"] is heatmaps
+        assert called["augmenter"] is augmenter
+        assert called["parents"] is parents
+        assert called["default"] is True
+
+    def test_is_propagating_uses_default_without_propagator(self):
+        hooks = ia.HooksHeatmaps()
+        heatmaps = np.zeros((1, 1, 1), dtype=np.float32)
+        assert hooks.is_propagating(heatmaps, augmenter=mock.Mock(), parents=[], default=True)
+        assert not hooks.is_propagating(heatmaps, augmenter=mock.Mock(), parents=[], default=False)
+
+    def test_is_propagating_calls_propagator(self):
+        called = {}
+
+        def propagator(heatmaps, augmenter, parents, default):
+            called["heatmaps"] = heatmaps
+            called["augmenter"] = augmenter
+            called["parents"] = parents
+            called["default"] = default
+            return True
+
+        hooks = ia.HooksHeatmaps(propagator=propagator)
+        heatmaps = np.zeros((1, 1, 1), dtype=np.float32)
+        augmenter = mock.Mock()
+        parents = [mock.Mock()]
+
+        assert hooks.is_propagating(heatmaps, augmenter=augmenter, parents=parents, default=False)
+        assert called["heatmaps"] is heatmaps
+        assert called["augmenter"] is augmenter
+        assert called["parents"] is parents
+        assert called["default"] is False
+
+    def test_preprocess_returns_input_without_preprocessor(self):
+        hooks = ia.HooksHeatmaps()
+        heatmaps = [np.zeros((1, 1, 1), dtype=np.float32)]
+        assert hooks.preprocess(heatmaps, augmenter=mock.Mock(), parents=[]) is heatmaps
+
+    def test_preprocess_calls_preprocessor(self):
+        def preprocessor(heatmaps, augmenter, parents):
+            return ["processed"]
+
+        hooks = ia.HooksHeatmaps(preprocessor=preprocessor)
+        heatmaps = [np.zeros((1, 1, 1), dtype=np.float32)]
+        assert hooks.preprocess(heatmaps, augmenter=mock.Mock(), parents=[]) == ["processed"]
+
+    def test_postprocess_returns_input_without_postprocessor(self):
+        hooks = ia.HooksHeatmaps()
+        heatmaps = [np.zeros((1, 1, 1), dtype=np.float32)]
+        assert hooks.postprocess(heatmaps, augmenter=mock.Mock(), parents=[]) is heatmaps
+
+    def test_postprocess_calls_postprocessor(self):
+        def postprocessor(heatmaps, augmenter, parents):
+            return ["processed"]
+
+        hooks = ia.HooksHeatmaps(postprocessor=postprocessor)
+        heatmaps = [np.zeros((1, 1, 1), dtype=np.float32)]
+        assert hooks.postprocess(heatmaps, augmenter=mock.Mock(), parents=[]) == ["processed"]
+
+
+class TestHeatmapsOnImage_basics(unittest.TestCase):
+    def test_init_get_arr_and_range(self):
+        arr = np.float32([[0.0, 5.0], [10.0, 0.0]])
+        heatmaps = ia.HeatmapsOnImage(arr, shape=(2, 2, 3), min_value=0.0, max_value=10.0)
+
+        assert heatmaps.shape == (2, 2, 3)
+        assert heatmaps.arr_0to1.shape == (2, 2, 1)
+        assert np.allclose(heatmaps.arr_0to1[:, :, 0], arr / 10.0)
+        assert np.allclose(heatmaps.get_arr(), arr)
+
+    def test_from_0to1_scales_back_to_target_range(self):
+        arr_0to1 = np.float32([[0.0, 1.0], [0.5, 0.25]])
+        heatmaps = ia.HeatmapsOnImage.from_0to1(
+            arr_0to1, shape=(2, 2, 3), min_value=-1.0, max_value=1.0
+        )
+
+        expected = -1.0 + 2.0 * arr_0to1
+        assert np.allclose(heatmaps.get_arr(), expected)
+
+    def test_to_uint8(self):
+        arr_0to1 = np.float32([[0.0, 0.5], [1.0, 0.25]])
+        heatmaps = ia.HeatmapsOnImage.from_0to1(arr_0to1, shape=(2, 2, 3))
+
+        observed = heatmaps.to_uint8()
+
+        expected = np.array([[0, 128], [255, 64]], dtype=np.uint8).reshape((2, 2, 1))
+        assert observed.dtype == np.uint8
+        assert observed.shape == (2, 2, 1)
+        assert np.array_equal(observed, expected)
+
+    def test_copy_and_deepcopy_are_independent(self):
+        arr = np.float32([[0.0, 1.0], [0.5, 0.25]])
+        heatmaps = ia.HeatmapsOnImage(arr, shape=(2, 2, 3))
+
+        copy = heatmaps.copy()
+        deepcopy = heatmaps.deepcopy()
+
+        copy.arr_0to1[0, 0, 0] = 1.0
+        deepcopy.arr_0to1[0, 1, 0] = 0.0
+
+        assert heatmaps.arr_0to1[0, 0, 0] == 0.0
+        assert heatmaps.arr_0to1[0, 1, 0] == 1.0
 
 
 class TestHeatmapsOnImage_draw(unittest.TestCase):
@@ -68,7 +182,6 @@ class TestHeatmapsOnImage_draw(unittest.TestCase):
                 assert np.allclose(heatmaps_drawn[y, x], v2)
 
 
-# TODO test other cmaps
 class TestHeatmapsOnImage_draw_on_image(unittest.TestCase):
     @property
     def heatmaps(self):
@@ -101,6 +214,17 @@ class TestHeatmapsOnImage_draw_on_image(unittest.TestCase):
         assert heatmaps_drawn.shape == (2, 2, 3)
         assert np.all(heatmaps_drawn[0:2, 0, :] == 0)
         assert np.all(heatmaps_drawn[0:2, 1, :] == 128) or np.all(heatmaps_drawn[0:2, 1, :] == 127)
+
+    def test_cmap_is_jet(self):
+        heatmaps = self.heatmaps
+
+        image = np.zeros((2, 2, 3), dtype=np.uint8)
+        heatmaps_drawn = heatmaps.draw_on_image(image, alpha=1.0, cmap="jet")[0]
+
+        assert heatmaps_drawn.shape == (2, 2, 3)
+        assert np.any(heatmaps_drawn[:, :, 0] != heatmaps_drawn[:, :, 1]) or np.any(
+            heatmaps_drawn[:, :, 1] != heatmaps_drawn[:, :, 2]
+        )
 
 
 class TestHeatmapsOnImage_invert(unittest.TestCase):

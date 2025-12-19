@@ -263,8 +263,95 @@ class TestRNG(_Base):
         assert result == "foo"
         mock_func.assert_called_once_with(rng.generator, size=(1,), dtype="float64", out=out)
 
-    # TODO below test for generator methods are all just mock-based, add
-    #      non-mocked versions
+    def test_generator_methods_non_mocked(self):
+        float_specs = [
+            ("beta", dict(a=1.0, b=2.0, size=(2,)), (2,)),
+            ("chisquare", dict(df=2.0, size=(2,)), (2,)),
+            ("dirichlet", dict(alpha=[0.2, 0.3, 0.5], size=1), (1, 3)),
+            ("exponential", dict(scale=1.1, size=(2,)), (2,)),
+            ("f", dict(dfnum=1.0, dfden=2.0, size=(2,)), (2,)),
+            ("gamma", dict(shape=1.0, scale=1.2, size=(2,)), (2,)),
+            ("gumbel", dict(loc=0.1, scale=1.1, size=(2,)), (2,)),
+            ("laplace", dict(loc=0.5, scale=1.5, size=(2,)), (2,)),
+            ("logistic", dict(loc=0.5, scale=1.5, size=(2,)), (2,)),
+            ("lognormal", dict(mean=0.5, sigma=1.5, size=(2,)), (2,)),
+            (
+                "multivariate_normal",
+                dict(mean=[0.0, 1.0], cov=[[1.0, 0.0], [0.0, 1.0]], size=2),
+                (2, 2),
+            ),
+            ("noncentral_chisquare", dict(df=0.5, nonc=1.0, size=(2,)), (2,)),
+            ("noncentral_f", dict(dfnum=0.5, dfden=1.5, nonc=2.0, size=(2,)), (2,)),
+            ("normal", dict(loc=0.5, scale=1.0, size=(2,)), (2,)),
+            ("pareto", dict(a=0.5, size=(2,)), (2,)),
+            ("power", dict(a=0.5, size=(2,)), (2,)),
+            ("rayleigh", dict(scale=1.5, size=(2,)), (2,)),
+            ("standard_cauchy", dict(size=(2,)), (2,)),
+            ("standard_exponential", dict(size=(2,)), (2,)),
+            ("standard_gamma", dict(shape=1.0, size=(2,)), (2,)),
+            ("standard_normal", dict(size=(2,)), (2,)),
+            ("standard_t", dict(df=1.5, size=(2,)), (2,)),
+            ("triangular", dict(left=1.0, mode=1.5, right=2.0, size=(2,)), (2,)),
+            ("uniform", dict(low=0.5, high=1.5, size=(2,)), (2,)),
+            ("vonmises", dict(mu=1.0, kappa=1.5, size=(2,)), (2,)),
+            ("wald", dict(mean=0.5, scale=1.0, size=(2,)), (2,)),
+            ("weibull", dict(a=1.0, size=(2,)), (2,)),
+        ]
+        int_specs = [
+            ("binomial", dict(n=10, p=0.1, size=(2,)), (2,)),
+            ("geometric", dict(p=0.5, size=(2,)), (2,)),
+            ("hypergeometric", dict(ngood=2, nbad=4, nsample=3, size=(2,)), (2,)),
+            ("logseries", dict(p=0.5, size=(2,)), (2,)),
+            ("multinomial", dict(n=5, pvals=[0.2, 0.3, 0.5], size=2), (2, 3)),
+            ("negative_binomial", dict(n=10, p=0.5, size=(2,)), (2,)),
+            ("poisson", dict(lam=1.5, size=(2,)), (2,)),
+            ("zipf", dict(a=1.0, size=(2,)), (2,)),
+        ]
+
+        for name, kwargs, expected_shape in float_specs:
+            with self.subTest(name=name):
+                rng = iarandom.RNG(0)
+                result = getattr(rng, name)(**kwargs)
+                arr = np.asarray(result)
+                assert arr.shape == expected_shape
+                assert arr.dtype.kind == "f"
+                assert np.all(np.isfinite(arr))
+
+        for name, kwargs, expected_shape in int_specs:
+            with self.subTest(name=name):
+                rng = iarandom.RNG(0)
+                result = getattr(rng, name)(**kwargs)
+                arr = np.asarray(result)
+                assert arr.shape == expected_shape
+                assert arr.dtype.kind in ["i", "u"]
+                assert np.all(np.isfinite(arr))
+
+        rng = iarandom.RNG(0)
+        result = rng.standard_exponential(size=(2,))
+        assert result.dtype.name == "float32"
+        result = rng.standard_gamma(shape=1.0, size=(2,))
+        assert result.dtype.name == "float32"
+        result = rng.standard_normal(size=(2,))
+        assert result.dtype.name == "float32"
+
+    def test_choice_bytes_shuffle_permutation_non_mocked(self):
+        rng = iarandom.RNG(0)
+
+        choice = rng.choice([1, 2, 3, 4], size=(2,), replace=False)
+        assert choice.shape == (2,)
+        assert set(choice.tolist()).issubset({1, 2, 3, 4})
+
+        result_bytes = rng.bytes(length=10)
+        assert isinstance(result_bytes, (bytes, bytearray))
+        assert len(result_bytes) == 10
+
+        arr = [0, 1, 2, 3, 4]
+        rng.shuffle(arr)
+        assert sorted(arr) == [0, 1, 2, 3, 4]
+
+        perm = rng.permutation([1, 2, 3, 4])
+        assert perm.shape == (4,)
+        assert set(perm.tolist()) == {1, 2, 3, 4}
 
     def test_choice_mocked(self):
         self._test_sampling_func("choice", a=[1, 2, 3], size=(1,), replace=False, p=[0.1, 0.2, 0.7])
@@ -1617,3 +1704,62 @@ class Test_polyfill_random(_Base):
         assert np.any(out > 0.9)
         assert np.all(out >= 0)
         assert np.all(out < 1.0)
+
+
+class Test_temporary_numpy_seed(_Base):
+    def test_seed_is_applied_inside_context(self):
+        # Get values with seed 42
+        np.random.seed(42)
+        expected = np.random.rand(5)
+
+        # Use context to get same values
+        with iarandom.temporary_numpy_seed(42):
+            result = np.random.rand(5)
+
+        assert np.allclose(result, expected)
+
+    def test_state_is_restored_after_context(self):
+        # Set a known state
+        np.random.seed(123)
+        before = np.random.rand(3)
+
+        # Reset to same state
+        np.random.seed(123)
+        np.random.rand(3)  # advance past first 3
+
+        # Use context with different seed
+        with iarandom.temporary_numpy_seed(999):
+            _ = np.random.rand(10)  # advance inside context
+
+        # After context, state should be restored - get next 3 values
+        after = np.random.rand(3)
+
+        # Reset and verify
+        np.random.seed(123)
+        _ = np.random.rand(3)  # skip first 3
+        expected_after = np.random.rand(3)
+
+        assert np.allclose(after, expected_after)
+
+    def test_none_entropy_does_nothing(self):
+        # Set a known state
+        np.random.seed(42)
+        expected = np.random.rand(5)
+
+        # Reset
+        np.random.seed(42)
+
+        # Context with None should not alter state
+        with iarandom.temporary_numpy_seed(None):
+            result = np.random.rand(5)
+
+        assert np.allclose(result, expected)
+
+    def test_reproducible_results_with_same_seed(self):
+        results = []
+        for _ in range(3):
+            with iarandom.temporary_numpy_seed(12345):
+                results.append(np.random.rand(10))
+
+        assert np.allclose(results[0], results[1])
+        assert np.allclose(results[1], results[2])

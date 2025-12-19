@@ -151,6 +151,39 @@ class TestSuperpixels(unittest.TestCase):
             got_exception = True
         assert got_exception
 
+    def test_n_segments_clipped_to_minimum_1(self):
+        # Test that n_segments is clipped to at least 1 when a low value
+        # (including 0 or negative) is sampled
+        for use_np_replace in _NP_REPLACE:
+            with self.subTest(use_np_replace=use_np_replace):
+                with _create_replace_np_context(use_np_replace):
+                    # Use a parameter that returns 0 (which should be clipped to 1)
+                    aug = iaa.Superpixels(
+                        p_replace=1.0,
+                        n_segments=iap.Deterministic(0)
+                    )
+                    # Should not raise an error - the 0 should be clipped to 1
+                    image = self.base_img
+                    image_aug = aug.augment_image(image)
+                    # Image should be processed (converted to 1 superpixel = average of all)
+                    assert image_aug.shape == image.shape
+                    assert image_aug.dtype == image.dtype
+
+    def test_n_segments_negative_clipped_to_1(self):
+        # Test that negative n_segments is also clipped to 1
+        for use_np_replace in _NP_REPLACE:
+            with self.subTest(use_np_replace=use_np_replace):
+                with _create_replace_np_context(use_np_replace):
+                    aug = iaa.Superpixels(
+                        p_replace=1.0,
+                        n_segments=iap.Deterministic(-5)
+                    )
+                    # Should not raise an error - negative value clipped to 1
+                    image = self.base_img
+                    image_aug = aug.augment_image(image)
+                    assert image_aug.shape == image.shape
+                    assert image_aug.dtype == image.dtype
+
     def test_zero_sized_axes(self):
         shapes = [(0, 0), (0, 1), (1, 0), (0, 1, 0), (1, 0, 0), (0, 1, 1), (1, 0, 1)]
 
@@ -280,6 +313,24 @@ class TestSuperpixels(unittest.TestCase):
     def test_pickleable(self):
         aug = iaa.Superpixels(p_replace=0.5, seed=1)
         runtest_pickleable_uint8_img(aug, iterations=10, shape=(25, 25, 1))
+
+    def test_n_segments_clipped_to_at_least_1(self):
+        # Test that n_segments values less than 1 are clipped to 1
+        # This prevents errors from trying to create 0 or negative segments
+        for use_np_replace in _NP_REPLACE:
+            with self.subTest(use_np_replace=use_np_replace):
+                with _create_replace_np_context(use_np_replace):
+                    # Use a deterministic parameter that returns 0 or negative
+                    aug = iaa.Superpixels(p_replace=1.0, n_segments=iap.Deterministic(0))
+                    image = np.full((10, 10, 3), 128, dtype=np.uint8)
+                    # Should not raise an error - n_segments=0 should be clipped to 1
+                    image_aug = aug.augment_image(image)
+                    assert image_aug.shape == image.shape
+
+                    # Also test with negative value
+                    aug_neg = iaa.Superpixels(p_replace=1.0, n_segments=iap.Deterministic(-5))
+                    image_aug_neg = aug_neg.augment_image(image)
+                    assert image_aug_neg.shape == image.shape
 
 
 class Test_segment_voronoi(unittest.TestCase):

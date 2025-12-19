@@ -341,7 +341,6 @@ class Test_change_dtypes_(unittest.TestCase):
         assert np.allclose(observed, expected)
 
 
-# TODO is the copy_* function still used anywhere
 class Test_copy_dtypes_for_restore(unittest.TestCase):
     def test_images_as_list(self):
         # NOTE: NumPy removed `np.bool` (deprecated alias for builtin `bool`)
@@ -560,7 +559,7 @@ class Test_get_minimal_dtype(unittest.TestCase):
         assert mock_iibf.call_count == 1
 
 
-class Test_promote_array_dtypes_(unittest.TestCase):
+class Test_promote_arrays_to_minimal_dtype_(unittest.TestCase):
     @mock.patch("imgaug2.dtypes.get_minimal_dtype")
     @mock.patch("imgaug2.dtypes.change_dtypes_")
     def test_calls_subfunctions(self, mock_cd, mock_gmd):
@@ -568,7 +567,7 @@ class Test_promote_array_dtypes_(unittest.TestCase):
         mock_cd.return_value = "foo"
         arrays = [np.zeros((1,), dtype=np.int8)]
 
-        observed = iadt.promote_array_dtypes_(arrays)
+        observed = iadt.promote_arrays_to_minimal_dtype_(arrays)
 
         assert mock_gmd.call_count == 1
         assert mock_cd.call_count == 1
@@ -585,7 +584,7 @@ class Test_promote_array_dtypes_(unittest.TestCase):
         mock_cd.return_value = "foo"
         arrays = [np.zeros((1,), dtype=np.int8)]
 
-        observed = iadt.promote_array_dtypes_(arrays, dtypes=["float32"])
+        observed = iadt.promote_arrays_to_minimal_dtype_(arrays, dtypes=["float32"])
 
         assert mock_gmd.call_count == 1
         assert mock_cd.call_count == 1
@@ -602,7 +601,7 @@ class Test_promote_array_dtypes_(unittest.TestCase):
         mock_cd.return_value = "foo"
         arrays = [np.zeros((1,), dtype=np.int8)]
 
-        observed = iadt.promote_array_dtypes_(arrays, increase_itemsize_factor=2)
+        observed = iadt.promote_arrays_to_minimal_dtype_(arrays, increase_itemsize_factor=2)
 
         assert mock_gmd.call_count == 1
         assert mock_cd.call_count == 1
@@ -614,38 +613,38 @@ class Test_promote_array_dtypes_(unittest.TestCase):
 
     def test_promote_single_array(self):
         arr = np.zeros((1,), dtype=np.int8)
-        observed = iadt.promote_array_dtypes_(arr)
+        observed = iadt.promote_arrays_to_minimal_dtype_(arr)
         assert observed.dtype.name == "int8"
 
     def test_promote_single_array_single_dtype_set(self):
         arr = np.zeros((1,), dtype=np.int8)
-        observed = iadt.promote_array_dtypes_(arr, np.int16)
+        observed = iadt.promote_arrays_to_minimal_dtype_(arr, np.int16)
         assert observed.dtype.name == "int16"
 
     def test_promote_single_array_dtypes_set(self):
         arr = np.zeros((1,), dtype=np.int8)
-        observed = iadt.promote_array_dtypes_(arr, [np.int16])
+        observed = iadt.promote_arrays_to_minimal_dtype_(arr, [np.int16])
         assert observed.dtype.name == "int16"
 
     def test_promote_single_array_increase_itemsize_factor_set(self):
         arr = np.zeros((1,), dtype=np.int8)
-        observed = iadt.promote_array_dtypes_(arr, increase_itemsize_factor=2)
+        observed = iadt.promote_arrays_to_minimal_dtype_(arr, increase_itemsize_factor=2)
         assert observed.dtype.name == "int16"
 
     def test_promote_list_of_single_array(self):
         arrays = [np.zeros((1,), dtype=np.int8)]
-        observed = iadt.promote_array_dtypes_(arrays, increase_itemsize_factor=2)
+        observed = iadt.promote_arrays_to_minimal_dtype_(arrays, increase_itemsize_factor=2)
         assert observed[0].dtype.name == "int16"
 
     def test_promote_list_of_two_arrays(self):
         arrays = [np.zeros((1,), dtype=np.int8), np.zeros((1,), dtype=np.int16)]
-        observed = iadt.promote_array_dtypes_(arrays, increase_itemsize_factor=2)
+        observed = iadt.promote_arrays_to_minimal_dtype_(arrays, increase_itemsize_factor=2)
         assert observed[0].dtype.name == "int32"
         assert observed[1].dtype.name == "int32"
 
     def test_promote_list_of_two_arrays_dtypes_set(self):
         arrays = [np.zeros((1,), dtype=np.int8), np.zeros((1,), dtype=np.int16)]
-        observed = iadt.promote_array_dtypes_(arrays, dtypes=[np.float32, np.float64])
+        observed = iadt.promote_arrays_to_minimal_dtype_(arrays, dtypes=[np.float32, np.float64])
         assert observed[0].dtype.name == "float64"
         assert observed[1].dtype.name == "float64"
 
@@ -655,7 +654,7 @@ class Test_promote_array_dtypes_(unittest.TestCase):
             np.zeros((1,), dtype=np.int16),
             np.zeros((1,), dtype=np.uint8),
         ]
-        observed = iadt.promote_array_dtypes_(arrays, increase_itemsize_factor=2)
+        observed = iadt.promote_arrays_to_minimal_dtype_(arrays, increase_itemsize_factor=2)
         assert observed[0].dtype.name == "int32"
         assert observed[1].dtype.name == "int32"
         assert observed[2].dtype.name == "int32"
@@ -727,8 +726,6 @@ class Test_get_value_range_of_dtype(unittest.TestCase):
         assert maxv > 100.0
 
 
-# TODO extend tests towards all dtypes and actual minima/maxima of value ranges
-# TODO what happens if both bounds are negative, but input dtype is uint*?
 class Test_clip_(unittest.TestCase):
     def test_values_hit_lower_bound_int32(self):
         arr = np.int32([0, 1, 2, 3, 4, 5])
@@ -835,6 +832,55 @@ class Test_clip_(unittest.TestCase):
         arr = np.int8(10)
         observed = iadt.clip_(arr, -10, 1)
         assert np.array_equal(observed, np.int8(1))
+
+    def test_int64_array(self):
+        arr = np.array([-10, 0, 10], dtype=np.int64)
+        observed = iadt.clip_(arr, -5, 5)
+        expected = np.array([-5, 0, 5], dtype=np.int64)
+        assert observed.dtype.name == "int64"
+        assert np.array_equal(observed, expected)
+
+    def test_uint64_array(self):
+        arr = np.array([0, 10, 20], dtype=np.uint64)
+        observed = iadt.clip_(arr, 5, 15)
+        expected = np.array([5, 10, 15], dtype=np.uint64)
+        assert observed.dtype.name == "uint64"
+        assert np.array_equal(observed, expected)
+
+    def test_int32_with_float_bounds(self):
+        arr = np.array([-10, 0, 10], dtype=np.int32)
+        # min -5.5 -> -5, max 5.5 -> 5
+        observed = iadt.clip_(arr, -5.5, 5.5)
+        expected = np.array([-5, 0, 5], dtype=np.int32)
+        assert observed.dtype.name == "int32"
+        assert np.array_equal(observed, expected)
+
+    def test_uint32_with_negative_bounds(self):
+        # If both bounds are negative, and input is uint, results are clamped to 0
+        arr = np.array([0, 10, 100], dtype=np.uint32)
+        observed = iadt.clip_(arr, -20, -10)
+        # min_value -20 < 0 -> None
+        # max_value -10 < 0 -> 0 (min_value_arrdt)
+        # effectively clip(arr, None, 0)
+        expected = np.array([0, 0, 0], dtype=np.uint32)
+        assert np.array_equal(observed, expected)
+
+    def test_bounds_outside_dtype_range(self):
+        # int8 range -128 to 127
+        arr = np.array([-100, 0, 100], dtype=np.int8)
+        # min -200 -> None (-128)
+        # max 200 -> None (127)
+        # effectively no clip
+        observed = iadt.clip_(arr, -200, 200)
+        assert np.array_equal(observed, arr)
+
+    def test_mixed_bounds_outside_dtype_range(self):
+        arr = np.array([-100, 0, 100], dtype=np.int8)
+        # min -200 -> None (-128)
+        # max 50
+        observed = iadt.clip_(arr, -200, 50)
+        expected = np.array([-100, 0, 50], dtype=np.int8)
+        assert np.array_equal(observed, expected)
 
 
 class Test_clip_to_dtype_value_range(unittest.TestCase):

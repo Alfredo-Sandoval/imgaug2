@@ -8,7 +8,7 @@ import shapely.geometry
 
 import imgaug2 as ia
 import imgaug2.random as iarandom
-from imgaug2.augmentables.polys import _ConcavePolygonRecoverer
+from imgaug2.augmentables.polys import _ConcavePolygonRecoverer, _convert_points_to_shapely_line_string
 from imgaug2.testutils import assertWarns, reseed, wrap_shift_deprecation
 
 
@@ -29,6 +29,12 @@ class TestPolygon___init__(unittest.TestCase):
 
     def test_exterior_is_list_of_tuples_of_ints(self):
         poly = ia.Polygon([(0, 0), (1, 1), (1, 3)])
+
+        assert poly.exterior.dtype.name == "float32"
+        assert np.allclose(poly.exterior, np.float32([[0.0, 0.0], [1.0, 1.0], [1.0, 3.0]]))
+
+    def test_exterior_is_int_array(self):
+        poly = ia.Polygon(np.int32([[0, 0], [1, 1], [1, 3]]))
 
         assert poly.exterior.dtype.name == "float32"
         assert np.allclose(poly.exterior, np.float32([[0.0, 0.0], [1.0, 1.0], [1.0, 3.0]]))
@@ -687,7 +693,7 @@ class TestPolygon_clip_out_of_image(unittest.TestCase):
 
     def test_polygon_fully_outside_of_the_image(self):
         # poly outside of image
-        poly = ia.Polygon([(10.0, 10.0), (11, 0.0, 10.0), (11.0, 11.0)])
+        poly = ia.Polygon([(10.0, 10.0), (11.0, 10.0), (11.0, 11.0)])
         multipoly_clipped = poly.clip_out_of_image((5, 5, 3))
         assert isinstance(multipoly_clipped, list)
         assert len(multipoly_clipped) == 0
@@ -864,6 +870,10 @@ class TestPolygon_draw_on_image(unittest.TestCase):
     def image(self):
         return np.tile(np.arange(100).reshape((10, 10, 1)), (1, 1, 3)).astype(np.uint8)
 
+    @property
+    def image_2d(self):
+        return np.arange(100).reshape((10, 10)).astype(np.uint8)
+
     def test_square_polygon(self):
         # simple drawing of square
         poly = ia.Polygon([(2, 2), (8, 2), (8, 8), (2, 8)])
@@ -896,6 +906,32 @@ class TestPolygon_draw_on_image(unittest.TestCase):
             assert np.all(image_poly[8:9, 2:9, c_idx] == np.zeros((1, 7), dtype=np.uint8) + value)
         expected = np.tile(np.uint8([32, 128, 32]).reshape((1, 1, 3)), (5, 5, 1))
         assert np.all(image_poly[3:8, 3:8, :] == expected)
+
+    def test_square_polygon_on_2d_image__uses_scalar_colors(self):
+        poly = ia.Polygon([(2, 2), (8, 2), (8, 8), (2, 8)])
+        image = self.image_2d
+        image_poly = poly.draw_on_image(
+            image,
+            color=200,
+            alpha=1.0,
+            alpha_face=1.0,
+            alpha_lines=1.0,
+            alpha_points=0.0,
+            raise_if_out_of_image=False,
+        )
+
+        assert image_poly.dtype.type == np.uint8
+        assert image_poly.shape == (10, 10)
+        assert np.sum(image) == np.sum(np.arange(100))
+
+        # border is derived via color_lines=color*0.5 => 100
+        assert np.all(image_poly[2:9, 2] == 100)
+        assert np.all(image_poly[2:9, 8] == 100)
+        assert np.all(image_poly[2, 2:9] == 100)
+        assert np.all(image_poly[8, 2:9] == 100)
+
+        # face is filled with full 'color'
+        assert np.all(image_poly[3:8, 3:8] == 200)
 
     def test_square_polygon_use_no_color_subargs(self):
         # simple drawing of square, use only "color" arg
@@ -1208,6 +1244,96 @@ class TestPolygon_draw_on_image(unittest.TestCase):
         assert np.all(image_poly[3:8, 3:8, :] == expected)
         assert np.all(image_cp[3:8, 3:8, :] == expected)
         """
+
+    def test_size_lines_parameter(self):
+        # Test that size_lines controls line thickness
+        poly = ia.Polygon([(5, 5), (15, 5), (15, 15), (5, 15)])
+        image = np.zeros((20, 20, 3), dtype=np.uint8)
+
+        # Draw with default size (size_lines=1)
+        image_thin = poly.draw_on_image(
+            image.copy(),
+            color=[0, 255, 0],
+            alpha_face=0.0,
+            alpha_lines=1.0,
+            alpha_points=0.0,
+            size=1,
+        )
+
+        # Draw with thicker lines (size_lines=3)
+        image_thick = poly.draw_on_image(
+            image.copy(),
+            color=[0, 255, 0],
+            alpha_face=0.0,
+            alpha_lines=1.0,
+            alpha_points=0.0,
+            size_lines=3,
+        )
+
+        # The thick line should cover more pixels
+        thin_pixels = np.sum(image_thin[:, :, 1] > 0)
+        thick_pixels = np.sum(image_thick[:, :, 1] > 0)
+        assert thick_pixels > thin_pixels
+
+    def test_size_parameter_affects_lines(self):
+        # Test that size parameter defaults to size_lines
+        poly = ia.Polygon([(5, 5), (15, 5), (15, 15), (5, 15)])
+        image = np.zeros((20, 20, 3), dtype=np.uint8)
+
+        # Draw with size=1
+        image_size1 = poly.draw_on_image(
+            image.copy(),
+            color=[0, 255, 0],
+            alpha_face=0.0,
+            alpha_lines=1.0,
+            alpha_points=0.0,
+            size=1,
+        )
+
+        # Draw with size=3
+        image_size3 = poly.draw_on_image(
+            image.copy(),
+            color=[0, 255, 0],
+            alpha_face=0.0,
+            alpha_lines=1.0,
+            alpha_points=0.0,
+            size=3,
+        )
+
+        # Size 3 should produce thicker lines
+        size1_pixels = np.sum(image_size1[:, :, 1] > 0)
+        size3_pixels = np.sum(image_size3[:, :, 1] > 0)
+        assert size3_pixels > size1_pixels
+
+    def test_size_points_parameter(self):
+        # Test that size_points controls point size
+        poly = ia.Polygon([(5, 5), (15, 5), (15, 15), (5, 15)])
+        image = np.zeros((25, 25, 3), dtype=np.uint8)
+
+        # Draw with small points
+        image_small_pts = poly.draw_on_image(
+            image.copy(),
+            color=[255, 0, 0],
+            alpha_face=0.0,
+            alpha_lines=0.0,
+            alpha_points=1.0,
+            size_points=3,
+        )
+
+        # Draw with larger points
+        image_large_pts = poly.draw_on_image(
+            image.copy(),
+            color=[255, 0, 0],
+            alpha_face=0.0,
+            alpha_lines=0.0,
+            alpha_points=1.0,
+            size_points=7,
+        )
+
+        # Larger points should cover more pixels
+        small_pixels = np.sum(image_small_pts[:, :, 0] > 0)
+        large_pixels = np.sum(image_large_pts[:, :, 0] > 0)
+        assert large_pixels > small_pixels
 
 
 class TestPolygon_extract_from_image(unittest.TestCase):
@@ -2108,7 +2234,22 @@ class TestPolygon___iter__(unittest.TestCase):
         assert i == 0
 
 
-# TODO add test for _convert_points_to_shapely_line_string
+class Test__convert_points_to_shapely_line_string(unittest.TestCase):
+    def test_converts_points_and_closes_when_requested(self):
+        points = [(0, 0), (1, 0), (1, 1)]
+
+        ls = _convert_points_to_shapely_line_string(points, closed=False, interpolate=0)
+        assert list(ls.coords) == [(0, 0), (1, 0), (1, 1)]
+
+        ls_closed = _convert_points_to_shapely_line_string(points, closed=True, interpolate=0)
+        assert list(ls_closed.coords) == [(0, 0), (1, 0), (1, 1), (0, 0)]
+
+    def test_interpolates_between_points(self):
+        points = [(0, 0), (2, 0)]
+
+        ls = _convert_points_to_shapely_line_string(points, closed=False, interpolate=1)
+
+        assert list(ls.coords) == [(0, 0), (1.0, 0.0), (2, 0)]
 
 
 class TestPolygonsOnImage___init__(unittest.TestCase):
@@ -3112,20 +3253,48 @@ class Test_ConcavePolygonRecoverer(unittest.TestCase):
                     "Unexpected coords at %d" % (i,)  # noqa: UP031
                 )
 
-    # TODO split into multiple tests
-    def test_recover_from_fails_for_less_than_three_points(self):
+    @staticmethod
+    def _norm(a, b):
+        return np.linalg.norm(np.float32(a) - np.float32(b))
+
+    @staticmethod
+    def _assert_ids_match(observed, expected):
+        assert len(observed) == len(expected), "len mismatch: %d vs %d" % (  # noqa: UP031
+            len(observed),
+            len(expected),
+        )
+
+        max_count = 0
+        for i in range(len(observed)):
+            counter = 0
+            for j in range(i, i + len(expected)):
+                observed_item = observed[(i + j) % len(observed)]
+                expected_item = expected[j % len(expected)]
+                if observed_item == expected_item:
+                    counter += 1
+                else:
+                    break
+
+            max_count = max(max_count, counter)
+
+        assert max_count == len(expected), "count mismatch: %d vs %d" % (  # noqa: UP031
+            max_count,
+            len(expected),
+        )
+
+    def test_recover_from_requires_at_least_three_points(self):
         old_polygon = ia.Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
         cpr = _ConcavePolygonRecoverer()
-        with self.assertRaises(AssertionError):
-            _poly = cpr.recover_from([], old_polygon)
+        for points in [[], [(0, 0)], [(0, 0), (1, 0)]]:
+            with self.subTest(points=points):
+                with self.assertRaises(AssertionError):
+                    _ = cpr.recover_from(points, old_polygon)
 
-        with self.assertRaises(AssertionError):
-            _poly = cpr.recover_from([(0, 0)], old_polygon)
-
-        with self.assertRaises(AssertionError):
-            _poly = cpr.recover_from([(0, 0), (1, 0)], old_polygon)
-
-        _poly = cpr.recover_from([(0, 0), (1, 0), (1, 1)], old_polygon)
+    def test_recover_from_accepts_three_points(self):
+        old_polygon = ia.Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
+        cpr = _ConcavePolygonRecoverer()
+        poly = cpr.recover_from([(0, 0), (1, 0), (1, 1)], old_polygon)
+        assert poly.is_valid
 
     def test_recover_from_concave_polygons(self):
         cpr = _ConcavePolygonRecoverer()
@@ -3247,55 +3416,61 @@ class Test_ConcavePolygonRecoverer(unittest.TestCase):
                 points_deduplicated = recoverer._remove_consecutive_duplicate_points(points_i)
                 assert np.allclose(points_deduplicated, expected_i)
 
-    # TODO split into multiple tests
-    def test__jitter_duplicate_points(self):
-        def _norm(a, b):
-            return np.linalg.norm(np.float32(a) - np.float32(b))
-
+    def test__jitter_duplicate_points_keeps_unique_points(self):
         cpr = _ConcavePolygonRecoverer(threshold_duplicate_points=1e-4)
         rng = iarandom.RNG(0)
-
-        points = [(0, 0), (1, 0), (1, 1), (0, 1)]
-        points_jittered = cpr._jitter_duplicate_points(points, rng.copy())
-        assert np.allclose(points, points_jittered, rtol=0, atol=1e-4)
-
-        points = [(0, 0), (1, 0), (0, 1)]
-        points_jittered = cpr._jitter_duplicate_points(points, rng.copy())
-        assert np.allclose(points, points_jittered, rtol=0, atol=1e-4)
-
-        points = [(0, 0), (0.01, 0), (0.01, 0.01), (0, 0.01)]
-        points_jittered = cpr._jitter_duplicate_points(points, rng.copy())
-        assert np.allclose(points, points_jittered, rtol=0, atol=1e-4)
-
-        points = [(0, 0), (1, 0), (1 + 1e-6, 0), (1, 1), (0, 1)]
-        points_jittered = cpr._jitter_duplicate_points(points, rng.copy())
-        assert np.allclose(
-            [point for i, point in enumerate(points_jittered) if i in [0, 1, 3, 4]],
+        cases = [
             [(0, 0), (1, 0), (1, 1), (0, 1)],
-            rtol=0,
-            atol=1e-5,
-        )
-        assert _norm([1, 0], points_jittered[2]) >= 1e-4
+            [(0, 0), (1, 0), (0, 1)],
+            [(0, 0), (0.01, 0), (0.01, 0.01), (0, 0.01)],
+        ]
+        for points in cases:
+            with self.subTest(points=points):
+                points_jittered = cpr._jitter_duplicate_points(points, rng.copy())
+                assert np.allclose(points, points_jittered, rtol=0, atol=1e-4)
 
-        points = [(0, 0), (1, 0), (1, 1), (1 + 1e-6, 0), (0, 1)]
-        points_jittered = cpr._jitter_duplicate_points(points, rng.copy())
-        assert np.allclose(
-            [point for i, point in enumerate(points_jittered) if i in [0, 1, 2, 4]],
-            [(0, 0), (1, 0), (1, 1), (0, 1)],
-            rtol=0,
-            atol=1e-5,
-        )
-        assert _norm([1, 0], points_jittered[3]) >= 1e-4
+    def test__jitter_duplicate_points_moves_single_duplicates(self):
+        cpr = _ConcavePolygonRecoverer(threshold_duplicate_points=1e-4)
+        rng = iarandom.RNG(0)
+        cases = [
+            {
+                "points": [(0, 0), (1, 0), (1 + 1e-6, 0), (1, 1), (0, 1)],
+                "static_indices": [0, 1, 3, 4],
+                "static_points": [(0, 0), (1, 0), (1, 1), (0, 1)],
+                "moved_index": 2,
+                "ref_point": [1, 0],
+            },
+            {
+                "points": [(0, 0), (1, 0), (1, 1), (1 + 1e-6, 0), (0, 1)],
+                "static_indices": [0, 1, 2, 4],
+                "static_points": [(0, 0), (1, 0), (1, 1), (0, 1)],
+                "moved_index": 3,
+                "ref_point": [1, 0],
+            },
+            {
+                "points": [(0, 0), (1, 0), (1, 1), (0, 1), (1 + 1e-6, 0)],
+                "static_indices": [0, 1, 2, 3],
+                "static_points": [(0, 0), (1, 0), (1, 1), (0, 1)],
+                "moved_index": 4,
+                "ref_point": [1, 0],
+            },
+        ]
+        for case in cases:
+            with self.subTest(points=case["points"]):
+                points_jittered = cpr._jitter_duplicate_points(case["points"], rng.copy())
+                static_points = [
+                    point
+                    for i, point in enumerate(points_jittered)
+                    if i in case["static_indices"]
+                ]
+                assert np.allclose(
+                    static_points, case["static_points"], rtol=0, atol=1e-5
+                )
+                assert self._norm(case["ref_point"], points_jittered[case["moved_index"]]) >= 1e-4
 
-        points = [(0, 0), (1, 0), (1, 1), (0, 1), (1 + 1e-6, 0)]
-        points_jittered = cpr._jitter_duplicate_points(points, rng.copy())
-        assert np.allclose(
-            [point for i, point in enumerate(points_jittered) if i in [0, 1, 2, 3]],
-            [(0, 0), (1, 0), (1, 1), (0, 1)],
-            rtol=0,
-            atol=1e-5,
-        )
-        assert _norm([1, 0], points_jittered[4]) >= 1e-4
+    def test__jitter_duplicate_points_moves_multiple_duplicates(self):
+        cpr = _ConcavePolygonRecoverer(threshold_duplicate_points=1e-4)
+        rng = iarandom.RNG(0)
 
         points = [
             (0, 0),
@@ -3315,11 +3490,8 @@ class Test_ConcavePolygonRecoverer(unittest.TestCase):
             rtol=0,
             atol=1e-5,
         )
-        assert _norm([1, 0], points_jittered[2]) >= 1e-4
-        assert _norm([1, 0], points_jittered[4]) >= 1e-4
-        assert _norm([1, 0], points_jittered[6]) >= 1e-4
-        assert _norm([1, 0], points_jittered[7]) >= 1e-4
-        assert _norm([1, 0], points_jittered[8]) >= 1e-4
+        for index in [2, 4, 6, 7, 8]:
+            assert self._norm([1, 0], points_jittered[index]) >= 1e-4
 
         points = [
             (0, 0),
@@ -3340,12 +3512,9 @@ class Test_ConcavePolygonRecoverer(unittest.TestCase):
             rtol=0,
             atol=1e-5,
         )
-        assert _norm([0, 0], points_jittered[2]) >= 1e-4
-        assert _norm([1, 0], points_jittered[3]) >= 1e-4
-        assert _norm([1, 0], points_jittered[5]) >= 1e-4
-        assert _norm([1, 0], points_jittered[7]) >= 1e-4
-        assert _norm([1, 0], points_jittered[8]) >= 1e-4
-        assert _norm([1, 0], points_jittered[9]) >= 1e-4
+        assert self._norm([0, 0], points_jittered[2]) >= 1e-4
+        for index in [3, 5, 7, 8, 9]:
+            assert self._norm([1, 0], points_jittered[index]) >= 1e-4
 
     # TODO split into multiple tests
     def test__calculate_circumference(self):

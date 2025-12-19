@@ -981,51 +981,23 @@ class TestKeypointsOnImage(unittest.TestCase):
         assert np.allclose(distance_map, expected_inv)
 
     @classmethod
-    def _get_two_points_keypoint_distance_map(cls):
-        # distance map for two keypoints at (x=2, y=3) and (x=1, y=0) on
-        # (4, 4, 3) image
-        #
-        # Visualization of positions on (4, 4) map (X=position, 1=KP 1 is
-        # closest, 2=KP 2 is closest, B=close to both):
-        #
-        #     [1, X, 1, 1]
-        #     [1, 1, 1, B]
-        #     [B, 2, 2, 2]
-        #     [2, 2, X, 2]
-        #
-        distance_map_x = np.float32(
-            [
-                [(0 - 1) ** 2, (1 - 1) ** 2, (2 - 1) ** 2, (3 - 1) ** 2],
-                [(0 - 1) ** 2, (1 - 1) ** 2, (2 - 1) ** 2, (3 - 1) ** 2],
-                [(0 - 1) ** 2, (1 - 2) ** 2, (2 - 2) ** 2, (3 - 2) ** 2],
-                [(0 - 2) ** 2, (1 - 2) ** 2, (2 - 2) ** 2, (3 - 2) ** 2],
-            ]
-        )
-
-        distance_map_y = np.float32(
-            [
-                [(0 - 0) ** 2, (0 - 0) ** 2, (0 - 0) ** 2, (0 - 0) ** 2],
-                [(1 - 0) ** 2, (1 - 0) ** 2, (1 - 0) ** 2, (1 - 0) ** 2],
-                [(2 - 0) ** 2, (2 - 3) ** 2, (2 - 3) ** 2, (2 - 3) ** 2],
-                [(3 - 3) ** 2, (3 - 3) ** 2, (3 - 3) ** 2, (3 - 3) ** 2],
-            ]
-        )
-
-        distance_map = np.sqrt(distance_map_x + distance_map_y)
-        return distance_map
+    def _get_distance_map_for_point(cls, x, y, shape):
+        height, width = shape
+        grid_x = np.arange(width, dtype=np.float32)[np.newaxis, :]
+        grid_y = np.arange(height, dtype=np.float32)[:, np.newaxis]
+        return np.sqrt((grid_x - x) ** 2 + (grid_y - y) ** 2)
 
     def test_to_distance_maps_two_keypoints(self):
-        # TODO this test could have been done a bit better by simply splitting
-        #      the distance maps, one per keypoint, considering the function
-        #      returns one distance map per keypoint
         kpi = ia.KeypointsOnImage(
             keypoints=[ia.Keypoint(x=2, y=3), ia.Keypoint(x=1, y=0)], shape=(4, 4, 3)
         )
 
         distance_map = kpi.to_distance_maps()
 
-        expected = self._get_two_points_keypoint_distance_map()
-        assert np.allclose(np.min(distance_map, axis=2), expected)
+        expected_kp0 = self._get_distance_map_for_point(2, 3, (4, 4))
+        expected_kp1 = self._get_distance_map_for_point(1, 0, (4, 4))
+        assert np.allclose(distance_map[..., 0], expected_kp0)
+        assert np.allclose(distance_map[..., 1], expected_kp1)
 
     def test_to_distance_maps_two_keypoints_inverted(self):
         kpi = ia.KeypointsOnImage(
@@ -1034,9 +1006,12 @@ class TestKeypointsOnImage(unittest.TestCase):
 
         distance_map_inv = kpi.to_distance_maps(inverted=True)
 
-        expected = self._get_two_points_keypoint_distance_map()
-        expected_inv = np.divide(np.ones_like(expected), expected + 1)
-        assert np.allclose(np.max(distance_map_inv, axis=2), expected_inv)
+        expected_kp0 = self._get_distance_map_for_point(2, 3, (4, 4))
+        expected_kp1 = self._get_distance_map_for_point(1, 0, (4, 4))
+        expected_kp0_inv = np.divide(np.ones_like(expected_kp0), expected_kp0 + 1)
+        expected_kp1_inv = np.divide(np.ones_like(expected_kp1), expected_kp1 + 1)
+        assert np.allclose(distance_map_inv[..., 0], expected_kp0_inv)
+        assert np.allclose(distance_map_inv[..., 1], expected_kp1_inv)
 
     @classmethod
     def _get_distance_maps_for_from_dmap_tests(cls):

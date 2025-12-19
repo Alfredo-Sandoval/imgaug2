@@ -1277,7 +1277,6 @@ def test_pool():
     assert np.isclose(arr_pooled[1, 1], np.average([10, 10, 10, 10]))
 
 
-# TODO add test that verifies the default padding mode
 def test_avg_pool():
     # very basic test, as avg_pool() just calls pool(), which is tested in test_pool()
     arr = np.uint8([[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15]])
@@ -1291,8 +1290,14 @@ def test_avg_pool():
     assert arr_pooled[1, 0] == int(np.round(1e-4 + np.average([8, 9, 12, 13])))
     assert arr_pooled[1, 1] == int(np.round(1e-4 + np.average([10, 11, 14, 15])))
 
+    arr = np.float32([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    pooled_default = ia.avg_pool(arr, 2)
+    pooled_reflect = ia.avg_pool(arr, 2, pad_mode="reflect")
+    pooled_edge = ia.avg_pool(arr, 2, pad_mode="edge")
+    assert np.allclose(pooled_default, pooled_reflect)
+    assert not np.allclose(pooled_default, pooled_edge)
 
-# TODO add test that verifies the default padding mode
+
 def test_max_pool():
     # very basic test, as max_pool() just calls pool(), which is tested in
     # test_pool()
@@ -1305,8 +1310,14 @@ def test_max_pool():
     assert arr_pooled[1, 0] == int(np.max([8, 9, 12, 13]))
     assert arr_pooled[1, 1] == int(np.max([10, 11, 14, 15]))
 
+    arr = np.float32([[9, 8, 7], [6, 5, 4], [3, 2, 1]])
+    pooled_default = ia.max_pool(arr, 2)
+    pooled_edge = ia.max_pool(arr, 2, pad_mode="edge")
+    pooled_reflect = ia.max_pool(arr, 2, pad_mode="reflect")
+    assert np.allclose(pooled_default, pooled_edge)
+    assert not np.allclose(pooled_default, pooled_reflect)
 
-# TODO add test that verifies the default padding mode
+
 def test_min_pool():
     # very basic test, as min_pool() just calls pool(), which is tested in
     # test_pool()
@@ -1321,8 +1332,14 @@ def test_min_pool():
     assert arr_pooled[1, 0] == int(np.min([8, 9, 12, 13]))
     assert arr_pooled[1, 1] == int(np.min([10, 11, 14, 15]))
 
+    arr = np.float32([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    pooled_default = ia.min_pool(arr, 2)
+    pooled_edge = ia.min_pool(arr, 2, pad_mode="edge")
+    pooled_reflect = ia.min_pool(arr, 2, pad_mode="reflect")
+    assert np.allclose(pooled_default, pooled_edge)
+    assert not np.allclose(pooled_default, pooled_reflect)
 
-# TODO add test that verifies the default padding mode
+
 def test_median_pool():
     # very basic test, as median_pool() just calls pool(), which is tested in
     # test_pool()
@@ -1337,8 +1354,14 @@ def test_median_pool():
     assert arr_pooled[1, 0] == int(np.median([8, 9, 12, 13]))
     assert arr_pooled[1, 1] == int(np.median([10, 11, 14, 15]))
 
+    arr = np.float32([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    pooled_default = ia.median_pool(arr, 2)
+    pooled_reflect = ia.median_pool(arr, 2, pad_mode="reflect")
+    pooled_edge = ia.median_pool(arr, 2, pad_mode="edge")
+    assert np.allclose(pooled_default, pooled_reflect)
+    assert not np.allclose(pooled_default, pooled_edge)
 
-# TODO add test that verifies the default padding mode
+
 def test_median_pool_ksize_1_3():
     # very basic test, as median_pool() just calls pool(), which is tested in
     # test_pool()
@@ -1356,6 +1379,13 @@ def test_median_pool_ksize_1_3():
     assert arr_pooled[2, 1] == int(np.median([11, 10, 9]))
     assert arr_pooled[3, 0] == int(np.median([12, 13, 14]))
     assert arr_pooled[3, 1] == int(np.median([15, 14, 13]))
+
+    arr = np.float32([[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15]])
+    pooled_default = ia.median_pool(arr, (1, 3))
+    pooled_reflect = ia.median_pool(arr, (1, 3), pad_mode="reflect")
+    pooled_edge = ia.median_pool(arr, (1, 3), pad_mode="edge")
+    assert np.allclose(pooled_default, pooled_reflect)
+    assert not np.allclose(pooled_default, pooled_edge)
 
 
 def test_median_pool_ksize_3():

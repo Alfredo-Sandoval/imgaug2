@@ -20,10 +20,32 @@ ATTR_NAMES = [
 ]
 
 
-# TODO test __init__()
 class TestUnnormalizedBatch(unittest.TestCase):
     def setUp(self):
         reseed()
+
+    def test_init_sets_attributes(self):
+        images = np.zeros((1, 2, 2, 3), dtype=np.uint8)
+        heatmaps = [np.zeros((2, 2, 1), dtype=np.float32)]
+        data = {"foo": 1}
+
+        batch = ia.UnnormalizedBatch(images=images, heatmaps=heatmaps, data=data)
+
+        assert batch.images_unaug is images
+        assert batch.images_aug is None
+        assert batch.heatmaps_unaug is heatmaps
+        assert batch.heatmaps_aug is None
+        assert batch.segmentation_maps_unaug is None
+        assert batch.segmentation_maps_aug is None
+        assert batch.keypoints_unaug is None
+        assert batch.keypoints_aug is None
+        assert batch.bounding_boxes_unaug is None
+        assert batch.bounding_boxes_aug is None
+        assert batch.polygons_unaug is None
+        assert batch.polygons_aug is None
+        assert batch.line_strings_unaug is None
+        assert batch.line_strings_aug is None
+        assert batch.data is data
 
     def test_get_column_names__only_images(self):
         batch = ia.UnnormalizedBatch(images=np.zeros((1, 2, 2, 3), dtype=np.uint8))
@@ -408,10 +430,23 @@ class TestBatch(unittest.TestCase):
         assert observed.data["test2"] == [1, 2, 3]
 
 
-# TODO test __init__
-#      test apply_propagation_hooks_
-#      test invert_apply_propagation_hooks_
 class Test_BatchInAugmentation(unittest.TestCase):
+    def test_init_sets_attributes(self):
+        images = [np.zeros((2, 2, 3), dtype=np.uint8)]
+        heatmaps = ["heatmaps"]
+        data = {"bar": 2}
+
+        batch = _BatchInAugmentation(images=images, heatmaps=heatmaps, data=data)
+
+        assert batch.images is images
+        assert batch.heatmaps is heatmaps
+        assert batch.segmentation_maps is None
+        assert batch.keypoints is None
+        assert batch.bounding_boxes is None
+        assert batch.polygons is None
+        assert batch.line_strings is None
+        assert batch.data is data
+
     def test_empty__all_columns_none(self):
         batch = _BatchInAugmentation()
         assert batch.empty
@@ -649,6 +684,43 @@ class Test_BatchInAugmentation(unittest.TestCase):
         assert batch.images is not None
         assert batch.keypoints is not None
         assert batch.keypoints[0].keypoints[0].x == 10
+
+    def test_apply_propagation_hooks_sets_columns_to_none(self):
+        images = [np.zeros((2, 2, 3), dtype=np.uint8)]
+        heatmaps = [ia.HeatmapsOnImage(np.zeros((2, 2, 1), dtype=np.float32), shape=(2, 2, 3))]
+        keypoints = [ia.KeypointsOnImage([ia.Keypoint(0, 0)], shape=(2, 2, 3))]
+
+        batch = _BatchInAugmentation(images=images, heatmaps=heatmaps, keypoints=keypoints)
+
+        def propagator(value, augmenter, parents, default):
+            return value is images
+
+        hooks = ia.HooksImages(propagator=propagator)
+
+        noned_info = batch.apply_propagation_hooks_(iaa.Identity(), hooks, [])
+
+        assert batch.images is images
+        assert batch.heatmaps is None
+        assert batch.keypoints is None
+        assert noned_info == [("heatmaps", heatmaps), ("keypoints", keypoints)]
+
+    def test_invert_apply_propagation_hooks_restores_columns(self):
+        images = [np.zeros((2, 2, 3), dtype=np.uint8)]
+        heatmaps = [ia.HeatmapsOnImage(np.zeros((2, 2, 1), dtype=np.float32), shape=(2, 2, 3))]
+
+        batch = _BatchInAugmentation(images=images, heatmaps=heatmaps)
+
+        def propagator(value, augmenter, parents, default):
+            return value is not heatmaps
+
+        hooks = ia.HooksImages(propagator=propagator)
+        noned_info = batch.apply_propagation_hooks_(iaa.Identity(), hooks, [])
+
+        restored = batch.invert_apply_propagation_hooks_(noned_info)
+
+        assert restored is batch
+        assert batch.images is images
+        assert batch.heatmaps is heatmaps
 
     def test_to_batch_in_augmentation(self):
         batch = _BatchInAugmentation(images=1)

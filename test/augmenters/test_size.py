@@ -723,7 +723,15 @@ def test_pad_to_aspect_ratio():
     assert np.max(arr_pad[1:3, -2:]) == 200
     assert np.max(arr_pad[3:, -2:]) == 128
 
-    # TODO add tests for return_pad_values=True
+    arr = np.zeros((2, 3), dtype=np.uint8)
+    arr_pad, paddings = iaa.pad_to_aspect_ratio(arr, 2.0, return_pad_amounts=True)
+    assert arr_pad.shape == (2, 4)
+    assert paddings == (0, 1, 0, 0)
+
+    arr = np.zeros((2, 4), dtype=np.uint8)
+    arr_pad, paddings = iaa.pad_to_aspect_ratio(arr, 1.0, return_pad_amounts=True)
+    assert arr_pad.shape == (4, 4)
+    assert paddings == (1, 0, 1, 0)
 
 
 class Test_compute_paddings_to_reach_multiples_of(unittest.TestCase):

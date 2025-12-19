@@ -1897,6 +1897,84 @@ class TestAffine_rotate(unittest.TestCase):
                 bb_expected = ia.BoundingBox(x1=bb_exp_x1, y1=bb_exp_y1, x2=bb_exp_x2, y2=bb_exp_y2)
                 assert bbsoi_aug.bounding_boxes[0].iou(bb_expected) > 0.95
 
+    def test_heatmaps_clipped_to_0_1_with_order_3(self):
+        # Test that heatmaps with order>=3 (cubic interpolation) are clipped
+        # to [0.0, 1.0] since cubic interpolation can produce values outside
+        # this range
+        for backend in ["auto", "cv2", "skimage"]:
+            with self.subTest(backend=backend):
+                # Create a heatmap with sharp edges that cubic interp may overshoot
+                arr = np.zeros((20, 20), dtype=np.float32)
+                arr[5:15, 5:15] = 1.0
+
+                hm = HeatmapsOnImage(arr, shape=(20, 20, 3))
+                aug = iaa.Affine(rotate=15, order=3, backend=backend)
+
+                hm_aug = aug.augment_heatmaps(hm)
+
+                # Values should be clipped to [0.0, 1.0]
+                assert hm_aug.arr_0to1.min() >= 0.0 - 1e-6
+                assert hm_aug.arr_0to1.max() <= 1.0 + 1e-6
+
+    def test_bbs_alignment(self):
+        # Test alignment for bounding boxes
+        image = np.zeros((100, 100), dtype=np.uint8)
+        image[40:60, 40:60] = 255
+
+        bb = ia.BoundingBox(x1=40, y1=40, x2=60, y2=60)
+        bbsoi = ia.BoundingBoxesOnImage([bb], shape=image.shape)
+
+        aug = iaa.Affine(scale=1.2, order=0)
+
+        for _ in range(10):
+            image_aug, bbsoi_aug = aug(image=image, bounding_boxes=bbsoi)
+
+            # The BB should still overlap significantly with the white region
+            bb_aug = bbsoi_aug.bounding_boxes[0]
+            white_region = image_aug[int(bb_aug.y1):int(bb_aug.y2), int(bb_aug.x1):int(bb_aug.x2)]
+            if white_region.size > 0:
+                assert np.mean(white_region) > 100
+
+    def test_polygons_alignment(self):
+        # Test alignment for polygons
+        image = np.zeros((100, 100), dtype=np.uint8)
+        image[40:60, 40:60] = 255
+
+        poly = ia.Polygon([(40, 40), (60, 40), (60, 60), (40, 60)])
+        psoi = ia.PolygonsOnImage([poly], shape=image.shape)
+
+        aug = iaa.Affine(scale=1.2, order=0)
+
+        for _ in range(10):
+            image_aug, psoi_aug = aug(image=image, polygons=psoi)
+
+            # The polygon center should be in a white-ish region
+            poly_aug = psoi_aug.polygons[0]
+            cx, cy = int(poly_aug.centroid[0]), int(poly_aug.centroid[1])
+            if 0 <= cy < image_aug.shape[0] and 0 <= cx < image_aug.shape[1]:
+                assert image_aug[cy, cx] > 100
+
+    def test_line_strings_alignment(self):
+        # Test alignment for line strings
+        image = np.zeros((100, 100), dtype=np.uint8)
+        image[40:60, 40:60] = 255
+
+        ls = ia.LineString([(40, 50), (60, 50)])
+        lsoi = ia.LineStringsOnImage([ls], shape=image.shape)
+
+        aug = iaa.Affine(scale=1.2, order=0)
+
+        for _ in range(10):
+            image_aug, lsoi_aug = aug(image=image, line_strings=lsoi)
+
+            # The line string midpoint should be in a white-ish region
+            ls_aug = lsoi_aug.line_strings[0]
+            coords = ls_aug.coords
+            mx = int((coords[0][0] + coords[1][0]) / 2)
+            my = int((coords[0][1] + coords[1][1]) / 2)
+            if 0 <= my < image_aug.shape[0] and 0 <= mx < image_aug.shape[1]:
+                assert image_aug[my, mx] > 100
+
 
 class TestAffine_cval(unittest.TestCase):
     @property
@@ -5413,6 +5491,36 @@ class TestPiecewiseAffine(unittest.TestCase):
         aug = iaa.PiecewiseAffine(scale=0.2, nb_rows=4, nb_cols=4, seed=1)
         runtest_pickleable_uint8_img(aug, iterations=3, shape=(25, 25, 1))
 
+    def test_heatmaps_clipped_to_0_1_with_order_3(self):
+        # Test that heatmaps are clipped to [0.0, 1.0] when using order>=3
+        # (cubic interpolation can cause values outside of this range)
+        arr = np.zeros((40, 40), dtype=np.float32)
+        arr[10:30, 10:30] = 1.0
+        hm = HeatmapsOnImage(arr, shape=(40, 40, 3))
+
+        aug = iaa.PiecewiseAffine(scale=0.05, nb_rows=4, nb_cols=4, order=3)
+        hm_aug = aug.augment_heatmaps(hm)
+
+        # Values should be clipped to [0.0, 1.0]
+        assert hm_aug.arr_0to1.min() >= 0.0 - 1e-6
+        assert hm_aug.arr_0to1.max() <= 1.0 + 1e-6
+
+    def test_polygon_recoverer_fixes_invalid_polygons(self):
+        # Test that polygon_recoverer="auto" (default) fixes invalid polygons
+        # after augmentation. Large scale values can cause invalid polygons.
+        poly = ia.Polygon([(10, 10), (30, 10), (30, 30), (10, 30)])
+        psoi = ia.PolygonsOnImage([poly], shape=(60, 80, 3))
+
+        # Use a high scale to potentially create invalid polygons
+        aug = iaa.PiecewiseAffine(scale=0.2, nb_rows=8, nb_cols=8, polygon_recoverer="auto")
+
+        # Augment multiple times - recoverer should ensure polygons stay valid
+        for _ in range(10):
+            psoi_aug = aug.augment_polygons(psoi)
+            assert len(psoi_aug.polygons) == 1
+            # The polygon should remain valid due to the recoverer
+            assert psoi_aug.polygons[0].is_valid
+
 
 class TestPerspectiveTransform(unittest.TestCase):
     def setUp(self):
@@ -6525,6 +6633,22 @@ class TestPerspectiveTransform(unittest.TestCase):
     def test_pickleable(self):
         aug = iaa.PerspectiveTransform(0.2, seed=1)
         runtest_pickleable_uint8_img(aug, iterations=4, shape=(25, 25, 1))
+
+    def test_polygon_recoverer_fixes_invalid_polygons(self):
+        # Test that polygon_recoverer="auto" (default) fixes invalid polygons
+        # after augmentation. Large scale values can cause invalid polygons.
+        poly = ia.Polygon([(10, 10), (20, 10), (20, 20), (10, 20)])
+        psoi = ia.PolygonsOnImage([poly], shape=(30, 30, 3))
+
+        # Use a high scale to potentially create invalid polygons
+        aug = iaa.PerspectiveTransform(scale=0.15, polygon_recoverer="auto")
+
+        # Augment multiple times - recoverer should ensure polygons stay valid
+        for _ in range(10):
+            psoi_aug = aug.augment_polygons(psoi)
+            assert len(psoi_aug.polygons) == 1
+            # The polygon should remain valid due to the recoverer
+            assert psoi_aug.polygons[0].is_valid
 
 
 class _elastic_trans_temp_thresholds:

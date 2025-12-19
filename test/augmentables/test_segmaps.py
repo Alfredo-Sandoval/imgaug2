@@ -592,7 +592,6 @@ class TestSegmentationMapsOnImage_resize(unittest.TestCase):
     def test_resize_to_twice_the_size(self):
         for sizes in [(4, 4), 2.0]:
             with self.subTest(sizes=sizes):
-                # TODO also test other interpolation modes
                 segmap_scaled = self.segmap.resize(sizes)
                 observed = segmap_scaled.arr
 
@@ -605,6 +604,10 @@ class TestSegmentationMapsOnImage_resize(unittest.TestCase):
                     ]
                 ).reshape((4, 4, 1))
                 assert np.array_equal(observed, expected)
+
+    def test_resize_with_linear_interpolation_rejects_integer_segmaps(self):
+        with self.assertRaises(AssertionError):
+            _ = self.segmap.resize(2.0, interpolation="linear")
 
 
 class TestSegmentationMapsOnImage_copy(unittest.TestCase):

@@ -234,6 +234,11 @@ class TestLineString(unittest.TestCase):
         dists = ls.compute_neighbour_distances()
         assert np.allclose(dists, [np.sqrt(1.4**2)])
 
+    def test_compute_neighbour_distances_closed(self):
+        ls = LineString([(0, 0), (1.0, 0), (1.0, 1.0)])
+        dists = ls.compute_neighbour_distances(closed=True)
+        assert np.allclose(dists, [1.0, 1.0, np.sqrt(2.0)])
+
     def test_compute_neighbour_distances_single_point(self):
         ls = LineString([(0, 0)])
         dists = ls.compute_neighbour_distances()
@@ -311,6 +316,10 @@ class TestLineString(unittest.TestCase):
             with self.subTest(point=point):
                 assert np.isclose(ls.compute_distance(point), expected)
 
+    def test_compute_distance_to_segment_interior(self):
+        ls = LineString([(0, 0), (2, 0)])
+        assert np.isclose(ls.compute_distance((1, 1)), 1)
+
     def test_compute_distance_from_single_point_line_string(self):
         ls = LineString([(0, 0)])
         points = [(0, 0), (-0.5, -0.6)]
@@ -345,6 +354,18 @@ class TestLineString(unittest.TestCase):
         ls = LineString([(0, 0), (1, 0), (2, 1)])
         with self.assertRaises(ValueError):
             assert ls.compute_distance("foo")
+
+    def test_find_intersections_with_point(self):
+        ls = LineString([(0, 0), (10, 0)])
+        intersections = ls.find_intersections_with((5, 0))
+        assert len(intersections) == 1
+        assert np.allclose(intersections[0], [(5, 0)])
+
+    def test_find_intersections_with_overlapping_segment(self):
+        ls = LineString([(0, 0), (10, 0)])
+        intersections = ls.find_intersections_with([(5, 0), (15, 0)])
+        assert len(intersections) == 1
+        assert np.allclose(intersections[0], [(5, 0), (10, 0)])
 
     def test_contains_tuple(self):
         ls = LineString([(0, 0), (1, 0), (2, 1)])
@@ -1523,6 +1544,25 @@ class TestLineString(unittest.TestCase):
         ls_concat = ls.concatenate([(0, 0)])
         assert ls_concat.coords_almost_equals([(0, 0)])
 
+    def test_subdivide_points_per_edge_one(self):
+        ls = LineString([(0, 0), (4, 0)], label="ls")
+        subdivided = ls.subdivide(1)
+        assert subdivided is not ls
+        assert subdivided.label == "ls"
+        assert np.allclose(subdivided.coords, [(0, 0), (2, 0), (4, 0)])
+        assert np.allclose(ls.coords, [(0, 0), (4, 0)])
+
+    def test_subdivide_with_no_points_or_zero_steps(self):
+        ls_empty = LineString([])
+        subdivided_empty = ls_empty.subdivide(2)
+        assert subdivided_empty is not ls_empty
+        assert subdivided_empty.coords_almost_equals([])
+
+        ls = LineString([(0, 0), (4, 0)])
+        subdivided = ls.subdivide(0)
+        assert subdivided is not ls
+        assert subdivided.coords_almost_equals([(0, 0), (4, 0)])
+
     def test_to_keypoints(self):
         ls = LineString([(0, 0), (1, 0), (2, 1)])
         observed = ls.to_keypoints()
@@ -1579,7 +1619,6 @@ class TestLineString(unittest.TestCase):
         assert isinstance(observed, ia.Polygon)
         assert len(observed.exterior) == 0
 
-    # TODO add antialiased=True test
     def test_to_heatmap(self):
         ls = LineString([(0, 5), (5, 5)])
         observed = ls.to_heatmap((10, 10), antialiased=False)
@@ -1590,14 +1629,22 @@ class TestLineString(unittest.TestCase):
         assert np.allclose(observed.arr_0to1[5, 0:5, :], 1.0)
         assert np.allclose(observed.arr_0to1[6:, :, :], 0.0)
 
+    def test_to_heatmap_antialiased_true(self):
+        ls = LineString([(0, 5), (5, 5)])
+        observed = ls.to_heatmap((10, 10), antialiased=True)
+        assert isinstance(observed, HeatmapsOnImage)
+        assert observed.shape == (10, 10)
+        assert observed.arr_0to1.shape == (10, 10, 1)
+        assert observed.arr_0to1.min() >= 0.0
+        assert observed.arr_0to1.max() <= 1.0
+        assert np.any(observed.arr_0to1 > 0.0)
+
     def test_to_heatmap_with_empty_line_string(self):
         ls = LineString([])
         observed = ls.to_heatmap((5, 5), antialiased=False)
         assert observed.shape == (5, 5)
         assert observed.arr_0to1.shape == (5, 5, 1)
         assert np.allclose(observed.arr_0to1, 0.0)
-
-    # TODO change this after the segmap PR was merged
 
     def test_segmentation_map(self):
         from imgaug2.augmentables.segmaps import SegmentationMapsOnImage
@@ -2122,10 +2169,6 @@ class TestLineStringsOnImage_shift(TestLineStringsOnImage_shift_):
         assert observed.shape == (100, 100, 3)
 
 
-# TODO test to_keypoints_on_image()
-#      test invert_to_keypoints_on_image()
-#      test to_xy_array()
-#      test fill_from_xy_array_()
 class TestLineStringsOnImage(unittest.TestCase):
     def setUp(self):
         reseed()
