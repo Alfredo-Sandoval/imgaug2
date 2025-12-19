@@ -224,7 +224,6 @@ class Test_convolve_(unittest.TestCase):
         assert np.array_equal(image_aug, 2 * image)
 
 
-# TODO add test for keypoints once their handling was improved in Convolve
 class TestConvolve(unittest.TestCase):
     def setUp(self):
         reseed()

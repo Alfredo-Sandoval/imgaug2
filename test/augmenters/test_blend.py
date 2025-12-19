@@ -1046,7 +1046,6 @@ class TestAlphaElementwise(unittest.TestCase):
         assert aug.background is aug2
 
 
-# TODO add tests for heatmaps and segmaps that differ from the image size
 class TestBlendAlphaElementwise(unittest.TestCase):
     def setUp(self):
         reseed()
@@ -3255,3 +3254,20 @@ class TestFrequencyNoiseAlpha(unittest.TestCase):
         assert isinstance(aug, iaa.BlendAlphaFrequencyNoise)
         assert aug.foreground is aug1
         assert aug.background is aug2
+
+
+class TestStochasticParameterMaskGen(unittest.TestCase):
+    def test_draw_mask_shapes_depend_on_per_channel(self):
+        import imgaug2.augmenters.blend as blend
+        import imgaug2.parameters as iap
+        import imgaug2.random as iarandom
+
+        parameter = iap.Deterministic(0.25)
+        gen = blend.StochasticParameterMaskGen(parameter, per_channel=False)
+        rng = iarandom.RNG(0)
+
+        mask_hw = gen._draw_mask((8, 9, 3), rng, per_channel=0.0)
+        assert mask_hw.shape == (8, 9)
+
+        mask_hwc = gen._draw_mask((8, 9, 3), rng, per_channel=1.0)
+        assert mask_hwc.shape == (8, 9, 3)

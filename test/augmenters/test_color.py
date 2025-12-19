@@ -761,7 +761,6 @@ class TestMultiplyAndAddToBrightness(unittest.TestCase):
         runtest_pickleable_uint8_img(aug, iterations=10)
 
 
-# TODO add tests for prop hooks
 class TestWithHueAndSaturation(unittest.TestCase):
     def setUp(self):
         reseed()

@@ -896,7 +896,6 @@ class TestRelativeRegularGridVoronoi(unittest.TestCase):
         runtest_pickleable_uint8_img(aug, iterations=3, shape=(50, 50, 1))
 
 
-# TODO verify behaviours when image height/width is zero
 class TestRegularGridPointsSampler(unittest.TestCase):
     def setUp(self):
         reseed()

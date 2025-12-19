@@ -148,6 +148,19 @@ class Test_handle_continuous_param(unittest.TestCase):
         )
         self.assertTrue(isinstance(result, iap.Uniform))
 
+    def test_tuple_value_upper_bound_is_inclusive_for_uniform(self):
+        result = iap.handle_continuous_param(
+            (0.0, 1.0),
+            "[test11b]",
+            value_range=(0.0, 1.0),
+            tuple_to_uniform=True,
+            list_to_choice=True,
+            prefetch=False,
+        )
+        self.assertTrue(isinstance(result, iap.Uniform))
+        samples = result.draw_samples((1000,), random_state=iarandom.RNG(1))
+        self.assertTrue(np.all(samples < 1.0 + _eps(samples)))
+
     def test_tuple_value_and_allowed_and_partially_outside_value_range(self):
         # tuple as value and tuple allowed and tuple partially outside of
         # value range

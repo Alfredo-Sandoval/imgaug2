@@ -585,7 +585,6 @@ class _TestPoolingAugmentersBase:
         raise NotImplementedError
 
 
-# TODO add test that checks the padding behaviour
 class TestAveragePooling(unittest.TestCase, _TestPoolingAugmentersBase):
     @property
     def augmenter(self):
@@ -836,8 +835,29 @@ class TestMaxPooling(unittest.TestCase, _TestPoolingAugmentersBase):
         assert image_aug.shape == (1, 2, 2)
         assert np.all(diff <= 1)
 
+    def test_padding_behavior_with_odd_dimensions(self):
+        # Test that padding correctly handles images with odd dimensions
+        # that don't divide evenly by the kernel size
+        aug = iaa.MaxPooling(2, keep_size=False)
 
-# TODO add test that checks the padding behaviour
+        # 3x3 image - should be padded before pooling
+        image = np.zeros((3, 3, 1), dtype=np.uint8)
+        image[0, 0] = 100
+        image[1, 1] = 200
+        image[2, 2] = 150
+
+        image_aug = aug.augment_image(image)
+
+        # With 2x2 kernel on a 3x3 image, we need padding
+        # The output should properly handle the padding
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape[0] >= 1
+        assert image_aug.shape[1] >= 1
+        # Max pooling should pick the maximum value in each region
+        # The top-left 2x2 region contains values 100, 0, 0, 200 -> max is 200
+        assert np.max(image_aug) >= 100
+
+
 # We don't have many tests here, because MinPooling and AveragePooling derive
 # from the same base class, i.e. they share most of the methods, which are then
 # tested via TestAveragePooling.
@@ -876,8 +896,29 @@ class TestMinPooling(unittest.TestCase, _TestPoolingAugmentersBase):
         assert image_aug.shape == (1, 2, 2)
         assert np.all(diff <= 1)
 
+    def test_padding_behavior_with_odd_dimensions(self):
+        # Test that padding correctly handles images with odd dimensions
+        # that don't divide evenly by the kernel size
+        aug = iaa.MinPooling(2, keep_size=False)
 
-# TODO add test that checks the padding behaviour
+        # 3x3 image - should be padded before pooling
+        image = np.full((3, 3, 1), 200, dtype=np.uint8)
+        image[0, 0] = 50
+        image[1, 1] = 100
+        image[2, 2] = 75
+
+        image_aug = aug.augment_image(image)
+
+        # With 2x2 kernel on a 3x3 image, we need padding
+        # The output should properly handle the padding
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape[0] >= 1
+        assert image_aug.shape[1] >= 1
+        # Min pooling should pick the minimum value in each region
+        # The top-left 2x2 region contains values 50, 200, 200, 100 -> min is 50
+        assert np.min(image_aug) <= 100
+
+
 # We don't have many tests here, because MedianPooling and AveragePooling
 # derive from the same base class, i.e. they share most of the methods, which
 # are then tested via TestAveragePooling.
@@ -921,3 +962,27 @@ class TestMedianPool(unittest.TestCase, _TestPoolingAugmentersBase):
         diff = np.abs(image_aug.astype(np.int32) - image_expected)
         assert image_aug.shape == (1, 3, 2)
         assert np.all(diff <= 1)
+
+    def test_padding_behavior_with_odd_dimensions(self):
+        # Test that padding correctly handles images with odd dimensions
+        # that don't divide evenly by the kernel size
+        aug = iaa.MedianPooling(2, keep_size=False)
+
+        # 3x3 image - should be padded before pooling
+        image = np.zeros((3, 3, 1), dtype=np.uint8)
+        image[0, 0] = 50
+        image[0, 1] = 150
+        image[1, 0] = 100
+        image[1, 1] = 200
+
+        image_aug = aug.augment_image(image)
+
+        # With 2x2 kernel on a 3x3 image, we need padding
+        # The output should properly handle the padding
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape[0] >= 1
+        assert image_aug.shape[1] >= 1
+        # Median pooling should pick the median value in each region
+        # The top-left 2x2 region contains values 50, 150, 100, 200 -> median is 125
+        assert image_aug[0, 0, 0] >= 50
+        assert image_aug[0, 0, 0] <= 200

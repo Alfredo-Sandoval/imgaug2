@@ -5024,12 +5024,13 @@ class TestSalt(unittest.TestCase):
 
     def test_p_is_one(self):
         base_img = np.zeros((100, 100, 1), dtype=np.uint8) + 128
-        aug = iaa.Salt(p=1.0)
+        aug = iaa.Salt(p=1.0, seed=1)
         observed = aug.augment_image(base_img)
         nb_pepper = np.sum(observed < 40)
         nb_salt = np.sum(observed > 255 - 40)
         assert nb_pepper == 0
         assert nb_salt > 200
+        assert np.max(observed) == 255
 
     def test_pickleable(self):
         aug = iaa.Salt(p=0.5, per_channel=True, seed=1)

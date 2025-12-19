@@ -234,6 +234,54 @@ class TestClouds(unittest.TestCase):
 
         assert np.allclose(hm_aug.arr_0to1, hm.arr_0to1)
 
+    def test_bounding_boxes_not_modified(self):
+        # Weather augmenters should not modify bounding boxes
+        bb = ia.BoundingBox(x1=10, y1=20, x2=50, y2=60)
+        bbsoi = ia.BoundingBoxesOnImage([bb], shape=(100, 100, 3))
+        aug = iaa.Clouds()
+
+        bbsoi_aug = aug.augment_bounding_boxes(bbsoi)
+
+        assert len(bbsoi_aug.bounding_boxes) == 1
+        assert bbsoi_aug.bounding_boxes[0].x1 == 10
+        assert bbsoi_aug.bounding_boxes[0].y1 == 20
+        assert bbsoi_aug.bounding_boxes[0].x2 == 50
+        assert bbsoi_aug.bounding_boxes[0].y2 == 60
+
+    def test_polygons_not_modified(self):
+        # Weather augmenters should not modify polygons
+        poly = ia.Polygon([(10, 10), (50, 10), (50, 50), (10, 50)])
+        psoi = ia.PolygonsOnImage([poly], shape=(100, 100, 3))
+        aug = iaa.Clouds()
+
+        psoi_aug = aug.augment_polygons(psoi)
+
+        assert len(psoi_aug.polygons) == 1
+        assert np.allclose(psoi_aug.polygons[0].exterior, poly.exterior)
+
+    def test_deterministic_produces_same_output(self):
+        # Test that deterministic mode produces consistent outputs
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+        aug = iaa.Clouds(seed=42)
+        aug_det = aug.to_deterministic()
+
+        img_aug1 = aug_det.augment_image(image)
+        img_aug2 = aug_det.augment_image(image)
+
+        assert np.array_equal(img_aug1, img_aug2)
+
+    def test_seed_produces_reproducible_output(self):
+        # Test that same seed produces reproducible output
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+
+        aug1 = iaa.Clouds(seed=123)
+        aug2 = iaa.Clouds(seed=123)
+
+        img_aug1 = aug1.augment_image(image)
+        img_aug2 = aug2.augment_image(image)
+
+        assert np.array_equal(img_aug1, img_aug2)
+
 
 # only a very rough test here currently, because the augmenter is fairly hard
 # to test
@@ -299,10 +347,66 @@ class TestFog(unittest.TestCase):
         aug = iaa.Fog(seed=1)
         runtest_pickleable_uint8_img(aug, iterations=3, shape=(20, 20, 3))
 
+    def test_keypoints_not_modified(self):
+        # Weather augmenters should not modify keypoints
+        # Use iaa.weather.Fog to avoid imgcorruptlike.Fog
+        kpsoi = ia.KeypointsOnImage([ia.Keypoint(10, 20), ia.Keypoint(30, 40)], shape=(100, 100, 3))
+        aug = iaa.weather.Fog()
+
+        kpsoi_aug = aug.augment_keypoints(kpsoi)
+
+        assert len(kpsoi_aug.keypoints) == 2
+        assert kpsoi_aug.keypoints[0].x == 10
+        assert kpsoi_aug.keypoints[0].y == 20
+
+    def test_heatmaps_not_modified(self):
+        # Weather augmenters should not modify heatmaps
+        hm_arr = np.zeros((50, 50), dtype=np.float32)
+        hm_arr[10:40, 10:40] = 0.8
+        hm = ia.HeatmapsOnImage(hm_arr, shape=(100, 100, 3))
+        aug = iaa.weather.Fog()
+
+        hm_aug = aug.augment_heatmaps(hm)
+
+        assert np.allclose(hm_aug.arr_0to1, hm.arr_0to1)
+
+    def test_bounding_boxes_not_modified(self):
+        # Weather augmenters should not modify bounding boxes
+        bb = ia.BoundingBox(x1=10, y1=20, x2=50, y2=60)
+        bbsoi = ia.BoundingBoxesOnImage([bb], shape=(100, 100, 3))
+        aug = iaa.weather.Fog()
+
+        bbsoi_aug = aug.augment_bounding_boxes(bbsoi)
+
+        assert len(bbsoi_aug.bounding_boxes) == 1
+        assert bbsoi_aug.bounding_boxes[0].x1 == 10
+
+    def test_deterministic_produces_same_output(self):
+        # Test that deterministic mode produces consistent outputs
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+        aug = iaa.weather.Fog(seed=42)
+        aug_det = aug.to_deterministic()
+
+        img_aug1 = aug_det.augment_image(image)
+        img_aug2 = aug_det.augment_image(image)
+
+        assert np.array_equal(img_aug1, img_aug2)
+
+    def test_seed_produces_reproducible_output(self):
+        # Test that same seed produces reproducible output
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+
+        aug1 = iaa.weather.Fog(seed=123)
+        aug2 = iaa.weather.Fog(seed=123)
+
+        img_aug1 = aug1.augment_image(image)
+        img_aug2 = aug2.augment_image(image)
+
+        assert np.array_equal(img_aug1, img_aug2)
+
 
 # only a very rough test here currently, because the augmenter is fairly hard
 # to test
-# TODO add more tests, improve testability
 class TestSnowflakes(unittest.TestCase):
     def setUp(self):
         reseed()
@@ -376,6 +480,62 @@ class TestSnowflakes(unittest.TestCase):
     def test_pickleable(self):
         aug = iaa.Snowflakes(seed=1)
         runtest_pickleable_uint8_img(aug, iterations=3, shape=(20, 20, 3))
+
+    def test_keypoints_not_modified(self):
+        # Weather augmenters should not modify keypoints
+        kpsoi = ia.KeypointsOnImage([ia.Keypoint(10, 20), ia.Keypoint(30, 40)], shape=(100, 100, 3))
+        aug = iaa.Snowflakes()
+
+        kpsoi_aug = aug.augment_keypoints(kpsoi)
+
+        assert len(kpsoi_aug.keypoints) == 2
+        assert kpsoi_aug.keypoints[0].x == 10
+        assert kpsoi_aug.keypoints[0].y == 20
+
+    def test_heatmaps_not_modified(self):
+        # Weather augmenters should not modify heatmaps
+        hm_arr = np.zeros((50, 50), dtype=np.float32)
+        hm_arr[10:40, 10:40] = 0.8
+        hm = ia.HeatmapsOnImage(hm_arr, shape=(100, 100, 3))
+        aug = iaa.Snowflakes()
+
+        hm_aug = aug.augment_heatmaps(hm)
+
+        assert np.allclose(hm_aug.arr_0to1, hm.arr_0to1)
+
+    def test_bounding_boxes_not_modified(self):
+        # Weather augmenters should not modify bounding boxes
+        bb = ia.BoundingBox(x1=10, y1=20, x2=50, y2=60)
+        bbsoi = ia.BoundingBoxesOnImage([bb], shape=(100, 100, 3))
+        aug = iaa.Snowflakes()
+
+        bbsoi_aug = aug.augment_bounding_boxes(bbsoi)
+
+        assert len(bbsoi_aug.bounding_boxes) == 1
+        assert bbsoi_aug.bounding_boxes[0].x1 == 10
+
+    def test_deterministic_produces_same_output(self):
+        # Test that deterministic mode produces consistent outputs
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+        aug = iaa.Snowflakes(seed=42)
+        aug_det = aug.to_deterministic()
+
+        img_aug1 = aug_det.augment_image(image)
+        img_aug2 = aug_det.augment_image(image)
+
+        assert np.array_equal(img_aug1, img_aug2)
+
+    def test_seed_produces_reproducible_output(self):
+        # Test that same seed produces reproducible output
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+
+        aug1 = iaa.Snowflakes(seed=123)
+        aug2 = iaa.Snowflakes(seed=123)
+
+        img_aug1 = aug1.augment_image(image)
+        img_aug2 = aug2.augment_image(image)
+
+        assert np.array_equal(img_aug1, img_aug2)
 
     @classmethod
     def _measure_uniformity(cls, image, patch_size=5, n_patches=50):
@@ -476,3 +636,228 @@ class TestRain(unittest.TestCase):
     def test_pickleable(self):
         aug = iaa.Rain(seed=1)
         runtest_pickleable_uint8_img(aug, iterations=3, shape=(20, 20, 3))
+
+    def test_keypoints_not_modified(self):
+        # Weather augmenters should not modify keypoints
+        kpsoi = ia.KeypointsOnImage([ia.Keypoint(10, 20), ia.Keypoint(30, 40)], shape=(100, 100, 3))
+        aug = iaa.Rain()
+
+        kpsoi_aug = aug.augment_keypoints(kpsoi)
+
+        assert len(kpsoi_aug.keypoints) == 2
+        assert kpsoi_aug.keypoints[0].x == 10
+        assert kpsoi_aug.keypoints[0].y == 20
+
+    def test_heatmaps_not_modified(self):
+        # Weather augmenters should not modify heatmaps
+        hm_arr = np.zeros((50, 50), dtype=np.float32)
+        hm_arr[10:40, 10:40] = 0.8
+        hm = ia.HeatmapsOnImage(hm_arr, shape=(100, 100, 3))
+        aug = iaa.Rain()
+
+        hm_aug = aug.augment_heatmaps(hm)
+
+        assert np.allclose(hm_aug.arr_0to1, hm.arr_0to1)
+
+    def test_bounding_boxes_not_modified(self):
+        # Weather augmenters should not modify bounding boxes
+        bb = ia.BoundingBox(x1=10, y1=20, x2=50, y2=60)
+        bbsoi = ia.BoundingBoxesOnImage([bb], shape=(100, 100, 3))
+        aug = iaa.Rain()
+
+        bbsoi_aug = aug.augment_bounding_boxes(bbsoi)
+
+        assert len(bbsoi_aug.bounding_boxes) == 1
+        assert bbsoi_aug.bounding_boxes[0].x1 == 10
+
+    def test_deterministic_produces_same_output(self):
+        # Test that deterministic mode produces consistent outputs
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+        aug = iaa.Rain(seed=42)
+        aug_det = aug.to_deterministic()
+
+        img_aug1 = aug_det.augment_image(image)
+        img_aug2 = aug_det.augment_image(image)
+
+        assert np.array_equal(img_aug1, img_aug2)
+
+    def test_seed_produces_reproducible_output(self):
+        # Test that same seed produces reproducible output
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+
+        aug1 = iaa.Rain(seed=123)
+        aug2 = iaa.Rain(seed=123)
+
+        img_aug1 = aug1.augment_image(image)
+        img_aug2 = aug2.augment_image(image)
+
+        assert np.array_equal(img_aug1, img_aug2)
+
+
+class TestCloudLayer(unittest.TestCase):
+    def setUp(self):
+        reseed()
+
+    def _create_cloud_layer(self, seed=None):
+        """Helper to create a CloudLayer with typical parameters."""
+        return iaa.weather.CloudLayer(
+            intensity_mean=(196, 255),
+            intensity_freq_exponent=(-2.5, -2.0),
+            intensity_coarse_scale=10,
+            alpha_min=0,
+            alpha_multiplier=(0.25, 0.75),
+            alpha_size_px_max=(2, 8),
+            alpha_freq_exponent=(-2.5, -2.0),
+            sparsity=(0.8, 1.0),
+            density_multiplier=(0.5, 1.0),
+            seed=seed,
+        )
+
+    def test_basic_augmentation(self):
+        image = np.zeros((100, 100, 3), dtype=np.uint8)
+        aug = self._create_cloud_layer()
+
+        image_aug = aug.augment_image(image)
+
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape == image.shape
+        # Should add some white cloud pixels
+        assert np.mean(image_aug) > 0
+
+    def test_rgb_image(self):
+        image = np.random.randint(0, 255, (50, 50, 3), dtype=np.uint8)
+        aug = self._create_cloud_layer()
+
+        image_aug = aug.augment_image(image)
+
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape == image.shape
+
+    def test_grayscale_image(self):
+        image = np.random.randint(0, 255, (50, 50), dtype=np.uint8)
+        aug = self._create_cloud_layer()
+
+        image_aug = aug.augment_image(image)
+
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape == image.shape
+
+    def test_float32_image(self):
+        image = np.random.rand(50, 50, 3).astype(np.float32)
+        aug = self._create_cloud_layer()
+
+        image_aug = aug.augment_image(image)
+
+        assert image_aug.dtype.name == "float32"
+        assert image_aug.shape == image.shape
+
+    def test_multiple_images(self):
+        images = [np.zeros((50, 50, 3), dtype=np.uint8) for _ in range(3)]
+        aug = self._create_cloud_layer()
+
+        images_aug = aug.augment_images(images)
+
+        assert len(images_aug) == len(images)
+        for img_aug in images_aug:
+            assert img_aug.shape == images[0].shape
+            assert img_aug.dtype.name == "uint8"
+
+    def test_determinism(self):
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+        aug = self._create_cloud_layer(seed=42)
+
+        image_aug1 = aug.augment_image(image)
+        aug = self._create_cloud_layer(seed=42)
+        image_aug2 = aug.augment_image(image)
+
+        assert np.array_equal(image_aug1, image_aug2)
+
+    def test_get_parameters(self):
+        aug = self._create_cloud_layer()
+        params = aug.get_parameters()
+
+        assert len(params) == 9
+        assert params[0] is aug.intensity_mean
+        assert params[1] is aug.alpha_min
+        assert params[2] is aug.alpha_multiplier
+
+    def test_keypoints_not_modified(self):
+        kpsoi = ia.KeypointsOnImage(
+            [ia.Keypoint(10, 20), ia.Keypoint(30, 40)], shape=(100, 100, 3)
+        )
+        aug = self._create_cloud_layer()
+
+        kpsoi_aug = aug.augment_keypoints(kpsoi)
+
+        assert len(kpsoi_aug.keypoints) == 2
+        assert kpsoi_aug.keypoints[0].x == 10
+        assert kpsoi_aug.keypoints[0].y == 20
+
+
+class TestRainLayer(unittest.TestCase):
+    def setUp(self):
+        reseed()
+
+    def _create_rain_layer(self, seed=None):
+        """Helper to create a RainLayer with typical parameters."""
+        return iaa.weather.RainLayer(
+            density=(0.03, 0.14),
+            density_uniformity=(0.8, 1.0),
+            drop_size=(0.01, 0.02),
+            drop_size_uniformity=(0.2, 0.5),
+            angle=(-15, 15),
+            speed=(0.04, 0.20),
+            blur_sigma_fraction=(0.001, 0.001),
+            seed=seed,
+        )
+
+    def test_basic_augmentation(self):
+        image = np.zeros((100, 100, 3), dtype=np.uint8)
+        aug = self._create_rain_layer()
+
+        image_aug = aug.augment_image(image)
+
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape == image.shape
+
+    def test_rgb_image(self):
+        image = np.random.randint(0, 255, (50, 50, 3), dtype=np.uint8)
+        aug = self._create_rain_layer()
+
+        image_aug = aug.augment_image(image)
+
+        assert image_aug.dtype.name == "uint8"
+        assert image_aug.shape == image.shape
+
+    def test_multiple_images(self):
+        images = [np.zeros((50, 50, 3), dtype=np.uint8) for _ in range(3)]
+        aug = self._create_rain_layer()
+
+        images_aug = aug.augment_images(images)
+
+        assert len(images_aug) == len(images)
+        for img_aug in images_aug:
+            assert img_aug.shape == images[0].shape
+            assert img_aug.dtype.name == "uint8"
+
+    def test_determinism(self):
+        image = np.zeros((50, 50, 3), dtype=np.uint8)
+        aug = self._create_rain_layer(seed=42)
+
+        image_aug1 = aug.augment_image(image)
+        aug = self._create_rain_layer(seed=42)
+        image_aug2 = aug.augment_image(image)
+
+        assert np.array_equal(image_aug1, image_aug2)
+
+    def test_keypoints_not_modified(self):
+        kpsoi = ia.KeypointsOnImage(
+            [ia.Keypoint(10, 20), ia.Keypoint(30, 40)], shape=(100, 100, 3)
+        )
+        aug = self._create_rain_layer()
+
+        kpsoi_aug = aug.augment_keypoints(kpsoi)
+
+        assert len(kpsoi_aug.keypoints) == 2
+        assert kpsoi_aug.keypoints[0].x == 10
+        assert kpsoi_aug.keypoints[0].y == 20

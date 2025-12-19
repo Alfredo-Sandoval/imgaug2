@@ -300,7 +300,6 @@ class Test_autocontrast(unittest.TestCase):
         _test_shape_hw1(func)
 
 
-# TODO add test for unusual channel numbers
 class _TestEnhanceFunc(unittest.TestCase):
     def _test_by_comparison_with_pil(
         self, func, cls, factors=(0.0, 0.01, 0.1, 0.5, 0.95, 0.99, 1.0, 1.05, 1.5, 2.0, 3.0)

@@ -159,12 +159,12 @@ class Test__prevent_zero_sizes_after_crops_(unittest.TestCase):
                     assert np.all(axis_sizes[~mask_zeros] - cs[~mask_zeros] - ce[~mask_zeros] >= 1)
 
 
-class Test__handle_position_parameter(unittest.TestCase):
+class Test_handle_position_parameter(unittest.TestCase):
     def setUp(self):
         reseed()
 
     def test_string_uniform(self):
-        observed = iaa_size._handle_position_parameter("uniform")
+        observed = iap.handle_position_parameter("uniform")
         assert isinstance(observed, tuple)
         assert len(observed) == 2
         for i in range(2):
@@ -176,7 +176,7 @@ class Test__handle_position_parameter(unittest.TestCase):
             assert 1.0 - 1e-4 < param.b.value < 1.0 + 1e-4
 
     def test_string_center(self):
-        observed = iaa_size._handle_position_parameter("center")
+        observed = iap.handle_position_parameter("center")
         assert isinstance(observed, tuple)
         assert len(observed) == 2
         for i in range(2):
@@ -184,7 +184,7 @@ class Test__handle_position_parameter(unittest.TestCase):
             assert 0.5 - 1e-4 < observed[i].value < 0.5 + 1e-4
 
     def test_string_normal(self):
-        observed = iaa_size._handle_position_parameter("normal")
+        observed = iap.handle_position_parameter("normal")
         assert isinstance(observed, tuple)
         assert len(observed) == 2
         for i in range(2):
@@ -203,18 +203,18 @@ class Test__handle_position_parameter(unittest.TestCase):
             for y_str, y_val in pos_y:
                 position = f"{x_str}-{y_str}"
                 with self.subTest(position=position):
-                    observed = iaa_size._handle_position_parameter(position)
+                    observed = iap.handle_position_parameter(position)
                     assert is_parameter_instance(observed[0], iap.Deterministic)
                     assert x_val - 1e-4 < observed[0].value < x_val + 1e-4
                     assert is_parameter_instance(observed[1], iap.Deterministic)
                     assert y_val - 1e-4 < observed[1].value < y_val + 1e-4
 
     def test_stochastic_parameter(self):
-        observed = iaa_size._handle_position_parameter(iap.Poisson(2))
+        observed = iap.handle_position_parameter(iap.Poisson(2))
         assert is_parameter_instance(observed, iap.Poisson)
 
     def test_tuple_of_floats(self):
-        observed = iaa_size._handle_position_parameter((0.4, 0.6))
+        observed = iap.handle_position_parameter((0.4, 0.6))
         assert isinstance(observed, tuple)
         assert len(observed) == 2
         assert is_parameter_instance(observed[0], iap.Deterministic)
@@ -225,14 +225,14 @@ class Test__handle_position_parameter(unittest.TestCase):
     def test_tuple_of_floats_outside_value_range_leads_to_failure(self):
         got_exception = False
         try:
-            _ = iaa_size._handle_position_parameter((1.2, 0.6))
+            _ = iap.handle_position_parameter((1.2, 0.6))
         except Exception as e:
             assert "must be within the value range" in str(e)
             got_exception = True
         assert got_exception
 
     def test_tuple_of_stochastic_parameters(self):
-        observed = iaa_size._handle_position_parameter((iap.Poisson(2), iap.Poisson(3)))
+        observed = iap.handle_position_parameter((iap.Poisson(2), iap.Poisson(3)))
         assert is_parameter_instance(observed[0], iap.Poisson)
         assert is_parameter_instance(observed[0].lam, iap.Deterministic)
         assert 2 - 1e-4 < observed[0].lam.value < 2 + 1e-4
@@ -241,7 +241,7 @@ class Test__handle_position_parameter(unittest.TestCase):
         assert 3 - 1e-4 < observed[1].lam.value < 3 + 1e-4
 
     def test_tuple_of_float_and_stochastic_parameter(self):
-        observed = iaa_size._handle_position_parameter((0.4, iap.Poisson(3)))
+        observed = iap.handle_position_parameter((0.4, iap.Poisson(3)))
         assert isinstance(observed, tuple)
         assert len(observed) == 2
         assert is_parameter_instance(observed[0], iap.Deterministic)
@@ -253,7 +253,7 @@ class Test__handle_position_parameter(unittest.TestCase):
     def test_bad_datatype_leads_to_failure(self):
         got_exception = False
         try:
-            _ = iaa_size._handle_position_parameter(False)
+            _ = iap.handle_position_parameter(False)
         except Exception as e:
             assert "Expected one of the following as position parameter" in str(e)
             got_exception = True
@@ -1798,7 +1798,6 @@ class TestPad(unittest.TestCase):
                 assert observed.shape == tuple(image_padded_shape)
                 assert np.array_equal(observed.get_arr(), segmaps_arr_padded)
 
-    # TODO split up, add similar tests for polygons/LS/BBs
     def test_pad_each_side_on_its_own_by_tuple_of_ints(self):
         def _to_range_tuple(val):
             return val if isinstance(val, tuple) else (val, val)
@@ -1876,7 +1875,6 @@ class TestPad(unittest.TestCase):
                 assert len(set(movements)) == 3
                 assert len(set(movements_det)) == 1
 
-    # TODO split up, add similar tests for polygons/LS/BBs
     def test_pad_each_side_on_its_own_by_list_of_ints(self):
         # test pad by list of exact pixel values
         pads = [
@@ -1943,6 +1941,94 @@ class TestPad(unittest.TestCase):
 
             assert len(set(movements)) == 2
             assert len(set(movements_det)) == 1
+
+    def test_pad_polygons_by_tuple_of_ints(self):
+        # Test padding polygons with tuple of ints (sampling from range)
+        aug = iaa.Pad(px=((0, 2), 0, 0, 0), keep_size=False)
+        poly = ia.Polygon([(1, 1), (3, 1), (3, 3), (1, 3)])
+        psoi = ia.PolygonsOnImage([poly], shape=self.image.shape)
+
+        results = []
+        for _ in range(30):
+            psoi_aug = aug.augment_polygons([psoi])[0]
+            # Top padding shifts y coordinates
+            results.append(psoi_aug.items[0].exterior[0][1])
+
+        # Should see different y offsets (1, 2, or 3 based on 0-2 top padding)
+        assert len(set([int(r) for r in results])) >= 2
+
+    def test_pad_line_strings_by_tuple_of_ints(self):
+        # Test padding line strings with tuple of ints (sampling from range)
+        aug = iaa.Pad(px=(0, 0, 0, (0, 2)), keep_size=False)
+        ls = ia.LineString([(1, 1), (3, 1), (3, 3)])
+        lsoi = ia.LineStringsOnImage([ls], shape=self.image.shape)
+
+        results = []
+        for _ in range(30):
+            lsoi_aug = aug.augment_line_strings([lsoi])[0]
+            # Left padding shifts x coordinates
+            results.append(lsoi_aug.items[0].coords[0][0])
+
+        # Should see different x offsets based on left padding
+        assert len(set([int(r) for r in results])) >= 2
+
+    def test_pad_bounding_boxes_by_tuple_of_ints(self):
+        # Test padding bounding boxes with tuple of ints (sampling from range)
+        aug = iaa.Pad(px=((0, 2), 0, 0, 0), keep_size=False)
+        bb = ia.BoundingBox(x1=1, y1=1, x2=3, y2=3)
+        bbsoi = ia.BoundingBoxesOnImage([bb], shape=self.image.shape)
+
+        results = []
+        for _ in range(30):
+            bbsoi_aug = aug.augment_bounding_boxes([bbsoi])[0]
+            # Top padding shifts y coordinates
+            results.append(bbsoi_aug.items[0].y1)
+
+        # Should see different y offsets based on top padding
+        assert len(set([int(r) for r in results])) >= 2
+
+    def test_pad_polygons_by_list_of_ints(self):
+        # Test padding polygons with list of ints (sampling from discrete values)
+        aug = iaa.Pad(px=([0, 2], 0, 0, 0), keep_size=False)
+        poly = ia.Polygon([(1, 1), (3, 1), (3, 3), (1, 3)])
+        psoi = ia.PolygonsOnImage([poly], shape=self.image.shape)
+
+        results = []
+        for _ in range(30):
+            psoi_aug = aug.augment_polygons([psoi])[0]
+            results.append(psoi_aug.items[0].exterior[0][1])
+
+        # Should see exactly two different y offsets (1 or 3)
+        unique_vals = set([int(r) for r in results])
+        assert len(unique_vals) == 2
+
+    def test_pad_line_strings_by_list_of_ints(self):
+        # Test padding line strings with list of ints
+        aug = iaa.Pad(px=(0, 0, 0, [0, 2]), keep_size=False)
+        ls = ia.LineString([(1, 1), (3, 1)])
+        lsoi = ia.LineStringsOnImage([ls], shape=self.image.shape)
+
+        results = []
+        for _ in range(30):
+            lsoi_aug = aug.augment_line_strings([lsoi])[0]
+            results.append(lsoi_aug.items[0].coords[0][0])
+
+        unique_vals = set([int(r) for r in results])
+        assert len(unique_vals) == 2
+
+    def test_pad_bounding_boxes_by_list_of_ints(self):
+        # Test padding bounding boxes with list of ints
+        aug = iaa.Pad(px=([0, 2], 0, 0, 0), keep_size=False)
+        bb = ia.BoundingBox(x1=1, y1=1, x2=3, y2=3)
+        bbsoi = ia.BoundingBoxesOnImage([bb], shape=self.image.shape)
+
+        results = []
+        for _ in range(30):
+            bbsoi_aug = aug.augment_bounding_boxes([bbsoi])[0]
+            results.append(bbsoi_aug.items[0].y1)
+
+        unique_vals = set([int(r) for r in results])
+        assert len(unique_vals) == 2
 
     def test_pad_heatmaps_smaller_than_img_by_tuple_of_ints_without_ks(self):
         # pad smaller heatmaps

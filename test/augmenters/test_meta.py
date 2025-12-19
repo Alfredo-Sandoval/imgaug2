@@ -333,7 +333,6 @@ class TestNoop(unittest.TestCase):
         assert np.array_equal(image, image_aug)
 
 
-# TODO add tests for line strings
 class TestLambda(unittest.TestCase):
     def setUp(self):
         reseed()
@@ -719,8 +718,6 @@ class TestLambda(unittest.TestCase):
         observed = aug.augment_bounding_boxes(bbsoi)
 
         assert_cbaois_equal(observed, bbsoi)
-
-    # TODO add tests when funcs are not set in Lambda
 
     def test_other_dtypes_bool(self):
         def func_images(images, random_state, parents, hooks):
@@ -3399,6 +3396,60 @@ class TestAugmenter_draw_grid(unittest.TestCase):
         )
         grid_expected = np.tile(grid_expected, (1, 1, 3))
         assert np.array_equal(grid, grid_expected)
+
+    def test_draw_grid_single_channel_array(self):
+        # array with C=1, shape (3, 3, 1)
+        aug = _DummyAugmenter()
+        image = np.zeros((3, 3, 1), dtype=np.uint8)
+        image[0, 0, 0] = 10
+        image[0, 1, 0] = 50
+        image[1, 1, 0] = 255
+
+        grid = aug.draw_grid(image, rows=2, cols=2)
+
+        # Single channel should be tiled to 3 channels for display
+        assert grid.shape == (6, 6, 3)
+        # Check that values are preserved
+        assert grid[0, 0, 0] == 10
+        assert grid[0, 1, 0] == 50
+        assert grid[1, 1, 0] == 255
+
+    def test_draw_grid_list_of_2d_single_images(self):
+        # List of 2D images (H, W)
+        # draw_grid multiplies rows by the number of images
+        # So rows=1, cols=2, 2 images => 2 rows total
+        aug = _DummyAugmenter()
+        image1 = np.zeros((3, 3), dtype=np.uint8)
+        image1[0, 0] = 100
+        image2 = np.zeros((3, 3), dtype=np.uint8)
+        image2[1, 1] = 200
+
+        grid = aug.draw_grid([image1, image2], rows=1, cols=2)
+
+        # Shape: (3*2 images, 3*2 cols, 3 channels) = (6, 6, 3)
+        assert grid.shape == (6, 6, 3)
+        # image1's pixel at (0, 0) appears in both columns of first row
+        assert grid[0, 0, 0] == 100
+        assert grid[0, 3, 0] == 100
+        # image2's pixel at (1, 1) appears in second row
+        assert grid[4, 1, 0] == 200
+        assert grid[4, 4, 0] == 200
+
+    def test_draw_grid_list_of_single_channel_images(self):
+        # List of single channel images (H, W, 1)
+        # Same row multiplication logic
+        aug = _DummyAugmenter()
+        image1 = np.zeros((3, 3, 1), dtype=np.uint8)
+        image1[0, 0, 0] = 100
+        image2 = np.zeros((3, 3, 1), dtype=np.uint8)
+        image2[1, 1, 0] = 200
+
+        grid = aug.draw_grid([image1, image2], rows=1, cols=2)
+
+        # Shape: (3*2 images, 3*2 cols, 3 channels) = (6, 6, 3)
+        assert grid.shape == (6, 6, 3)
+        assert grid[0, 0, 0] == 100
+        assert grid[4, 1, 0] == 200
 
     def test_draw_grid_1d_array(self):
         # array, shape (2,)

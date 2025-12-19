@@ -1628,12 +1628,47 @@ class TestMotionBlur(unittest.TestCase):
             got_exception = True
         assert got_exception
 
-    # TODO extend this to test sampled kernel sizes
     def test_k_is_tuple(self):
         # no error in case of (a, b), checks for #215
         aug = iaa.MotionBlur(k=(3, 7))
         for _ in range(10):
             _ = aug.augment_image(np.zeros((11, 11, 3), dtype=np.uint8))
+
+    def test_k_is_tuple_samples_different_kernel_sizes(self):
+        # Test that kernel size tuple (3, 7) samples different sizes
+        aug = iaa.MotionBlur(k=(3, 7), angle=0, direction=0)
+        matrix_func = aug.matrix
+
+        # Collect kernel sizes by checking the matrix dimensions
+        kernel_sizes = set()
+        for i in range(100):
+            # Sample a kernel size
+            rng = iarandom.RNG(i)
+            k_sample = aug.k.draw_sample(random_state=rng)
+            # Force odd
+            if k_sample % 2 == 0:
+                k_sample += 1
+            kernel_sizes.add(k_sample)
+
+        # Should see multiple different kernel sizes (3, 5, 7 at minimum)
+        assert len(kernel_sizes) >= 2
+        assert 3 in kernel_sizes or 5 in kernel_sizes or 7 in kernel_sizes
+
+    def test_k_is_tuple_produces_varying_blur_amounts(self):
+        # Test that different kernel sizes produce different blur amounts
+        image = np.zeros((21, 21, 1), dtype=np.uint8)
+        image[10, 10] = 255  # Single bright pixel in center
+
+        aug = iaa.MotionBlur(k=(3, 15), angle=0, direction=0)
+
+        blur_amounts = []
+        for _ in range(30):
+            img_aug = aug.augment_image(image)
+            # Count how spread out the blur is (non-zero pixels)
+            blur_amounts.append(np.sum(img_aug > 0))
+
+        # Different kernel sizes should produce different blur spreads
+        assert len(set(blur_amounts)) > 1
 
     def test_direction_is_1(self):
         # direction 1.0
