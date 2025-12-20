@@ -1624,3 +1624,67 @@ class TestMlxOpsConvolutional(unittest.TestCase):
         out = mlx_conv.convolve(image, kernel)
         assert isinstance(out, mx.array)
         assert out.shape == image.shape
+
+
+@unittest.skipIf(not MLX_AVAILABLE, "mlx not installed")
+class TestMlxOpsArtistic(unittest.TestCase):
+    def test_stylize_cartoon_matches_cpu(self):
+        from imgaug2.augmenters import artistic as cpu_artistic
+        from imgaug2.mlx import artistic as mlx_artistic
+
+        rng = np.random.default_rng(13)
+        image = rng.integers(0, 256, size=(64, 64, 3), dtype=np.uint8)
+
+        observed = mlx_artistic.stylize_cartoon(
+            image,
+            blur_ksize=3,
+            segmentation_size=1.0,
+            saturation=1.2,
+            edge_prevalence=1.0,
+            suppress_edges=False,
+        )
+        expected = cpu_artistic.stylize_cartoon(
+            image,
+            blur_ksize=3,
+            segmentation_size=1.0,
+            saturation=1.2,
+            edge_prevalence=1.0,
+            suppress_edges=False,
+        )
+
+        np.testing.assert_array_equal(observed, expected)
+
+    def test_stylize_cartoon_preserves_mlx(self):
+        from imgaug2.mlx import artistic as mlx_artistic
+
+        image = mx.array(np.zeros((32, 32, 3), dtype=np.uint8))
+
+        out = mlx_artistic.stylize_cartoon(image, blur_ksize=3, suppress_edges=False)
+        assert isinstance(out, mx.array)
+        assert out.shape == image.shape
+
+
+@unittest.skipIf(not MLX_AVAILABLE, "mlx not installed")
+class TestMlxOpsPillike(unittest.TestCase):
+    def test_autocontrast_matches_cpu(self):
+        from imgaug2.augmenters import pillike as cpu_pillike
+        from imgaug2.mlx import pillike as mlx_pillike
+
+        rng = np.random.default_rng(14)
+        image = rng.integers(0, 256, size=(32, 32, 3), dtype=np.uint8)
+
+        observed = mlx_pillike.autocontrast(image, cutoff=2)
+        expected = cpu_pillike.autocontrast(image, cutoff=2)
+
+        np.testing.assert_array_equal(observed, expected)
+
+    def test_equalize_preserves_mlx(self):
+        from imgaug2.mlx import pillike as mlx_pillike
+
+        rng = np.random.default_rng(15)
+        image = mx.array(rng.integers(0, 256, size=(32, 32, 3), dtype=np.uint8))
+        mask = mx.array(rng.integers(0, 2, size=(32, 32), dtype=np.uint8) * 255)
+
+        out = mlx_pillike.equalize(image, mask=mask)
+        assert isinstance(out, mx.array)
+        assert out.shape == image.shape

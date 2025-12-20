@@ -216,6 +216,33 @@ high-level augmenter pipeline. It’s intended for explicit routing at the ops l
 | ------------------ | -------------------------- |
 | `jpeg_compression` | JPEG compression artifacts |
 
+### Artistic
+
+| Function          | Description              |
+| ----------------- | ------------------------ |
+| `stylize_cartoon` | Cartoon/comic stylization |
+
+### PIL-like
+
+| Function              | Description                      |
+| --------------------- | -------------------------------- |
+| `autocontrast`        | PIL-style autocontrast           |
+| `equalize`            | PIL-style histogram equalization |
+| `enhance_color`       | PIL ImageEnhance.Color           |
+| `enhance_contrast`    | PIL ImageEnhance.Contrast        |
+| `enhance_brightness`  | PIL ImageEnhance.Brightness      |
+| `enhance_sharpness`   | PIL ImageEnhance.Sharpness       |
+| `filter_blur`         | PIL ImageFilter.BLUR             |
+| `filter_smooth`       | PIL ImageFilter.SMOOTH           |
+| `filter_smooth_more`  | PIL ImageFilter.SMOOTH_MORE      |
+| `filter_edge_enhance` | PIL ImageFilter.EDGE_ENHANCE     |
+| `filter_edge_enhance_more` | PIL ImageFilter.EDGE_ENHANCE_MORE |
+| `filter_find_edges`   | PIL ImageFilter.FIND_EDGES       |
+| `filter_contour`      | PIL ImageFilter.CONTOUR          |
+| `filter_emboss`       | PIL ImageFilter.EMBOSS           |
+| `filter_sharpen`      | PIL ImageFilter.SHARPEN          |
+| `filter_detail`       | PIL ImageFilter.DETAIL           |
+
 ### Pointwise
 
 | Function          | Description                |
@@ -253,6 +280,8 @@ Some operations execute parts on CPU due to dependencies (e.g., OpenCV). These s
 - `canny` — Uses OpenCV edge detector
 - `blend_alpha` — Uses NumPy blending helper
 - `convolve` — Uses OpenCV filter2D
+- `stylize_cartoon` — Uses OpenCV segmentation + PIL-compatible logic
+- `pillike.*` — Uses PIL ImageOps/ImageEnhance/ImageFilter
 - `affine_transform` / `perspective_transform` — Higher-order interpolation (order > 1)
 - `elastic_transform` / `piecewise_affine` — Complex coordinate mapping
 
@@ -266,6 +295,7 @@ All public functions are also organized into submodules (useful when you want to
 | ------------- | ----------------------- |
 | `blur`        | blur operations         |
 | `blend`       | alpha blending          |
+| `artistic`    | artistic filters        |
 | `color`       | color/intensity ops     |
 | `compression` | JPEG artifacts          |
 | `convolutional` | convolution kernels   |
@@ -276,6 +306,7 @@ All public functions are also organized into submodules (useful when you want to
 | `morphology`  | erosion/dilation/etc    |
 | `noise`       | noise + dropout/cutout  |
 | `pipeline`    | to_device/to_host/chain |
+| `pillike`     | PIL-compatible ops      |
 | `pointwise`   | add/multiply/contrast   |
 | `pooling`     | min/max/avg pool        |
 | `router`      | routing helpers         |

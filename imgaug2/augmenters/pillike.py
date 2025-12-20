@@ -17,7 +17,7 @@ Key Augmenters:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias
+from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias, cast
 
 import cv2
 import numpy as np
@@ -72,6 +72,18 @@ def _ensure_valid_shape(image: Array, func_name: str) -> tuple[Array, bool]:
         f"Got shape {image.shape}."
     )
     return image, is_hw1
+
+
+def _maybe_mlx(image: Array, func_name: str, *args: object, **kwargs: object) -> Array | None:
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(image):
+        from imgaug2.mlx import pillike as mlx_pillike
+
+        func = getattr(mlx_pillike, func_name)
+        return cast(Array, func(image, *args, **kwargs))
+
+    return None
 
 
 @legacy(version="0.4.0")
@@ -224,6 +236,10 @@ def equalize(image: Array, mask: Array | None = None) -> Array:
         Equalized image.
 
     """
+    maybe = _maybe_mlx(image, "equalize", mask=mask)
+    if maybe is not None:
+        return maybe
+
     # internally used method works in-place by default and hence needs a copy
     size = image.size
     if size == 0:
@@ -275,6 +291,10 @@ def equalize_(image: Array, mask: Array | None = None) -> Array:
         Equalized image. *Might* have been modified in-place.
 
     """
+    maybe = _maybe_mlx(image, "equalize", mask=mask)
+    if maybe is not None:
+        return maybe
+
     nb_channels = 1 if image.ndim == 2 else image.shape[-1]
     if nb_channels not in [1, 3]:
         result = [equalize_(image[:, :, c]) for c in np.arange(nb_channels)]
@@ -388,6 +408,10 @@ def autocontrast(image: Array, cutoff: int = 0, ignore: IgnoreValues = None) -> 
         Contrast-enhanced image.
 
     """
+    maybe = _maybe_mlx(image, "autocontrast", cutoff=cutoff, ignore=ignore)
+    if maybe is not None:
+        return maybe
+
     iadt.allow_only_uint8({image.dtype})
 
     if 0 in image.shape:
@@ -562,6 +586,10 @@ def enhance_color(image: Array, factor: float) -> Array:
         Color-modified image.
 
     """
+    maybe = _maybe_mlx(image, "enhance_color", factor=factor)
+    if maybe is not None:
+        return maybe
+
     # PIL.ImageEnhance.Color supports images with shape (H,W), (H,W,1), (H,W,3)
     # and (H,W,4). For other channel counts, we provide a best-effort fallback
     # to keep the function usable (and at least preserve shape/dtype).
@@ -627,6 +655,10 @@ def enhance_contrast(image: Array, factor: float) -> Array:
         Contrast-modified image.
 
     """
+    maybe = _maybe_mlx(image, "enhance_contrast", factor=factor)
+    if maybe is not None:
+        return maybe
+
     return _apply_enhance_func(image, PIL.ImageEnhance.Contrast, factor)
 
 
@@ -670,6 +702,10 @@ def enhance_brightness(image: Array, factor: float) -> Array:
         Brightness-modified image.
 
     """
+    maybe = _maybe_mlx(image, "enhance_brightness", factor=factor)
+    if maybe is not None:
+        return maybe
+
     return _apply_enhance_func(image, PIL.ImageEnhance.Brightness, factor)
 
 
@@ -713,6 +749,10 @@ def enhance_sharpness(image: Array, factor: float) -> Array:
         Sharpness-modified image.
 
     """
+    maybe = _maybe_mlx(image, "enhance_sharpness", factor=factor)
+    if maybe is not None:
+        return maybe
+
     return _apply_enhance_func(image, PIL.ImageEnhance.Sharpness, factor)
 
 
@@ -770,6 +810,10 @@ def filter_blur(image: Array) -> Array:
         Blurred image.
 
     """
+    maybe = _maybe_mlx(image, "filter_blur")
+    if maybe is not None:
+        return maybe
+
     return _filter_by_kernel(image, PIL.ImageFilter.BLUR)
 
 
@@ -807,6 +851,10 @@ def filter_smooth(image: Array) -> Array:
         Smoothened image.
 
     """
+    maybe = _maybe_mlx(image, "filter_smooth")
+    if maybe is not None:
+        return maybe
+
     return _filter_by_kernel(image, PIL.ImageFilter.SMOOTH)
 
 
@@ -844,6 +892,10 @@ def filter_smooth_more(image: Array) -> Array:
         Smoothened image.
 
     """
+    maybe = _maybe_mlx(image, "filter_smooth_more")
+    if maybe is not None:
+        return maybe
+
     return _filter_by_kernel(image, PIL.ImageFilter.SMOOTH_MORE)
 
 
@@ -881,6 +933,10 @@ def filter_edge_enhance(image: Array) -> Array:
         Image with enhanced edges.
 
     """
+    maybe = _maybe_mlx(image, "filter_edge_enhance")
+    if maybe is not None:
+        return maybe
+
     return _filter_by_kernel(image, PIL.ImageFilter.EDGE_ENHANCE)
 
 
@@ -919,6 +975,10 @@ def filter_edge_enhance_more(image: Array) -> Array:
         Smoothened image.
 
     """
+    maybe = _maybe_mlx(image, "filter_edge_enhance_more")
+    if maybe is not None:
+        return maybe
+
     return _filter_by_kernel(image, PIL.ImageFilter.EDGE_ENHANCE_MORE)
 
 
@@ -956,6 +1016,10 @@ def filter_find_edges(image: Array) -> Array:
         Image with detected edges.
 
     """
+    maybe = _maybe_mlx(image, "filter_find_edges")
+    if maybe is not None:
+        return maybe
+
     return _filter_by_kernel(image, PIL.ImageFilter.FIND_EDGES)
 
 
@@ -993,6 +1057,10 @@ def filter_contour(image: Array) -> Array:
         Image with pronounced contours.
 
     """
+    maybe = _maybe_mlx(image, "filter_contour")
+    if maybe is not None:
+        return maybe
+
     return _filter_by_kernel(image, PIL.ImageFilter.CONTOUR)
 
 
@@ -1030,6 +1098,10 @@ def filter_emboss(image: Array) -> Array:
         Embossed image.
 
     """
+    maybe = _maybe_mlx(image, "filter_emboss")
+    if maybe is not None:
+        return maybe
+
     return _filter_by_kernel(image, PIL.ImageFilter.EMBOSS)
 
 
@@ -1067,6 +1139,10 @@ def filter_sharpen(image: Array) -> Array:
         Sharpened image.
 
     """
+    maybe = _maybe_mlx(image, "filter_sharpen")
+    if maybe is not None:
+        return maybe
+
     return _filter_by_kernel(image, PIL.ImageFilter.SHARPEN)
 
 
@@ -1104,6 +1180,10 @@ def filter_detail(image: Array) -> Array:
         Image with enhanced details.
 
     """
+    maybe = _maybe_mlx(image, "filter_detail")
+    if maybe is not None:
+        return maybe
+
     return _filter_by_kernel(image, PIL.ImageFilter.DETAIL)
 
 

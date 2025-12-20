@@ -110,6 +110,24 @@ def stylize_cartoon(
         Image in cartoonish style.
 
     """
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(image):
+        from imgaug2.mlx import artistic as mlx_artistic
+
+        return cast(
+            Image,
+            mlx_artistic.stylize_cartoon(
+                image,
+                blur_ksize=blur_ksize,
+                segmentation_size=segmentation_size,
+                saturation=saturation,
+                edge_prevalence=edge_prevalence,
+                suppress_edges=suppress_edges,
+                from_colorspace=from_colorspace,
+            ),
+        )
+
     iadt.allow_only_uint8({image.dtype})
 
     assert image.ndim == 3 and image.shape[2] == 3, (

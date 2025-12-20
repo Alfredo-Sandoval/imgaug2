@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Callable
-from typing import Literal, TypeAlias
+from typing import Literal, TypeAlias, cast
 
 import cv2
 import numpy as np
@@ -64,6 +64,12 @@ def convolve(image: ImageArray, kernel: KernelInput) -> ImageArray:
         Image of the same shape and dtype as the input array.
 
     """
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(image) or is_mlx_array(kernel):
+        from imgaug2.mlx import convolutional as mlx_convolutional
+
+        return cast(ImageArray, mlx_convolutional.convolve(image, kernel))
     return convolve_(np.copy(image), kernel)
 
 
@@ -115,6 +121,12 @@ def convolve_(image: ImageArray, kernel: KernelInput) -> ImageArray:
         Might have been modified in-place.
 
     """
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(image) or is_mlx_array(kernel):
+        from imgaug2.mlx import convolutional as mlx_convolutional
+
+        return cast(ImageArray, mlx_convolutional.convolve(image, kernel))
     iadt.gate_dtypes_strs(
         {image.dtype},
         allowed="bool uint8 uint16 int8 int16 float16 float32 float64",

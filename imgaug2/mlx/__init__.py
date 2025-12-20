@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from . import (
+    artistic,
     blend,
     blur,
     color,
@@ -74,6 +75,7 @@ from .crop import (
     random_crop,
     random_resized_crop,
 )
+from .artistic import stylize_cartoon
 from .edges import canny
 from .flip import fliplr, flipud, rot90
 from .geometry import (
@@ -123,6 +125,7 @@ __all__ = [
     "add",
     "additive_gaussian_noise",
     "affine_transform",
+    "artistic",
     "autocontrast",
     "average_blur",
     "avg_pool",
@@ -219,6 +222,7 @@ __all__ = [
     "shot_noise",
     "solarize",
     "spatter",
+    "stylize_cartoon",
     "to_device",
     "to_float",
     "to_host",
