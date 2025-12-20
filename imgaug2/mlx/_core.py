@@ -18,9 +18,9 @@ Notes
 
 Examples
 --------
->>> from imgaug2.mlx import is_available, to_mlx  # doctest: +SKIP
->>> if is_available():  # doctest: +SKIP
-...     arr = to_mlx(np.zeros((32, 32, 3)))  # doctest: +SKIP
+>>> from imgaug2.mlx import is_available, to_mlx  # xdoctest: +SKIP
+>>> if is_available():  # xdoctest: +SKIP
+...     arr = to_mlx(np.zeros((32, 32, 3)))  # xdoctest: +SKIP
 """
 
 from __future__ import annotations

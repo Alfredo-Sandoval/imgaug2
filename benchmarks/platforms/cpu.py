@@ -58,7 +58,7 @@ def _get_rss_bytes() -> int | None:
     - Windows: returns None.
     """
     try:
-        import resource  # pylint: disable=import-outside-toplevel
+        import resource
     except Exception:
         return None
 

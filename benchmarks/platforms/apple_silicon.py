@@ -34,7 +34,7 @@ def get_chip_info() -> str | None:
 def numpy_uses_accelerate() -> bool | None:
     """Return True/False if we can detect Accelerate/vecLib usage; else None."""
     try:
-        import numpy as np  # pylint: disable=import-outside-toplevel
+        import numpy as np
     except Exception:
         return None
 

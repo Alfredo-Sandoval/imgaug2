@@ -9,10 +9,10 @@ JPEG operations on the CPU.
 
 Examples
 --------
->>> import numpy as np  # doctest: +SKIP
->>> from imgaug2.mlx.compression import jpeg_compression  # doctest: +SKIP
->>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # doctest: +SKIP
->>> compressed = jpeg_compression(img, quality=50)  # doctest: +SKIP
+>>> import numpy as np  # xdoctest: +SKIP
+>>> from imgaug2.mlx.compression import jpeg_compression  # xdoctest: +SKIP
+>>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # xdoctest: +SKIP
+>>> compressed = jpeg_compression(img, quality=50)  # xdoctest: +SKIP
 """
 
 from __future__ import annotations

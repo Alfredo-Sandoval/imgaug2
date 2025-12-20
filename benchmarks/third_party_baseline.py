@@ -76,7 +76,7 @@ def _system_info() -> dict[str, object]:
     }
 
     try:
-        import imgaug2 as ia  # pylint: disable=import-outside-toplevel
+        import imgaug2 as ia
 
         info["imgaug2_version"] = ia.__version__
     except Exception:
@@ -116,7 +116,7 @@ class _ThirdPartyAug:
 
 
 def _cv2_border_reflect101() -> int:
-    import cv2  # pylint: disable=import-outside-toplevel
+    import cv2
 
     return int(cv2.BORDER_REFLECT_101)
 

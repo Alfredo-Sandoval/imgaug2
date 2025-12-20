@@ -3366,7 +3366,9 @@ class TestAffine_other(unittest.TestCase):
     def test_mode_as_list_samples_randomly(self):
         # Test that mode as a list samples from different modes
         image = np.zeros((10, 10), dtype=np.uint8)
-        image[0, :] = 255
+        # Make the bottom row non-zero so that padding at the bottom differs
+        # between mode="constant" (cval=0) and mode="edge" (replicate edge values).
+        image[-1, :] = 255
 
         aug = iaa.Affine(translate_px={"y": -3}, mode=["constant", "edge"])
 
@@ -3383,7 +3385,9 @@ class TestAffine_other(unittest.TestCase):
     def test_shear_as_tuple_samples_from_range(self):
         # Test that shear as tuple samples from the range
         image = np.zeros((10, 10), dtype=np.uint8)
-        image[5, 5] = 255
+        # Use a non-centered point. Shearing is applied around the image
+        # center, so a centered point would remain (roughly) fixed.
+        image[2, 5] = 255
 
         aug = iaa.Affine(shear=(-45, 45), mode="constant", cval=0)
 

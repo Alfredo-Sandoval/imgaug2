@@ -108,3 +108,63 @@ class TestMlxAugmentersB1(unittest.TestCase):
 
         assert isinstance(out, np.ndarray)
         assert out.shape == image.shape
+
+    def test_average_blur_keeps_device_for_mlx_inputs(self):
+        import imgaug2.augmenters as iaa
+
+        image = mx.ones((24, 24, 3), dtype=mx.float32)
+        aug = iaa.AverageBlur(k=3)
+
+        with mock.patch(
+            "imgaug2.mlx.blur.to_numpy",
+            side_effect=AssertionError("AverageBlur should not call to_numpy for MLX inputs"),
+        ):
+            out = aug.augment_image(image)
+
+        assert isinstance(out, mx.array)
+        assert out.shape == image.shape
+
+    def test_median_blur_keeps_device_for_mlx_inputs(self):
+        import imgaug2.augmenters as iaa
+
+        image = mx.ones((24, 24, 3), dtype=mx.float32)
+        aug = iaa.MedianBlur(k=3)
+
+        with mock.patch(
+            "imgaug2.mlx.blur.to_numpy",
+            side_effect=AssertionError("MedianBlur should not call to_numpy for MLX inputs"),
+        ):
+            out = aug.augment_image(image)
+
+        assert isinstance(out, mx.array)
+        assert out.shape == image.shape
+
+    def test_resize_keeps_device_for_mlx_inputs(self):
+        import imgaug2.augmenters as iaa
+
+        image = mx.ones((20, 30, 3), dtype=mx.float32)
+        aug = iaa.Resize(40, interpolation="linear")
+
+        with mock.patch(
+            "imgaug2.mlx.geometry.to_numpy",
+            side_effect=AssertionError("Resize should not call to_numpy for MLX inputs"),
+        ):
+            out = aug.augment_image(image)
+
+        assert isinstance(out, mx.array)
+        assert out.shape == (40, 40, 3)
+
+    def test_pooling_keeps_device_for_mlx_inputs(self):
+        import imgaug2.augmenters as iaa
+
+        image = mx.ones((24, 24, 3), dtype=mx.float32)
+        aug = iaa.AveragePooling(2, keep_size=True)
+
+        with mock.patch(
+            "imgaug2.mlx.pooling.to_numpy",
+            side_effect=AssertionError("Pooling should not call to_numpy for MLX inputs"),
+        ):
+            out = aug.augment_image(image)
+
+        assert isinstance(out, mx.array)
+        assert out.shape == image.shape

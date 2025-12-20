@@ -45,7 +45,7 @@ def run_all(
 
     results: dict[str, Any] = {"suites": {}}
 
-    from benchmarks.runner import run_benchmarks  # pylint: disable=import-outside-toplevel
+    from benchmarks.runner import run_benchmarks
 
     print("[1/4] CPU augmenter-level suite")
     results["suites"]["runner_cpu"] = run_benchmarks(
@@ -62,7 +62,7 @@ def run_all(
 
     if not skip_legacy:
         from benchmarks.legacy import (
-            run_legacy_benchmark,  # pylint: disable=import-outside-toplevel
+            run_legacy_benchmark,
         )
 
         print("\n[2/4] Legacy suite (parity with checks/check_performance.py)")
@@ -80,7 +80,7 @@ def run_all(
         print("\n[2/4] Legacy suite: skipped")
 
     if not skip_ops:
-        from benchmarks.ops import run_ops_benchmarks  # pylint: disable=import-outside-toplevel
+        from benchmarks.ops import run_ops_benchmarks
 
         print("\n[3/4] Ops suite (CPU vs MLX device/roundtrip)")
         results["suites"]["ops"] = run_ops_benchmarks(
@@ -98,7 +98,7 @@ def run_all(
     else:
         try:
             from benchmarks import (
-                third_party_baseline as _tpb,  # pylint: disable=import-outside-toplevel
+                third_party_baseline as _tpb,
             )
         except Exception:
             print("\n[4/4] Third-party baseline: unavailable; skipping")
@@ -119,7 +119,7 @@ def run_all(
                 )
 
     from benchmarks.reports.generate_report import (
-        generate_report,  # pylint: disable=import-outside-toplevel
+        generate_report,
     )
 
     print("\nGenerating report...")

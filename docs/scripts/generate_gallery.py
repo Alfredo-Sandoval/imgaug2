@@ -21,12 +21,12 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from PIL import Image
+
 import imgaug2 as ia
 import imgaug2.augmenters as iaa
-import imgaug2.data as data
 import imgaug2.augmenters.pillike as iaa_pil
-
-from PIL import Image
+import imgaug2.data as data
 
 
 @dataclass(frozen=True, slots=True)

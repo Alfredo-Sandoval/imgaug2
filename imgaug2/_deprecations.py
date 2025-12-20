@@ -139,7 +139,11 @@ class deprecated:
             msg = (main_msg + " " + addendum).rstrip(" ").replace("``", "`")
 
             if self.behavior == "warn":
-                warn_deprecated(msg, stacklevel=3)
+                # Route through `imgaug2.imgaug.warn_deprecated` for backwards
+                # compatibility (tests and downstream code often patch that).
+                from imgaug2 import imgaug as ia
+
+                ia.warn_deprecated(msg, stacklevel=3)
             elif self.behavior == "raise":
                 raise DeprecationWarning(msg)
             return func(*args, **kwargs)

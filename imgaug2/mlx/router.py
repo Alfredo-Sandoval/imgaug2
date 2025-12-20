@@ -16,17 +16,17 @@ competitive (speedup >= 0.9) rather than strictly faster.
 
 Usage
 -----
->>> from imgaug2.mlx.router import should_use_mlx, get_backend  # doctest: +SKIP
->>>  # doctest: +SKIP
->>> # Check if MLX should be used for a specific op  # doctest: +SKIP
->>> if should_use_mlx("affine_transform", batch=16, height=256, width=256):  # doctest: +SKIP
-...     result = mlx_affine_transform(...)  # doctest: +SKIP
-... else:  # doctest: +SKIP
-...     result = cv2_affine_transform(...)  # doctest: +SKIP
->>>  # doctest: +SKIP
->>> # Or get the recommended backend name  # doctest: +SKIP
->>> backend = get_backend("gaussian_blur", batch=1, height=512, width=512)  # doctest: +SKIP
->>> # backend == "mlx" or "cpu"  # doctest: +SKIP
+>>> from imgaug2.mlx.router import should_use_mlx, get_backend  # xdoctest: +SKIP
+>>>  # xdoctest: +SKIP
+>>> # Check if MLX should be used for a specific op  # xdoctest: +SKIP
+>>> if should_use_mlx("affine_transform", batch=16, height=256, width=256):  # xdoctest: +SKIP
+...     result = mlx_affine_transform(...)  # xdoctest: +SKIP
+... else:  # xdoctest: +SKIP
+...     result = cv2_affine_transform(...)  # xdoctest: +SKIP
+>>>  # xdoctest: +SKIP
+>>> # Or get the recommended backend name  # xdoctest: +SKIP
+>>> backend = get_backend("gaussian_blur", batch=1, height=512, width=512)  # xdoctest: +SKIP
+>>> # backend == "mlx" or "cpu"  # xdoctest: +SKIP
 
 See Also
 --------

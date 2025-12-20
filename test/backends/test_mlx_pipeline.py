@@ -52,3 +52,8 @@ class TestMlxPipeline(unittest.TestCase):
 
         assert isinstance(out, mx.array)
         assert out.shape == image.shape
+
+    def test_pipeline_module_importable(self):
+        import imgaug2.mlx.pipeline as mlx_pipeline
+
+        assert hasattr(mlx_pipeline, "chain")

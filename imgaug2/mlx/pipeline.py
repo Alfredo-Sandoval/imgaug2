@@ -11,23 +11,23 @@ The main functions are:
 
 Examples
 --------
->>> import numpy as np  # doctest: +SKIP
->>> from imgaug2.mlx.pipeline import chain, to_device, to_host  # doctest: +SKIP
->>> from imgaug2.mlx.blur import gaussian_blur  # doctest: +SKIP
->>> from imgaug2.mlx.pointwise import multiply  # doctest: +SKIP
->>>  # doctest: +SKIP
->>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # doctest: +SKIP
->>>  # doctest: +SKIP
->>> # Efficient: single host-device roundtrip  # doctest: +SKIP
->>> result = chain(  # doctest: +SKIP
-...     img,  # doctest: +SKIP
-...     lambda x: gaussian_blur(x, sigma=2.0),  # doctest: +SKIP
-...     lambda x: multiply(x, 1.2),  # doctest: +SKIP
-... )  # doctest: +SKIP
->>>  # doctest: +SKIP
->>> # Less efficient: multiple roundtrips  # doctest: +SKIP
->>> result = gaussian_blur(img, sigma=2.0)  # doctest: +SKIP
->>> result = multiply(result, 1.2)  # doctest: +SKIP
+>>> import numpy as np  # xdoctest: +SKIP
+>>> from imgaug2.mlx.pipeline import chain, to_device, to_host  # xdoctest: +SKIP
+>>> from imgaug2.mlx.blur import gaussian_blur  # xdoctest: +SKIP
+>>> from imgaug2.mlx.pointwise import multiply  # xdoctest: +SKIP
+>>>  # xdoctest: +SKIP
+>>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # xdoctest: +SKIP
+>>>  # xdoctest: +SKIP
+>>> # Efficient: single host-device roundtrip  # xdoctest: +SKIP
+>>> result = chain(  # xdoctest: +SKIP
+...     img,  # xdoctest: +SKIP
+...     lambda x: gaussian_blur(x, sigma=2.0),  # xdoctest: +SKIP
+...     lambda x: multiply(x, 1.2),  # xdoctest: +SKIP
+... )  # xdoctest: +SKIP
+>>>  # xdoctest: +SKIP
+>>> # Less efficient: multiple roundtrips  # xdoctest: +SKIP
+>>> result = gaussian_blur(img, sigma=2.0)  # xdoctest: +SKIP
+>>> result = multiply(result, 1.2)  # xdoctest: +SKIP
 """
 
 from __future__ import annotations

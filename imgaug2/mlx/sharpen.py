@@ -9,12 +9,12 @@ All functions preserve input array type (NumPy or MLX).
 
 Examples
 --------
->>> import numpy as np  # doctest: +SKIP
->>> from imgaug2.mlx.sharpen import sharpen, emboss, unsharp_mask  # doctest: +SKIP
->>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # doctest: +SKIP
->>> sharpened = sharpen(img, alpha=1.0, lightness=1.5)  # doctest: +SKIP
->>> embossed = emboss(img, alpha=0.8, strength=2.0)  # doctest: +SKIP
->>> unsharp = unsharp_mask(img, sigma=1.0, strength=1.5)  # doctest: +SKIP
+>>> import numpy as np  # xdoctest: +SKIP
+>>> from imgaug2.mlx.sharpen import sharpen, emboss, unsharp_mask  # xdoctest: +SKIP
+>>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # xdoctest: +SKIP
+>>> sharpened = sharpen(img, alpha=1.0, lightness=1.5)  # xdoctest: +SKIP
+>>> embossed = emboss(img, alpha=0.8, strength=2.0)  # xdoctest: +SKIP
+>>> unsharp = unsharp_mask(img, sigma=1.0, strength=1.5)  # xdoctest: +SKIP
 """
 
 from __future__ import annotations

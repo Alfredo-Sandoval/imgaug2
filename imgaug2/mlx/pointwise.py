@@ -9,13 +9,13 @@ solarization, and gamma correction. All functions preserve input array type (Num
 
 Examples
 --------
->>> import numpy as np  # doctest: +SKIP
->>> from imgaug2.mlx.pointwise import add, multiply, linear_contrast, invert  # doctest: +SKIP
->>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # doctest: +SKIP
->>> brightened = add(img, 50)  # doctest: +SKIP
->>> darkened = multiply(img, 0.5)  # doctest: +SKIP
->>> contrasted = linear_contrast(img, factor=1.5)  # doctest: +SKIP
->>> inverted = invert(img)  # doctest: +SKIP
+>>> import numpy as np  # xdoctest: +SKIP
+>>> from imgaug2.mlx.pointwise import add, multiply, linear_contrast, invert  # xdoctest: +SKIP
+>>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # xdoctest: +SKIP
+>>> brightened = add(img, 50)  # xdoctest: +SKIP
+>>> darkened = multiply(img, 0.5)  # xdoctest: +SKIP
+>>> contrasted = linear_contrast(img, factor=1.5)  # xdoctest: +SKIP
+>>> inverted = invert(img)  # xdoctest: +SKIP
 """
 
 from __future__ import annotations

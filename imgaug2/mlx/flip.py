@@ -7,11 +7,12 @@ or NHWC (Batch, Height, Width, Channel) format and preserve the input array type
 
 Examples
 --------
->>> import numpy as np  # doctest: +SKIP
->>> from imgaug2.mlx.flip import fliplr, flipud, rot90  # doctest: +SKIP
->>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)  # doctest: +SKIP
->>> flipped = fliplr(img)  # Returns numpy array  # doctest: +SKIP
->>> rotated = rot90(img, k=2)  # Rotate 180 degrees  # doctest: +SKIP
+>>> # xdoctest: +SKIP
+>>> import numpy as np
+>>> from imgaug2.mlx.flip import fliplr, flipud, rot90
+>>> img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
+>>> flipped = fliplr(img)  # Returns numpy array
+>>> rotated = rot90(img, k=2)  # Rotate 180 degrees
 """
 
 from __future__ import annotations
@@ -48,10 +49,8 @@ def fliplr(image: object) -> object:
     --------
     >>> import numpy as np
     >>> img = np.arange(12).reshape(3, 4)
-    >>> fliplr(img)
-    array([[ 3,  2,  1,  0],
-           [ 7,  6,  5,  4],
-           [11, 10,  9,  8]])
+    >>> fliplr(img).tolist()
+    [[3, 2, 1, 0], [7, 6, 5, 4], [11, 10, 9, 8]]
     """
     require()
 
@@ -101,10 +100,8 @@ def flipud(image: object) -> object:
     --------
     >>> import numpy as np
     >>> img = np.arange(12).reshape(3, 4)
-    >>> flipud(img)
-    array([[ 8,  9, 10, 11],
-           [ 4,  5,  6,  7],
-           [ 0,  1,  2,  3]])
+    >>> flipud(img).tolist()
+    [[8, 9, 10, 11], [4, 5, 6, 7], [0, 1, 2, 3]]
     """
     require()
 
@@ -157,13 +154,10 @@ def rot90(image: object, k: int = 1) -> object:
     --------
     >>> import numpy as np
     >>> img = np.arange(6).reshape(2, 3)
-    >>> rot90(img, k=1)  # 90 degrees counter-clockwise
-    array([[2, 5],
-           [1, 4],
-           [0, 3]])
-    >>> rot90(img, k=2)  # 180 degrees
-    array([[5, 4, 3],
-           [2, 1, 0]])
+    >>> rot90(img, k=1).tolist()  # 90 degrees counter-clockwise
+    [[2, 5], [1, 4], [0, 3]]
+    >>> rot90(img, k=2).tolist()  # 180 degrees
+    [[5, 4, 3], [2, 1, 0]]
     """
     require()
 

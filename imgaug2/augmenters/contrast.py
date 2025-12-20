@@ -29,7 +29,7 @@ from imgaug2.augmenters import color as color_lib
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
-from imgaug2.mlx import is_mlx_array
+from imgaug2.mlx._core import is_mlx_array
 import imgaug2.mlx.pointwise as mlx_pointwise
 from imgaug2.compat.markers import legacy
 

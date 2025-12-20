@@ -91,7 +91,7 @@ def _unique_name(base: str, seen: dict[str, int]) -> str:
 def _get_rss_bytes() -> int | None:
     """Best-effort process RSS in bytes (cross-platform-ish)."""
     try:
-        import resource  # pylint: disable=import-outside-toplevel
+        import resource
     except Exception:
         return None
 
