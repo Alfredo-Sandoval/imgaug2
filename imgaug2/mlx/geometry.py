@@ -20,15 +20,19 @@ Dtype Handling
 
 Hybrid Operations
 -----------------
-Some functions fall back to CPU-based operations for certain parameter combinations:
+Some functions can fall back to CPU-based operations for certain parameter
+combinations **only when explicitly enabled** via ``allow_cpu_fallback=True``.
+This keeps MLX pipelines predictable and avoids silent host↔device roundtrips.
 
 - ``affine_transform()`` / ``perspective_transform()`` use fast MLX kernels for
-  ``order`` in {0, 1}. For higher interpolation orders, they fall back to OpenCV
-  warps on the CPU, which implies a device↔host roundtrip.
+  ``order`` in {0, 1}. For higher interpolation orders, they can fall back to
+  OpenCV warps on the CPU (explicit opt-in).
 - ``elastic_transform()`` primarily uses MLX, but may use OpenCV's ``blur`` on
-  the CPU for larger smoothing sigmas, and uses SciPy when ``order`` not in {0, 1}.
+  the CPU for larger smoothing sigmas, and can fall back to SciPy when
+  ``order`` not in {0, 1} (explicit opt-in).
 - ``piecewise_affine()`` uses scikit-image on CPU to build the transformation,
-  then resamples on MLX when ``order`` in {0, 1}.
+  then resamples on MLX when ``order`` in {0, 1}; higher orders are CPU-only
+  (explicit opt-in).
 
 See Also
 --------
@@ -58,6 +62,14 @@ NumpyArray: TypeAlias = NDArray[np.generic]
 
 class _PiecewiseTransform(Protocol):
     def inverse(self, coords: np.ndarray) -> np.ndarray: ...
+
+
+def _require_cpu_fallback_allowed(allow: bool, *, op: str, detail: str) -> None:
+    if allow:
+        return
+    raise NotImplementedError(
+        f"{op} {detail} Set allow_cpu_fallback=True to enable a host↔device roundtrip."
+    )
 
 
 def _as_nhwc(image: mx.array) -> tuple[mx.array, bool, bool]:
@@ -107,6 +119,62 @@ def _wrap_coords(x: mx.array, size: int) -> mx.array:
 
     x = mx.remainder(x, size)
     return mx.where(x < 0, x + size, x)
+
+
+def _as_points(points: mx.array) -> tuple[mx.array, bool]:
+    if points.ndim == 1:
+        if int(points.shape[0]) != 2:
+            raise ValueError(
+                "Expected points shape (2,) or (N,2); got "
+                f"{tuple(points.shape)!r}."
+            )
+        return points[None, :], True
+    if points.ndim == 2 and int(points.shape[1]) == 2:
+        return points, False
+    raise ValueError(f"Expected points shape (N,2); got {tuple(points.shape)!r}.")
+
+
+def _geometric_median(points: np.ndarray, eps: float = 1e-5) -> np.ndarray:
+    y = np.mean(points, axis=0)
+    while True:
+        diff = points - y
+        dist = np.sqrt(np.sum(diff * diff, axis=1))
+        nonzeros = dist != 0
+        if not np.any(nonzeros):
+            return y
+        inv = 1.0 / dist[nonzeros]
+        y1 = np.sum(points[nonzeros] * inv[:, None], axis=0) / np.sum(inv)
+        if np.linalg.norm(y - y1) < eps:
+            return y1
+        y = y1
+
+
+def _elastic_displacement_fields(
+    h: int, w: int, *, alpha: float, sigma: float, seed: int | None
+) -> tuple[mx.array, mx.array]:
+    rng = np.random.default_rng(seed)
+    dx = (rng.random((h, w), dtype=np.float32) - 0.5) * (2.0 * float(alpha))
+    dy = (rng.random((h, w), dtype=np.float32) - 0.5) * (2.0 * float(alpha))
+
+    dx_mx = mx.array(dx)
+    dy_mx = mx.array(dy)
+
+    eps = 1e-3
+    if float(sigma) >= eps:
+        if float(sigma) < 1.5:
+            from .blur import gaussian_blur as mlx_gaussian_blur
+
+            dx_mx = mlx_gaussian_blur(dx_mx, sigma=float(sigma))
+            dy_mx = mlx_gaussian_blur(dy_mx, sigma=float(sigma))
+        else:
+            import cv2
+
+            ksize = int(round(2.0 * float(sigma)))
+            ksize = max(1, ksize)
+            dx_mx = mx.array(cv2.blur(dx, (ksize, ksize)).astype(np.float32, copy=False))
+            dy_mx = mx.array(cv2.blur(dy, (ksize, ksize)).astype(np.float32, copy=False))
+
+    return dx_mx, dy_mx
 
 
 def _gather_hw(
@@ -392,6 +460,7 @@ def affine_transform(
     order: int = 1,
     cval: float = 0.0,
     mode: str = "constant",
+    allow_cpu_fallback: bool = False,
 ) -> NumpyArray: ...
 
 
@@ -404,6 +473,7 @@ def affine_transform(
     order: int = 1,
     cval: float = 0.0,
     mode: str = "constant",
+    allow_cpu_fallback: bool = False,
 ) -> MlxArray: ...
 
 
@@ -415,6 +485,7 @@ def affine_transform(
     order: int = 1,
     cval: float = 0.0,
     mode: str = "constant",
+    allow_cpu_fallback: bool = False,
 ) -> object:
     """
     Apply an affine transformation to an image.
@@ -429,11 +500,15 @@ def affine_transform(
     output_shape : tuple of int, optional
         Output image shape (H, W). If None, uses input shape.
     order : int, default 1
-        Interpolation order. 0=nearest, 1=bilinear, 2+=uses OpenCV (CPU fallback).
+        Interpolation order. 0=nearest, 1=bilinear. Higher orders require
+        ``allow_cpu_fallback=True`` for CPU execution.
     cval : float, default 0.0
         Fill value for constant mode.
     mode : str, default "constant"
         Border mode ("constant", "edge", "reflect", "symmetric", "wrap").
+    allow_cpu_fallback : bool, default False
+        If True, allow CPU fallback for unsupported interpolation orders. This
+        performs a host↔device roundtrip for MLX inputs.
 
     Returns
     -------
@@ -451,16 +526,27 @@ def affine_transform(
 
     Notes
     -----
-    For ``order`` > 1, this function falls back to OpenCV on the CPU.
+    For ``order`` > 1, this function only falls back to OpenCV on the CPU when
+    ``allow_cpu_fallback=True``.
     """
     require()
 
+    is_input_mlx = is_mlx_array(image)
+
     if order not in (0, 1):
+        if is_input_mlx:
+            _require_cpu_fallback_allowed(
+                allow_cpu_fallback,
+                op="affine_transform:",
+                detail="MLX supports only interpolation orders 0/1.",
+            )
+
         import cv2
 
         img_np = to_numpy(image)
         if img_np.size == 0:
-            return img_np.copy()
+            out_np = img_np.copy()
+            return to_mlx(out_np) if is_input_mlx else out_np
 
         input_dtype = img_np.dtype
         if img_np.dtype.kind == "b":
@@ -491,7 +577,7 @@ def affine_transform(
         interp = cv2.INTER_NEAREST if int(order) == 0 else cv2.INTER_CUBIC
         cval_cv = float(cval) if img_np.dtype.kind == "f" else int(cval)
 
-        out = cv2.warpAffine(
+        out_np = cv2.warpAffine(
             img_np,
             mat,
             dsize=dsize,
@@ -500,12 +586,11 @@ def affine_transform(
             borderValue=cval_cv,
         )
         if input_dtype.kind == "b":
-            return out > 0.5
-        if out.dtype != input_dtype:
-            return _restore_dtype(out.astype(np.float32, copy=False), input_dtype)
-        return out
+            out_np = out_np > 0.5
+        elif out_np.dtype != input_dtype:
+            out_np = _restore_dtype(out_np.astype(np.float32, copy=False), input_dtype)
 
-    is_input_mlx = is_mlx_array(image)
+        return to_mlx(out_np) if is_input_mlx else out_np
     original_dtype = None if is_input_mlx else to_numpy(image).dtype
 
     img_mx = ensure_float32(to_mlx(image))
@@ -620,6 +705,7 @@ def perspective_transform(
     order: int = 1,
     cval: float = 0.0,
     mode: str = "constant",
+    allow_cpu_fallback: bool = False,
 ) -> NumpyArray: ...
 
 
@@ -632,6 +718,7 @@ def perspective_transform(
     order: int = 1,
     cval: float = 0.0,
     mode: str = "constant",
+    allow_cpu_fallback: bool = False,
 ) -> MlxArray: ...
 
 
@@ -643,6 +730,7 @@ def perspective_transform(
     order: int = 1,
     cval: float = 0.0,
     mode: str = "constant",
+    allow_cpu_fallback: bool = False,
 ) -> object:
     """
     Apply a perspective (projective) transformation to an image.
@@ -657,11 +745,15 @@ def perspective_transform(
     output_shape : tuple of int, optional
         Output image shape (H, W). If None, uses input shape.
     order : int, default 1
-        Interpolation order. 0=nearest, 1=bilinear, 2+=uses OpenCV (CPU fallback).
+        Interpolation order. 0=nearest, 1=bilinear. Higher orders require
+        ``allow_cpu_fallback=True`` for CPU execution.
     cval : float, default 0.0
         Fill value for constant mode.
     mode : str, default "constant"
         Border mode ("constant", "edge", "reflect", "symmetric", "wrap").
+    allow_cpu_fallback : bool, default False
+        If True, allow CPU fallback for unsupported interpolation orders. This
+        performs a host↔device roundtrip for MLX inputs.
 
     Returns
     -------
@@ -679,16 +771,27 @@ def perspective_transform(
 
     Notes
     -----
-    For ``order`` > 1, this function falls back to OpenCV on the CPU.
+    For ``order`` > 1, this function only falls back to OpenCV on the CPU when
+    ``allow_cpu_fallback=True``.
     """
     require()
 
+    is_input_mlx = is_mlx_array(image)
+
     if order not in (0, 1):
+        if is_input_mlx:
+            _require_cpu_fallback_allowed(
+                allow_cpu_fallback,
+                op="perspective_transform:",
+                detail="MLX supports only interpolation orders 0/1.",
+            )
+
         import cv2
 
         img_np = to_numpy(image)
         if img_np.size == 0:
-            return img_np.copy()
+            out_np = img_np.copy()
+            return to_mlx(out_np) if is_input_mlx else out_np
 
         input_dtype = img_np.dtype
         if img_np.dtype.kind == "b":
@@ -717,7 +820,7 @@ def perspective_transform(
         interp = cv2.INTER_NEAREST if int(order) == 0 else cv2.INTER_CUBIC
         cval_cv = float(cval) if img_np.dtype.kind == "f" else int(cval)
 
-        out = cv2.warpPerspective(
+        out_np = cv2.warpPerspective(
             img_np,
             mat,
             dsize=dsize,
@@ -726,12 +829,10 @@ def perspective_transform(
             borderValue=cval_cv,
         )
         if input_dtype.kind == "b":
-            return out > 0.5
-        if out.dtype != input_dtype:
-            return _restore_dtype(out.astype(np.float32, copy=False), input_dtype)
-        return out
-
-    is_input_mlx = is_mlx_array(image)
+            out_np = out_np > 0.5
+        elif out_np.dtype != input_dtype:
+            out_np = _restore_dtype(out_np.astype(np.float32, copy=False), input_dtype)
+        return to_mlx(out_np) if is_input_mlx else out_np
     original_dtype = None if is_input_mlx else to_numpy(image).dtype
 
     img_mx = ensure_float32(to_mlx(image))
@@ -835,6 +936,217 @@ def perspective_transform(
     return _restore_dtype(out_np, ensure_dtype(original_dtype))
 
 
+@overload
+def affine_points(points: NumpyArray, matrix: np.ndarray) -> NumpyArray: ...
+
+
+@overload
+def affine_points(points: MlxArray, matrix: np.ndarray) -> MlxArray: ...
+
+
+def affine_points(points: object, matrix: np.ndarray) -> object:
+    """Apply an affine transformation to point coordinates."""
+    require()
+    is_input_mlx = is_mlx_array(points)
+    pts = to_mlx(points)
+    pts, squeeze = _as_points(pts)
+
+    pts_f = pts if mx.issubdtype(pts.dtype, mx.floating) else pts.astype(mx.float32)
+
+    mat = np.asarray(matrix, dtype=np.float32)
+    if mat.shape == (2, 3):
+        mat3 = np.eye(3, dtype=np.float32)
+        mat3[:2, :] = mat
+        mat = mat3
+    elif mat.shape != (3, 3):
+        raise ValueError(f"Expected matrix shape (2,3) or (3,3), got {mat.shape}.")
+
+    mat_mx = mx.array(mat)
+    ones = mx.ones((int(pts_f.shape[0]), 1), dtype=mx.float32)
+    coords = mx.concatenate([pts_f, ones], axis=1)
+    out = mx.matmul(coords, mx.transpose(mat_mx))
+    out_xy = out[:, :2]
+
+    if squeeze:
+        out_xy = out_xy[0]
+    return out_xy if is_input_mlx else to_numpy(out_xy)
+
+
+@overload
+def perspective_points(points: NumpyArray, matrix: np.ndarray) -> NumpyArray: ...
+
+
+@overload
+def perspective_points(points: MlxArray, matrix: np.ndarray) -> MlxArray: ...
+
+
+def perspective_points(points: object, matrix: np.ndarray) -> object:
+    """Apply a perspective transformation to point coordinates."""
+    require()
+    is_input_mlx = is_mlx_array(points)
+    pts = to_mlx(points)
+    pts, squeeze = _as_points(pts)
+
+    pts_f = pts if mx.issubdtype(pts.dtype, mx.floating) else pts.astype(mx.float32)
+
+    mat = np.asarray(matrix, dtype=np.float32)
+    if mat.shape != (3, 3):
+        raise ValueError(f"Expected matrix shape (3,3), got {mat.shape}.")
+
+    mat_mx = mx.array(mat)
+    ones = mx.ones((int(pts_f.shape[0]), 1), dtype=mx.float32)
+    coords = mx.concatenate([pts_f, ones], axis=1)
+    out = mx.matmul(coords, mx.transpose(mat_mx))
+    z = out[:, 2]
+    z_safe = mx.where(z == 0, mx.ones_like(z), z)
+    out_xy = mx.stack([out[:, 0] / z_safe, out[:, 1] / z_safe], axis=1)
+
+    if squeeze:
+        out_xy = out_xy[0]
+    return out_xy if is_input_mlx else to_numpy(out_xy)
+
+
+@overload
+def elastic_points(
+    points: NumpyArray,
+    shape: tuple[int, int],
+    *,
+    alpha: float,
+    sigma: float,
+    seed: int | None = None,
+    nb_steps: int = 3,
+    step_size: float = 1.0,
+    iterations: int = 3,
+    alpha_thresh: float = 0.05,
+    sigma_thresh: float = 1.0,
+) -> NumpyArray: ...
+
+
+@overload
+def elastic_points(
+    points: MlxArray,
+    shape: tuple[int, int],
+    *,
+    alpha: float,
+    sigma: float,
+    seed: int | None = None,
+    nb_steps: int = 3,
+    step_size: float = 1.0,
+    iterations: int = 3,
+    alpha_thresh: float = 0.05,
+    sigma_thresh: float = 1.0,
+) -> MlxArray: ...
+
+
+def elastic_points(
+    points: object,
+    shape: tuple[int, int],
+    *,
+    alpha: float,
+    sigma: float,
+    seed: int | None = None,
+    nb_steps: int = 3,
+    step_size: float = 1.0,
+    iterations: int = 3,
+    alpha_thresh: float = 0.05,
+    sigma_thresh: float = 1.0,
+) -> object:
+    """Apply elastic deformation to point coordinates.
+
+    This matches the keypoint path of ``imgaug2.augmenters.geometry.elastic``.
+    """
+    require()
+    is_input_mlx = is_mlx_array(points)
+    pts_np = to_numpy(points)
+
+    if pts_np.ndim == 1:
+        if pts_np.shape[0] != 2:
+            raise ValueError(
+                "Expected points shape (2,) or (N,2); got "
+                f"{tuple(pts_np.shape)!r}."
+            )
+        pts_np = pts_np[None, :]
+        squeeze = True
+    elif pts_np.ndim == 2 and pts_np.shape[1] == 2:
+        squeeze = False
+    else:
+        raise ValueError(f"Expected points shape (N,2); got {tuple(pts_np.shape)!r}.")
+
+    if pts_np.size == 0:
+        return points
+
+    dtype_out = pts_np.dtype if pts_np.dtype.kind == "f" else np.float32
+    pts_np = pts_np.astype(dtype_out, copy=False)
+
+    h, w = int(shape[0]), int(shape[1])
+    if h <= 0 or w <= 0:
+        return points
+
+    if float(alpha) <= float(alpha_thresh) or float(sigma) <= float(sigma_thresh):
+        out = pts_np if not squeeze else pts_np[0]
+        return to_mlx(out) if is_input_mlx else out
+
+    dx_mx, dy_mx = _elastic_displacement_fields(
+        h,
+        w,
+        alpha=float(alpha),
+        sigma=float(sigma),
+        seed=seed,
+    )
+    dx = to_numpy(dx_mx)
+    dy = to_numpy(dy_mx)
+
+    out_pts = pts_np.copy()
+    for idx, (x0, y0) in enumerate(out_pts):
+        if not (0.0 <= x0 < w and 0.0 <= y0 < h):
+            continue
+
+        yy = np.linspace(y0 - nb_steps * step_size, y0 + nb_steps * step_size, nb_steps * 2 + 1)
+        width = 1
+        neighbors = []
+        for i_y, y in enumerate(yy):
+            if width == 1:
+                xx = [x0]
+            else:
+                xx = np.linspace(
+                    x0 - (width - 1) // 2 * step_size,
+                    x0 + (width - 1) // 2 * step_size,
+                    width,
+                )
+            for x in xx:
+                neighbors.append((x, y))
+            if i_y < nb_steps:
+                width += 2
+            else:
+                width -= 2
+
+        neigh = np.array(neighbors, dtype=np.float32)
+        xx = np.round(neigh[:, 0]).astype(np.int32)
+        yy = np.round(neigh[:, 1]).astype(np.int32)
+        inside = (0 <= xx) & (xx < w) & (0 <= yy) & (yy < h)
+        xx = xx[inside]
+        yy = yy[inside]
+        if xx.size == 0:
+            continue
+
+        x_in = xx.astype(np.float32)
+        y_in = yy.astype(np.float32)
+        x_out = x_in
+        y_out = y_in
+        for _ in range(int(iterations)):
+            xx_out = np.clip(np.round(x_out).astype(np.int32), 0, w - 1)
+            yy_out = np.clip(np.round(y_out).astype(np.int32), 0, h - 1)
+            x_out = x_in + dx[yy_out, xx_out]
+            y_out = y_in + dy[yy_out, xx_out]
+
+        med = _geometric_median(np.stack([x_out, y_out], axis=1))
+        out_pts[idx, 0] = med[0]
+        out_pts[idx, 1] = med[1]
+
+    out_final = out_pts if not squeeze else out_pts[0]
+    return to_mlx(out_final) if is_input_mlx else out_final
+
+
 def elastic_transform(
     image: object,
     alpha: float,
@@ -844,6 +1156,7 @@ def elastic_transform(
     order: int = 1,
     cval: float = 0.0,
     mode: str = "constant",
+    allow_cpu_fallback: bool = False,
 ) -> object:
     """
     Apply elastic deformation to an image.
@@ -863,11 +1176,15 @@ def elastic_transform(
     seed : int, optional
         Random seed for reproducibility.
     order : int, default 1
-        Interpolation order. 0=nearest, 1=bilinear, 2+=uses SciPy (CPU fallback).
+        Interpolation order. 0=nearest, 1=bilinear. Higher orders require
+        ``allow_cpu_fallback=True`` for CPU execution.
     cval : float, default 0.0
         Fill value for constant mode.
     mode : str, default "constant"
         Border mode ("constant", "edge", "reflect", "symmetric", "wrap").
+    allow_cpu_fallback : bool, default False
+        If True, allow CPU fallback for unsupported interpolation orders. This
+        performs a host↔device roundtrip for MLX inputs.
 
     Returns
     -------
@@ -886,7 +1203,7 @@ def elastic_transform(
     Notes
     -----
     For large ``sigma`` values, uses OpenCV's blur on CPU. For ``order`` > 1,
-    falls back to SciPy on CPU.
+    falls back to SciPy on CPU **only** when ``allow_cpu_fallback=True``.
     """
     require()
 
@@ -921,27 +1238,14 @@ def elastic_transform(
 
         original_dtype = img_np.dtype
         h, w = img_np.shape[:2]
-    rng = np.random.default_rng(seed)
-    dx = (rng.random((h, w), dtype=np.float32) - 0.5) * (2.0 * float(alpha))
-    dy = (rng.random((h, w), dtype=np.float32) - 0.5) * (2.0 * float(alpha))
 
-    dx_mx = mx.array(dx)
-    dy_mx = mx.array(dy)
-
-    eps = 1e-3
-    if float(sigma) >= eps:
-        if float(sigma) < 1.5:
-            from .blur import gaussian_blur as mlx_gaussian_blur
-
-            dx_mx = mlx_gaussian_blur(dx_mx, sigma=float(sigma))
-            dy_mx = mlx_gaussian_blur(dy_mx, sigma=float(sigma))
-        else:
-            import cv2
-
-            ksize = int(round(2.0 * float(sigma)))
-            ksize = max(1, ksize)
-            dx_mx = mx.array(cv2.blur(dx, (ksize, ksize)).astype(np.float32, copy=False))
-            dy_mx = mx.array(cv2.blur(dy, (ksize, ksize)).astype(np.float32, copy=False))
+    dx_mx, dy_mx = _elastic_displacement_fields(
+        h,
+        w,
+        alpha=float(alpha),
+        sigma=float(sigma),
+        seed=seed,
+    )
 
     yy, xx = _hw_grid_mx(h, w)
     x_shifted = xx - dx_mx
@@ -959,6 +1263,12 @@ def elastic_transform(
     grid = mx.stack([gx, gy], axis=-1)
 
     if order not in (0, 1):
+        if is_input_mlx:
+            _require_cpu_fallback_allowed(
+                allow_cpu_fallback,
+                op="elastic_transform:",
+                detail="MLX supports only interpolation orders 0/1.",
+            )
         from scipy import ndimage
 
         x_shifted_np = np.array(x_shifted).astype(np.float32, copy=False)
@@ -979,7 +1289,8 @@ def elastic_transform(
 
         if img_np.ndim == 2:
             out_np = out_np[..., 0]
-        return _restore_dtype(out_np.astype(np.float32, copy=False), img_np.dtype)
+        out_np = _restore_dtype(out_np.astype(np.float32, copy=False), img_np.dtype)
+        return to_mlx(out_np) if is_input_mlx else out_np
 
     out_mx = grid_sample(
         image,
@@ -1052,6 +1363,7 @@ def piecewise_affine(
     cval: float = 0.0,
     mode: str = "constant",
     absolute_scale: bool = False,
+    allow_cpu_fallback: bool = False,
 ) -> object:
     """
     Apply a piecewise affine transformation to an image.
@@ -1073,13 +1385,17 @@ def piecewise_affine(
     seed : int, optional
         Random seed for reproducibility.
     order : int, default 1
-        Interpolation order. 0=nearest, 1=bilinear, 2+=uses scikit-image (CPU fallback).
+        Interpolation order. 0=nearest, 1=bilinear. Higher orders require
+        ``allow_cpu_fallback=True`` for CPU execution.
     cval : float, default 0.0
         Fill value for constant mode.
     mode : str, default "constant"
         Border mode ("constant", "edge", "reflect", "symmetric", "wrap").
     absolute_scale : bool, default False
         If True, ``scale`` is in pixels. If False, ``scale`` is fraction of image size.
+    allow_cpu_fallback : bool, default False
+        If True, allow CPU fallback for unsupported interpolation orders. This
+        performs a host↔device roundtrip for MLX inputs.
 
     Returns
     -------
@@ -1098,7 +1414,8 @@ def piecewise_affine(
     Notes
     -----
     Uses scikit-image on CPU to build the transformation, then resamples on MLX
-    when ``order`` in {0, 1}.
+    when ``order`` in {0, 1}. Higher orders are CPU-only and require
+    ``allow_cpu_fallback=True``.
     """
     require()
 
@@ -1156,6 +1473,12 @@ def piecewise_affine(
         return img_np.copy()
 
     if order not in (0, 1):
+        if is_input_mlx:
+            _require_cpu_fallback_allowed(
+                allow_cpu_fallback,
+                op="piecewise_affine:",
+                detail="MLX supports only interpolation orders 0/1.",
+            )
         from skimage import transform as tf
 
         img_np = to_numpy(image)
@@ -1168,7 +1491,8 @@ def piecewise_affine(
             preserve_range=True,
             output_shape=img_np.shape,
         )
-        return _restore_dtype(warped.astype(np.float32, copy=False), img_np.dtype)
+        out_np = _restore_dtype(warped.astype(np.float32, copy=False), img_np.dtype)
+        return to_mlx(out_np) if is_input_mlx else out_np
 
     yy, xx = np.meshgrid(
         np.arange(h, dtype=np.float32),
@@ -1707,12 +2031,15 @@ def chromatic_aberration(
 
 
 __all__ = [
+    "affine_points",
     "affine_transform",
     "chromatic_aberration",
+    "elastic_points",
     "elastic_transform",
     "grid_distortion",
     "grid_sample",
     "optical_distortion",
+    "perspective_points",
     "perspective_transform",
     "piecewise_affine",
     "resize",

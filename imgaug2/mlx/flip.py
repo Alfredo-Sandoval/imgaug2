@@ -17,7 +17,34 @@ Examples
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, TypeAlias, overload
+
+import numpy as np
+from numpy.typing import NDArray
+
 from ._core import is_mlx_array, mx, require, to_mlx, to_numpy
+
+if TYPE_CHECKING:
+    import mlx.core as _mx
+
+    MlxArray: TypeAlias = _mx.array
+else:
+    MlxArray: TypeAlias = object
+
+NumpyArray: TypeAlias = NDArray[np.generic]
+
+
+def _as_points(points: mx.array) -> tuple[mx.array, bool]:
+    if points.ndim == 1:
+        if int(points.shape[0]) != 2:
+            raise ValueError(
+                "Expected points shape (2,) or (N,2); got "
+                f"{tuple(points.shape)!r}."
+            )
+        return points[None, :], True
+    if points.ndim == 2 and int(points.shape[1]) == 2:
+        return points, False
+    raise ValueError(f"Expected points shape (N,2); got {tuple(points.shape)!r}.")
 
 
 def fliplr(image: object) -> object:
@@ -196,5 +223,100 @@ def rot90(image: object, k: int = 1) -> object:
         return out
     return to_numpy(out)
 
+@overload
+def fliplr_points(points: NumpyArray, shape: tuple[int, int]) -> NumpyArray: ...
 
-__all__ = ["fliplr", "flipud", "rot90"]
+
+@overload
+def fliplr_points(points: MlxArray, shape: tuple[int, int]) -> MlxArray: ...
+
+
+def fliplr_points(points: object, shape: tuple[int, int]) -> object:
+    """Flip point coordinates horizontally (left-right mirror).
+
+    Parameters
+    ----------
+    points : array-like
+        Keypoint coordinates as ``(N,2)`` or ``(2,)`` in ``(x, y)`` order.
+    shape : tuple of int
+        Image shape ``(H, W)`` corresponding to the points.
+    """
+    require()
+    is_input_mlx = is_mlx_array(points)
+    pts = to_mlx(points)
+    pts, squeeze = _as_points(pts)
+
+    pts_f = pts if mx.issubdtype(pts.dtype, mx.floating) else pts.astype(mx.float32)
+    width = float(shape[1])
+    out = mx.stack([width - pts_f[:, 0], pts_f[:, 1]], axis=1)
+    if squeeze:
+        out = out[0]
+    return out if is_input_mlx else to_numpy(out)
+
+
+@overload
+def flipud_points(points: NumpyArray, shape: tuple[int, int]) -> NumpyArray: ...
+
+
+@overload
+def flipud_points(points: MlxArray, shape: tuple[int, int]) -> MlxArray: ...
+
+
+def flipud_points(points: object, shape: tuple[int, int]) -> object:
+    """Flip point coordinates vertically (up-down mirror)."""
+    require()
+    is_input_mlx = is_mlx_array(points)
+    pts = to_mlx(points)
+    pts, squeeze = _as_points(pts)
+
+    pts_f = pts if mx.issubdtype(pts.dtype, mx.floating) else pts.astype(mx.float32)
+    height = float(shape[0])
+    out = mx.stack([pts_f[:, 0], height - pts_f[:, 1]], axis=1)
+    if squeeze:
+        out = out[0]
+    return out if is_input_mlx else to_numpy(out)
+
+
+@overload
+def rot90_points(points: NumpyArray, shape: tuple[int, int], k: int = 1) -> NumpyArray: ...
+
+
+@overload
+def rot90_points(points: MlxArray, shape: tuple[int, int], k: int = 1) -> MlxArray: ...
+
+
+def rot90_points(points: object, shape: tuple[int, int], k: int = 1) -> object:
+    """Rotate point coordinates by 90-degree steps counter-clockwise.
+
+    Notes
+    -----
+    This matches ``imgaug2.augmenters.geometric.Rot90`` keypoint math. The
+    output shape depends on ``k`` (odd ``k`` swaps height/width); callers
+    should update shapes accordingly when needed.
+    """
+    require()
+    k = int(k) % 4
+    if k == 0:
+        return points
+
+    is_input_mlx = is_mlx_array(points)
+    pts = to_mlx(points)
+    pts, squeeze = _as_points(pts)
+
+    pts_f = pts if mx.issubdtype(pts.dtype, mx.floating) else pts.astype(mx.float32)
+    h, w = float(shape[0]), float(shape[1])
+    x = pts_f[:, 0]
+    y = pts_f[:, 1]
+    if k == 1:
+        out = mx.stack([h - y, x], axis=1)
+    elif k == 2:
+        out = mx.stack([w - x, h - y], axis=1)
+    else:  # k == 3
+        out = mx.stack([y, w - x], axis=1)
+
+    if squeeze:
+        out = out[0]
+    return out if is_input_mlx else to_numpy(out)
+
+
+__all__ = ["fliplr", "flipud", "rot90", "fliplr_points", "flipud_points", "rot90_points"]

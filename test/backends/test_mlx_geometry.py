@@ -119,6 +119,58 @@ class TestMlxGeometryAffinePerspective(unittest.TestCase):
 
 
 @unittest.skipIf(not MLX_AVAILABLE, "mlx not installed")
+class TestMlxGeometryKeypoints(unittest.TestCase):
+    def test_affine_points_matches_manual(self):
+        from imgaug2.mlx import geometry as mlx_geom
+
+        points = np.array([[5.0, 3.0], [12.0, 7.0]], dtype=np.float32)
+        mat = np.array([[1.1, 0.0, 2.0], [0.0, 0.9, -1.0]], dtype=np.float32)
+
+        observed = mlx_geom.affine_points(points, mat)
+        ones = np.ones((points.shape[0], 1), dtype=np.float32)
+        expected = np.concatenate([points, ones], axis=1) @ mat.T
+
+        np.testing.assert_allclose(observed, expected, atol=1e-5)
+
+    def test_perspective_points_matches_manual(self):
+        from imgaug2.mlx import geometry as mlx_geom
+
+        points = np.array([[5.0, 3.0], [12.0, 7.0]], dtype=np.float32)
+        mat = np.array(
+            [
+                [1.0, 0.1, 2.0],
+                [0.0, 0.9, -1.0],
+                [0.001, 0.0, 1.0],
+            ],
+            dtype=np.float32,
+        )
+
+        observed = mlx_geom.perspective_points(points, mat)
+        ones = np.ones((points.shape[0], 1), dtype=np.float32)
+        proj = np.concatenate([points, ones], axis=1) @ mat.T
+        expected = np.stack([proj[:, 0] / proj[:, 2], proj[:, 1] / proj[:, 2]], axis=1)
+
+        np.testing.assert_allclose(observed, expected, atol=1e-5)
+
+    def test_elastic_points_identity_below_threshold(self):
+        from imgaug2.mlx import geometry as mlx_geom
+
+        points = np.array([[5.0, 3.0], [12.0, 7.0]], dtype=np.float32)
+        out = mlx_geom.elastic_points(points, (16, 16), alpha=0.01, sigma=0.5, seed=1)
+
+        np.testing.assert_allclose(out, points, atol=1e-6)
+
+    def test_elastic_points_deterministic_seed(self):
+        from imgaug2.mlx import geometry as mlx_geom
+
+        points = np.array([[5.0, 3.0], [12.0, 7.0]], dtype=np.float32)
+        out1 = mlx_geom.elastic_points(points, (32, 32), alpha=5.0, sigma=0.8, seed=123)
+        out2 = mlx_geom.elastic_points(points, (32, 32), alpha=5.0, sigma=0.8, seed=123)
+
+        np.testing.assert_allclose(out1, out2, atol=1e-6)
+
+
+@unittest.skipIf(not MLX_AVAILABLE, "mlx not installed")
 class TestMlxGeometryElasticPiecewise(unittest.TestCase):
     def test_elastic_alpha_zero_is_identity(self):
         from imgaug2.mlx import geometry as mlx_geom
