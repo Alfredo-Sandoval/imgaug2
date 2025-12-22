@@ -8,6 +8,7 @@ from typing import Literal
 
 import numpy as np
 
+import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
@@ -15,6 +16,7 @@ from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, Images, RNGInput
 from imgaug2.compat.markers import legacy
+from imgaug2.imgaug import _assert_two_or_three_dims
 
 from ._utils import (
     CropAndPadMode,
@@ -2725,4 +2727,3 @@ class Crop(CropAndPad):
             random_state=random_state,
             deterministic=deterministic,
         )
-
