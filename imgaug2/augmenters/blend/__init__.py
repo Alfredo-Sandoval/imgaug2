@@ -14,7 +14,6 @@ Key Augmenters:
 from __future__ import annotations
 
 import imgaug2.augmenters._blend_utils as blend_utils
-import imgaug2.imgaug as ia
 
 from .base import (
     AlphaInput,
@@ -52,30 +51,6 @@ from .mask_generators import (
 from .masks import BlendAlphaElementwise, BlendAlphaMask, BlendAlphaSomeColors
 from .noise_blend import BlendAlphaFrequencyNoise, BlendAlphaSimplexNoise
 from .segmap_bbs import BlendAlphaBoundingBoxes, BlendAlphaSegMapClassIds
-
-
-@ia.deprecated(alt_func="BlendAlpha")
-def Alpha(*args: object, **kwargs: object) -> BlendAlpha:
-    """Deprecated alias for :class:`BlendAlpha`."""
-    return BlendAlpha(*args, **kwargs)
-
-
-@ia.deprecated(alt_func="BlendAlphaElementwise")
-def AlphaElementwise(*args: object, **kwargs: object) -> BlendAlphaElementwise:
-    """Deprecated alias for :class:`BlendAlphaElementwise`."""
-    return BlendAlphaElementwise(*args, **kwargs)
-
-
-@ia.deprecated(alt_func="BlendAlphaSimplexNoise")
-def SimplexNoiseAlpha(*args: object, **kwargs: object) -> BlendAlphaSimplexNoise:
-    """Deprecated alias for :class:`BlendAlphaSimplexNoise`."""
-    return BlendAlphaSimplexNoise(*args, **kwargs)
-
-
-@ia.deprecated(alt_func="BlendAlphaFrequencyNoise")
-def FrequencyNoiseAlpha(*args: object, **kwargs: object) -> BlendAlphaFrequencyNoise:
-    """Deprecated alias for :class:`BlendAlphaFrequencyNoise`."""
-    return BlendAlphaFrequencyNoise(*args, **kwargs)
 
 
 __all__ = [

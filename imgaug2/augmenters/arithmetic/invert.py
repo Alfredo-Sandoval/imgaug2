@@ -11,7 +11,6 @@ import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.compat.markers import legacy
-from imgaug2.augmenters import contrast as contrast_lib
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, Images, Number, ParamInput, RNGInput
 from ._utils import PerChannelInput
@@ -835,93 +834,6 @@ class Solarize(Invert):
         )
 
 
-# TODO remove from examples
-@ia.deprecated("imgaug2.contrast.LinearContrast")
-def ContrastNormalization(
-    alpha: ParamInput = 1.0,
-    per_channel: PerChannelInput = False,
-    seed: RNGInput = None,
-    name: str | None = None,
-    random_state: RNGInput | Literal["deprecated"] = "deprecated",
-    deterministic: bool | Literal["deprecated"] = "deprecated",
-) -> meta.Augmenter:
-    """
-    Change the contrast of images.
-
-    dtype support:
-
-        See ``imgaug2.augmenters.contrast.LinearContrast``.
-
-    Deprecated since 0.3.0.
-
-    Parameters
-    ----------
-    alpha : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        Strength of the contrast normalization. Higher values than 1.0
-        lead to higher contrast, lower values decrease the contrast.
-
-            * If a number, then that value will be used for all images.
-            * If a tuple ``(a, b)``, then a value will be sampled per image
-              uniformly from the interval ``[a, b]`` and be used as the alpha
-              value.
-            * If a list, then a random value will be picked per image from
-              that list.
-            * If a ``StochasticParameter``, then this parameter will be used to
-              sample the alpha value per image.
-
-    per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
-        Whether to use (imagewise) the same sample(s) for all
-        channels (``False``) or to sample value(s) for each channel (``True``).
-        Setting this to ``True`` will therefore lead to different
-        transformations per image *and* channel, otherwise only per image.
-        If this value is a float ``p``, then for ``p`` percent of all images
-        `per_channel` will be treated as ``True``.
-        If it is a ``StochasticParameter`` it is expected to produce samples
-        with values between ``0.0`` and ``1.0``, where values ``>0.5`` will
-        lead to per-channel behaviour (i.e. same as ``True``).
-
-    seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
-
-    name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
-
-    random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        Old name for parameter `seed`.
-        Its usage will not yet cause a deprecation warning,
-        but it is still recommended to use `seed` now.
-        Outdated since 0.4.0.
-
-    deterministic : bool, optional
-        Deprecated since 0.4.0.
-        See method ``to_deterministic()`` for an alternative and for
-        details about what the "deterministic mode" actually does.
-
-    Examples
-    --------
-    >>> import imgaug2.augmenters as iaa
-    >>> iaa.ContrastNormalization((0.5, 1.5))
-
-    Decreases oder improves contrast per image by a random factor between
-    ``0.5`` and ``1.5``. The factor ``0.5`` means that any difference from
-    the center value (i.e. 128) will be halved, leading to less contrast.
-
-    >>> iaa.ContrastNormalization((0.5, 1.5), per_channel=0.5)
-
-    Same as before, but for 50 percent of all images the normalization is done
-    independently per channel (i.e. factors can vary per channel for the same
-    image). In the other 50 percent of all images, the factor is the same for
-    all channels.
-
-    """
-    return contrast_lib.LinearContrast(
-        alpha=alpha,
-        per_channel=per_channel,
-        seed=seed,
-        name=name,
-        random_state=random_state,
-        deterministic=deterministic,
-    )
 
 
 # TODO try adding per channel somehow

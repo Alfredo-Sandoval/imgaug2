@@ -1,52 +1,12 @@
-"""Alias for module blend.
+"""Deprecated module - use imgaug2.augmenters.blend instead.
 
-Deprecated module. Original name for module blend.py. Was changed in 0.2.8.
-
+This module was renamed to blend.py in version 0.2.8.
+All functions have been removed. Use the blend module directly:
+- blend_alpha -> blend.blend_alpha
+- Alpha -> blend.BlendAlpha
+- AlphaElementwise -> blend.BlendAlphaElementwise
+- SimplexNoiseAlpha -> blend.BlendAlphaSimplexNoise
+- FrequencyNoiseAlpha -> blend.BlendAlphaFrequencyNoise
 """
 
 from __future__ import annotations
-
-import imgaug2.imgaug as ia
-from imgaug2.augmenters import blend
-
-_DEPRECATION_COMMENT = (
-    "It has the same interface, except that the parameter "
-    "`first` was renamed to `foreground` and the parameter "
-    "`second` to `background`."
-)
-
-
-@ia.deprecated(alt_func="imgaug2.augmenters.blend.blend_alpha()", comment=_DEPRECATION_COMMENT)
-def blend_alpha(*args: object, **kwargs: object) -> object:
-    """See :func:`~imgaug2.augmenters.blend.blend_alpha`."""
-    return blend.blend_alpha(*args, **kwargs)
-
-
-@ia.deprecated(alt_func="imgaug2.augmenters.blend.BlendAlpha", comment=_DEPRECATION_COMMENT)
-def Alpha(*args: object, **kwargs: object) -> object:
-    """See :class:`~imgaug2.augmenters.blend.BlendAlpha`."""
-    return blend.Alpha(*args, **kwargs)
-
-
-@ia.deprecated(
-    alt_func="imgaug2.augmenters.blend.BlendAlphaElementwise", comment=_DEPRECATION_COMMENT
-)
-def AlphaElementwise(*args: object, **kwargs: object) -> object:
-    """See :class:`~imgaug2.augmenters.blend.BlendAlphaElementwise`."""
-    return blend.AlphaElementwise(*args, **kwargs)
-
-
-@ia.deprecated(
-    alt_func="imgaug2.augmenters.blend.BlendAlphaSimplexNoise", comment=_DEPRECATION_COMMENT
-)
-def SimplexNoiseAlpha(*args: object, **kwargs: object) -> object:
-    """See :class:`~imgaug2.augmenters.blend.BlendAlphaSimplexNoise`."""
-    return blend.SimplexNoiseAlpha(*args, **kwargs)
-
-
-@ia.deprecated(
-    alt_func="imgaug2.augmenters.blend.BlendAlphaFrequencyNoise", comment=_DEPRECATION_COMMENT
-)
-def FrequencyNoiseAlpha(*args: object, **kwargs: object) -> object:
-    """See :class:`~imgaug2.augmenters.blend.BlendAlphaFrequencyNoise`."""
-    return blend.FrequencyNoiseAlpha(*args, **kwargs)

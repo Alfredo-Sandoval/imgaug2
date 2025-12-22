@@ -438,24 +438,6 @@ class Test_blend_alpha(unittest.TestCase):
                     assert _allclose(img_blend[0, 1, 1], v1_scalar)
 
 
-class TestAlpha(unittest.TestCase):
-    def test_deprecation_warning(self):
-        aug1 = iaa.Sequential([])
-        aug2 = iaa.Sequential([])
-
-        with warnings.catch_warnings(record=True) as caught_warnings:
-            warnings.simplefilter("always")
-
-            aug = iaa.Alpha(0.75, first=aug1, second=aug2)
-
-            assert "is deprecated" in str(caught_warnings[-1].message)
-
-        assert isinstance(aug, iaa.BlendAlpha)
-        assert np.isclose(aug.factor.value, 0.75)
-        assert aug.foreground is aug1
-        assert aug.background is aug2
-
-
 class TestBlendAlpha(unittest.TestCase):
     def setUp(self):
         reseed()
@@ -1026,24 +1008,6 @@ class _DummyMaskParameter(iap.StochasticParameter):
         if self.inverted:
             result = 1.0 - result
         return result
-
-
-class TestAlphaElementwise(unittest.TestCase):
-    def test_deprecation_warning(self):
-        aug1 = iaa.Sequential([])
-        aug2 = iaa.Sequential([])
-
-        with warnings.catch_warnings(record=True) as caught_warnings:
-            warnings.simplefilter("always")
-
-            aug = iaa.AlphaElementwise(factor=0.5, first=aug1, second=aug2)
-
-            assert "is deprecated" in str(caught_warnings[-1].message)
-
-        assert isinstance(aug, iaa.BlendAlphaElementwise)
-        assert np.isclose(aug.factor.value, 0.5)
-        assert aug.foreground is aug1
-        assert aug.background is aug2
 
 
 class TestBlendAlphaElementwise(unittest.TestCase):
@@ -3220,40 +3184,6 @@ class InvertMaskGen(unittest.TestCase):
 
                 assert mask.shape == shape[0:2]
                 assert mask.dtype.name == "float32"
-
-
-class TestSimplexNoiseAlpha(unittest.TestCase):
-    def test_deprecation_warning(self):
-        aug1 = iaa.Sequential([])
-        aug2 = iaa.Sequential([])
-
-        with warnings.catch_warnings(record=True) as caught_warnings:
-            warnings.simplefilter("always")
-
-            aug = iaa.SimplexNoiseAlpha(first=aug1, second=aug2)
-
-            assert "is deprecated" in str(caught_warnings[-1].message)
-
-        assert isinstance(aug, iaa.BlendAlphaSimplexNoise)
-        assert aug.foreground is aug1
-        assert aug.background is aug2
-
-
-class TestFrequencyNoiseAlpha(unittest.TestCase):
-    def test_deprecation_warning(self):
-        aug1 = iaa.Sequential([])
-        aug2 = iaa.Sequential([])
-
-        with warnings.catch_warnings(record=True) as caught_warnings:
-            warnings.simplefilter("always")
-
-            aug = iaa.FrequencyNoiseAlpha(first=aug1, second=aug2)
-
-            assert "is deprecated" in str(caught_warnings[-1].message)
-
-        assert isinstance(aug, iaa.BlendAlphaFrequencyNoise)
-        assert aug.foreground is aug1
-        assert aug.background is aug2
 
 
 class TestStochasticParameterMaskGen(unittest.TestCase):

@@ -6230,17 +6230,6 @@ class TestSolarize(unittest.TestCase):
         runtest_pickleable_uint8_img(aug)
 
 
-class TestContrastNormalization(unittest.TestCase):
-    def test_deprecation_warning(self):
-        with warnings.catch_warnings(record=True) as caught_warnings:
-            warnings.simplefilter("always")
-            aug = arithmetic_lib.ContrastNormalization((0.9, 1.1))
-            assert isinstance(aug, contrast_lib._ContrastFuncWrapper)
-
-        assert len(caught_warnings) == 1
-        assert "deprecated" in str(caught_warnings[-1].message)
-
-
 class TestJpegCompression(unittest.TestCase):
     def setUp(self):
         reseed()

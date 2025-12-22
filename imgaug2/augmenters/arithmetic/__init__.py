@@ -43,7 +43,6 @@ from .dropout import (
     cutout_,
 )
 from .invert import (
-    ContrastNormalization,
     Invert,
     Solarize,
     invert,
@@ -116,7 +115,6 @@ __all__ = [
     "AdditiveLaplaceNoise",
     "AdditivePoissonNoise",
     "CValInput",
-    "ContrastNormalization",
     "CoarseDropout",
     "CoarsePepper",
     "CoarseSalt",

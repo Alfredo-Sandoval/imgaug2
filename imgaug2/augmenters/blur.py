@@ -25,8 +25,8 @@ import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
 from imgaug2.augmenters import convolutional as iaa_convolutional
-from imgaug2.augmenters import geometric as iaa_geometric
 from imgaug2.augmenters import meta
+from imgaug2.augmenters.geometric import Affine as _Affine
 from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 from imgaug2.imgaug import _normalize_cv2_input_arr_
 from imgaug2.compat.markers import legacy
@@ -1353,7 +1353,7 @@ class _MotionBlurMatrixGenerator:
         matrix[:, k_sample // 2] = np.linspace(
             float(direction_sample), 1.0 - float(direction_sample), num=k_sample
         )
-        rot = iaa_geometric.Affine(rotate=angle_sample, order=self.order)
+        rot = _Affine(rotate=angle_sample, order=self.order)
 
         matrix = rot.augment_image((matrix * 255).astype(np.uint8)).astype(np.float32) / 255.0
 
