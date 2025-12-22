@@ -149,6 +149,53 @@ def _geometric_median(points: np.ndarray, eps: float = 1e-5) -> np.ndarray:
         y = y1
 
 
+def _geometric_median_mx(
+    points: mx.array,
+    weights: mx.array,
+    *,
+    max_iters: int = 10,
+) -> mx.array:
+    """Compute weighted geometric medians using Weiszfeld iterations."""
+    weights_f = weights.astype(points.dtype)
+    w_sum = mx.sum(weights_f, axis=1, keepdims=True)
+    w_sum_safe = mx.where(w_sum == 0, mx.ones_like(w_sum), w_sum)
+    y = mx.sum(points * weights_f[..., None], axis=1) / w_sum_safe
+
+    for _ in range(int(max_iters)):
+        diff = points - y[:, None, :]
+        dist_sq = mx.sum(diff * diff, axis=2)
+        dist = mx.sqrt(dist_sq)
+        dist_safe = mx.where(dist == 0, mx.ones_like(dist), dist)
+        inv = weights_f / dist_safe
+        inv = mx.where(dist == 0, mx.zeros_like(inv), inv)
+        inv_sum = mx.sum(inv, axis=1, keepdims=True)
+        inv_sum_safe = mx.where(inv_sum == 0, mx.ones_like(inv_sum), inv_sum)
+        y = mx.sum(points * inv[..., None], axis=1) / inv_sum_safe
+
+    return y
+
+
+@lru_cache(maxsize=64)
+def _manhattan_offsets(nb_steps: int, step_size: float) -> mx.array:
+    """Create Manhattan neighborhood offsets for keypoint elastic transforms."""
+    nb = int(nb_steps)
+    step = float(step_size)
+    offsets: list[np.ndarray] = []
+    for i in range(-nb, nb + 1):
+        width = 1 + 2 * (nb - abs(i))
+        half = (width - 1) * 0.5 * step
+        xs = np.linspace(-half, half, width, dtype=np.float32)
+        ys = np.full(width, i * step, dtype=np.float32)
+        offsets.append(np.stack([xs, ys], axis=1))
+
+    if not offsets:
+        offsets_np = np.zeros((0, 2), dtype=np.float32)
+    else:
+        offsets_np = np.concatenate(offsets, axis=0)
+
+    return mx.array(offsets_np)
+
+
 def _elastic_displacement_fields(
     h: int, w: int, *, alpha: float, sigma: float, seed: int | None
 ) -> tuple[mx.array, mx.array]:
@@ -175,6 +222,14 @@ def _elastic_displacement_fields(
             dy_mx = mx.array(cv2.blur(dy, (ksize, ksize)).astype(np.float32, copy=False))
 
     return dx_mx, dy_mx
+
+
+def _gather_2d(field: mx.array, x_idx: mx.array, y_idx: mx.array) -> mx.array:
+    """Gather values from a 2D field using integer x/y indices."""
+    h, w = field.shape
+    idx = (y_idx * w + x_idx).astype(mx.int32)
+    flat = field.reshape(-1)
+    return mx.take(flat, idx)
 
 
 def _gather_hw(
@@ -1057,34 +1112,114 @@ def elastic_points(
     """
     require()
     is_input_mlx = is_mlx_array(points)
-    pts_np = to_numpy(points)
+    if not is_input_mlx:
+        pts_np = to_numpy(points)
 
-    if pts_np.ndim == 1:
-        if pts_np.shape[0] != 2:
-            raise ValueError(
-                "Expected points shape (2,) or (N,2); got "
-                f"{tuple(pts_np.shape)!r}."
+        if pts_np.ndim == 1:
+            if pts_np.shape[0] != 2:
+                raise ValueError(
+                    "Expected points shape (2,) or (N,2); got "
+                    f"{tuple(pts_np.shape)!r}."
+                )
+            pts_np = pts_np[None, :]
+            squeeze = True
+        elif pts_np.ndim == 2 and pts_np.shape[1] == 2:
+            squeeze = False
+        else:
+            raise ValueError(f"Expected points shape (N,2); got {tuple(pts_np.shape)!r}.")
+
+        if pts_np.size == 0:
+            return points
+
+        dtype_out = pts_np.dtype if pts_np.dtype.kind == "f" else np.float32
+        pts_np = pts_np.astype(dtype_out, copy=False)
+
+        h, w = int(shape[0]), int(shape[1])
+        if h <= 0 or w <= 0:
+            return points
+
+        if float(alpha) <= float(alpha_thresh) or float(sigma) <= float(sigma_thresh):
+            out = pts_np if not squeeze else pts_np[0]
+            return out
+
+        dx_mx, dy_mx = _elastic_displacement_fields(
+            h,
+            w,
+            alpha=float(alpha),
+            sigma=float(sigma),
+            seed=seed,
+        )
+        dx = to_numpy(dx_mx)
+        dy = to_numpy(dy_mx)
+
+        out_pts = pts_np.copy()
+        for idx, (x0, y0) in enumerate(out_pts):
+            if not (0.0 <= x0 < w and 0.0 <= y0 < h):
+                continue
+
+            yy = np.linspace(
+                y0 - nb_steps * step_size,
+                y0 + nb_steps * step_size,
+                nb_steps * 2 + 1,
             )
-        pts_np = pts_np[None, :]
-        squeeze = True
-    elif pts_np.ndim == 2 and pts_np.shape[1] == 2:
-        squeeze = False
-    else:
-        raise ValueError(f"Expected points shape (N,2); got {tuple(pts_np.shape)!r}.")
+            width = 1
+            neighbors = []
+            for i_y, y in enumerate(yy):
+                if width == 1:
+                    xx = [x0]
+                else:
+                    xx = np.linspace(
+                        x0 - (width - 1) // 2 * step_size,
+                        x0 + (width - 1) // 2 * step_size,
+                        width,
+                    )
+                for x in xx:
+                    neighbors.append((x, y))
+                if i_y < nb_steps:
+                    width += 2
+                else:
+                    width -= 2
 
-    if pts_np.size == 0:
+            neigh = np.array(neighbors, dtype=np.float32)
+            xx = np.round(neigh[:, 0]).astype(np.int32)
+            yy = np.round(neigh[:, 1]).astype(np.int32)
+            inside = (0 <= xx) & (xx < w) & (0 <= yy) & (yy < h)
+            xx = xx[inside]
+            yy = yy[inside]
+            if xx.size == 0:
+                continue
+
+            x_in = xx.astype(np.float32)
+            y_in = yy.astype(np.float32)
+            x_out = x_in
+            y_out = y_in
+            for _ in range(int(iterations)):
+                xx_out = np.clip(np.round(x_out).astype(np.int32), 0, w - 1)
+                yy_out = np.clip(np.round(y_out).astype(np.int32), 0, h - 1)
+                x_out = x_in + dx[yy_out, xx_out]
+                y_out = y_in + dy[yy_out, xx_out]
+
+            med = _geometric_median(np.stack([x_out, y_out], axis=1))
+            out_pts[idx, 0] = med[0]
+            out_pts[idx, 1] = med[1]
+
+        return out_pts if not squeeze else out_pts[0]
+
+    pts = to_mlx(points)
+    pts, squeeze = _as_points(pts)
+
+    if pts.size == 0:
         return points
-
-    dtype_out = pts_np.dtype if pts_np.dtype.kind == "f" else np.float32
-    pts_np = pts_np.astype(dtype_out, copy=False)
 
     h, w = int(shape[0]), int(shape[1])
     if h <= 0 or w <= 0:
         return points
 
+    pts_f = pts if mx.issubdtype(pts.dtype, mx.floating) else pts.astype(mx.float32)
+
     if float(alpha) <= float(alpha_thresh) or float(sigma) <= float(sigma_thresh):
-        out = pts_np if not squeeze else pts_np[0]
-        return to_mlx(out) if is_input_mlx else out
+        out = pts_f if not squeeze else pts_f[0]
+        return out
 
     dx_mx, dy_mx = _elastic_displacement_fields(
         h,
@@ -1093,58 +1228,38 @@ def elastic_points(
         sigma=float(sigma),
         seed=seed,
     )
-    dx = to_numpy(dx_mx)
-    dy = to_numpy(dy_mx)
+    dx_mx = dx_mx.astype(pts_f.dtype)
+    dy_mx = dy_mx.astype(pts_f.dtype)
 
-    out_pts = pts_np.copy()
-    for idx, (x0, y0) in enumerate(out_pts):
-        if not (0.0 <= x0 < w and 0.0 <= y0 < h):
-            continue
+    offsets = _manhattan_offsets(int(nb_steps), float(step_size)).astype(pts_f.dtype)
+    neighbors = pts_f[:, None, :] + offsets[None, :, :]
+    xx = mx.round(neighbors[..., 0]).astype(mx.int32)
+    yy = mx.round(neighbors[..., 1]).astype(mx.int32)
+    inside = (xx >= 0) & (xx < w) & (yy >= 0) & (yy < h)
 
-        yy = np.linspace(y0 - nb_steps * step_size, y0 + nb_steps * step_size, nb_steps * 2 + 1)
-        width = 1
-        neighbors = []
-        for i_y, y in enumerate(yy):
-            if width == 1:
-                xx = [x0]
-            else:
-                xx = np.linspace(
-                    x0 - (width - 1) // 2 * step_size,
-                    x0 + (width - 1) // 2 * step_size,
-                    width,
-                )
-            for x in xx:
-                neighbors.append((x, y))
-            if i_y < nb_steps:
-                width += 2
-            else:
-                width -= 2
+    x_in = xx.astype(pts_f.dtype)
+    y_in = yy.astype(pts_f.dtype)
+    x_out = x_in
+    y_out = y_in
+    for _ in range(int(iterations)):
+        xx_out = mx.clip(mx.round(x_out).astype(mx.int32), 0, w - 1)
+        yy_out = mx.clip(mx.round(y_out).astype(mx.int32), 0, h - 1)
+        x_out = x_in + _gather_2d(dx_mx, xx_out, yy_out)
+        y_out = y_in + _gather_2d(dy_mx, xx_out, yy_out)
 
-        neigh = np.array(neighbors, dtype=np.float32)
-        xx = np.round(neigh[:, 0]).astype(np.int32)
-        yy = np.round(neigh[:, 1]).astype(np.int32)
-        inside = (0 <= xx) & (xx < w) & (0 <= yy) & (yy < h)
-        xx = xx[inside]
-        yy = yy[inside]
-        if xx.size == 0:
-            continue
+    xxyy_aug = mx.stack([x_out, y_out], axis=-1)
+    weights = inside.astype(pts_f.dtype)
+    med = _geometric_median_mx(xxyy_aug, weights, max_iters=10)
 
-        x_in = xx.astype(np.float32)
-        y_in = yy.astype(np.float32)
-        x_out = x_in
-        y_out = y_in
-        for _ in range(int(iterations)):
-            xx_out = np.clip(np.round(x_out).astype(np.int32), 0, w - 1)
-            yy_out = np.clip(np.round(y_out).astype(np.int32), 0, h - 1)
-            x_out = x_in + dx[yy_out, xx_out]
-            y_out = y_in + dy[yy_out, xx_out]
+    inside_pts = (
+        (pts_f[:, 0] >= 0)
+        & (pts_f[:, 0] < w)
+        & (pts_f[:, 1] >= 0)
+        & (pts_f[:, 1] < h)
+    )
+    out_pts = mx.where(inside_pts[:, None], med, pts_f)
 
-        med = _geometric_median(np.stack([x_out, y_out], axis=1))
-        out_pts[idx, 0] = med[0]
-        out_pts[idx, 1] = med[1]
-
-    out_final = out_pts if not squeeze else out_pts[0]
-    return to_mlx(out_final) if is_input_mlx else out_final
+    return out_pts if not squeeze else out_pts[0]
 
 
 def elastic_transform(
