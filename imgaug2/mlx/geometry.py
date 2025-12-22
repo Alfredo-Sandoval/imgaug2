@@ -17,6 +17,7 @@ Dtype Handling
 - Input integer/boolean images are processed in float32 and returned with their
   original dtype preserved, with values clipped to valid ranges.
 - Float inputs are returned as float with the original dtype preserved.
+- ``grid_sample`` is a low-level primitive and always returns float32 MLX output.
 
 Hybrid Operations
 -----------------
@@ -88,7 +89,12 @@ def _as_nhwc_grid(grid: mx.array, batch_size: int) -> mx.array:
     if grid.ndim == 3:
         return mx.broadcast_to(grid[None, ...], (batch_size, *grid.shape))
     if grid.ndim == 4:
-        return grid
+        b = int(grid.shape[0])
+        if b == batch_size:
+            return grid
+        if b == 1:
+            return mx.broadcast_to(grid, (batch_size, *grid.shape[1:]))
+        raise ValueError(f"Grid batch dimension {b} does not match image batch size {batch_size}.")
     raise ValueError(f"Expected grid ndim 3/4, got {grid.ndim}.")
 
 
@@ -197,7 +203,13 @@ def _manhattan_offsets(nb_steps: int, step_size: float) -> mx.array:
 
 
 def _elastic_displacement_fields(
-    h: int, w: int, *, alpha: float, sigma: float, seed: int | None
+    h: int,
+    w: int,
+    *,
+    alpha: float,
+    sigma: float,
+    seed: int | None,
+    allow_cpu_fallback: bool = False,
 ) -> tuple[mx.array, mx.array]:
     rng = np.random.default_rng(seed)
     dx = (rng.random((h, w), dtype=np.float32) - 0.5) * (2.0 * float(alpha))
@@ -208,18 +220,24 @@ def _elastic_displacement_fields(
 
     eps = 1e-3
     if float(sigma) >= eps:
-        if float(sigma) < 1.5:
-            from .blur import gaussian_blur as mlx_gaussian_blur
+        from .blur import gaussian_blur as mlx_gaussian_blur
 
-            dx_mx = mlx_gaussian_blur(dx_mx, sigma=float(sigma))
-            dy_mx = mlx_gaussian_blur(dy_mx, sigma=float(sigma))
-        else:
+        if allow_cpu_fallback and float(sigma) >= 1.5:
             import cv2
 
-            ksize = int(round(2.0 * float(sigma)))
-            ksize = max(1, ksize)
-            dx_mx = mx.array(cv2.blur(dx, (ksize, ksize)).astype(np.float32, copy=False))
-            dy_mx = mx.array(cv2.blur(dy, (ksize, ksize)).astype(np.float32, copy=False))
+            dx_mx = mx.array(
+                cv2.GaussianBlur(dx, ksize=(0, 0), sigmaX=float(sigma)).astype(
+                    np.float32, copy=False
+                )
+            )
+            dy_mx = mx.array(
+                cv2.GaussianBlur(dy, ksize=(0, 0), sigmaX=float(sigma)).astype(
+                    np.float32, copy=False
+                )
+            )
+        else:
+            dx_mx = mlx_gaussian_blur(dx_mx, sigma=float(sigma))
+            dy_mx = mlx_gaussian_blur(dy_mx, sigma=float(sigma))
 
     return dx_mx, dy_mx
 
@@ -290,7 +308,8 @@ def grid_sample(
     Returns
     -------
     mx.array
-        Sampled image with shape matching grid dimensions.
+        Sampled image with shape matching grid dimensions. This is a low-level
+        MLX primitive and does not restore the original input dtype.
 
     Raises
     ------
@@ -447,6 +466,35 @@ def _mode_to_padding(mode: str) -> Literal["zeros", "border", "reflection", "sym
     raise ValueError(f"Unsupported mode={mode!r} for MLX warps.")
 
 
+def _mode_to_scipy(mode: str) -> str:
+    """Map public border modes to SciPy ndimage boundary modes."""
+    m = str(mode).lower()
+    if m in {"constant", "zeros"}:
+        return "constant"
+    if m in {"edge", "nearest", "border", "replicate"}:
+        return "nearest"
+    if m in {"reflect", "reflect_101", "mirror"}:
+        return "mirror"
+    if m in {"symmetric"}:
+        return "reflect"
+    if m in {"wrap"}:
+        return "grid-wrap"
+    raise ValueError(f"Unsupported mode={mode!r} for SciPy fallback.")
+
+
+def _cv2_interp_from_order(order: int) -> int:
+    import cv2
+
+    order_i = int(order)
+    if order_i <= 0:
+        return cv2.INTER_NEAREST
+    if order_i == 1:
+        return cv2.INTER_LINEAR
+    if order_i in (2, 3):
+        return cv2.INTER_CUBIC
+    return cv2.INTER_LANCZOS4
+
+
 def _restore_dtype(result: np.ndarray, dtype: np.dtype) -> np.ndarray:
     """Convert float32 result back to original dtype with proper clipping."""
     dtype = np.dtype(dtype)
@@ -458,26 +506,74 @@ def _restore_dtype(result: np.ndarray, dtype: np.dtype) -> np.ndarray:
     return result.astype(dtype, copy=False)
 
 
+def _restore_dtype_mx(result: mx.array, dtype: object) -> mx.array:
+    """Convert float32 result back to original dtype with proper clipping (MLX)."""
+    if mx.issubdtype(dtype, mx.bool_):
+        return result > 0.5
+    if mx.issubdtype(dtype, mx.integer):
+        info = mx.iinfo(dtype)
+        out = mx.clip(mx.round(result), info.min, info.max)
+        return out.astype(dtype)
+    if mx.issubdtype(dtype, mx.floating):
+        return result.astype(dtype)
+    return result.astype(dtype)
+
+
 def _hw_grid_mx(h: int, w: int) -> tuple[mx.array, mx.array]:
     """Create HxW coordinate grids (y, x) in float32."""
     yy, xx = mx.meshgrid(mx.arange(h), mx.arange(w), indexing="ij")
     return yy.astype(mx.float32), xx.astype(mx.float32)
 
 
-@lru_cache(maxsize=32)
-def _coords_homogeneous_mx(h: int, w: int) -> mx.array:
-    """
-    Create homogeneous pixel coordinates (3, H*W) for transformation matrices.
+def _affine_grid_from_inverse(
+    inv: mx.array,
+    *,
+    h_out: int,
+    w_out: int,
+    h_in: int,
+    w_in: int,
+) -> mx.array:
+    yy, xx = _hw_grid_mx(h_out, w_out)
+    sx = inv[0, 0] * xx + inv[0, 1] * yy + inv[0, 2]
+    sy = inv[1, 0] * xx + inv[1, 1] * yy + inv[1, 2]
 
-    Returns
-    -------
-    mx.array
-        Shape (3, H*W) containing [x, y, 1] coordinates for each pixel.
-    """
-    yy, xx = _hw_grid_mx(h, w)
-    ones = mx.ones_like(xx)
-    coords = mx.stack([xx.reshape(-1), yy.reshape(-1), ones.reshape(-1)], axis=0)
-    return coords.astype(mx.float32)
+    if w_in > 1:
+        gx = (sx / float(w_in - 1)) * 2.0 - 1.0
+    else:
+        gx = mx.zeros_like(sx)
+    if h_in > 1:
+        gy = (sy / float(h_in - 1)) * 2.0 - 1.0
+    else:
+        gy = mx.zeros_like(sy)
+    return mx.stack([gx, gy], axis=-1)
+
+
+def _perspective_grid_from_inverse(
+    inv: mx.array,
+    *,
+    h_out: int,
+    w_out: int,
+    h_in: int,
+    w_in: int,
+) -> mx.array:
+    yy, xx = _hw_grid_mx(h_out, w_out)
+    num_x = inv[0, 0] * xx + inv[0, 1] * yy + inv[0, 2]
+    num_y = inv[1, 0] * xx + inv[1, 1] * yy + inv[1, 2]
+    den = inv[2, 0] * xx + inv[2, 1] * yy + inv[2, 2]
+    den_safe = mx.where(den == 0, mx.ones_like(den), den)
+
+    sx = num_x / den_safe
+    sy = num_y / den_safe
+
+    if w_in > 1:
+        gx = (sx / float(w_in - 1)) * 2.0 - 1.0
+    else:
+        gx = mx.zeros_like(sx)
+    if h_in > 1:
+        gy = (sy / float(h_in - 1)) * 2.0 - 1.0
+    else:
+        gy = mx.zeros_like(sy)
+    return mx.stack([gx, gy], axis=-1)
 
 
 @lru_cache(maxsize=512)
@@ -604,10 +700,7 @@ def affine_transform(
             return to_mlx(out_np) if is_input_mlx else out_np
 
         input_dtype = img_np.dtype
-        if img_np.dtype.kind == "b":
-            img_np = img_np.astype(np.float32, copy=False)
-        elif img_np.dtype == np.float16:
-            img_np = img_np.astype(np.float32, copy=False)
+        img_f = img_np.astype(np.float32, copy=False)
 
         mat = np.asarray(matrix, dtype=np.float32)
         if mat.shape == (3, 3):
@@ -615,8 +708,13 @@ def affine_transform(
         elif mat.shape != (2, 3):
             raise ValueError(f"Expected matrix shape (2,3) or (3,3), got {mat.shape}.")
 
-        h_out, w_out = output_shape or img_np.shape[:2]
-        dsize = (int(w_out), int(h_out))
+        if img_f.ndim == 4:
+            n, h_in, w_in, c = img_f.shape
+            h_out, w_out = output_shape or (h_in, w_in)
+            dsize = (int(w_out), int(h_out))
+        else:
+            h_out, w_out = output_shape or img_f.shape[:2]
+            dsize = (int(w_out), int(h_out))
 
         border_map = {
             "constant": cv2.BORDER_CONSTANT,
@@ -629,26 +727,42 @@ def affine_transform(
         }
         border_mode = border_map.get(str(mode).lower(), cv2.BORDER_CONSTANT)
 
-        interp = cv2.INTER_NEAREST if int(order) == 0 else cv2.INTER_CUBIC
-        cval_cv = float(cval) if img_np.dtype.kind == "f" else int(cval)
+        interp = _cv2_interp_from_order(order)
+        cval_cv = float(cval)
 
-        out_np = cv2.warpAffine(
-            img_np,
-            mat,
-            dsize=dsize,
-            flags=interp,
-            borderMode=border_mode,
-            borderValue=cval_cv,
-        )
-        if input_dtype.kind == "b":
-            out_np = out_np > 0.5
-        elif out_np.dtype != input_dtype:
-            out_np = _restore_dtype(out_np.astype(np.float32, copy=False), input_dtype)
+        if img_f.ndim == 4:
+            out_f = np.empty((n, int(h_out), int(w_out), c), dtype=np.float32)
+            for i in range(n):
+                out_f[i] = cv2.warpAffine(
+                    img_f[i],
+                    mat,
+                    dsize=dsize,
+                    flags=interp,
+                    borderMode=border_mode,
+                    borderValue=cval_cv,
+                )
+            out_np = _restore_dtype(out_f, input_dtype)
+        else:
+            out_f = cv2.warpAffine(
+                img_f,
+                mat,
+                dsize=dsize,
+                flags=interp,
+                borderMode=border_mode,
+                borderValue=cval_cv,
+            )
+            out_np = _restore_dtype(out_f, input_dtype)
 
         return to_mlx(out_np) if is_input_mlx else out_np
-    original_dtype = None if is_input_mlx else to_numpy(image).dtype
-
-    img_mx = ensure_float32(to_mlx(image))
+    original_dtype = None
+    orig_mx_dtype = None
+    if is_input_mlx:
+        img_mx = to_mlx(image)
+        orig_mx_dtype = img_mx.dtype
+        img_mx = ensure_float32(img_mx)
+    else:
+        original_dtype = to_numpy(image).dtype
+        img_mx = ensure_float32(to_mlx(image))
     if img_mx.size == 0:
         return image
 
@@ -714,28 +828,19 @@ def affine_transform(
         out_mx = _squeeze_out(out_nhwc, squeeze_batch, squeeze_channel)
 
         if is_input_mlx:
-            return out_mx
+            return _restore_dtype_mx(out_mx, orig_mx_dtype)
 
         out_np = to_numpy(out_mx)
         return _restore_dtype(out_np, ensure_dtype(original_dtype))
 
-    coords = _coords_homogeneous_mx(int(h_out), int(w_out))  # (3, HW)
-
     inv = mx.array(np.linalg.inv(mat).astype(np.float32))
-    src = inv @ coords
-    sx = src[0].reshape(int(h_out), int(w_out))
-    sy = src[1].reshape(int(h_out), int(w_out))
-
-    if w_in > 1:
-        gx = (sx / float(w_in - 1)) * 2.0 - 1.0
-    else:
-        gx = mx.zeros_like(sx)
-    if h_in > 1:
-        gy = (sy / float(h_in - 1)) * 2.0 - 1.0
-    else:
-        gy = mx.zeros_like(sy)
-
-    grid = mx.stack([gx, gy], axis=-1)
+    grid = _affine_grid_from_inverse(
+        inv,
+        h_out=int(h_out),
+        w_out=int(w_out),
+        h_in=int(h_in),
+        w_in=int(w_in),
+    )
     out_mx = grid_sample(
         img_mx,
         grid,
@@ -745,7 +850,7 @@ def affine_transform(
     )
 
     if is_input_mlx:
-        return out_mx
+        return _restore_dtype_mx(out_mx, orig_mx_dtype)
 
     out_np = to_numpy(out_mx)
     return _restore_dtype(out_np, ensure_dtype(original_dtype))
@@ -849,17 +954,19 @@ def perspective_transform(
             return to_mlx(out_np) if is_input_mlx else out_np
 
         input_dtype = img_np.dtype
-        if img_np.dtype.kind == "b":
-            img_np = img_np.astype(np.float32, copy=False)
-        elif img_np.dtype == np.float16:
-            img_np = img_np.astype(np.float32, copy=False)
+        img_f = img_np.astype(np.float32, copy=False)
 
         mat = np.asarray(matrix, dtype=np.float32)
         if mat.shape != (3, 3):
             raise ValueError(f"Expected matrix shape (3,3), got {mat.shape}.")
 
-        h_out, w_out = output_shape or img_np.shape[:2]
-        dsize = (int(w_out), int(h_out))
+        if img_f.ndim == 4:
+            n, h_in, w_in, c = img_f.shape
+            h_out, w_out = output_shape or (h_in, w_in)
+            dsize = (int(w_out), int(h_out))
+        else:
+            h_out, w_out = output_shape or img_f.shape[:2]
+            dsize = (int(w_out), int(h_out))
 
         border_map = {
             "constant": cv2.BORDER_CONSTANT,
@@ -872,25 +979,41 @@ def perspective_transform(
         }
         border_mode = border_map.get(str(mode).lower(), cv2.BORDER_CONSTANT)
 
-        interp = cv2.INTER_NEAREST if int(order) == 0 else cv2.INTER_CUBIC
-        cval_cv = float(cval) if img_np.dtype.kind == "f" else int(cval)
+        interp = _cv2_interp_from_order(order)
+        cval_cv = float(cval)
 
-        out_np = cv2.warpPerspective(
-            img_np,
-            mat,
-            dsize=dsize,
-            flags=interp,
-            borderMode=border_mode,
-            borderValue=cval_cv,
-        )
-        if input_dtype.kind == "b":
-            out_np = out_np > 0.5
-        elif out_np.dtype != input_dtype:
-            out_np = _restore_dtype(out_np.astype(np.float32, copy=False), input_dtype)
+        if img_f.ndim == 4:
+            out_f = np.empty((n, int(h_out), int(w_out), c), dtype=np.float32)
+            for i in range(n):
+                out_f[i] = cv2.warpPerspective(
+                    img_f[i],
+                    mat,
+                    dsize=dsize,
+                    flags=interp,
+                    borderMode=border_mode,
+                    borderValue=cval_cv,
+                )
+            out_np = _restore_dtype(out_f, input_dtype)
+        else:
+            out_f = cv2.warpPerspective(
+                img_f,
+                mat,
+                dsize=dsize,
+                flags=interp,
+                borderMode=border_mode,
+                borderValue=cval_cv,
+            )
+            out_np = _restore_dtype(out_f, input_dtype)
         return to_mlx(out_np) if is_input_mlx else out_np
-    original_dtype = None if is_input_mlx else to_numpy(image).dtype
-
-    img_mx = ensure_float32(to_mlx(image))
+    original_dtype = None
+    orig_mx_dtype = None
+    if is_input_mlx:
+        img_mx = to_mlx(image)
+        orig_mx_dtype = img_mx.dtype
+        img_mx = ensure_float32(img_mx)
+    else:
+        original_dtype = to_numpy(image).dtype
+        img_mx = ensure_float32(to_mlx(image))
     if img_mx.size == 0:
         return image
 
@@ -952,30 +1075,19 @@ def perspective_transform(
         out_mx = _squeeze_out(out_nhwc, squeeze_batch, squeeze_channel)
 
         if is_input_mlx:
-            return out_mx
+            return _restore_dtype_mx(out_mx, orig_mx_dtype)
 
         out_np = to_numpy(out_mx)
         return _restore_dtype(out_np, ensure_dtype(original_dtype))
 
-    coords = _coords_homogeneous_mx(int(h_out), int(w_out))  # (3, HW)
-
     inv = mx.array(np.linalg.inv(mat).astype(np.float32))
-    src = inv @ coords
-    z = src[2]
-    z_safe = mx.where(z == 0, mx.ones_like(z), z)
-    sx = (src[0] / z_safe).reshape(int(h_out), int(w_out))
-    sy = (src[1] / z_safe).reshape(int(h_out), int(w_out))
-
-    if w_in > 1:
-        gx = (sx / float(w_in - 1)) * 2.0 - 1.0
-    else:
-        gx = mx.zeros_like(sx)
-    if h_in > 1:
-        gy = (sy / float(h_in - 1)) * 2.0 - 1.0
-    else:
-        gy = mx.zeros_like(sy)
-
-    grid = mx.stack([gx, gy], axis=-1)
+    grid = _perspective_grid_from_inverse(
+        inv,
+        h_out=int(h_out),
+        w_out=int(w_out),
+        h_in=int(h_in),
+        w_in=int(w_in),
+    )
     out_mx = grid_sample(
         img_mx,
         grid,
@@ -985,7 +1097,7 @@ def perspective_transform(
     )
 
     if is_input_mlx:
-        return out_mx
+        return _restore_dtype_mx(out_mx, orig_mx_dtype)
 
     out_np = to_numpy(out_mx)
     return _restore_dtype(out_np, ensure_dtype(original_dtype))
@@ -1148,6 +1260,7 @@ def elastic_points(
             alpha=float(alpha),
             sigma=float(sigma),
             seed=seed,
+            allow_cpu_fallback=False,
         )
         dx = to_numpy(dx_mx)
         dy = to_numpy(dy_mx)
@@ -1227,6 +1340,7 @@ def elastic_points(
         alpha=float(alpha),
         sigma=float(sigma),
         seed=seed,
+        allow_cpu_fallback=False,
     )
     dx_mx = dx_mx.astype(pts_f.dtype)
     dy_mx = dy_mx.astype(pts_f.dtype)
@@ -1317,7 +1431,8 @@ def elastic_transform(
 
     Notes
     -----
-    For large ``sigma`` values, uses OpenCV's blur on CPU. For ``order`` > 1,
+    For large ``sigma`` values, a CPU Gaussian blur is used only when
+    ``allow_cpu_fallback=True``; otherwise MLX blur is used. For ``order`` > 1,
     falls back to SciPy on CPU **only** when ``allow_cpu_fallback=True``.
     """
     require()
@@ -1325,6 +1440,7 @@ def elastic_transform(
     is_input_mlx = is_mlx_array(image)
     if is_input_mlx:
         img_mx = to_mlx(image)
+        orig_mx_dtype = img_mx.dtype
         if img_mx.size == 0:
             return img_mx
 
@@ -1360,6 +1476,7 @@ def elastic_transform(
         alpha=float(alpha),
         sigma=float(sigma),
         seed=seed,
+        allow_cpu_fallback=allow_cpu_fallback,
     )
 
     yy, xx = _hw_grid_mx(h, w)
@@ -1386,25 +1503,28 @@ def elastic_transform(
             )
         from scipy import ndimage
 
+        mode_sp = _mode_to_scipy(mode)
         x_shifted_np = np.array(x_shifted).astype(np.float32, copy=False)
         y_shifted_np = np.array(y_shifted).astype(np.float32, copy=False)
 
         img_np = to_numpy(image)
-        img_np3 = img_np if img_np.ndim == 3 else img_np[..., None]
-        out_np = np.empty_like(img_np3)
-        for ch in range(img_np3.shape[2]):
+        dtype_in = img_np.dtype
+        img_f = img_np.astype(np.float32, copy=False)
+        img_f3 = img_f if img_f.ndim == 3 else img_f[..., None]
+        out_f3 = np.empty_like(img_f3, dtype=np.float32)
+        for ch in range(img_f3.shape[2]):
             remapped = ndimage.map_coordinates(
-                img_np3[..., ch],
+                img_f3[..., ch],
                 (y_shifted_np.ravel(), x_shifted_np.ravel()),
                 order=int(order),
-                mode=str(mode),
+                mode=mode_sp,
                 cval=float(cval),
             ).reshape(h, w)
-            out_np[..., ch] = remapped
+            out_f3[..., ch] = remapped
 
         if img_np.ndim == 2:
-            out_np = out_np[..., 0]
-        out_np = _restore_dtype(out_np.astype(np.float32, copy=False), img_np.dtype)
+            out_f3 = out_f3[..., 0]
+        out_np = _restore_dtype(out_f3, dtype_in)
         return to_mlx(out_np) if is_input_mlx else out_np
 
     out_mx = grid_sample(
@@ -1416,7 +1536,7 @@ def elastic_transform(
     )
 
     if is_input_mlx:
-        return out_mx
+        return _restore_dtype_mx(out_mx, orig_mx_dtype)
 
     out_np = to_numpy(out_mx)
     return _restore_dtype(out_np, ensure_dtype(original_dtype))
@@ -1537,6 +1657,7 @@ def piecewise_affine(
     is_input_mlx = is_mlx_array(image)
     if is_input_mlx:
         img_mx = to_mlx(image)
+        orig_mx_dtype = img_mx.dtype
         if img_mx.size == 0:
             return img_mx
 
@@ -1639,7 +1760,7 @@ def piecewise_affine(
     )
 
     if is_input_mlx:
-        return out_mx
+        return _restore_dtype_mx(out_mx, orig_mx_dtype)
 
     out_np = to_numpy(out_mx)
     return _restore_dtype(out_np, ensure_dtype(original_dtype))
@@ -1697,9 +1818,15 @@ def resize(
         raise ValueError(f"output_shape must be >=0, got {(h_out, w_out)}.")
 
     is_input_mlx = is_mlx_array(image)
-    original_dtype = None if is_input_mlx else to_numpy(image).dtype
-
-    img_mx = ensure_float32(to_mlx(image))
+    original_dtype = None
+    orig_mx_dtype = None
+    if is_input_mlx:
+        img_in = to_mlx(image)
+        orig_mx_dtype = img_in.dtype
+        img_mx = ensure_float32(img_in)
+    else:
+        original_dtype = to_numpy(image).dtype
+        img_mx = ensure_float32(to_mlx(image))
     if img_mx.size == 0 or h_out == 0 or w_out == 0:
         # Preserve empty shapes.
         if img_mx.ndim == 2:
@@ -1716,7 +1843,7 @@ def resize(
             )
 
         if is_input_mlx:
-            return out_empty
+            return _restore_dtype_mx(out_empty, orig_mx_dtype)
         return _restore_dtype(to_numpy(out_empty), ensure_dtype(original_dtype))
 
     # Build an output grid in normalized coordinates. With align_corners=True,
@@ -1741,7 +1868,7 @@ def resize(
     )
 
     if is_input_mlx:
-        return out_mx
+        return _restore_dtype_mx(out_mx, orig_mx_dtype)
 
     return _restore_dtype(to_numpy(out_mx), ensure_dtype(original_dtype))
 
@@ -1799,6 +1926,7 @@ def optical_distortion(
     is_input_mlx = is_mlx_array(image)
     if is_input_mlx:
         img_mx = to_mlx(image)
+        orig_mx_dtype = img_mx.dtype
         if img_mx.size == 0:
             return img_mx
 
@@ -1865,7 +1993,7 @@ def optical_distortion(
     )
 
     if is_input_mlx:
-        return out_mx
+        return _restore_dtype_mx(out_mx, orig_mx_dtype)
 
     out_np = to_numpy(out_mx)
     return _restore_dtype(out_np, ensure_dtype(original_dtype))
@@ -1923,6 +2051,7 @@ def grid_distortion(
     is_input_mlx = is_mlx_array(image)
     if is_input_mlx:
         img_mx = to_mlx(image)
+        orig_mx_dtype = img_mx.dtype
         if img_mx.size == 0:
             return img_mx
 
@@ -2022,7 +2151,7 @@ def grid_distortion(
     )
 
     if is_input_mlx:
-        return out_mx
+        return _restore_dtype_mx(out_mx, orig_mx_dtype)
 
     out_np = to_numpy(out_mx)
     return _restore_dtype(out_np, ensure_dtype(original_dtype))
@@ -2081,6 +2210,7 @@ def chromatic_aberration(
     is_input_mlx = is_mlx_array(image)
     if is_input_mlx:
         img_mx = to_mlx(image)
+        orig_mx_dtype = img_mx.dtype
         if img_mx.size == 0:
             return img_mx
         if img_mx.ndim not in (2, 3):
@@ -2139,7 +2269,7 @@ def chromatic_aberration(
         result = mx.concatenate([result, extra], axis=-1)
 
     if is_input_mlx:
-        return result
+        return _restore_dtype_mx(result, orig_mx_dtype)
 
     out_np = to_numpy(result)
     return _restore_dtype(out_np, ensure_dtype(original_dtype))
