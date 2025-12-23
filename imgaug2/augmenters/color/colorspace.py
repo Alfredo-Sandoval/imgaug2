@@ -8,6 +8,7 @@ import numpy as np
 
 import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
+import imgaug2.mlx.color as mlx_color
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
@@ -17,7 +18,6 @@ from imgaug2.augmenters._typing import Array, Images, ParamInput, RNGInput
 from imgaug2.compat.markers import legacy
 from imgaug2.imgaug import _normalize_cv2_input_arr_
 from imgaug2.mlx._core import is_mlx_array
-import imgaug2.mlx.color as mlx_color
 
 from ._utils import (
     CSPACE_ALL,
@@ -26,19 +26,18 @@ from ._utils import (
     CSPACE_GRAY,
     CSPACE_HLS,
     CSPACE_HSV,
-    CSPACE_Lab,
-    CSPACE_Luv,
     CSPACE_RGB,
-    CSPACE_YCrCb,
     CSPACE_YUV,
     ChildrenInput,
     ColorSpace,
     ColorSpaceInput,
+    CSPACE_Lab,
+    CSPACE_Luv,
+    CSPACE_YCrCb,
     ToColorspaceChoiceInput,
     ToColorspaceParamInput,
     _is_mlx_list,
 )
-
 
 def _get_opencv_attr(attr_names: Sequence[str]) -> int | None:
     for attr_name in attr_names:
@@ -50,7 +49,6 @@ def _get_opencv_attr(attr_names: Sequence[str]) -> int | None:
     )
     return None
 
-
 _CSPACE_OPENCV_CONV_VARS = {
     # RGB
     (CSPACE_RGB, CSPACE_BGR): cv2.COLOR_RGB2BGR,
@@ -144,7 +142,6 @@ _CHANGE_COLORSPACE_INPLACE = {
     (CSPACE_CIE, CSPACE_BGR): True,
 }
 
-
 _CSPACE_OPENCV_CONV_VARS = {
     # RGB
     (CSPACE_RGB, CSPACE_BGR): cv2.COLOR_RGB2BGR,
@@ -237,7 +234,6 @@ _CHANGE_COLORSPACE_INPLACE = {
     (CSPACE_CIE, CSPACE_RGB): True,
     (CSPACE_CIE, CSPACE_BGR): True,
 }
-
 
 def change_colorspace_(
     image: Array, to_colorspace: ColorSpace, from_colorspace: ColorSpace = CSPACE_RGB
@@ -252,22 +248,6 @@ def change_colorspace_(
     .. note::
 
         Output grayscale images will still have three channels.
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: no
-        * ``uint32``: no
-        * ``uint64``: no
-        * ``int8``: no
-        * ``int16``: no
-        * ``int32``: no
-        * ``int64``: no
-        * ``float16``: no
-        * ``float32``: no
-        * ``float64``: no
-        * ``float128``: no
-        * ``bool``: no
 
     Parameters
     ----------
@@ -292,7 +272,6 @@ def change_colorspace_(
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> import numpy as np
     >>> # fake RGB image
     >>> image_rgb = np.arange(4*4*3).astype(np.uint8).reshape((4, 4, 3))
@@ -303,7 +282,7 @@ def change_colorspace_(
     # the docs, but at least for conversion to grayscale that
     # results in errors, ie uint8 is expected
 
-    # this was once used to accomodate for image .flags -- still necessary?
+    # this was once used to accommodate for image .flags -- still necessary?
     def _get_dst(image_: Array, from_to_cspace: tuple[ColorSpace, ColorSpace]) -> Array | None:
         if _CHANGE_COLORSPACE_INPLACE[from_to_cspace]:
             return image_
@@ -364,7 +343,6 @@ def change_colorspace_(
 
     return image_aug
 
-
 def change_colorspaces_(
     images: Images,
     to_colorspaces: ColorSpaceInput,
@@ -380,10 +358,6 @@ def change_colorspaces_(
     .. note::
 
         Output grayscale images will still have three channels.
-
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.color.change_colorspace_`.
 
     Parameters
     ----------
@@ -410,7 +384,6 @@ def change_colorspaces_(
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> import numpy as np
     >>> # fake RGB image
     >>> image_rgb = np.arange(4*4*3).astype(np.uint8).reshape((4, 4, 3))
@@ -454,7 +427,6 @@ def change_colorspaces_(
         images[i] = change_colorspace_(image, to_colorspace, from_colorspace)
     return images
 
-
 @ia.deprecated(alt_func="WithColorspace")
 def InColorspace(
     to_colorspace: ColorSpace,
@@ -476,36 +448,31 @@ def InColorspace(
         deterministic=deterministic,
     )
 
-
 class WithColorspace(meta.Augmenter):
     """
     Apply child augmenters within a specific colorspace.
 
-    This augumenter takes a source colorspace A and a target colorspace B
+    This augmenter takes a source colorspace A and a target colorspace B
     as well as children C. It changes images from A to B, then applies the
     child augmenters C and finally changes the colorspace back from B to A.
     See also ChangeColorspace() for more.
 
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.color.change_colorspaces_`.
-
     Parameters
     ----------
     to_colorspace : str
-        See :func:`~imgaug2.augmenters.color.change_colorspace_`.
+        See `change_colorspace_()`.
 
     from_colorspace : str, optional
-        See :func:`~imgaug2.augmenters.color.change_colorspace_`.
+        See `change_colorspace_()`.
 
     children : imgaug2.augmenters.meta.Augmenter or list of imgaug2.augmenters.meta.Augmenter or None, optional
         One or more augmenters to apply to converted images.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -520,7 +487,6 @@ class WithColorspace(meta.Augmenter):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.WithColorspace(
     >>>     to_colorspace=iaa.CSPACE_HSV,
     >>>     from_colorspace=iaa.CSPACE_RGB,
@@ -590,11 +556,11 @@ class WithColorspace(meta.Augmenter):
         return aug
 
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [self.to_colorspace, self.from_colorspace]
 
     def get_children_lists(self) -> list[list[meta.Augmenter]]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
+        """See `get_children_lists()`."""
         return cast(list[list[meta.Augmenter]], [self.children])
 
     def __str__(self) -> str:
@@ -602,7 +568,6 @@ class WithColorspace(meta.Augmenter):
             f"WithColorspace(from_colorspace={self.from_colorspace}, "
             f"to_colorspace={self.to_colorspace}, name={self.name}, children=[{self.children}], deterministic={self.deterministic})"
         )
-
 
 class ChangeColorspace(meta.Augmenter):
     """
@@ -612,10 +577,6 @@ class ChangeColorspace(meta.Augmenter):
 
         This augmenter tries to project the colorspace value range on
         0-255. It outputs dtype=uint8 images.
-
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.color.change_colorspace_`.
 
     Parameters
     ----------
@@ -627,13 +588,6 @@ class ChangeColorspace(meta.Augmenter):
         ``imgaug2.augmenters.color.CSPACE_<NAME>``,
         e.g. ``imgaug2.augmenters.CSPACE_YCrCb``.
 
-            * If a string, it must be among the allowed colorspaces.
-            * If a list, it is expected to be a list of strings, each one
-              being an allowed colorspace. A random element from the list
-              will be chosen per image.
-            * If a StochasticParameter, it is expected to return string. A new
-              sample will be drawn per image.
-
     from_colorspace : str, optional
         The source colorspace (of the input images).
         See `to_colorspace`. Only a single string is allowed.
@@ -644,19 +598,11 @@ class ChangeColorspace(meta.Augmenter):
         colorspace is visible. A value close to 0.0 means, that mostly the
         old image is visible.
 
-            * If an int or float, exactly that value will be used.
-            * If a tuple ``(a, b)``, a random value from the range
-              ``a <= x <= b`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a StochasticParameter, a value will be sampled from the
-              parameter per image.
-
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -824,11 +770,10 @@ class ChangeColorspace(meta.Augmenter):
         return batch
 
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         # Match the original imgaug API: include the (string) source colorspace
         # between the stochastic params for easier introspection.
         return [self.to_colorspace, self.from_colorspace, self.alpha]
-
 
 # TODO This should rather do the blending in RGB or BGR space.
 #      Currently, if the input image is in e.g. HSV space, it will blend in
@@ -844,10 +789,6 @@ class Grayscale(ChangeColorspace):
 
     TODO check dtype support
 
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.color.change_colorspace_`.
-
     Parameters
     ----------
     alpha : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
@@ -856,23 +797,15 @@ class Grayscale(ChangeColorspace):
         image is visible. A value close to 0.0 means, that mostly the
         old image is visible.
 
-            * If a number, exactly that value will always be used.
-            * If a tuple ``(a, b)``, a random value from the range
-              ``a <= x <= b`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a StochasticParameter, a value will be sampled from the
-              parameter per image.
-
     from_colorspace : str, optional
         The source colorspace (of the input images).
-        See :func:`~imgaug2.augmenters.color.change_colorspace_`.
+        See `change_colorspace_()`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -887,12 +820,10 @@ class Grayscale(ChangeColorspace):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.Grayscale(alpha=1.0)
 
     Creates an augmenter that turns images to their grayscale versions.
 
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.Grayscale(alpha=(0.0, 1.0))
 
     Creates an augmenter that turns images to their grayscale versions with

@@ -9,25 +9,24 @@ import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
-from imgaug2.compat.markers import legacy
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, Images, ParamInput, RNGInput
+from imgaug2.compat.markers import legacy
 
 from ._utils import (
     CSPACE_HLS,
     CSPACE_HSV,
-    CSPACE_Lab,
-    CSPACE_Luv,
     CSPACE_RGB,
-    CSPACE_YCrCb,
     CSPACE_YUV,
     ChildrenInput,
     ColorSpace,
+    CSPACE_Lab,
+    CSPACE_Luv,
+    CSPACE_YCrCb,
     ToColorspaceParamInput,
     _get_arithmetic,
 )
 from .colorspace import change_colorspaces_
-
 
 @legacy(version="0.4.0")
 class WithBrightnessChannels(meta.Augmenter):
@@ -38,11 +37,6 @@ class WithBrightnessChannels(meta.Augmenter):
     channel and applies its child augmenters to this one channel. Afterwards,
     it reintegrates the augmented channel into the full image and converts
     back to the input colorspace.
-
-
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.color.change_colorspaces_`.
 
     Parameters
     ----------
@@ -56,24 +50,19 @@ class WithBrightnessChannels(meta.Augmenter):
         ``CSPACE_HLS``, ``CSPACE_Lab``, ``CSPACE_Luv``, ``CSPACE_YUV``,
         ``CSPACE_CIE`` are supported.
 
-            * If ``imgaug2.ALL``: Will pick imagewise a random colorspace from
-              all supported colorspaces.
-            * If ``str``: Will always use this colorspace.
-            * If ``list`` or ``str``: Will pick imagewise a random colorspace
-              from this list.
-            * If :class:`~imgaug2.parameters.StochasticParameter`:
+            * If `StochasticParameter`:
               A parameter that will be queried once per batch to generate
               all target colorspaces. Expected to return strings matching the
               ``CSPACE_*`` constants.
 
     from_colorspace : str, optional
-        See :func:`~imgaug2.augmenters.color.change_colorspace_`.
+        See `change_colorspace_()`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -88,7 +77,6 @@ class WithBrightnessChannels(meta.Augmenter):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.WithBrightnessChannels(iaa.Add((-50, 50)))
 
     Add ``-50`` to ``50`` to the brightness-related channels of each image.
@@ -225,12 +213,12 @@ class WithBrightnessChannels(meta.Augmenter):
 
     @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [self.to_colorspace, self.from_colorspace]
 
     @legacy(version="0.4.0")
     def get_children_lists(self) -> list[list[meta.Augmenter]]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
+        """See `get_children_lists()`."""
         return cast(list[list[meta.Augmenter]], [self.children])
 
     @legacy(version="0.4.0")
@@ -244,32 +232,26 @@ class WithBrightnessChannels(meta.Augmenter):
             f"deterministic={self.deterministic})"
         )
 
-
 @legacy(version="0.4.0")
 class MultiplyAndAddToBrightness(WithBrightnessChannels):
     """Multiply and add to the brightness channels of input images.
 
-    This is a wrapper around :class:`WithBrightnessChannels` and hence
+    This is a wrapper around `WithBrightnessChannels` and hence
     performs internally the same projection to random colorspaces.
-
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.color.WithBrightnessChannels`.
 
     Parameters
     ----------
     mul : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.airthmetic.Multiply`.
+        See `Multiply`.
 
     add : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.airthmetic.Add`.
+        See `Add`.
 
     to_colorspace : imgaug2.ALL or str or list of str or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.color.WithBrightnessChannels`.
+        See `WithBrightnessChannels`.
 
     from_colorspace : str, optional
-        See :class:`~imgaug2.augmenters.color.WithBrightnessChannels`.
+        See `WithBrightnessChannels`.
 
     random_order : bool, optional
         Whether to apply the add and multiply operations in random
@@ -277,10 +259,10 @@ class MultiplyAndAddToBrightness(WithBrightnessChannels):
         multiply and then add.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -295,7 +277,6 @@ class MultiplyAndAddToBrightness(WithBrightnessChannels):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.MultiplyAndAddToBrightness(mul=(0.5, 1.5), add=(-30, 30))
 
     Convert each image to a colorspace with a brightness-related channel,
@@ -358,35 +339,29 @@ class MultiplyAndAddToBrightness(WithBrightnessChannels):
             f"deterministic={self.deterministic})"
         )
 
-
 @legacy(version="0.4.0")
 class MultiplyBrightness(MultiplyAndAddToBrightness):
     """Multiply the brightness channels of input images.
 
-    This is a wrapper around :class:`WithBrightnessChannels` and hence
+    This is a wrapper around `WithBrightnessChannels` and hence
     performs internally the same projection to random colorspaces.
-
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.color.MultiplyAndAddToBrightness`.
 
     Parameters
     ----------
     mul : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.airthmetic.Multiply`.
+        See `Multiply`.
 
     to_colorspace : imgaug2.ALL or str or list of str or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.color.WithBrightnessChannels`.
+        See `WithBrightnessChannels`.
 
     from_colorspace : str, optional
-        See :class:`~imgaug2.augmenters.color.WithBrightnessChannels`.
+        See `WithBrightnessChannels`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -401,7 +376,6 @@ class MultiplyBrightness(MultiplyAndAddToBrightness):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.MultiplyBrightness((0.5, 1.5))
 
     Convert each image to a colorspace with a brightness-related channel,
@@ -442,35 +416,29 @@ class MultiplyBrightness(MultiplyAndAddToBrightness):
             deterministic=deterministic,
         )
 
-
 @legacy(version="0.4.0")
 class AddToBrightness(MultiplyAndAddToBrightness):
     """Add to the brightness channels of input images.
 
-    This is a wrapper around :class:`WithBrightnessChannels` and hence
+    This is a wrapper around `WithBrightnessChannels` and hence
     performs internally the same projection to random colorspaces.
-
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.color.MultiplyAndAddToBrightness`.
 
     Parameters
     ----------
     add : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.airthmetic.Add`.
+        See `Add`.
 
     to_colorspace : imgaug2.ALL or str or list of str or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.color.WithBrightnessChannels`.
+        See `WithBrightnessChannels`.
 
     from_colorspace : str, optional
-        See :class:`~imgaug2.augmenters.color.WithBrightnessChannels`.
+        See `WithBrightnessChannels`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -485,7 +453,6 @@ class AddToBrightness(MultiplyAndAddToBrightness):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.AddToBrightness((-30, 30))
 
     Convert each image to a colorspace with a brightness-related channel,
@@ -525,7 +492,6 @@ class AddToBrightness(MultiplyAndAddToBrightness):
             random_state=random_state,
             deterministic=deterministic,
         )
-
 
 # TODO Merge this into WithColorspace? A bit problematic due to int16
 #      conversion that would make WithColorspace less flexible.

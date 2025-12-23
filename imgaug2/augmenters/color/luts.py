@@ -13,13 +13,13 @@ class _QuantizeUniformCenterizedLUTTableSingleton:
     @legacy(version="0.4.0")
     @classmethod
     def get_instance(cls) -> _QuantizeUniformLUTTable:
-        """Get singleton instance of :class:`_QuantizeUniformLUTTable`.
+        """Get singleton instance of `_QuantizeUniformLUTTable`.
 
 
         Returns
         -------
         _QuantizeUniformLUTTable
-            The global instance of :class:`_QuantizeUniformLUTTable`.
+            The global instance of `_QuantizeUniformLUTTable`.
 
         """
         if cls._INSTANCE is None:
@@ -29,20 +29,20 @@ class _QuantizeUniformCenterizedLUTTableSingleton:
 
 @legacy(version="0.4.0")
 class _QuantizeUniformNotCenterizedLUTTableSingleton:
-    """Table for :func:`quantize_uniform` with ``to_bin_centers=False``."""
+    """Table for `quantize_uniform()` with ``to_bin_centers=False``."""
 
     _INSTANCE = None
 
     @legacy(version="0.4.0")
     @classmethod
     def get_instance(cls) -> _QuantizeUniformLUTTable:
-        """Get singleton instance of :class:`_QuantizeUniformLUTTable`.
+        """Get singleton instance of `_QuantizeUniformLUTTable`.
 
 
         Returns
         -------
         _QuantizeUniformLUTTable
-            The global instance of :class:`_QuantizeUniformLUTTable`.
+            The global instance of `_QuantizeUniformLUTTable`.
 
         """
         if cls._INSTANCE is None:

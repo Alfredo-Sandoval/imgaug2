@@ -7,14 +7,14 @@ import numpy as np
 
 import imgaug2.dtypes as iadt
 import imgaug2.imgaug as ia
+import imgaug2.mlx.color as mlx_color
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
-from imgaug2.compat.markers import legacy
 from imgaug2.augmenters import meta
-from imgaug2.augmenters._typing import Array, Images, ParamInput, RNGInput
+from imgaug2.augmenters._typing import Array, ChildrenInput, Images, ParamInput, RNGInput
+from imgaug2.compat.markers import legacy
 from imgaug2.mlx._core import is_mlx_array
-import imgaug2.mlx.color as mlx_color
 
 from ._utils import (
     CSPACE_HSV,
@@ -26,12 +26,11 @@ from ._utils import (
 )
 from .colorspace import change_colorspace_, change_colorspaces_
 
-
 class WithHueAndSaturation(meta.Augmenter):
     """
     Apply child augmenters to hue and saturation channels.
 
-    This augumenter takes an image in a source colorspace, converts
+    This augmenter takes an image in a source colorspace, converts
     it to HSV, extracts the H (hue) and S (saturation) channels,
     applies the provided child augmenters to these channels
     and finally converts back to the original colorspace.
@@ -44,14 +43,10 @@ class WithHueAndSaturation(meta.Augmenter):
     is applied to the hue channel's values, followed by a mapping from
     ``[0, 255]`` to ``[0, 180]`` (and finally the colorspace conversion).
 
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.color.change_colorspaces_`.
-
     Parameters
     ----------
     from_colorspace : str, optional
-        See :func:`~imgaug2.augmenters.color.change_colorspace_`.
+        See `change_colorspace_()`.
 
     children : imgaug2.augmenters.meta.Augmenter or list of imgaug2.augmenters.meta.Augmenter or None, optional
         One or more augmenters to apply to converted images.
@@ -59,10 +54,10 @@ class WithHueAndSaturation(meta.Augmenter):
         and have to modify these.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -77,7 +72,6 @@ class WithHueAndSaturation(meta.Augmenter):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.WithHueAndSaturation(
     >>>     iaa.WithChannels(0, iaa.Add((0, 50)))
     >>> )
@@ -88,7 +82,6 @@ class WithHueAndSaturation(meta.Augmenter):
     if the angle goes beyond 360 degrees, it will start again at 0 degrees.
     The colorspace is finally converted back to ``RGB`` (default setting).
 
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.WithHueAndSaturation([
     >>>     iaa.WithChannels(0, iaa.Add((-30, 10))),
     >>>     iaa.WithChannels(1, [
@@ -121,7 +114,7 @@ class WithHueAndSaturation(meta.Augmenter):
         self.children = meta.handle_children_list(children, self.name, "then")
         self.from_colorspace = from_colorspace
 
-        # this dtype needs to be able to go beyond [0, 255] to e.g. accomodate
+        # this dtype needs to be able to go beyond [0, 255] to e.g. accommodate
         # for Add or Multiply
         self._internal_dtype = np.int16
 
@@ -201,11 +194,11 @@ class WithHueAndSaturation(meta.Augmenter):
         return aug
 
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [self.from_colorspace]
 
     def get_children_lists(self) -> list[list[meta.Augmenter]]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
+        """See `get_children_lists()`."""
         return cast(list[list[meta.Augmenter]], [self.children])
 
     def __str__(self) -> str:
@@ -214,20 +207,15 @@ class WithHueAndSaturation(meta.Augmenter):
             f"name={self.name}, children=[{self.children}], deterministic={self.deterministic})"
         )
 
-
 class MultiplyHueAndSaturation(WithHueAndSaturation):
     """
-    Multipy hue and saturation by random values.
+    Multiply hue and saturation by random values.
 
     The augmenter first transforms images to HSV colorspace, then multiplies
     the pixel values in the H and S channels and afterwards converts back to
     RGB.
 
     This augmenter is a wrapper around ``WithHueAndSaturation``.
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.color.WithHueAndSaturation`.
 
     Parameters
     ----------
@@ -239,13 +227,6 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
 
             * If this is ``None``, `mul_hue` and/or `mul_saturation`
               may be set to values other than ``None``.
-            * If a number, then that multiplier will be used for all images.
-            * If a tuple ``(a, b)``, then a value from the continuous
-              range ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a StochasticParameter, then a value will be sampled from that
-              parameter per image.
 
     mul_hue : None or number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Multiplier with which to multiply all hue values.
@@ -257,13 +238,6 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
 
             * If this and `mul_saturation` are both ``None``, `mul` may
               be set to a non-``None`` value.
-            * If a number, then that multiplier will be used for all images.
-            * If a tuple ``(a, b)``, then a value from the continuous
-              range ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a StochasticParameter, then a value will be sampled from that
-              parameter per image.
 
     mul_saturation : None or number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Multiplier with which to multiply all saturation values.
@@ -272,13 +246,6 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
 
             * If this and `mul_hue` are both ``None``, `mul` may
               be set to a non-``None`` value.
-            * If a number, then that value will be used for all images.
-            * If a tuple ``(a, b)``, then a value from the continuous
-              range ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a StochasticParameter, then a value will be sampled from that
-              parameter per image.
 
     per_channel : bool or float, optional
         Whether to sample per image only one value from `mul` and use it for
@@ -291,13 +258,13 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
         are used instead of `mul`.
 
     from_colorspace : str, optional
-        See :func:`~imgaug2.augmenters.color.change_colorspace_`.
+        See `change_colorspace_()`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -312,7 +279,6 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.MultiplyHueAndSaturation((0.5, 1.5), per_channel=True)
 
     Multiply hue and saturation by random values between ``0.5`` and ``1.5``
@@ -320,12 +286,10 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
     that channel). The hue will be automatically projected to an angular
     representation.
 
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.MultiplyHueAndSaturation(mul_hue=(0.5, 1.5))
 
     Multiply only the hue by random values between ``0.5`` and ``1.5``.
 
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.MultiplyHueAndSaturation(mul_saturation=(0.5, 1.5))
 
     Multiply only the saturation by random values between ``0.5`` and ``1.5``.
@@ -466,7 +430,7 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
 
         # MLX fast-path
         if is_mlx_array(images):
-            from imgaug2.mlx._core import to_mlx, mx
+            from imgaug2.mlx._core import mx, to_mlx
 
             images_mlx = images
             nb_images = len(images_mlx)
@@ -615,7 +579,6 @@ class MultiplyHueAndSaturation(WithHueAndSaturation):
 
         return super()._augment_batch_(batch, random_state, parents, hooks)
 
-
 class MultiplyHue(MultiplyHueAndSaturation):
     """
     Multiply the hue of images by random values.
@@ -625,10 +588,6 @@ class MultiplyHue(MultiplyHueAndSaturation):
     RGB.
 
     This augmenter is a shortcut for ``MultiplyHueAndSaturation(mul_hue=...)``.
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.color.MultiplyHueAndSaturation`.
 
     Parameters
     ----------
@@ -640,22 +599,14 @@ class MultiplyHue(MultiplyHueAndSaturation):
         range ``[0, 180]`` instead of ``[0, 360]``).
         Only this or `mul` may be set, not both.
 
-            * If a number, then that multiplier will be used for all images.
-            * If a tuple ``(a, b)``, then a value from the continuous
-              range ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a StochasticParameter, then a value will be sampled from that
-              parameter per image.
-
     from_colorspace : str, optional
-        See :func:`~imgaug2.augmenters.color.change_colorspace_`.
+        See `change_colorspace_()`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -670,7 +621,6 @@ class MultiplyHue(MultiplyHueAndSaturation):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.MultiplyHue((0.5, 1.5))
 
     Multiply the hue channel of images using random values between ``0.5``
@@ -696,7 +646,6 @@ class MultiplyHue(MultiplyHueAndSaturation):
             deterministic=deterministic,
         )
 
-
 class MultiplySaturation(MultiplyHueAndSaturation):
     """
     Multiply the saturation of images by random values.
@@ -708,32 +657,20 @@ class MultiplySaturation(MultiplyHueAndSaturation):
     This augmenter is a shortcut for
     ``MultiplyHueAndSaturation(mul_saturation=...)``.
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.color.MultiplyHueAndSaturation`.
-
     Parameters
     ----------
     mul : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Multiplier with which to multiply all saturation values.
         It is expected to be in the range ``0.0`` to ``+10.0``.
 
-            * If a number, then that value will be used for all images.
-            * If a tuple ``(a, b)``, then a value from the continuous
-              range ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a StochasticParameter, then a value will be sampled from that
-              parameter per image.
-
     from_colorspace : str, optional
-        See :func:`~imgaug2.augmenters.color.change_colorspace_`.
+        See `change_colorspace_()`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -748,7 +685,6 @@ class MultiplySaturation(MultiplyHueAndSaturation):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.MultiplySaturation((0.5, 1.5))
 
     Multiply the saturation channel of images using random values between
@@ -774,19 +710,13 @@ class MultiplySaturation(MultiplyHueAndSaturation):
             deterministic=deterministic,
         )
 
-
 @legacy(version="0.4.0")
 class RemoveSaturation(MultiplySaturation):
     """Decrease the saturation of images by varying degrees.
 
-    This creates images looking similar to :class:`Grayscale`.
+    This creates images looking similar to `Grayscale`.
 
     This augmenter is the same as ``MultiplySaturation((0.0, 1.0))``.
-
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.color.MultiplySaturation`.
 
     Parameters
     ----------
@@ -796,22 +726,14 @@ class RemoveSaturation(MultiplySaturation):
         all saturation, ``0.0`` will remove nothing.
         Expected value range is ``[0.0, 1.0]``.
 
-            * If a number, then that value will be used for all images.
-            * If a tuple ``(a, b)``, then a value from the continuous
-              range ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a StochasticParameter, then a value will be sampled from that
-              parameter per image.
-
     from_colorspace : str, optional
-        See :func:`~imgaug2.augmenters.color.change_colorspace_`.
+        See `change_colorspace_()`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -826,7 +748,6 @@ class RemoveSaturation(MultiplySaturation):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.RemoveSaturation((0.0, 1.0))
 
     Create an augmenter that decreases saturation by varying degrees.
@@ -834,7 +755,7 @@ class RemoveSaturation(MultiplySaturation):
     >>> aug = iaa.RemoveSaturation(1.0)
 
     Create an augmenter that removes all saturation from input images.
-    This is similar to :class:`Grayscale`.
+    This is similar to `Grayscale`.
 
     >>> aug = iaa.RemoveSaturation(from_colorspace=iaa.CSPACE_BGR)
 
@@ -869,7 +790,6 @@ class RemoveSaturation(MultiplySaturation):
             deterministic=deterministic,
         )
 
-
 # TODO removed deterministic and random_state here as parameters, because this
 # function creates multiple child augmenters. not sure if this is sensible
 # (give them all the same random state instead?)
@@ -888,19 +808,19 @@ def AddToHueAndSaturation(value=0, per_channel=False, from_colorspace="RGB",
     Parameters
     ----------
     value : int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
-        See :func:`~imgaug2.augmenters.arithmetic.Add.__init__()`.
+        See `__init__()()`.
 
     per_channel : bool or float, optional
-        See :func:`~imgaug2.augmenters.arithmetic.Add.__init__()`.
+        See `__init__()()`.
 
     from_colorspace : str, optional
-        See :func:`~imgaug2.augmenters.color.change_colorspace_`.
+        See `change_colorspace_()`.
 
     channels : int or list of int or None, optional
-        See :func:`~imgaug2.augmenters.meta.WithChannels.__init__()`.
+        See `__init__()()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     Examples
     --------
@@ -925,7 +845,6 @@ def AddToHueAndSaturation(value=0, per_channel=False, from_colorspace="RGB",
     )
 """
 
-
 class AddToHueAndSaturation(meta.Augmenter):
     """
     Increases or decreases hue and saturation by random values.
@@ -938,10 +857,6 @@ class AddToHueAndSaturation(meta.Augmenter):
 
     TODO add float support
 
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.color.change_colorspace_`.
-
     Parameters
     ----------
     value : None or int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
@@ -950,13 +865,6 @@ class AddToHueAndSaturation(meta.Augmenter):
 
             * If this is ``None``, `value_hue` and/or `value_saturation`
               may be set to values other than ``None``.
-            * If an integer, then that value will be used for all images.
-            * If a tuple ``(a, b)``, then a value from the discrete
-              range ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a StochasticParameter, then a value will be sampled from that
-              parameter per image.
 
     value_hue : None or int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
         Value to add to the hue of all pixels.
@@ -968,13 +876,6 @@ class AddToHueAndSaturation(meta.Augmenter):
 
             * If this and `value_saturation` are both ``None``, `value` may
               be set to a non-``None`` value.
-            * If an integer, then that value will be used for all images.
-            * If a tuple ``(a, b)``, then a value from the discrete
-              range ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a StochasticParameter, then a value will be sampled from that
-              parameter per image.
 
     value_saturation : None or int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
         Value to add to the saturation of all pixels.
@@ -983,13 +884,6 @@ class AddToHueAndSaturation(meta.Augmenter):
 
             * If this and `value_hue` are both ``None``, `value` may
               be set to a non-``None`` value.
-            * If an integer, then that value will be used for all images.
-            * If a tuple ``(a, b)``, then a value from the discrete
-              range ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a StochasticParameter, then a value will be sampled from that
-              parameter per image.
 
     per_channel : bool or float, optional
         Whether to sample per image only one value from `value` and use it for
@@ -998,17 +892,17 @@ class AddToHueAndSaturation(meta.Augmenter):
         If this value is a float ``p``, then for ``p`` percent of all images
         `per_channel` will be treated as ``True``, otherwise as ``False``.
 
-        This parameter has no effect is `value_hue` and/or `value_saturation`
+        This parameter has no effect if `value_hue` and/or `value_saturation`
         are used instead of `value`.
 
     from_colorspace : str, optional
-        See :func:`~imgaug2.augmenters.color.change_colorspace_`.
+        See `change_colorspace_()`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -1023,7 +917,6 @@ class AddToHueAndSaturation(meta.Augmenter):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.AddToHueAndSaturation((-50, 50), per_channel=True)
 
     Add random values between ``-50`` and ``50`` to the hue and saturation
@@ -1120,7 +1013,7 @@ class AddToHueAndSaturation(meta.Augmenter):
 
         # MLX fast-path
         if is_mlx_array(images):
-            from imgaug2.mlx._core import to_mlx, mx
+            from imgaug2.mlx._core import mx, to_mlx
 
             images_mlx = images
             # RGB -> HSV
@@ -1247,7 +1140,7 @@ class AddToHueAndSaturation(meta.Augmenter):
         return image_hsv
 
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [
             self.value,
             self.value_hue,
@@ -1333,7 +1226,6 @@ class AddToHueAndSaturation(meta.Augmenter):
             table[1][255 + i, :] = table_saturation
         return table
 
-
 class AddToHue(AddToHueAndSaturation):
     """
     Add random values to the hue of images.
@@ -1347,10 +1239,6 @@ class AddToHue(AddToHueAndSaturation):
 
     This augmenter is a shortcut for ``AddToHueAndSaturation(value_hue=...)``.
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.color.AddToHueAndSaturation`.
-
     Parameters
     ----------
     value : None or int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
@@ -1360,22 +1248,14 @@ class AddToHue(AddToHueAndSaturation):
         ``(hue/255) * (360/2)`` (OpenCV's hue representation is in the
         range ``[0, 180]`` instead of ``[0, 360]``).
 
-            * If an integer, then that value will be used for all images.
-            * If a tuple ``(a, b)``, then a value from the discrete
-              range ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a StochasticParameter, then a value will be sampled from that
-              parameter per image.
-
     from_colorspace : str, optional
-        See :func:`~imgaug2.augmenters.color.change_colorspace_`.
+        See `change_colorspace_()`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -1390,7 +1270,6 @@ class AddToHue(AddToHueAndSaturation):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.AddToHue((-50, 50))
 
     Sample random values from the discrete uniform range ``[-50..50]``,
@@ -1417,7 +1296,6 @@ class AddToHue(AddToHueAndSaturation):
             deterministic=deterministic,
         )
 
-
 class AddToSaturation(AddToHueAndSaturation):
     """
     Add random values to the saturation of images.
@@ -1432,32 +1310,20 @@ class AddToSaturation(AddToHueAndSaturation):
     This augmenter is a shortcut for
     ``AddToHueAndSaturation(value_saturation=...)``.
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.color.AddToHueAndSaturation`.
-
     Parameters
     ----------
     value : None or int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
         Value to add to the saturation of all pixels.
         It is expected to be in the range ``-255`` to ``+255``.
 
-            * If an integer, then that value will be used for all images.
-            * If a tuple ``(a, b)``, then a value from the discrete
-              range ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a StochasticParameter, then a value will be sampled from that
-              parameter per image.
-
     from_colorspace : str, optional
-        See :func:`~imgaug2.augmenters.color.change_colorspace_`.
+        See `change_colorspace_()`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -1472,7 +1338,6 @@ class AddToSaturation(AddToHueAndSaturation):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.AddToSaturation((-50, 50))
 
     Sample random values from the discrete uniform range ``[-50..50]``,
