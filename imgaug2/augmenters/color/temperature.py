@@ -29,7 +29,6 @@ _PLANCKIAN_XYZ_TO_SRGB = np.array(
     dtype=np.float64,
 )
 
-
 @legacy(version="0.4.0")
 class _KelvinToRGBTableSingleton:
     _INSTANCE = None
@@ -40,7 +39,6 @@ class _KelvinToRGBTableSingleton:
         if cls._INSTANCE is None:
             cls._INSTANCE = _KelvinToRGBTable()
         return cls._INSTANCE
-
 
 @legacy(version="0.4.0")
 class _KelvinToRGBTable:
@@ -57,7 +55,6 @@ class _KelvinToRGBTable:
         A single returned multiplier denotes the channelwise multipliers
         in the range ``[0.0, 1.0]`` to apply to an image to change its kelvin
         value to the desired one.
-
 
         Parameters
         ----------
@@ -97,7 +94,6 @@ class _KelvinToRGBTable:
         _KelvinToRGBTable._TABLE = table
         return cast(Array, table)
 
-
 _PLANCKIAN_XYZ_TO_SRGB = np.array(
     [
         [3.2406, -1.5372, -0.4986],
@@ -106,7 +102,6 @@ _PLANCKIAN_XYZ_TO_SRGB = np.array(
     ],
     dtype=np.float64,
 )
-
 
 def _kelvin_to_rgb_planckian(kelvins: Array) -> Array:
     """Approximate black-body temperature -> RGB multipliers via Planckian locus.
@@ -171,7 +166,6 @@ def _kelvin_to_rgb_planckian(kelvins: Array) -> Array:
     rgb_norm = np.where(max_channel > 0.0, rgb / max_channel, 0.0)
     return rgb_norm.astype(np.float32)
 
-
 @legacy(version="0.4.0")
 def change_color_temperatures_(
     images: Images,
@@ -179,11 +173,6 @@ def change_color_temperatures_(
     from_colorspaces: ColorSpaceInput = CSPACE_RGB,
 ) -> Images:
     """Change in-place the temperature of images to given values in Kelvin.
-
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.color.change_colorspace_`.
 
     Parameters
     ----------
@@ -197,7 +186,7 @@ def change_color_temperatures_(
 
     from_colorspaces : str or list of str, optional
         The source colorspace.
-        See :func:`~imgaug2.augmenters.color.change_colorspaces_`.
+        See `change_colorspaces_()`.
         Defaults to ``RGB``.
 
     Returns
@@ -280,17 +269,11 @@ def change_color_temperatures_(
         images[i] = image_orig_cspace
     return images
 
-
 @legacy(version="0.4.0")
 def change_color_temperature(
     image: Array, kelvin: float | int, from_colorspace: ColorSpace = CSPACE_RGB
 ) -> Array:
     """Change the temperature of an image to a given value in Kelvin.
-
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.color.change_color_temperatures_`.
 
     Parameters
     ----------
@@ -304,7 +287,7 @@ def change_color_temperature(
 
     from_colorspace : str, optional
         The source colorspace.
-        See :func:`~imgaug2.augmenters.color.change_colorspaces_`.
+        See `change_colorspaces_()`.
         Defaults to ``RGB``.
 
     Returns
@@ -318,7 +301,6 @@ def change_color_temperature(
     return change_color_temperatures_fn(
         image[np.newaxis, ...], [kelvin], from_colorspaces=[from_colorspace]
     )[0]
-
 
 @legacy(version="0.4.0")
 class ChangeColorTemperature(meta.Augmenter):
@@ -334,28 +316,16 @@ class ChangeColorTemperature(meta.Augmenter):
     Basic method to change color temperatures taken from
     `<https://stackoverflow.com/a/11888449>`_
 
-
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.color.change_color_temperatures_`.
-
     Parameters
     ----------
     kelvin : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Temperature in Kelvin. The temperatures of images will be modified to
         this value. Must be in the interval ``[1000, 40000]``.
 
-            * If a number, exactly that value will always be used.
-            * If a ``tuple`` ``(a, b)``, then a value from the
-              interval ``[a, b]`` will be sampled per image.
-            * If a ``list``, then a random value will be sampled from that
             ``list`` per image.
-            * If a ``StochasticParameter``, then a value will be sampled per
-              image from that parameter.
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.ChangeColorTemperature((1100, 10000))
 
     Create an augmenter that changes the color temperature of images to
@@ -404,5 +374,5 @@ class ChangeColorTemperature(meta.Augmenter):
 
     @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [self.kelvin, self.from_colorspace]

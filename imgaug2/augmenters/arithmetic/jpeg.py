@@ -7,32 +7,18 @@ import imageio
 import numpy as np
 
 import imgaug2.dtypes as iadt
+import imgaug2.imgaug as ia
+import imgaug2.mlx.compression as mlx_compression
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
-from imgaug2.compat.markers import legacy
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
-
+from imgaug2.compat.markers import legacy
+from imgaug2.mlx._core import is_mlx_array
 
 def compress_jpeg(image: Array, compression: int) -> Array:
     """Compress an image using jpeg compression.
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: ?
-        * ``uint32``: ?
-        * ``uint64``: ?
-        * ``int8``: ?
-        * ``int16``: ?
-        * ``int32``: ?
-        * ``int64``: ?
-        * ``float16``: ?
-        * ``float32``: ?
-        * ``float64``: ?
-        * ``float128``: ?
-        * ``bool``: ?
 
     Parameters
     ----------
@@ -112,7 +98,6 @@ def compress_jpeg(image: Array, compression: int) -> Array:
         image = image[..., np.newaxis]
     return image
 
-
 class JpegCompression(meta.Augmenter):
     """
     Degrade the quality of images by JPEG-compressing them.
@@ -127,10 +112,6 @@ class JpegCompression(meta.Augmenter):
     the images with JPEG compression and then reloads them into arrays). It
     does not return the raw JPEG file content.
 
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.arithmetic.compress_jpeg`.
-
     Parameters
     ----------
     compression : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
@@ -142,21 +123,11 @@ class JpegCompression(meta.Augmenter):
         depending on the image. This translates here to a *compression*
         parameter of around 20 to 5.
 
-            * If a single number, then that value always will be used as the
-              compression.
-            * If a tuple ``(a, b)``, then the compression will be
-              a value sampled uniformly from the interval ``[a, b]``.
-            * If a list, then a random value will be sampled from that list
-              per image and used as the compression.
-            * If a ``StochasticParameter``, then ``N`` samples will be drawn
-              from that parameter per ``N`` input images, each representing the
-              compression for the ``n``-th image.
-
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -171,7 +142,6 @@ class JpegCompression(meta.Augmenter):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.JpegCompression(compression=(70, 99))
 
     Remove high frequency components in images via JPEG compression with
@@ -218,11 +188,24 @@ class JpegCompression(meta.Augmenter):
         nb_images = len(images)
         samples = self.compression.draw_samples((nb_images,), random_state=random_state)
 
+        # MLX fast-path
+        if is_mlx_array(images):
+            from imgaug2.mlx._core import mx
+
+            result_images = []
+            for i in range(nb_images):
+                compression = int(samples[i])
+                # Convert compression (0-100, higher=worse) to quality (1-100, higher=better)
+                quality = max(1, min(100, 100 - compression))
+                result_images.append(mlx_compression.jpeg_compression(images[i], quality))
+            batch.images = mx.stack(result_images, axis=0)
+            return batch
+
         for i, (image, sample) in enumerate(zip(images, samples, strict=True)):
             batch.images[i] = compress_jpeg(image, int(sample))
 
         return batch
 
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [self.compression]
