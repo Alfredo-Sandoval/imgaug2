@@ -15,7 +15,7 @@ from numpy.typing import NDArray
 import imgaug2.imgaug as ia
 
 from imgaug2.augmenters._blend_utils import blend_alpha
-from imgaug2.augmenters._size_utils import pad, pad_to_aspect_ratio
+from imgaug2.augmenters.size._utils import pad, pad_to_aspect_ratio
 
 
 @ia.deprecated(
@@ -164,9 +164,9 @@ class SegmentationMapsOnImage:
         """Return the seg.map array, with original dtype and shape ndim.
 
         Here, "original" denotes the dtype and number of shape dimensions that
-        was used when the :class:`SegmentationMapsOnImage` instance was
+        was used when the `SegmentationMapsOnImage` instance was
         created, i.e. upon the call of
-        :func:`SegmentationMapsOnImage.__init__`.
+        `__init__()`.
         Internally, this class may use a different dtype and shape to simplify
         computations.
 
@@ -180,7 +180,7 @@ class SegmentationMapsOnImage:
         ndarray
             Segmentation map array.
             Same dtype and number of dimensions as was originally used when
-            the :class:`SegmentationMapsOnImage` instance was created.
+            the `SegmentationMapsOnImage` instance was created.
 
         """
         input_dtype, input_ndim = self._input_was
@@ -213,7 +213,7 @@ class SegmentationMapsOnImage:
         ----------
         size : None or float or iterable of int or iterable of float, optional
             Size of the rendered RGB image as ``(height, width)``.
-            See :func:`~imgaug2.imgaug2.imresize_single_image` for details.
+            See `imresize_single_image()` for details.
             If set to ``None``, no resizing is performed and the size of the
             segmentation map array is used.
 
@@ -409,11 +409,11 @@ class SegmentationMapsOnImage:
             Must be ``0`` or greater.
 
         mode : str, optional
-            Padding mode to use. See :func:`~imgaug2.imgaug2.pad` for details.
+            Padding mode to use. See `pad()` for details.
 
         cval : number, optional
             Value to use for padding if `mode` is ``constant``.
-            See :func:`~imgaug2.imgaug2.pad` for details.
+            See `pad()` for details.
 
         Returns
         -------
@@ -454,11 +454,11 @@ class SegmentationMapsOnImage:
 
         mode : str, optional
             Padding mode to use.
-            See :func:`~imgaug2.imgaug2.pad` for details.
+            See `pad()` for details.
 
         cval : number, optional
             Value to use for padding if `mode` is ``constant``.
-            See :func:`~imgaug2.imgaug2.pad` for details.
+            See `pad()` for details.
 
         return_pad_amounts : bool, optional
             If ``False``, then only the padded instance will be returned.
@@ -471,7 +471,7 @@ class SegmentationMapsOnImage:
         Returns
         -------
         imgaug2.augmentables.segmaps.SegmentationMapsOnImage
-            Padded segmentation map as :class:`SegmentationMapsOnImage`
+            Padded segmentation map as `SegmentationMapsOnImage`
             instance.
 
         tuple of int
@@ -521,13 +521,13 @@ class SegmentationMapsOnImage:
         ----------
         sizes : float or iterable of int or iterable of float
             New size of the array in ``(height, width)``.
-            See :func:`~imgaug2.imgaug2.imresize_single_image` for details.
+            See `imresize_single_image()` for details.
 
         interpolation : None or str or int, optional
             The interpolation to use during resize.
             Nearest neighbour interpolation (``"nearest"``) is almost always
             the best choice.
-            See :func:`~imgaug2.imgaug2.imresize_single_image` for details.
+            See `imresize_single_image()` for details.
 
         Returns
         -------
@@ -555,14 +555,14 @@ class SegmentationMapsOnImage:
             Optionally the `arr` attribute to use for the new segmentation map
             instance. Will be copied from the old instance if not provided.
             See
-            :func:`~imgaug2.augmentables.segmaps.SegmentationMapsOnImage.__init__`
+            `__init__()`
             for details.
 
         shape : None or tuple of int, optional
             Optionally the shape attribute to use for the the new segmentation
             map instance. Will be copied from the old instance if not provided.
             See
-            :func:`~imgaug2.augmentables.segmaps.SegmentationMapsOnImage.__init__`
+            `__init__()`
             for details.
 
         Returns
@@ -589,14 +589,14 @@ class SegmentationMapsOnImage:
             Optionally the `arr` attribute to use for the new segmentation map
             instance. Will be copied from the old instance if not provided.
             See
-            :func:`~imgaug2.augmentables.segmaps.SegmentationMapsOnImage.__init__`
+            `__init__()`
             for details.
 
         shape : None or tuple of int, optional
             Optionally the shape attribute to use for the the new segmentation
             map instance. Will be copied from the old instance if not provided.
             See
-            :func:`~imgaug2.augmentables.segmaps.SegmentationMapsOnImage.__init__`
+            `__init__()`
             for details.
 
         Returns

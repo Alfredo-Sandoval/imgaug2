@@ -20,7 +20,7 @@ from imgaug2.augmentables.utils import (
     project_coords,
 )
 from imgaug2.compat.markers import legacy
-from imgaug2.augmenters._size_utils import pad as pad_
+from imgaug2.augmenters.size._utils import pad as pad_
 
 if TYPE_CHECKING:
     from imgaug2.augmentables.kps import Keypoint, KeypointsOnImage
@@ -1073,10 +1073,10 @@ class BoundingBox:
 
         This will automatically also draw the label, unless it is ``None``.
         To only draw the box rectangle use
-        :func:`~imgaug2.augmentables.bbs.BoundingBox.draw_box_on_image`.
+        `draw_box_on_image()`.
         To draw the label even if it is ``None`` or to configure e.g. its
         color, use
-        :func:`~imgaug2.augmentables.bbs.BoundingBox.draw_label_on_image`.
+        `draw_label_on_image()`.
 
         Parameters
         ----------
@@ -1353,7 +1353,7 @@ class BoundingBox:
         """Compare this and another BB's label and coordinates.
 
         This is the same as
-        :func:`~imgaug2.augmentables.bbs.BoundingBox.coords_almost_equals` but
+        `coords_almost_equals()` but
         additionally compares the labels.
 
 
@@ -1365,7 +1365,7 @@ class BoundingBox:
 
         max_distance : number, optional
             See
-            :func:`~imgaug2.augmentables.bbs.BoundingBox.coords_almost_equals`.
+            `coords_almost_equals()`.
 
         Returns
         -------
@@ -1386,7 +1386,7 @@ class BoundingBox:
         """Convert a ``(2P,) or (P,2) ndarray`` to a BB instance.
 
         This is the inverse of
-        :func:`~imgaug2.BoundingBoxesOnImage.to_xyxy_array`.
+        `to_xyxy_array()`.
 
 
         Parameters
@@ -1696,7 +1696,7 @@ class BoundingBoxesOnImage:
         """Convert an ``(N, 4) or (N, 2, 2) ndarray`` to a BBsOI instance.
 
         This is the inverse of
-        :func:`~imgaug2.BoundingBoxesOnImage.to_xyxy_array`.
+        `to_xyxy_array()`.
 
         Parameters
         ----------
@@ -1713,7 +1713,7 @@ class BoundingBoxesOnImage:
         Returns
         -------
         imgaug2.augmentables.bbs.BoundingBoxesOnImage
-            Object containing a list of :class:`BoundingBox` instances
+            Object containing a list of `BoundingBox` instances
             derived from the provided corner coordinates.
 
         """
@@ -1760,7 +1760,7 @@ class BoundingBoxesOnImage:
         Returns
         -------
         imgaug2.augmentables.bbs.BoundingBoxesOnImage
-            Object containing a list of :class:`BoundingBox` instances
+            Object containing a list of `BoundingBox` instances
             derived from the provided point soups.
 
         """
@@ -1778,7 +1778,7 @@ class BoundingBoxesOnImage:
         """Convert the ``BoundingBoxesOnImage`` object to an ``(N,4) ndarray``.
 
         This is the inverse of
-        :func:`~imgaug2.BoundingBoxesOnImage.from_xyxy_array`.
+        `from_xyxy_array()`.
 
         Parameters
         ----------
@@ -1873,7 +1873,7 @@ class BoundingBoxesOnImage:
         """Modify the BB coordinates of this instance in-place.
 
         See
-        :func:`~imgaug2.augmentables.bbs.BoundingBoxesOnImage.fill_from_xyxy_array_`.
+        `fill_from_xyxy_array_()`.
 
 
         Parameters

@@ -8,7 +8,7 @@ import numpy as np
 
 import imgaug2.imgaug as ia
 
-from imgaug2.augmenters._size_utils import pad, pad_to_aspect_ratio
+from imgaug2.augmenters.size._utils import pad, pad_to_aspect_ratio
 
 
 class HeatmapsOnImage:
@@ -105,10 +105,10 @@ class HeatmapsOnImage:
     def get_arr(self) -> np.ndarray:
         """Get the heatmap's array in value range provided to ``__init__()``.
 
-        The :class:`HeatmapsOnImage` object saves heatmaps internally in the
+        The `HeatmapsOnImage` object saves heatmaps internally in the
         value range ``[0.0, 1.0]``. This function converts the internal
         representation to ``[min, max]``, where ``min`` and ``max`` are
-        provided to :func:`HeatmapsOnImage.__init__` upon instantiation of
+        provided to `__init__()` upon instantiation of
         the object.
 
         Returns
@@ -142,7 +142,7 @@ class HeatmapsOnImage:
         ----------
         size : None or float or iterable of int or iterable of float, optional
             Size of the rendered RGB image as ``(height, width)``.
-            See :func:`~imgaug2.imgaug2.imresize_single_image` for details.
+            See `imresize_single_image()` for details.
             If set to ``None``, no resizing is performed and the size of the
             heatmaps array is used.
 
@@ -212,7 +212,7 @@ class HeatmapsOnImage:
 
         cmap : str or None, optional
             Name of the ``matplotlib`` color map to use.
-            See :func:`HeatmapsOnImage.draw` for details.
+            See `draw()` for details.
 
         resize : {'heatmaps', 'image'}, optional
             In case of size differences between the image and heatmaps,
@@ -320,11 +320,11 @@ class HeatmapsOnImage:
             Must be ``0`` or greater.
 
         mode : string, optional
-            Padding mode to use. See :func:`~imgaug2.imgaug2.pad` for details.
+            Padding mode to use. See `pad()` for details.
 
         cval : number, optional
             Value to use for padding `mode` is ``constant``.
-            See :func:`~imgaug2.imgaug2.pad` for details.
+            See `pad()` for details.
 
         Returns
         -------
@@ -371,11 +371,11 @@ class HeatmapsOnImage:
 
         mode : str, optional
             Padding mode to use.
-            See :func:`~imgaug2.imgaug2.pad` for details.
+            See `pad()` for details.
 
         cval : number, optional
             Value to use for padding if `mode` is ``constant``.
-            See :func:`~imgaug2.imgaug2.pad` for details.
+            See `pad()` for details.
 
         return_pad_amounts : bool, optional
             If ``False``, then only the padded instance will be returned.
@@ -388,7 +388,7 @@ class HeatmapsOnImage:
         Returns
         -------
         imgaug2.augmentables.heatmaps.HeatmapsOnImage
-            Padded heatmaps as :class:`HeatmapsOnImage` instance.
+            Padded heatmaps as `HeatmapsOnImage` instance.
 
         tuple of int
             Amounts by which the instance's array was padded on each side,
@@ -433,7 +433,7 @@ class HeatmapsOnImage:
         ----------
         block_size : int or tuple of int
             Size of each block of values to pool, aka kernel size.
-            See :func:`~imgaug2.imgaug2.pool` for details.
+            See `pool()` for details.
 
         Returns
         -------
@@ -456,7 +456,7 @@ class HeatmapsOnImage:
         ----------
         block_size : int or tuple of int
             Size of each block of values to pool, aka kernel size.
-            See :func:`~imgaug2.imgaug2.pool` for details.
+            See `pool()` for details.
 
         Returns
         -------
@@ -491,11 +491,11 @@ class HeatmapsOnImage:
         ----------
         sizes : float or iterable of int or iterable of float
             New size of the array in ``(height, width)``.
-            See :func:`~imgaug2.imgaug2.imresize_single_image` for details.
+            See `imresize_single_image()` for details.
 
         interpolation : None or str or int, optional
             The interpolation to use during resize.
-            See :func:`~imgaug2.imgaug2.imresize_single_image` for details.
+            See `imresize_single_image()` for details.
 
         Returns
         -------
@@ -564,7 +564,7 @@ class HeatmapsOnImage:
             Minimum value of the float heatmaps that the input array
             represents. This will usually be 0.0. In most other cases it will
             be close to the interval ``[0.0, 1.0]``.
-            Calling :func:`~imgaug2.HeatmapsOnImage.get_arr`, will automatically
+            Calling `get_arr()`, will automatically
             convert the interval ``[0.0, 1.0]`` float array to this
             ``[min, max]`` interval.
 
@@ -610,7 +610,7 @@ class HeatmapsOnImage:
             Minimum value of the float heatmaps that the input array
             represents. This will usually be 0.0. In most other cases it will
             be close to the interval ``[0.0, 1.0]``.
-            Calling :func:`~imgaug2.HeatmapsOnImage.get_arr`, will automatically
+            Calling `get_arr()`, will automatically
             convert the interval ``[0.0, 1.0]`` float array to this
             ``[min, max]`` interval.
 
