@@ -26,31 +26,19 @@ class BlendAlphaSimplexNoise(BlendAlphaElementwise):
 
     Before that named `SimplexNoiseAlpha`.
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.blend.BlendAlphaElementwise`.
-
     Parameters
     ----------
     foreground : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the foreground branch.
         High alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the foreground branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     background : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the background branch.
         Low alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the background branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     per_channel : bool or float, optional
         Whether to use the same factor for all channels (``False``)
@@ -65,44 +53,13 @@ class BlendAlphaSimplexNoise(BlendAlphaElementwise):
         image and then downscaled, so that no side exceeds `size_px_max`
         (aspect ratio is kept).
 
-            * If int, then that number will be used as the size for all
-              iterations.
-            * If tuple of two ``int`` s ``(a, b)``, then a value will be
-              sampled per iteration from the discrete interval ``[a..b]``.
-            * If a list of ``int`` s, then a value will be picked per iteration
-              at random from that list.
-            * If a ``StochasticParameter``, then a value will be sampled from
-              that parameter per iteration.
-
     upscale_method : None or imgaug2.ALL or str or list of str or imgaug2.parameters.StochasticParameter, optional
         After generating the noise maps in low resolution environments, they
         have to be upscaled to the input image size. This parameter controls
         the upscaling method.
 
-            * If ``None``, then either ``nearest`` or ``linear`` or ``cubic``
-              is picked. Most weight is put on ``linear``, followed by
-              ``cubic``.
-            * If ``imgaug2.ALL``, then either ``nearest`` or ``linear`` or
-              ``area`` or ``cubic`` is picked per iteration (all same
-              probability).
-            * If a string, then that value will be used as the method (must be
-              ``nearest`` or ``linear`` or ``area`` or ``cubic``).
-            * If list of string, then a random value will be picked from that
-              list per iteration.
-            * If ``StochasticParameter``, then a random value will be sampled
-              from that parameter per iteration.
-
     iterations : int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
         How often to repeat the simplex noise generation process per image.
-
-            * If ``int``, then that number will be used as the iterations for
-              all images.
-            * If tuple of two ``int`` s ``(a, b)``, then a value will be
-              sampled per image from the discrete interval ``[a..b]``.
-            * If a list of ``int`` s, then a value will be picked per image at
-              random from that list.
-            * If a ``StochasticParameter``, then a value will be sampled from
-              that parameter per image.
 
     aggregation_method : imgaug2.ALL or str or list of str or imgaug2.parameters.StochasticParameter, optional
         The noise maps (from each iteration) are combined to one noise map
@@ -112,40 +69,20 @@ class BlendAlphaSimplexNoise(BlendAlphaElementwise):
         minimum over all iteration's results, ``max`` the (elementwise)
         maximum and ``avg`` the (elementwise) average.
 
-            * If ``imgaug2.ALL``, then a random value will be picked per image
-              from the valid ones.
-            * If a string, then that value will always be used as the method.
-            * If a list of string, then a random value will be picked from
-              that list per image.
-            * If a ``StochasticParameter``, then a random value will be
-              sampled from that paramter per image.
-
     sigmoid : bool or number, optional
         Whether to apply a sigmoid function to the final noise maps, resulting
         in maps that have more extreme values (close to 0.0 or 1.0).
-
-            * If ``bool``, then a sigmoid will always (``True``) or never
-              (``False``) be applied.
-            * If a number ``p`` with ``0<=p<=1``, then a sigmoid will be
-              applied to ``p`` percent of all final noise maps.
 
     sigmoid_thresh : None or number or tuple of number or imgaug2.parameters.StochasticParameter, optional
         Threshold of the sigmoid, when applied. Thresholds above zero
         (e.g. ``5.0``) will move the saddle point towards the right, leading
         to more values close to 0.0.
 
-            * If ``None``, then ``Normal(0, 5.0)`` will be used.
-            * If number, then that threshold will be used for all images.
-            * If tuple of two numbers ``(a, b)``, then a random value will
-              be sampled per image from the interval ``[a, b]``.
-            * If ``StochasticParameter``, then a random value will be sampled
-              from that parameter per image.
-
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -160,7 +97,6 @@ class BlendAlphaSimplexNoise(BlendAlphaElementwise):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.BlendAlphaSimplexNoise(iaa.EdgeDetect(1.0))
 
     Detect per image all edges, mark them in a black and white image and
@@ -250,7 +186,6 @@ class BlendAlphaSimplexNoise(BlendAlphaElementwise):
             deterministic=deterministic,
         )
 
-
 @legacy(version="0.4.0")
 class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
     """Alpha-blend two image sources using frequency noise masks.
@@ -263,10 +198,6 @@ class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
 
     Before that named `FrequencyNoiseAlpha`.
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.blend.BlendAlphaElementwise`.
-
     Parameters
     ----------
     exponent : number or tuple of number of list of number or imgaug2.parameters.StochasticParameter, optional
@@ -274,34 +205,17 @@ class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
         Sane values are in the range ``-4`` (large blobs) to ``4`` (small
         patterns). To generate cloud-like structures, use roughly ``-2``.
 
-            * If number, then that number will be used as the exponent for all
-              iterations.
-            * If tuple of two numbers ``(a, b)``, then a value will be sampled
-              per iteration from the interval ``[a, b]``.
-            * If a list of numbers, then a value will be picked per iteration
-              at random from that list.
-            * If a ``StochasticParameter``, then a value will be sampled from
-              that parameter per iteration.
-
     foreground : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the foreground branch.
         High alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the foreground branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     background : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the background branch.
         Low alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the background branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     per_channel : bool or float, optional
         Whether to use the same factor for all channels (``False``)
@@ -316,45 +230,14 @@ class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
         image and then downscaled, so that no side exceeds `size_px_max`
         (aspect ratio is kept).
 
-            * If ``int``, then that number will be used as the size for all
-              iterations.
-            * If tuple of two ``int`` s ``(a, b)``, then a value will be
-              sampled per iteration from the discrete interval ``[a..b]``.
-            * If a list of ``int`` s, then a value will be picked per
-              iteration at random from that list.
-            * If a ``StochasticParameter``, then a value will be sampled from
-              that parameter per iteration.
-
     upscale_method : None or imgaug2.ALL or str or list of str or imgaug2.parameters.StochasticParameter, optional
         After generating the noise maps in low resolution environments, they
         have to be upscaled to the input image size. This parameter controls
         the upscaling method.
 
-            * If ``None``, then either ``nearest`` or ``linear`` or ``cubic``
-              is picked. Most weight is put on ``linear``, followed by
-              ``cubic``.
-            * If ``imgaug2.ALL``, then either ``nearest`` or ``linear`` or
-              ``area`` or ``cubic`` is picked per iteration (all same
-              probability).
-            * If string, then that value will be used as the method (must be
-              ``nearest`` or ``linear`` or ``area`` or ``cubic``).
-            * If list of string, then a random value will be picked from that
-              list per iteration.
-            * If ``StochasticParameter``, then a random value will be sampled
-              from that parameter per iteration.
-
     iterations : int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
         How often to repeat the simplex noise generation process per
         image.
-
-            * If ``int``, then that number will be used as the iterations for
-              all images.
-            * If tuple of two ``int`` s ``(a, b)``, then a value will be
-              sampled per image from the discrete interval ``[a..b]``.
-            * If a list of ``int`` s, then a value will be picked per image at
-              random from that list.
-            * If a ``StochasticParameter``, then a value will be sampled from
-              that parameter per image.
 
     aggregation_method : imgaug2.ALL or str or list of str or imgaug2.parameters.StochasticParameter, optional
         The noise maps (from each iteration) are combined to one noise map
@@ -364,40 +247,20 @@ class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
         over all iteration's results, ``max`` the (elementwise) maximum and
         ``avg`` the (elementwise) average.
 
-            * If ``imgaug2.ALL``, then a random value will be picked per image
-              from the valid ones.
-            * If a string, then that value will always be used as the method.
-            * If a list of string, then a random value will be picked from
-              that list per image.
-            * If a ``StochasticParameter``, then a random value will be sampled
-              from that parameter per image.
-
     sigmoid : bool or number, optional
         Whether to apply a sigmoid function to the final noise maps, resulting
         in maps that have more extreme values (close to ``0.0`` or ``1.0``).
-
-            * If ``bool``, then a sigmoid will always (``True``) or never
-              (``False``) be applied.
-            * If a number ``p`` with ``0<=p<=1``, then a sigmoid will be applied to
-              ``p`` percent of all final noise maps.
 
     sigmoid_thresh : None or number or tuple of number or imgaug2.parameters.StochasticParameter, optional
         Threshold of the sigmoid, when applied. Thresholds above zero
         (e.g. ``5.0``) will move the saddle point towards the right, leading to
         more values close to ``0.0``.
 
-            * If ``None``, then ``Normal(0, 5.0)`` will be used.
-            * If number, then that threshold will be used for all images.
-            * If tuple of two numbers ``(a, b)``, then a random value will
-              be sampled per image from the range ``[a, b]``.
-            * If ``StochasticParameter``, then a random value will be sampled
-              from that parameter per image.
-
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -412,7 +275,6 @@ class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.BlendAlphaFrequencyNoise(foreground=iaa.EdgeDetect(1.0))
 
     Detect per image all edges, mark them in a black and white image and
@@ -515,5 +377,3 @@ class BlendAlphaFrequencyNoise(BlendAlphaElementwise):
             random_state=random_state,
             deterministic=deterministic,
         )
-
-

@@ -19,19 +19,14 @@ class BlendAlphaHorizontalLinearGradient(BlendAlphaMask):
     mask.
 
     This class is a thin wrapper around
-    :class:`~imgaug2.augmenters.blend.BlendAlphaMask` together with
-    :class:`~imgaug2.augmenters.blend.HorizontalLinearGradientMaskGen`.
+    `BlendAlphaMask` together with
+    `HorizontalLinearGradientMaskGen`.
 
     .. note::
 
         Avoid using augmenters as children that affect pixel locations (e.g.
         horizontal flips). See
-        :class:`~imgaug2.augmenters.blend.BlendAlphaMask` for details.
-
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.blend.BlendAlphaMask`.
+        `BlendAlphaMask` for details.
 
     Parameters
     ----------
@@ -39,39 +34,31 @@ class BlendAlphaHorizontalLinearGradient(BlendAlphaMask):
         Augmenter(s) that make up the foreground branch.
         High alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the foreground branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     background : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the background branch.
         Low alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the background branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     min_value : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.blend.HorizontalLinearGradientMaskGen`.
+        See `HorizontalLinearGradientMaskGen`.
 
     max_value : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.blend.HorizontalLinearGradientMaskGen`.
+        See `HorizontalLinearGradientMaskGen`.
 
     start_at : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.blend.HorizontalLinearGradientMaskGen`.
+        See `HorizontalLinearGradientMaskGen`.
 
     end_at : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.blend.HorizontalLinearGradientMaskGen`.
+        See `HorizontalLinearGradientMaskGen`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -86,7 +73,6 @@ class BlendAlphaHorizontalLinearGradient(BlendAlphaMask):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.BlendAlphaHorizontalLinearGradient(iaa.AddToHue((-100, 100)))
 
     Create an augmenter that randomizes the hue towards the right of the
@@ -138,7 +124,6 @@ class BlendAlphaHorizontalLinearGradient(BlendAlphaMask):
             deterministic=deterministic,
         )
 
-
 @legacy(version="0.4.0")
 class BlendAlphaVerticalLinearGradient(BlendAlphaMask):
     """Blend images from two branches along a vertical linear gradient.
@@ -149,19 +134,14 @@ class BlendAlphaVerticalLinearGradient(BlendAlphaMask):
     mask.
 
     This class is a thin wrapper around
-    :class:`~imgaug2.augmenters.blend.BlendAlphaMask` together with
-    :class:`~imgaug2.augmenters.blend.VerticalLinearGradientMaskGen`.
+    `BlendAlphaMask` together with
+    `VerticalLinearGradientMaskGen`.
 
     .. note::
 
         Avoid using augmenters as children that affect pixel locations (e.g.
         horizontal flips). See
-        :class:`~imgaug2.augmenters.blend.BlendAlphaMask` for details.
-
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.blend.BlendAlphaMask`.
+        `BlendAlphaMask` for details.
 
     Parameters
     ----------
@@ -169,39 +149,31 @@ class BlendAlphaVerticalLinearGradient(BlendAlphaMask):
         Augmenter(s) that make up the foreground branch.
         High alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the foreground branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     background : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the background branch.
         Low alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the background branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     min_value : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.blend.VerticalLinearGradientMaskGen`.
+        See `VerticalLinearGradientMaskGen`.
 
     max_value : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.blend.VerticalLinearGradientMaskGen`.
+        See `VerticalLinearGradientMaskGen`.
 
     start_at : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.blend.VerticalLinearGradientMaskGen`.
+        See `VerticalLinearGradientMaskGen`.
 
     end_at : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.blend.VerticalLinearGradientMaskGen`.
+        See `VerticalLinearGradientMaskGen`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -216,7 +188,6 @@ class BlendAlphaVerticalLinearGradient(BlendAlphaMask):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.BlendAlphaVerticalLinearGradient(iaa.AddToHue((-100, 100)))
 
     Create an augmenter that randomizes the hue towards the bottom of the
@@ -274,5 +245,3 @@ class BlendAlphaVerticalLinearGradient(BlendAlphaMask):
             random_state=random_state,
             deterministic=deterministic,
         )
-
-

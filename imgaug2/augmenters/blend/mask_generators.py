@@ -28,8 +28,7 @@ class IBatchwiseMaskGenerator(metaclass=ABCMeta):
 
     Child classes are supposed to receive a batch and generate an iterable
     of masks, one per row (i.e. image), matching the row shape (i.e. image
-    shape). This is used in :class:`~imgaug2.augmenters.blend.BlendAlphaMask`.
-
+    shape). This is used in `BlendAlphaMask`.
 
     """
 
@@ -46,7 +45,7 @@ class IBatchwiseMaskGenerator(metaclass=ABCMeta):
         random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
             A seed or random number generator to use during the sampling
             process. If ``None``, the global RNG will be used.
-            See also :func:`~imgaug2.augmenters.meta.Augmenter.__init__`
+            See also `__init__()`
             for a similar parameter with more details.
 
         Returns
@@ -61,7 +60,6 @@ class IBatchwiseMaskGenerator(metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-
 @legacy(version="0.4.0")
 class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
     """Mask generator that queries stochastic parameters for mask values.
@@ -72,7 +70,6 @@ class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
     either a ``(H, W)`` mask (if ``per_channel`` is false-like) or a
     ``(H, W, C)`` mask (if ``per_channel`` is true-like).
     The ``per_channel`` is sampled per batch for each row/image.
-
 
     Parameters
     ----------
@@ -101,7 +98,7 @@ class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
     @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
-        See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
+        See `draw_masks()`.
 
         """
         shapes = batch.get_rowwise_shapes()
@@ -139,7 +136,6 @@ class StochasticParameterMaskGen(IBatchwiseMaskGenerator):
 
         return mask
 
-
 @legacy(version="0.4.0")
 class SomeColorsMaskGen(IBatchwiseMaskGenerator):
     """Generator that produces masks based on some similar colors in images.
@@ -169,11 +165,6 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         This mask generator will produce an ``AssertionError`` for batches
         that contain no images.
 
-
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.color.change_colorspaces_`.
-
     Parameters
     ----------
     nb_bins : int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
@@ -181,26 +172,10 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         degrees of colors in the hue channel. Lower values lead to a coarser
         selection of colors. Expected value range is ``[2, 256]``.
 
-            * If ``int``: Exactly that value will be used for all images.
-            * If ``tuple`` ``(a, b)``: A random value will be uniformly sampled
-              per image from the discrete interval ``[a..b]``.
-            * If ``list``: A random value will be picked per image from that
-              list.
-            * If ``StochasticParameter``: That parameter will be queried once
-              per batch for ``(N,)`` values -- one per image.
-
     smoothness : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Strength of the 1D gaussian kernel applied to the sampled binwise
         alpha values. Larger values will lead to more similar grayscaling of
         neighbouring colors. Expected value range is ``[0.0, 1.0]``.
-
-            * If ``number``: Exactly that value will be used for all images.
-            * If ``tuple`` ``(a, b)``: A random value will be uniformly sampled
-              per image from the interval ``[a, b]``.
-            * If ``list``: A random value will be picked per image from that
-              list.
-            * If ``StochasticParameter``: That parameter will be queried once
-              per batch for ``(N,)`` values -- one per image.
 
     alpha : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Parameter to sample binwise alpha blending factors from. Expected
@@ -213,13 +188,6 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         all bins and hence all pixels in the generated mask will have the
         same value.
 
-            * If ``number``: Exactly that value will be used for all bins.
-            * If ``tuple`` ``(a, b)``: A random value will be uniformly sampled
-              per bin from the interval ``[a, b]``.
-            * If ``list``: A random value will be picked per bin from that list.
-            * If ``StochasticParameter``: That parameter will be queried once
-              per batch for ``(N*B,)`` values -- one per image and bin.
-
     rotation_deg : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Rotiational shift of each bin as a fraction of ``360`` degrees.
         E.g. ``0.0`` will not shift any bins, while a value of ``0.5`` will
@@ -228,17 +196,9 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         range is ``[-360, 360]``. This parameter can usually be kept at the
         default value.
 
-            * If ``number``: Exactly that value will be used for all images.
-            * If ``tuple`` ``(a, b)``: A random value will be uniformly sampled
-              per image from the interval ``[a, b]``.
-            * If ``list``: A random value will be picked per image from that
-              list.
-            * If ``StochasticParameter``: That parameter will be queried once
-              per batch for ``(N,)`` values -- one per image.
-
     from_colorspace : str, optional
         The source colorspace (of the input images).
-        See :func:`~imgaug2.augmenters.color.change_colorspace_`.
+        See `change_colorspace_()`.
 
     """
 
@@ -285,7 +245,7 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
     @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
-        See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
+        See `draw_masks()`.
 
         """
         assert batch.images is not None, (
@@ -339,7 +299,6 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         from_colorspace: str,
     ) -> Array:
         """Generate a colorwise alpha mask for a single image.
-
 
         Parameters
         ----------
@@ -450,7 +409,6 @@ class SomeColorsMaskGen(IBatchwiseMaskGenerator):
         mask = ia.apply_lut(hue, table)
         return mask.astype(np.float32) / 255.0
 
-
 @legacy(version="0.4.0")
 class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
     @legacy(version="0.4.0")
@@ -487,8 +445,7 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
     @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
-        See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
-
+        See `draw_masks()`.
 
         """
         random_state = iarandom.RNG.create_if_not_rng_(random_state)
@@ -532,7 +489,6 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
         end_at: float,
     ) -> Array:
         """Generate a horizontal gradient mask.
-
 
         Parameters
         ----------
@@ -608,7 +564,6 @@ class _LinearGradientMaskGen(IBatchwiseMaskGenerator):
 
         return mask
 
-
 @legacy(version="0.4.0")
 class HorizontalLinearGradientMaskGen(_LinearGradientMaskGen):
     """Generator that produces horizontal linear gradient masks.
@@ -624,7 +579,6 @@ class HorizontalLinearGradientMaskGen(_LinearGradientMaskGen):
 
     Note that this has nothing to do with a *derivative* along the x-axis.
 
-
     Parameters
     ----------
     min_value : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
@@ -633,13 +587,6 @@ class HorizontalLinearGradientMaskGen(_LinearGradientMaskGen):
         Note that `min_value` is allowed to be larger than `max_value`,
         in which case the gradient will start at the (higher) `min_value`
         and decrease towards the (lower) `max_value`.
-
-        * If ``number``: Exactly that value will be used for all images.
-        * If ``tuple`` ``(a, b)``: A random value will be uniformly sampled
-          per image from the interval ``[a, b]``.
-        * If ``list``: A random value will be picked per image from that list.
-        * If ``StochasticParameter``: That parameter will be queried once
-          per batch for ``(N,)`` values -- one per image.
 
     max_value : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Maximum value that the mask will have at the end of the
@@ -688,7 +635,6 @@ class HorizontalLinearGradientMaskGen(_LinearGradientMaskGen):
     ) -> Array:
         """Generate a linear horizontal gradient mask.
 
-
         Parameters
         ----------
         shape : tuple of int
@@ -725,14 +671,12 @@ class HorizontalLinearGradientMaskGen(_LinearGradientMaskGen):
             end_at=end_at,
         )
 
-
 @legacy(version="0.4.0")
 class VerticalLinearGradientMaskGen(_LinearGradientMaskGen):
     """Generator that produces vertical linear gradient masks.
 
-    See :class:`~imgaug2.augmenters.blend.HorizontalLinearGradientMaskGen`
+    See `HorizontalLinearGradientMaskGen`
     for details.
-
 
     Parameters
     ----------
@@ -742,13 +686,6 @@ class VerticalLinearGradientMaskGen(_LinearGradientMaskGen):
         Note that `min_value` is allowed to be larger than `max_value`,
         in which case the gradient will start at the (higher) `min_value`
         and decrease towards the (lower) `max_value`.
-
-        * If ``number``: Exactly that value will be used for all images.
-        * If ``tuple`` ``(a, b)``: A random value will be uniformly sampled
-          per image from the interval ``[a, b]``.
-        * If ``list``: A random value will be picked per image from that list.
-        * If ``StochasticParameter``: That parameter will be queried once
-          per batch for ``(N,)`` values -- one per image.
 
     max_value : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Maximum value that the mask will have at the end of the
@@ -797,7 +734,6 @@ class VerticalLinearGradientMaskGen(_LinearGradientMaskGen):
     ) -> Array:
         """Generate a linear horizontal gradient mask.
 
-
         Parameters
         ----------
         shape : tuple of int
@@ -834,7 +770,6 @@ class VerticalLinearGradientMaskGen(_LinearGradientMaskGen):
             end_at=end_at,
         )
 
-
 @legacy(version="0.4.0")
 class RegularGridMaskGen(IBatchwiseMaskGenerator):
     """Generate masks following a regular grid pattern.
@@ -843,36 +778,20 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
     ``H`` rows and ``W`` columns. Each cell is then filled with an alpha
     value, sampled randomly per cell.
 
-    The difference to :class:`CheckerboardMaskGen` is that this mask generator
+    The difference to `CheckerboardMaskGen` is that this mask generator
     samples random alpha values per cell, while in the checkerboard the
     alpha values follow a fixed pattern.
-
 
     Parameters
     ----------
     nb_rows : int or tuple of int or list of int or imgaug2.parameters.StochasticParameter
         Number of rows of the regular grid.
 
-            * If ``int``: Exactly that value will be used for all images.
-            * If ``tuple`` ``(a, b)``: A random value will be uniformly sampled
-              per image from the discrete interval ``[a..b]``.
-            * If ``list``: A random value will be picked per image from that
-              list.
-            * If ``StochasticParameter``: That parameter will be queried once
-              per batch for ``(N,)`` values -- one per image.
-
     nb_cols : int or tuple of int or list of int or imgaug2.parameters.StochasticParameter
         Number of columns of the checkerboard. Analogous to `nb_rows`.
 
     alpha : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Alpha value of each cell.
-
-        * If ``number``: Exactly that value will be used for all images.
-        * If ``tuple`` ``(a, b)``: A random value will be uniformly sampled
-          per image from the interval ``[a, b]``.
-        * If ``list``: A random value will be picked per image from that list.
-        * If ``StochasticParameter``: That parameter will be queried once
-          per batch for ``(N,)`` values -- one per image.
 
     """
 
@@ -907,8 +826,7 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
     @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
-        See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
-
+        See `draw_masks()`.
 
         """
         random_state = iarandom.RNG.create_if_not_rng_(random_state)
@@ -941,7 +859,6 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
         cls, shape: tuple[int, ...], nb_rows: int, nb_cols: int, alphas: Array
     ) -> Array:
         """Generate a mask following a checkerboard pattern.
-
 
         Parameters
         ----------
@@ -1001,7 +918,6 @@ class RegularGridMaskGen(IBatchwiseMaskGenerator):
 
         return mask
 
-
 @legacy(version="0.4.0")
 class CheckerboardMaskGen(IBatchwiseMaskGenerator):
     """Generate masks following a checkerboard-like pattern.
@@ -1012,19 +928,10 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
     and bottom neighbour cells are ``0.0``. The 4-neighbours of any cell always
     have a value opposite to the cell's value (``0.0`` vs. ``1.0``).
 
-
     Parameters
     ----------
     nb_rows : int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
         Number of rows of the checkerboard.
-
-            * If ``int``: Exactly that value will be used for all images.
-            * If ``tuple`` ``(a, b)``: A random value will be uniformly sampled
-              per image from the discrete interval ``[a..b]``.
-            * If ``list``: A random value will be picked per image from that
-              list.
-            * If ``StochasticParameter``: That parameter will be queried once
-              per batch for ``(N,)`` values -- one per image.
 
     nb_cols : int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
         Number of columns of the checkerboard. Analogous to `nb_rows`.
@@ -1039,7 +946,6 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
     def nb_rows(self) -> iap.StochasticParameter:
         """Get the number of rows of the checkerboard grid.
 
-
         Returns
         -------
         int
@@ -1053,7 +959,6 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
     def nb_cols(self) -> iap.StochasticParameter:
         """Get the number of columns of the checkerboard grid.
 
-
         Returns
         -------
         int
@@ -1065,8 +970,7 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
     @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
-        See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
-
+        See `draw_masks()`.
 
         """
         random_state = iarandom.RNG.create_if_not_rng_(random_state)
@@ -1082,7 +986,6 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
     @classmethod
     def generate_mask(cls, shape: tuple[int, ...], nb_rows: int, nb_cols: int) -> Array:
         """Generate a mask following a checkerboard pattern.
-
 
         Parameters
         ----------
@@ -1115,7 +1018,6 @@ class CheckerboardMaskGen(IBatchwiseMaskGenerator):
 
         return RegularGridMaskGen.generate_mask(shape, nb_rows, nb_cols, alphas)
 
-
 @legacy(version="0.4.0")
 class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
     """Generator that produces masks highlighting segmentation map classes.
@@ -1139,7 +1041,6 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
         This class will produce an ``AssertionError`` if there are no
         segmentation maps in a batch.
 
-
     Parameters
     ----------
     class_ids : int or tuple of int or list of int or imgaug2.parameters.StochasticParameter
@@ -1152,16 +1053,6 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
         If `nb_sample_classes` is set, then this parameter will be treated
         as a stochastic parameter with the following valid types:
 
-            * If ``int``: Exactly that class id will be used for all
-              segmentation maps.
-            * If ``tuple`` ``(a, b)``: ``N`` random values will be uniformly
-              sampled per segmentation map from the discrete interval
-              ``[a..b]`` and used as the class ids.
-            * If ``list``: ``N`` random values will be picked per segmentation
-              map from that list and used as the class ids.
-            * If ``StochasticParameter``: That parameter will be queried once
-              per batch for ``(sum(N),)`` values.
-
         ``N`` denotes the number of classes to sample per segmentation
         map (derived from `nb_sample_classes`) and ``sum(N)`` denotes the
         sum of ``N`` s over all segmentation maps.
@@ -1170,19 +1061,6 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
         Number of class ids to sample (with replacement) per segmentation map.
         As sampling happens with replacement, fewer *unique* class ids may be
         sampled.
-
-            * If ``None``: `class_ids` is expected to be a fixed value of
-              class ids to be used for all segmentation maps.
-            * If ``int``: Exactly that many class ids will be sampled for all
-              segmentation maps.
-            * If ``tuple`` ``(a, b)``: A random value will be uniformly
-              sampled per segmentation map from the discrete interval
-              ``[a..b]``.
-            * If ``list`` or ``int``: A random value will be picked per
-              segmentation map from that list.
-            * If ``StochasticParameter``: That parameter will be queried once
-              per batch for ``(B,)`` values, where ``B`` is the number of
-              segmentation maps.
 
     """
 
@@ -1220,8 +1098,7 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
     @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
-        See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
-
+        See `draw_masks()`.
 
         """
         assert batch.segmentation_maps is not None, (
@@ -1262,7 +1139,6 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
     def generate_mask(cls, segmap: SegmentationMapsOnImage, class_ids: Sequence[int]) -> Array:
         """Generate a mask of where the segmentation map has the given classes.
 
-
         Parameters
         ----------
         segmap : imgaug2.augmentables.segmap.SegmentationMapsOnImage
@@ -1293,7 +1169,6 @@ class SegMapClassIdsMaskGen(IBatchwiseMaskGenerator):
 
         return mask
 
-
 @legacy(version="0.4.0")
 class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
     """Generator that produces masks highlighting bounding boxes.
@@ -1313,7 +1188,6 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
         This class will produce an ``AssertionError`` if there are no
         bounding boxes in a batch.
 
-
     Parameters
     ----------
     labels : None or str or list of str or imgaug2.parameters.StochasticParameter
@@ -1327,15 +1201,6 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
         If `nb_sample_labels` is set, then this parameter will be treated
         as a stochastic parameter with the following valid types:
 
-            * If ``None``: Ignore the sampling count  and always use all
-              bounding boxes.
-            * If ``str``: Exactly that label will be used for all
-              images.
-            * If ``list`` of ``str``: ``N`` random values will be picked per
-              image from that list and used as the labels.
-            * If ``StochasticParameter``: That parameter will be queried once
-              per batch for ``(sum(N),)`` values.
-
         ``N`` denotes the number of labels to sample per segmentation
         map (derived from `nb_sample_labels`) and ``sum(N)`` denotes the
         sum of ``N`` s over all images.
@@ -1344,18 +1209,6 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
         Number of labels to sample (with replacement) per image.
         As sampling happens with replacement, fewer *unique* labels may be
         sampled.
-
-            * If ``None``: `labels` is expected to also be ``None`` or a fixed
-              value of labels to be used for all images.
-            * If ``int``: Exactly that many labels will be sampled for all
-              images.
-            * If ``tuple`` ``(a, b)``: A random value will be uniformly
-              sampled per image from the discrete interval ``[a..b]``.
-            * If ``list``: A random value will be picked per image from
-              that list.
-            * If ``StochasticParameter``: That parameter will be queried once
-              per batch for ``(B,)`` values, where ``B`` is the number of
-              images.
 
     """
 
@@ -1391,8 +1244,7 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
     @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
-        See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
-
+        See `draw_masks()`.
 
         """
         assert batch.bounding_boxes is not None, (
@@ -1435,7 +1287,6 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
     def generate_mask(cls, bbsoi: BoundingBoxesOnImage, labels: Sequence[str] | None) -> Array:
         """Generate a mask of the areas of bounding boxes with given labels.
 
-
         Parameters
         ----------
         bbsoi : imgaug2.augmentables.bbs.BoundingBoxesOnImage
@@ -1469,7 +1320,6 @@ class BoundingBoxesMaskGen(IBatchwiseMaskGenerator):
 
         return mask
 
-
 @legacy(version="0.4.0")
 class InvertMaskGen(IBatchwiseMaskGenerator):
     """Generator that inverts the outputs of other mask generators.
@@ -1477,7 +1327,6 @@ class InvertMaskGen(IBatchwiseMaskGenerator):
     This class receives batches and calls for each row (i.e. image)
     a child mask generator to produce a mask. That mask is then inverted
     for ``p%`` of all rows, i.e. converted to ``1.0 - mask``.
-
 
     Parameters
     ----------
@@ -1498,8 +1347,7 @@ class InvertMaskGen(IBatchwiseMaskGenerator):
     @legacy(version="0.4.0")
     def draw_masks(self, batch: _BatchInAugmentation, random_state: RNGInput = None) -> list[Array]:
         """
-        See :func:`~imgaug2.augmenters.blend.IBatchwiseMaskGenerator.draw_masks`.
-
+        See `draw_masks()`.
 
         """
         random_state = iarandom.RNG.create_if_not_rng_(random_state)

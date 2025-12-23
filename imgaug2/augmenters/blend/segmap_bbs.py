@@ -17,14 +17,14 @@ class BlendAlphaSegMapClassIds(BlendAlphaMask):
     by specific classes in segmentation maps.
 
     This class is a thin wrapper around
-    :class:`~imgaug2.augmenters.blend.BlendAlphaMask` together with
-    :class:`~imgaug2.augmenters.blend.SegMapClassIdsMaskGen`.
+    `BlendAlphaMask` together with
+    `SegMapClassIdsMaskGen`.
 
     .. note::
 
         Avoid using augmenters as children that affect pixel locations (e.g.
         horizontal flips). See
-        :class:`~imgaug2.augmenters.blend.BlendAlphaMask` for details.
+        `BlendAlphaMask` for details.
 
     .. note::
 
@@ -37,44 +37,31 @@ class BlendAlphaSegMapClassIds(BlendAlphaMask):
         This class will produce an ``AssertionError`` if there are no
         segmentation maps in a batch.
 
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.blend.BlendAlphaMask`.
-
     Parameters
     ----------
     class_ids : int or tuple of int or list of int or imgaug2.parameters.StochasticParameter
-        See :class:`~imgaug2.augmenters.blend.SegMapClassIdsMaskGen`.
+        See `SegMapClassIdsMaskGen`.
 
     foreground : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the foreground branch.
         High alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the foreground branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     background : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the background branch.
         Low alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the background branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     nb_sample_classes : None or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.blend.SegMapClassIdsMaskGen`.
+        See `SegMapClassIdsMaskGen`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -89,7 +76,6 @@ class BlendAlphaSegMapClassIds(BlendAlphaMask):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.BlendAlphaSegMapClassIds(
     >>>     [1, 3],
     >>>     foreground=iaa.AddToHue((-100, 100)))
@@ -145,7 +131,6 @@ class BlendAlphaSegMapClassIds(BlendAlphaMask):
             deterministic=deterministic,
         )
 
-
 @legacy(version="0.4.0")
 class BlendAlphaBoundingBoxes(BlendAlphaMask):
     """Blend images from two branches based on areas enclosed in bounding boxes.
@@ -155,58 +140,45 @@ class BlendAlphaBoundingBoxes(BlendAlphaMask):
     covers the area and has one of the requested labels.
 
     This class is a thin wrapper around
-    :class:`~imgaug2.augmenters.blend.BlendAlphaMask` together with
-    :class:`~imgaug2.augmenters.blend.BoundingBoxesMaskGen`.
+    `BlendAlphaMask` together with
+    `BoundingBoxesMaskGen`.
 
     .. note::
 
         Avoid using augmenters as children that affect pixel locations (e.g.
         horizontal flips). See
-        :class:`~imgaug2.augmenters.blend.BlendAlphaMask` for details.
+        `BlendAlphaMask` for details.
 
     .. note::
 
         This class will produce an ``AssertionError`` if there are no
         bounding boxes in a batch.
 
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.blend.BlendAlphaMask`.
-
     Parameters
     ----------
     labels : None or str or list of str or imgaug2.parameters.StochasticParameter
-        See :class:`~imgaug2.augmenters.blend.BoundingBoxesMaskGen`.
+        See `BoundingBoxesMaskGen`.
 
     foreground : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the foreground branch.
         High alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the foreground branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     background : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the background branch.
         Low alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the background branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     nb_sample_labels : None or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.blend.BoundingBoxesMaskGen`.
+        See `BoundingBoxesMaskGen`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -221,7 +193,6 @@ class BlendAlphaBoundingBoxes(BlendAlphaMask):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.BlendAlphaBoundingBoxes("person",
     >>>                                   foreground=iaa.Grayscale(1.0))
 
@@ -278,5 +249,3 @@ class BlendAlphaBoundingBoxes(BlendAlphaMask):
             random_state=random_state,
             deterministic=deterministic,
         )
-
-

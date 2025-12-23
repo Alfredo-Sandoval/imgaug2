@@ -37,7 +37,7 @@ class BlendAlphaMask(meta.Augmenter):
     between a foreground branch of augmenters and a background branch.
     (Both branches default to the identity operation if not provided.)
 
-    See also :class:`~imgaug2.augmenters.blend.BlendAlpha`.
+    See also `BlendAlpha`.
 
     .. note::
 
@@ -58,11 +58,6 @@ class BlendAlphaMask(meta.Augmenter):
         (on an image) of the foreground or all of the background branch will
         be used, based on the average over the whole alpha mask.
 
-
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.blend.blend_alpha_`.
-
     Parameters
     ----------
     mask_generator : IBatchwiseMaskGenerator
@@ -72,27 +67,19 @@ class BlendAlphaMask(meta.Augmenter):
         Augmenter(s) that make up the foreground branch.
         High alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the foreground branch (i.e. identity function).
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     background : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the background branch.
         Low alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the background branch (i.e. identity function).
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -108,7 +95,6 @@ class BlendAlphaMask(meta.Augmenter):
     Examples
     --------
 
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.BlendAlphaMask(
     >>>     iaa.InvertMaskGen(0.5, iaa.VerticalLinearGradientMaskGen()),
     >>>     iaa.Sequential([
@@ -329,12 +315,12 @@ class BlendAlphaMask(meta.Augmenter):
 
     @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [self.mask_generator]
 
     @legacy(version="0.4.0")
     def get_children_lists(self) -> list[list[meta.Augmenter]]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
+        """See `get_children_lists()`."""
         return cast(
             list[list[meta.Augmenter]],
             [lst for lst in [self.foreground, self.background] if lst is not None],
@@ -352,32 +338,27 @@ class BlendAlphaMask(meta.Augmenter):
             self.deterministic,
         )
 
-
 @legacy(version="0.4.0")
 class BlendAlphaElementwise(BlendAlphaMask):
     """
     Alpha-blend two image sources using alpha/opacity values sampled per pixel.
 
-    This is the same as :class:`BlendAlpha`, except that the opacity factor is
+    This is the same as `BlendAlpha`, except that the opacity factor is
     sampled once per *pixel* instead of once per *image* (or a few times per
     image, if ``BlendAlpha.per_channel`` is set to ``True``).
 
-    See :class:`BlendAlpha` for more details.
+    See `BlendAlpha` for more details.
 
     This class is a wrapper around
-    :class:`~imgaug2.augmenters.blend.BlendAlphaMask`.
+    `BlendAlphaMask`.
 
     .. note::
 
         Avoid using augmenters as children that affect pixel locations (e.g.
         horizontal flips). See
-        :class:`~imgaug2.augmenters.blend.BlendAlphaMask` for details.
+        `BlendAlphaMask` for details.
 
     Before that named `AlphaElementwise`.
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.blend.BlendAlphaMask`.
 
     Parameters
     ----------
@@ -386,33 +367,17 @@ class BlendAlphaElementwise(BlendAlphaMask):
         ``0.0`` mean that the results from the background branch (see
         parameter `background`) make up most of the final image.
 
-            * If float, then that value will be used for all images.
-            * If tuple ``(a, b)``, then a random value from the interval
-              ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be picked from that list per
-              image.
-            * If ``StochasticParameter``, then that parameter will be used to
-              sample a value per image.
-
     foreground : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the foreground branch.
         High alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the foreground branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     background : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the background branch.
         Low alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the background branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     per_channel : bool or float, optional
         Whether to use the same factor for all channels (``False``)
@@ -421,10 +386,10 @@ class BlendAlphaElementwise(BlendAlphaMask):
         `per_channel` will be treated as True, otherwise as False.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -439,7 +404,6 @@ class BlendAlphaElementwise(BlendAlphaMask):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.BlendAlphaElementwise(0.5, iaa.Grayscale(1.0))
 
     Convert each image to pure grayscale and alpha-blend the result with the
@@ -521,8 +485,6 @@ class BlendAlphaElementwise(BlendAlphaMask):
     def factor(self) -> iap.StochasticParameter:
         return self.mask_generator.parameter
 
-
-
 @legacy(version="0.4.0")
 class BlendAlphaSomeColors(BlendAlphaMask):
     """Blend images from two branches using colorwise masks.
@@ -534,8 +496,8 @@ class BlendAlphaSomeColors(BlendAlphaMask):
     grayscale a few colors, while keeping other colors unchanged.
 
     This class is a thin wrapper around
-    :class:`~imgaug2.augmenters.blend.BlendAlphaMask` together with
-    :class:`~imgaug2.augmenters.blend.SomeColorsMaskGen`.
+    `BlendAlphaMask` together with
+    `SomeColorsMaskGen`.
 
     .. note::
 
@@ -546,12 +508,7 @@ class BlendAlphaSomeColors(BlendAlphaMask):
 
         Avoid using augmenters as children that affect pixel locations (e.g.
         horizontal flips). See
-        :class:`~imgaug2.augmenters.blend.BlendAlphaMask` for details.
-
-
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.color.change_colorspaces_`.
+        `BlendAlphaMask` for details.
 
     Parameters
     ----------
@@ -559,42 +516,34 @@ class BlendAlphaSomeColors(BlendAlphaMask):
         Augmenter(s) that make up the foreground branch.
         High alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the foreground branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     background : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the background branch.
         Low alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the background branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     nb_bins : int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.blend.SomeColorsMaskGen`.
+        See `SomeColorsMaskGen`.
 
     smoothness : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.blend.SomeColorsMaskGen`.
+        See `SomeColorsMaskGen`.
 
     alpha : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.blend.SomeColorsMaskGen`.
+        See `SomeColorsMaskGen`.
 
     rotation_deg : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`~imgaug2.augmenters.blend.SomeColorsMaskGen`.
+        See `SomeColorsMaskGen`.
 
     from_colorspace : str, optional
-        See :class:`~imgaug2.augmenters.blend.SomeColorsMaskGen`.
+        See `SomeColorsMaskGen`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -609,7 +558,6 @@ class BlendAlphaSomeColors(BlendAlphaMask):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.BlendAlphaSomeColors(iaa.Grayscale(1.0))
 
     Create an augmenter that turns randomly removes some colors in images by
@@ -677,5 +625,3 @@ class BlendAlphaSomeColors(BlendAlphaMask):
             random_state=random_state,
             deterministic=deterministic,
         )
-
-

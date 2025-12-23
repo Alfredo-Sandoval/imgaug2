@@ -34,7 +34,6 @@ AggregationMethodInput: TypeAlias = Literal["ALL"] | str | list[str] | iap.Stoch
 SigmoidInput: TypeAlias = bool | float
 LabelInput: TypeAlias = None | str | list[str] | iap.StochasticParameter
 
-
 class _BranchAugmenter(Protocol):
     foreground: meta.Augmenter | None
     background: meta.Augmenter | None
@@ -43,11 +42,10 @@ class _BranchAugmenter(Protocol):
 
     def copy(self) -> _BranchAugmenter: ...
 
-
 def blend_alpha(image_fg: Array, image_bg: Array, alpha: AlphaInput, eps: float = 1e-2) -> Array:
     """Blend two images using an alpha blending.
 
-    See :func:`imgaug2.augmenters._blend_utils.blend_alpha` for details.
+    See `blend_alpha()` for details.
     """
     from imgaug2.mlx._core import is_mlx_array
 
@@ -58,11 +56,10 @@ def blend_alpha(image_fg: Array, image_bg: Array, alpha: AlphaInput, eps: float 
 
     return blend_utils.blend_alpha(image_fg, image_bg, alpha, eps=eps)
 
-
 def blend_alpha_(image_fg: Array, image_bg: Array, alpha: AlphaInput, eps: float = 1e-2) -> Array:
     """Blend two images in-place using an alpha blending.
 
-    See :func:`imgaug2.augmenters._blend_utils.blend_alpha_` for details.
+    See `blend_alpha_()` for details.
     """
     from imgaug2.mlx._core import is_mlx_array
 
@@ -80,7 +77,6 @@ def _split_1d_array_to_list(arr: Array, sizes: Sequence[int]) -> list[Array]:
         result.append(arr[i : i + size])
         i += size
     return result
-
 
 @legacy(version="0.4.0")
 def _generate_branch_outputs(
@@ -113,7 +109,6 @@ def _generate_branch_outputs(
 
     return cast(_BatchInAugmentation, outputs_fg), cast(_BatchInAugmentation, outputs_bg)
 
-
 @legacy(version="0.4.0")
 def _to_deterministic(augmenter: _BranchAugmenter) -> _BranchAugmenter:
     aug = augmenter.copy()
@@ -122,7 +117,6 @@ def _to_deterministic(augmenter: _BranchAugmenter) -> _BranchAugmenter:
     aug.deterministic = True
     aug.random_state = augmenter.random_state.derive_rng_()
     return aug
-
 
 @legacy(version="0.4.0")
 class BlendAlpha(meta.Augmenter):
@@ -150,10 +144,6 @@ class BlendAlpha(meta.Augmenter):
 
     Before that named `Alpha`.
 
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.blend.blend_alpha_`.
-
     Parameters
     ----------
     factor : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
@@ -161,33 +151,17 @@ class BlendAlpha(meta.Augmenter):
         ``0.0`` mean that the results from the background branch (see
         parameter `background`) make up most of the final image.
 
-            * If float, then that value will be used for all images.
-            * If tuple ``(a, b)``, then a random value from the interval
-              ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be picked from that list per
-              image.
-            * If ``StochasticParameter``, then that parameter will be used to
-              sample a value per image.
-
     foreground : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the foreground branch.
         High alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the foreground branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     background : None or imgaug2.augmenters.meta.Augmenter or iterable of imgaug2.augmenters.meta.Augmenter, optional
         Augmenter(s) that make up the background branch.
         Low alpha values will show this branch's results.
 
-            * If ``None``, then the input images will be reused as the output
-              of the background branch.
             * If ``Augmenter``, then that augmenter will be used as the branch.
-            * If iterable of ``Augmenter``, then that iterable will be
-              converted into a ``Sequential`` and used as the augmenter.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use the same factor for all channels (``False``)
@@ -196,10 +170,10 @@ class BlendAlpha(meta.Augmenter):
         `per_channel` will be treated as True, otherwise as False.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -214,7 +188,6 @@ class BlendAlpha(meta.Augmenter):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.BlendAlpha(0.5, iaa.Grayscale(1.0))
 
     Convert each image to pure grayscale and alpha-blend the result with the
@@ -388,12 +361,12 @@ class BlendAlpha(meta.Augmenter):
 
     @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [self.factor, self.per_channel]
 
     @legacy(version="0.4.0")
     def get_children_lists(self) -> list[list[meta.Augmenter]]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_children_lists`."""
+        """See `get_children_lists()`."""
         return cast(
             list[list[meta.Augmenter]],
             [lst for lst in [self.foreground, self.background] if lst is not None],
@@ -413,5 +386,3 @@ class BlendAlpha(meta.Augmenter):
             self.background,
             self.deterministic,
         )
-
-
