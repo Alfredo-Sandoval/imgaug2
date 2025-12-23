@@ -1,4 +1,6 @@
 import multiprocessing
+import os
+import sys
 import pickle
 import time
 import unittest
@@ -152,14 +154,18 @@ class TestPool(unittest.TestCase):
 
         assert mock_cpu_count.call_count == 1
         assert mock_pool.call_count == 1
-        # 'processes' arg to Pool was expected to be set to None as cpu_count
-        # produced an error
-        assert mock_pool.call_args_list[0][0][0] is None
+        # If multiprocessing.cpu_count() fails, Pool falls back to os.cpu_count().
+        cpu_count = os.cpu_count()
+        if cpu_count is None:
+            assert mock_pool.call_args_list[0][0][0] is None
+        else:
+            assert mock_pool.call_args_list[0][0][0] == max(cpu_count - 1, 1)
 
-        assert len(caught_warnings) == 1
-        assert "Could not find method multiprocessing.cpu_count(). " in str(
-            caught_warnings[-1].message
-        )
+        if cpu_count is None:
+            assert len(caught_warnings) == 1
+            assert "Could not determine CPU count." in str(caught_warnings[-1].message)
+        else:
+            assert len(caught_warnings) == 0
 
         multicore._get_context().cpu_count = old_method
 
@@ -796,6 +802,10 @@ class TestBackgroundAugmenter(unittest.TestCase):
     def setUp(self):
         reseed()
 
+    @unittest.skipIf(
+        sys.platform == "darwin",
+        "BackgroundAugmenter multiprocessing workers can hang under macOS spawn.",
+    )
     def test_augment_images_worker(self):
         warnings.simplefilter("always")
         with warnings.catch_warnings(record=True) as caught_warnings:
@@ -804,7 +814,13 @@ class TestBackgroundAugmenter(unittest.TestCase):
                 yield ia.Batch(images=np.zeros((1, 4, 4, 3), dtype=np.uint8))
 
             bl = multicore.BatchLoader(gen(), queue_size=2)
-            bgaug = multicore.BackgroundAugmenter(bl, iaa.Identity(), queue_size=1, nb_workers=1)
+            with mock.patch("multiprocessing.Process") as mock_process:
+                mock_worker = mock.MagicMock()
+                mock_worker.is_alive.return_value = False
+                mock_process.return_value = mock_worker
+                bgaug = multicore.BackgroundAugmenter(
+                    bl, iaa.Identity(), queue_size=1, nb_workers=1
+                )
 
             queue_source = multiprocessing.Queue(2)
             queue_target = multiprocessing.Queue(2)

@@ -302,7 +302,7 @@ class TestRNG(_Base):
             ("multinomial", dict(n=5, pvals=[0.2, 0.3, 0.5], size=2), (2, 3)),
             ("negative_binomial", dict(n=10, p=0.5, size=(2,)), (2,)),
             ("poisson", dict(lam=1.5, size=(2,)), (2,)),
-            ("zipf", dict(a=1.0, size=(2,)), (2,)),
+            ("zipf", dict(a=1.5, size=(2,)), (2,)),
         ]
 
         for name, kwargs, expected_shape in float_specs:

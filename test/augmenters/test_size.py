@@ -823,8 +823,8 @@ class Test_compute_paddings_to_reach_multiples_of(unittest.TestCase):
 
 
 class Test_pad_to_multiples_of(unittest.TestCase):
-    @mock.patch("imgaug2.augmenters.size.compute_paddings_to_reach_multiples_of")
-    @mock.patch("imgaug2.augmenters.size.pad")
+    @mock.patch("imgaug2.augmenters.size._utils.compute_paddings_to_reach_multiples_of")
+    @mock.patch("imgaug2.augmenters.size._utils.pad")
     def test_mocked(self, mock_pad, mock_compute_pads):
         mock_compute_pads.return_value = (1, 2, 3, 4)
         mock_pad.return_value = "padded_array"
@@ -839,8 +839,8 @@ class Test_pad_to_multiples_of(unittest.TestCase):
         )
         assert arr_padded == "padded_array"
 
-    @mock.patch("imgaug2.augmenters.size.compute_paddings_to_reach_multiples_of")
-    @mock.patch("imgaug2.augmenters.size.pad")
+    @mock.patch("imgaug2.augmenters.size._utils.compute_paddings_to_reach_multiples_of")
+    @mock.patch("imgaug2.augmenters.size._utils.pad")
     def test_mocked_return_pad_amounts(self, mock_pad, mock_compute_pads):
         mock_compute_pads.return_value = (1, 2, 3, 4)
         mock_pad.return_value = "padded_array"

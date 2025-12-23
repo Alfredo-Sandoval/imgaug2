@@ -26,7 +26,7 @@ class TestMLXColor:
         image_mlx = to_mlx(image[None, ...])  # (1, H, W, C)
 
         # Testing _augment_batch_ directly:
-        from imgaug2.augmenters.meta import _BatchInAugmentation
+        from imgaug2.augmentables.batches import _BatchInAugmentation
 
         batch = _BatchInAugmentation(
             images=image_mlx,
@@ -57,7 +57,7 @@ class TestMLXColor:
         # Multiply H by 1.5 -> 120 * 1.5 = 180 (Cyan) [0, 255, 255]
         aug = iaa.MultiplyHueAndSaturation(mul_hue=1.5, mul_saturation=1.0)
 
-        from imgaug2.augmenters.meta import _BatchInAugmentation
+        from imgaug2.augmentables.batches import _BatchInAugmentation
 
         batch = _BatchInAugmentation(
             images=image_mlx,
@@ -98,7 +98,7 @@ class TestMLXColor:
         # Input 85 -> 60 OpenCV units = 120 degrees.
         aug = iaa.AddToHueAndSaturation(value_hue=85)
 
-        from imgaug2.augmenters.meta import _BatchInAugmentation
+        from imgaug2.augmentables.batches import _BatchInAugmentation
 
         batch = _BatchInAugmentation(
             images=image_mlx,

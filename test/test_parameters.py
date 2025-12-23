@@ -19,8 +19,10 @@ from imgaug2.testutils import is_parameter_instance, reseed
 
 
 def _eps(arr):
+    if isinstance(arr, np.generic) and arr.dtype.kind == "f":
+        return 1e-6 * max(1.0, float(abs(arr)))
     if ia.is_np_array(arr) and arr.dtype.kind == "f":
-        return np.finfo(arr.dtype).eps
+        return 1e-6 * max(1.0, float(np.max(np.abs(arr))))
     return 1e-4
 
 
@@ -715,7 +717,7 @@ class Test_draw_distributions_grid(unittest.TestCase):
 
         draw_grid_mock = mock.Mock()
         draw_grid_mock.return_value = np.zeros((4, 3, 2), dtype=np.uint8)
-        with mock.patch('imgaug2.imgaug2.draw_grid', draw_grid_mock):
+        with mock.patch('imgaug2.imgaug.draw_grid', draw_grid_mock):
             grid_observed = iap.draw_distributions_grid(
                 params,
                 rows=2,

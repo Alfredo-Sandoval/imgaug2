@@ -208,6 +208,30 @@ class TestMlxOpsEasyWins(unittest.TestCase):
         np.testing.assert_allclose(k1, expected_k1, atol=1e-6)
         np.testing.assert_allclose(k2, expected_k2, atol=1e-6)
 
+    def test_pillike_warp_affine_matches_pil(self):
+        import imgaug2.augmenters.pillike as pl
+
+        rng = np.random.default_rng(0)
+        image = rng.integers(0, 256, size=(64, 80, 3), dtype=np.uint8)
+
+        params = dict(
+            scale_x=1.0,
+            scale_y=1.0,
+            translate_x_px=3.0,
+            translate_y_px=-2.0,
+            rotate_deg=0.0,
+            shear_x_deg=0.0,
+            shear_y_deg=0.0,
+            fillcolor=(10, 20, 30),
+            center=(0.5, 0.5),
+        )
+
+        expected = pl.warp_affine(image, **params)
+        observed = pl.warp_affine(mx.array(image), **params)
+        observed_np = np.array(observed)
+
+        np.testing.assert_array_equal(observed_np, expected)
+
     def test_invert_and_solarize_match_numpy(self):
         from imgaug2.mlx import pointwise as mlx_pointwise
 
@@ -1788,7 +1812,7 @@ class TestMlxOpsPillike(unittest.TestCase):
         image = mx.array(rng.integers(0, 256, size=(32, 32, 3), dtype=np.uint8))
         mask = mx.array(rng.integers(0, 2, size=(32, 32), dtype=np.uint8) * 255)
 
-        out = mlx_pillike.equalize(image, mask=mask)
+        out = mlx_pillike.equalize(image, mask=mask, allow_cpu_fallback=True)
         assert isinstance(out, mx.array)
         assert out.shape == image.shape
 
@@ -1865,3 +1889,79 @@ class TestMlxPillikePolicy(unittest.TestCase):
 
         with self.assertRaises(NotImplementedError):
             mlx_pillike.autocontrast(image)
+
+
+@unittest.skipIf(not MLX_AVAILABLE, "mlx not installed")
+class TestMlxArithmeticOps(unittest.TestCase):
+    def test_add_elementwise_matches_numpy(self):
+        import imgaug2.augmenters.arithmetic as iaa_arith
+
+        rng = np.random.default_rng(0)
+        image = rng.integers(0, 256, size=(12, 10, 3), dtype=np.uint8)
+        values = rng.integers(-5, 6, size=(12, 10, 1), dtype=np.int16)
+
+        expected = iaa_arith.add_elementwise(np.copy(image), values)
+        observed = iaa_arith.add_elementwise(mx.array(image), mx.array(values))
+
+        np.testing.assert_array_equal(np.array(observed), expected)
+
+    def test_invert_matches_numpy(self):
+        import imgaug2.augmenters.arithmetic as iaa_arith
+
+        rng = np.random.default_rng(1)
+        image = rng.integers(0, 256, size=(8, 9, 3), dtype=np.uint8)
+
+        expected = iaa_arith.invert_(np.copy(image))
+        observed = iaa_arith.invert_(mx.array(image))
+
+        np.testing.assert_array_equal(np.array(observed), expected)
+
+    def test_replace_elementwise_matches_numpy(self):
+        import imgaug2.augmenters.arithmetic as iaa_arith
+
+        rng = np.random.default_rng(2)
+        image = rng.integers(0, 256, size=(6, 7, 3), dtype=np.uint8)
+        mask = np.zeros((6, 7, 1), dtype=np.float32)
+        mask[1, 2, 0] = 1.0
+        mask[4, 5, 0] = 1.0
+        mask_broadcast = np.broadcast_to(mask > 0.5, image.shape)
+        num_replace = int(mask_broadcast.sum())
+        replacements = rng.integers(0, 256, size=(num_replace,), dtype=np.uint8)
+
+        expected = iaa_arith.replace_elementwise_(np.copy(image), mask, replacements)
+        observed = iaa_arith.replace_elementwise_(
+            mx.array(image), mx.array(mask), mx.array(replacements)
+        )
+
+        np.testing.assert_array_equal(np.array(observed), expected)
+
+    def test_cutout_constant_matches_numpy(self):
+        import imgaug2.augmenters.arithmetic as iaa_arith
+
+        rng = np.random.default_rng(3)
+        image = rng.integers(0, 256, size=(9, 11, 3), dtype=np.uint8)
+
+        expected = iaa_arith.cutout_(
+            np.copy(image),
+            x1=2,
+            y1=3,
+            x2=8,
+            y2=7,
+            fill_mode="constant",
+            cval=(10, 20, 30),
+            fill_per_channel=True,
+            seed=1,
+        )
+        observed = iaa_arith.cutout_(
+            mx.array(image),
+            x1=2,
+            y1=3,
+            x2=8,
+            y2=7,
+            fill_mode="constant",
+            cval=(10, 20, 30),
+            fill_per_channel=True,
+            seed=1,
+        )
+
+        np.testing.assert_array_equal(np.array(observed), expected)
