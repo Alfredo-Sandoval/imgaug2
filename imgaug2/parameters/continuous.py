@@ -13,7 +13,6 @@ from imgaug2.compat.markers import legacy
 from .base import ParamInput, StochasticParameter
 from .handles import handle_continuous_param, handle_discrete_param
 
-
 class Normal(StochasticParameter):
     """Parameter that resembles a normal/gaussian distribution.
 
@@ -22,17 +21,11 @@ class Normal(StochasticParameter):
     loc : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         The mean of the normal distribution.
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, the value will be
-              sampled from the continuous interval ``[a, b)`` once per call.
-            * If a ``list`` of ``number``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
-        "per call" denotes a call of :func:`Laplace.draw_sample` or
-        :func:`Laplace.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     scale : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         The standard deviation of the normal distribution.
@@ -60,7 +53,7 @@ class Normal(StochasticParameter):
     @property
     @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
-        """See :func:`StochasticParameter.prefetchable`."""
+        """See `prefetchable()`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
@@ -77,7 +70,6 @@ class Normal(StochasticParameter):
     def __str__(self) -> str:
         return f"Normal(loc={self.loc}, scale={self.scale})"
 
-
 # TODO docstring for parameters is outdated
 @legacy
 class TruncatedNormal(StochasticParameter):
@@ -86,24 +78,18 @@ class TruncatedNormal(StochasticParameter):
     A truncated normal distribution is similar to a normal distribution,
     except the domain is smoothly bounded to a min and max value.
 
-    This is a wrapper around :func:`scipy.stats.truncnorm`.
+    This is a wrapper around `truncnorm()`.
 
     Parameters
     ----------
     loc : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         The mean of the normal distribution.
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, the value will be
-              sampled from the continuous interval ``[a, b)`` once per call.
-            * If a ``list`` of ``number``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
-        "per call" denotes a call of :func:`TruncatedNormal.draw_sample` or
-        :func:`TruncatedNormal.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     scale : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         The standard deviation of the normal distribution.
@@ -149,7 +135,7 @@ class TruncatedNormal(StochasticParameter):
     @property
     @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
-        """See :func:`StochasticParameter.prefetchable`."""
+        """See `prefetchable()`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
@@ -180,12 +166,11 @@ class TruncatedNormal(StochasticParameter):
             f"TruncatedNormal(loc={self.loc}, scale={self.scale}, low={self.low}, high={self.high})"
         )
 
-
 @legacy
 class Laplace(StochasticParameter):
     """Parameter that resembles a (continuous) laplace distribution.
 
-    This is a wrapper around numpy's :func:`numpy.random.laplace`.
+    This is a wrapper around numpy's `laplace()`.
 
     Parameters
     ----------
@@ -193,17 +178,11 @@ class Laplace(StochasticParameter):
         The position of the distribution peak, similar to the mean in normal
         distributions.
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, the value will be
-              sampled from the continuous interval ``[a, b)`` once per call.
-            * If a ``list`` of ``number``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
-        "per call" denotes a call of :func:`Laplace.draw_sample` or
-        :func:`Laplace.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     scale : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         The exponential decay factor, similar to the standard deviation in
@@ -231,7 +210,7 @@ class Laplace(StochasticParameter):
     @property
     @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
-        """See :func:`StochasticParameter.prefetchable`."""
+        """See `prefetchable()`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
@@ -248,29 +227,22 @@ class Laplace(StochasticParameter):
     def __str__(self) -> str:
         return f"Laplace(loc={self.loc}, scale={self.scale})"
 
-
 @legacy
 class ChiSquare(StochasticParameter):
     """Parameter that resembles a (continuous) chi-square distribution.
 
-    This is a wrapper around numpy's :func:`numpy.random.chisquare`.
+    This is a wrapper around numpy's `chisquare()`.
 
     Parameters
     ----------
     df : int or tuple of two int or list of int or imgaug2.parameters.StochasticParameter
         Degrees of freedom. Expected value range is ``[1, inf)``.
 
-            * If a single ``int``, this ``int`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``int`` s ``(a, b)``, the value will be
-              sampled from the discrete interval ``[a..b]`` once per call.
-            * If a ``list`` of ``int``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
-        "per call" denotes a call of :func:`ChiSquare.draw_sample` or
-        :func:`ChiSquare.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     Examples
     --------
@@ -289,7 +261,7 @@ class ChiSquare(StochasticParameter):
     @property
     @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
-        """See :func:`StochasticParameter.prefetchable`."""
+        """See `prefetchable()`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
@@ -303,30 +275,23 @@ class ChiSquare(StochasticParameter):
     def __str__(self) -> str:
         return f"ChiSquare(df={self.df})"
 
-
 @legacy
 class Weibull(StochasticParameter):
     """
     Parameter that resembles a (continuous) weibull distribution.
 
-    This is a wrapper around numpy's :func:`numpy.random.weibull`.
+    This is a wrapper around numpy's `weibull()`.
 
     Parameters
     ----------
     a : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         Shape parameter of the distribution.
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, the value will be
-              sampled from the continuous interval ``[a, b)`` once per call.
-            * If a ``list`` of ``number``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
-        "per call" denotes a call of :func:`Weibull.draw_sample` or
-        :func:`Weibull.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     Examples
     --------
@@ -345,7 +310,7 @@ class Weibull(StochasticParameter):
     @property
     @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
-        """See :func:`StochasticParameter.prefetchable`."""
+        """See `prefetchable()`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
@@ -359,7 +324,6 @@ class Weibull(StochasticParameter):
     def __str__(self) -> str:
         return f"Weibull(a={self.a})"
 
-
 # TODO rename (a, b) to (low, high) as in numpy?
 @legacy
 class Uniform(StochasticParameter):
@@ -372,21 +336,14 @@ class Uniform(StochasticParameter):
         If ``a>b``, `a` and `b` will automatically be flipped.
         If ``a==b``, all generated values will be identical to `a`.
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, the value will be
-              sampled from the continuous interval ``[a, b)`` once per call.
-            * If a ``list`` of ``number``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
-        "per call" denotes a call of :func:`Uniform.draw_sample` or
-        :func:`Uniform.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     b : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         Upper bound of the interval. Analogous to `a`.
-
 
     Examples
     --------
@@ -408,7 +365,7 @@ class Uniform(StochasticParameter):
     @property
     @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
-        """See :func:`StochasticParameter.prefetchable`."""
+        """See `prefetchable()`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
@@ -426,7 +383,6 @@ class Uniform(StochasticParameter):
     def __str__(self) -> str:
         return f"Uniform({self.a}, {self.b})"
 
-
 @legacy
 class Beta(StochasticParameter):
     """Parameter that resembles a (continuous) beta distribution.
@@ -438,17 +394,11 @@ class Beta(StochasticParameter):
         Expected value range is ``(0, inf)``. Values below ``0`` are
         automatically clipped to ``0+epsilon``.
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, the value will be
-              sampled from the continuous interval ``[a, b)`` once per call.
-            * If a ``list`` of ``number``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
-        "per call" denotes a call of :func:`Beta.draw_sample` or
-        :func:`Beta.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     beta : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         Beta parameter of the beta distribution. Analogous to `alpha`.
@@ -481,7 +431,7 @@ class Beta(StochasticParameter):
     @property
     @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
-        """See :func:`StochasticParameter.prefetchable`."""
+        """See `prefetchable()`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401

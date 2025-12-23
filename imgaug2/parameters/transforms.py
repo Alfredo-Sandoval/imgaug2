@@ -13,7 +13,6 @@ from .discrete import Deterministic
 from .handles import _assert_arg_is_stoch_param, handle_continuous_param, handle_probability_param
 from .utils import both_np_float_if_one_is_float, force_np_float_dtype
 
-
 class Clip(StochasticParameter):
     """Clip another parameter to a defined value range.
 
@@ -39,7 +38,7 @@ class Clip(StochasticParameter):
     ``-2.0`` or above ``2.0``. Note that this will lead to small "bumps" of
     higher probability at ``-2.0`` and ``2.0``, as values below/above these
     will be clipped to them. For smoother limitations on gaussian
-    distributions, see :class:`TruncatedNormal`.
+    distributions, see `TruncatedNormal`.
 
     """
 
@@ -84,7 +83,6 @@ class Clip(StochasticParameter):
             return f"Clip({opstr}, None, {float(self.maxval):.6f})"
         return f"Clip({opstr}, None, None)"
 
-
 @legacy
 class Discretize(StochasticParameter):
     """Convert a continuous distribution to a discrete one.
@@ -99,7 +97,6 @@ class Discretize(StochasticParameter):
 
     round : bool, optional
         Whether to round before converting to integer dtype.
-
 
     Examples
     --------
@@ -145,7 +142,6 @@ class Discretize(StochasticParameter):
         opstr = str(self.other_param)
         return f"Discretize({opstr}, round={str(self.round)})"
 
-
 @legacy
 class Multiply(StochasticParameter):
     """Multiply the samples of another stochastic parameter.
@@ -157,18 +153,11 @@ class Multiply(StochasticParameter):
         Let ``S`` be the requested shape of samples, then the datatype
         behaviour is as follows:
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value to fill an array of shape ``S``.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, an array of
-              shape ``S`` will be filled with uniformly sampled values from
-              the continuous interval ``[a, b)``.
-            * If a ``list`` of ``number``, an array of shape ``S`` will be
-              filled with randomly picked values from the ``list``.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call to generate an array of shape ``S``.
 
-        "per call" denotes a call of :func:`Multiply.draw_sample` or
-        :func:`Multiply.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     val : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         Multiplier to use.
@@ -222,7 +211,6 @@ class Multiply(StochasticParameter):
     def __str__(self) -> str:
         return f"Multiply({str(self.other_param)}, {str(self.val)}, {self.elementwise})"
 
-
 @legacy
 class Divide(StochasticParameter):
     """Divide the samples of another stochastic parameter.
@@ -237,18 +225,11 @@ class Divide(StochasticParameter):
         Let ``S`` be the requested shape of samples, then the datatype
         behaviour is as follows:
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value to fill an array of shape ``S``.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, an array of
-              shape ``S`` will be filled with uniformly sampled values from
-              the continuous interval ``[a, b)``.
-            * If a ``list`` of ``number``, an array of shape ``S`` will be
-              filled with randomly picked values from the ``list``.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call to generate an array of shape ``S``.
 
-        "per call" denotes a call of :func:`Divide.draw_sample` or
-        :func:`Divide.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     val : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         Denominator to use.
@@ -309,7 +290,6 @@ class Divide(StochasticParameter):
     def __str__(self) -> str:
         return f"Divide({str(self.other_param)}, {str(self.val)}, {self.elementwise})"
 
-
 # TODO sampling (N,) from something like 10+Uniform(0, 1) will return
 #      N times the same value as (N,) values will be sampled from 10, but only
 #      one from Uniform() unless elementwise=True is explicitly set. That
@@ -325,18 +305,11 @@ class Add(StochasticParameter):
         Let ``S`` be the requested shape of samples, then the datatype
         behaviour is as follows:
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value to fill an array of shape ``S``.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, an array of
-              shape ``S`` will be filled with uniformly sampled values from
-              the continuous interval ``[a, b)``.
-            * If a ``list`` of ``number``, an array of shape ``S`` will be
-              filled with randomly picked values from the ``list``.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call to generate an array of shape ``S``.
 
-        "per call" denotes a call of :func:`Add.draw_sample` or
-        :func:`Add.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     val : number or tuple of two number or list of number or imgaug2.parameters.StochasticParameter
         Value to add to the samples of `other_param`.
@@ -390,7 +363,6 @@ class Add(StochasticParameter):
     def __str__(self) -> str:
         return f"Add({str(self.other_param)}, {str(self.val)}, {self.elementwise})"
 
-
 @legacy
 class Subtract(StochasticParameter):
     """Subtract from the samples of another stochastic parameter.
@@ -402,18 +374,11 @@ class Subtract(StochasticParameter):
         Let ``S`` be the requested shape of samples, then the datatype
         behaviour is as follows:
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value to fill an array of shape ``S``.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, an array of
-              shape ``S`` will be filled with uniformly sampled values from
-              the continuous interval ``[a, b)``.
-            * If a ``list`` of ``number``, an array of shape ``S`` will be
-              filled with randomly picked values from the ``list``.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call to generate an array of shape ``S``.
 
-        "per call" denotes a call of :func:`Subtract.draw_sample` or
-        :func:`Subtract.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     val : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         Value to subtract from the other parameter.
@@ -467,7 +432,6 @@ class Subtract(StochasticParameter):
     def __str__(self) -> str:
         return f"Subtract({str(self.other_param)}, {str(self.val)}, {self.elementwise})"
 
-
 @legacy
 class Power(StochasticParameter):
     """Exponentiate the samples of another stochastic parameter.
@@ -479,18 +443,11 @@ class Power(StochasticParameter):
         Let ``S`` be the requested shape of samples, then the datatype
         behaviour is as follows:
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value to fill an array of shape ``S``.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, an array of
-              shape ``S`` will be filled with uniformly sampled values from
-              the continuous interval ``[a, b)``.
-            * If a ``list`` of ``number``, an array of shape ``S`` will be
-              filled with randomly picked values from the ``list``.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call to generate an array of shape ``S``.
 
-        "per call" denotes a call of :func:`Power.draw_sample` or
-        :func:`Power.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     val : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         Value to use exponentiate the samples of `other_param`.
@@ -553,7 +510,6 @@ class Power(StochasticParameter):
     def __str__(self) -> str:
         return f"Power({str(self.other_param)}, {str(self.val)}, {self.elementwise})"
 
-
 @legacy
 class Absolute(StochasticParameter):
     """Convert the samples of another parameter to their absolute values.
@@ -589,7 +545,6 @@ class Absolute(StochasticParameter):
     def __str__(self) -> str:
         opstr = str(self.other_param)
         return f"Absolute({opstr})"
-
 
 @legacy
 class RandomSign(StochasticParameter):
@@ -650,7 +605,6 @@ class RandomSign(StochasticParameter):
     def __str__(self) -> str:
         opstr = str(self.other_param)
         return f"RandomSign({opstr}, {self.p_positive:.2f})"
-
 
 @legacy
 class ForceSign(StochasticParameter):
@@ -761,7 +715,6 @@ class ForceSign(StochasticParameter):
         opstr = str(self.other_param)
         return f"ForceSign({opstr}, {self.positive!s}, {self.mode}, {self.reroll_count_max:d})"
 
-
 @legacy
 def Positive(
     other_param: StochasticParameter, mode: str = "invert", reroll_count_max: int = 2
@@ -801,7 +754,6 @@ def Positive(
     return ForceSign(
         other_param=other_param, positive=True, mode=mode, reroll_count_max=reroll_count_max
     )
-
 
 @legacy
 def Negative(
@@ -843,13 +795,12 @@ def Negative(
         other_param=other_param, positive=False, mode=mode, reroll_count_max=reroll_count_max
     )
 
-
 @legacy
 class Sigmoid(StochasticParameter):
     """Apply a sigmoid function to the outputs of another parameter.
 
-    This is intended to be used in combination with :class:`SimplexNoise` or
-    :class:`FrequencyNoise`. It pushes the noise values away from ``~0.5`` and
+    This is intended to be used in combination with `SimplexNoise` or
+    `FrequencyNoise`. It pushes the noise values away from ``~0.5`` and
     towards ``0.0`` or ``1.0``, making the noise maps more binary.
 
     Parameters
@@ -861,17 +812,11 @@ class Sigmoid(StochasticParameter):
         Sets the value of the sigmoid's saddle point, i.e. where values
         start to quickly shift from ``0.0`` to ``1.0``.
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, the value will be
-              sampled from the continuous interval ``[a, b)`` once per call.
-            * If a ``list`` of ``number``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
-        "per call" denotes a call of :func:`Sigmoid.draw_sample` or
-        :func:`Sigmoid.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     activated : bool or number, optional
         Defines whether the sigmoid is activated. If this is ``False``, the
@@ -934,18 +879,18 @@ class Sigmoid(StochasticParameter):
     ) -> Sigmoid:
         """Create a Sigmoid adjusted for noise parameters.
 
-        "noise" here denotes :class:`SimplexNoise` and :class:`FrequencyNoise`.
+        "noise" here denotes `SimplexNoise` and `FrequencyNoise`.
 
         Parameters
         ----------
         other_param : imgaug2.parameters.StochasticParameter
-            See :func:`~imgaug2.parameters.Sigmoid.__init__`.
+            See `__init__()`.
 
         threshold : number or tuple of number or iterable of number or imgaug2.parameters.StochasticParameter, optional
-            See :func:`~imgaug2.parameters.Sigmoid.__init__`.
+            See `__init__()`.
 
         activated : bool or number, optional
-            See :func:`~imgaug2.parameters.Sigmoid.__init__`.
+            See `__init__()`.
 
         Returns
         -------

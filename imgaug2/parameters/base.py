@@ -63,7 +63,7 @@ class StochasticParameter(metaclass=ABCMeta):
         random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
             A seed or random number generator to use during the sampling
             process. If ``None``, the global RNG will be used.
-            See also :func:`~imgaug2.augmenters.meta.Augmenter.__init__`
+            See also `__init__()`
             for a similar parameter with more details.
 
         Returns
@@ -89,7 +89,7 @@ class StochasticParameter(metaclass=ABCMeta):
         random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
             A seed or random number generator to use during the sampling
             process. If ``None``, the global RNG will be used.
-            See also :func:`~imgaug2.augmenters.meta.Augmenter.__init__`
+            See also `__init__()`
             for a similar parameter with more details.
 
         Returns
@@ -321,7 +321,7 @@ class StochasticParameter(metaclass=ABCMeta):
             Number of points to sample. This is always expected to have at
             least two values. The first defines the number of sampling runs,
             the second (and further) dimensions define the size assigned
-            to each :func:`~imgaug2.parameters.StochasticParameter.draw_samples`
+            to each `draw_samples()`
             call. E.g. ``(10, 20, 15)`` will lead to ``10`` calls of
             ``draw_samples(size=(20, 15))``. The results will be merged to a
             single 1d array.

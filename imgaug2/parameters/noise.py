@@ -18,7 +18,6 @@ from .continuous import Uniform
 from .discrete import Choice, Deterministic, DiscreteUniform
 from .handles import _assert_arg_is_stoch_param, handle_continuous_param, handle_discrete_param
 
-
 class FromLowerResolution(StochasticParameter):
     """Parameter to sample from other parameters at lower image resolutions.
 
@@ -30,7 +29,7 @@ class FromLowerResolution(StochasticParameter):
     then upscales the result to ``HxW``.
 
     This parameter is intended to produce coarse samples. E.g. combining
-    this with :class:`Binomial` can lead to large rectangular areas of
+    this with `Binomial` can lead to large rectangular areas of
     ``1`` s and ``0`` s.
 
     Parameters
@@ -46,9 +45,9 @@ class FromLowerResolution(StochasticParameter):
         values will result in larger rectangles. The size may be provided as
         a constant value or a tuple ``(a, b)``, which will automatically be
         converted to the continuous uniform range ``[a, b)`` or a
-        :class:`StochasticParameter`, which will be queried per call to
-        :func:`FromLowerResolution.draw_sample` and
-        :func:`FromLowerResolution.draw_samples`.
+        `StochasticParameter`, which will be queried per call to
+        `draw_sample()` and
+        `draw_samples()`.
 
     size_px : None or number or iterable of numbers or imgaug2.parameters.StochasticParameter, optional
         Size of the 2d sampling plane in pixels.
@@ -57,21 +56,21 @@ class FromLowerResolution(StochasticParameter):
         This means that lower values will result in larger rectangles.
         The size may be provided as a constant value or a tuple ``(a, b)``,
         which will automatically be converted to the discrete uniform
-        range ``[a..b]`` or a :class:`StochasticParameter`, which will be
-        queried once per call to :func:`FromLowerResolution.draw_sample` and
-        :func:`FromLowerResolution.draw_samples`.
+        range ``[a..b]`` or a `StochasticParameter`, which will be
+        queried once per call to `draw_sample()` and
+        `draw_samples()`.
 
     method : str or int or imgaug2.parameters.StochasticParameter, optional
         Upsampling/interpolation method to use. This is used after the sampling
         is finished and the low resolution plane has to be upsampled to the
         requested `size` in ``draw_samples(size, ...)``. The method may be
-        the same as in :func:`~imgaug2.imgaug2.imresize_many_images`. Usually
+        the same as in `imresize_many_images()`. Usually
         ``nearest`` or ``linear`` are good choices. ``nearest`` will result
         in rectangles with sharp edges and ``linear`` in rectangles with
         blurry and round edges. The method may be provided as a
-        :class:`StochasticParameter`, which will be queried once per call to
-        :func:`FromLowerResolution.draw_sample` and
-        :func:`FromLowerResolution.draw_samples`.
+        `StochasticParameter`, which will be queried once per call to
+        `draw_sample()` and
+        `draw_samples()`.
 
     min_size : int, optional
         Minimum size in pixels of the low resolution sampling plane.
@@ -233,14 +232,13 @@ class FromLowerResolution(StochasticParameter):
         pattern = "FromLowerResolution(size_px=%s, method=%s, other_param=%s)"
         return pattern % (self.size_px, self.method, self.other_param)
 
-
 @legacy
 
 class IterativeNoiseAggregator(StochasticParameter):
     """Aggregate multiple iterations of samples from another parameter.
 
-    This is supposed to be used in conjunction with :class:`SimplexNoise` or
-    :class:`FrequencyNoise`. If a shape ``S`` is requested, it will request
+    This is supposed to be used in conjunction with `SimplexNoise` or
+    `FrequencyNoise`. If a shape ``S`` is requested, it will request
     ``I`` times ``S`` samples from the underlying parameter, where ``I`` is
     the number of iterations. The ``I`` arrays will be combined to a single
     array of shape ``S`` using an aggregation method, e.g. simple averaging.
@@ -253,18 +251,12 @@ class IterativeNoiseAggregator(StochasticParameter):
     iterations : int or iterable of int or list of int or imgaug2.parameters.StochasticParameter, optional
         The number of iterations.
 
-            * If a single ``int``, this ``int`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``int`` s ``(a, b)``, the value will be
-              sampled from the discrete interval ``[a..b]`` once per call.
-            * If a ``list`` of ``int``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
         "per call" denotes a call of
-        :func:`IterativeNoiseAggregator.draw_sample` or
-        :func:`IterativeNoiseAggregator.draw_samples`.
+        `draw_sample()` or
+        `draw_samples()`.
 
     aggregation_method : imgaug2.ALL or {'min', 'avg', 'max'} or list of str or imgaug2.parameters.StochasticParameter, optional
         The method to use to aggregate the samples of multiple iterations
@@ -273,19 +265,13 @@ class IterativeNoiseAggregator(StochasticParameter):
         elementwise. Known methods are ``min`` (take the minimum over all
         iterations), ``max`` (take the maximum) and ``avg`` (take the average).
 
-            * If an ``str``, it must be one of the described methods and
-              will be used for all calls..
-            * If a ``list`` of ``str``, it must contain one or more of the
-              described methods and a random one will be samples once per call.
-            * If ``imgaug2.ALL``, then equivalent to the ``list``
-              ``["min", "max", "avg"]``.
-            * If :class:`StochasticParameter`, a value will be sampled from
+            * If `StochasticParameter`, a value will be sampled from
               that parameter once per call and must be one of the described
               methods..
 
         "per call" denotes a call of
-        :func:`IterativeNoiseAggregator.draw_sample` or
-        :func:`IterativeNoiseAggregator.draw_samples`.
+        `draw_sample()` or
+        `draw_samples()`.
 
     Examples
     --------
@@ -414,7 +400,6 @@ class IterativeNoiseAggregator(StochasticParameter):
         opstr = str(self.other_param)
         return f"IterativeNoiseAggregator({opstr}, {str(self.iterations)}, {str(self.aggregation_method)})"
 
-
 @legacy
 
 class _NoiseParameterMixin:
@@ -441,7 +426,6 @@ class _NoiseParameterMixin:
     def _draw_samples_hw(self, height: int, width: int, random_state: iarandom.RNG) -> Any:  # noqa: ANN401
         raise NotImplementedError("Subclasses must implement _draw_samples_hw")
 
-
 @legacy
 class SimplexNoise(_NoiseParameterMixin, StochasticParameter):
     """Parameter that generates simplex noise of varying resolutions.
@@ -464,33 +448,20 @@ class SimplexNoise(_NoiseParameterMixin, StochasticParameter):
         value anymore. Then the noise will be sampled at that shape and later
         upscaled back to the requested shape.
 
-            * If a single ``int``, this ``int`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``int`` s ``(a, b)``, the value will be
-              sampled from the discrete interval ``[a..b]`` once per call.
-            * If a ``list`` of ``int``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
-        "per call" denotes a call of :func:`SimplexNoise.draw_sample` or
-        :func:`SimplexNoise.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     upscale_method : str or int or list of str or list of int or imgaug2.parameters.StochasticParameter, optional
         After generating the noise maps in low resolution environments, they
         have to be upscaled to the originally requested shape (i.e. usually
         the image size). This parameter controls the interpolation method to
-        use. See also :func:`~imgaug2.imgaug2.imresize_many_images` for a
+        use. See also `imresize_many_images()` for a
         description of possible values.
 
-            * If ``imgaug2.ALL``, then either ``nearest`` or ``linear`` or
-              ``area`` or ``cubic`` is picked per iteration (all same
-              probability).
-            * If ``str``, then that value will always be used as the method
-              (must be ``nearest`` or ``linear`` or ``area`` or ``cubic``).
-            * If ``list`` of ``str``, then a random value will be picked from
-              that list per call.
-            * If :class:`StochasticParameter`, then a random value will be
+            * If `StochasticParameter`, then a random value will be
               sampled from that parameter per call.
 
     Examples
@@ -618,7 +589,6 @@ class SimplexNoise(_NoiseParameterMixin, StochasticParameter):
     def __str__(self) -> str:
         return f"SimplexNoise({str(self.size_px_max)}, {str(self.upscale_method)})"
 
-
 @legacy
 class FrequencyNoise(_NoiseParameterMixin, StochasticParameter):
     """Parameter to generate noise of varying frequencies.
@@ -643,13 +613,7 @@ class FrequencyNoise(_NoiseParameterMixin, StochasticParameter):
         Sane values are in the range ``-4`` (large blobs) to ``4`` (small
         patterns). To generate cloud-like structures, use roughly ``-2``.
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, the value will be
-              sampled from the continuous interval ``[a, b)`` once per call.
-            * If a ``list`` of ``number``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
     size_px_max : int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
@@ -659,33 +623,20 @@ class FrequencyNoise(_NoiseParameterMixin, StochasticParameter):
         value anymore. Then the noise will be sampled at that shape and later
         upscaled back to the requested shape.
 
-            * If a single ``int``, this ``int`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``int`` s ``(a, b)``, the value will be
-              sampled from the discrete interval ``[a..b]`` once per call.
-            * If a ``list`` of ``int``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
-        "per call" denotes a call of :func:`FrequencyNoise.draw_sample` or
-        :func:`FrequencyNoise.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     upscale_method : imgaug2.ALL or str or list of str or imgaug2.parameters.StochasticParameter, optional
         After generating the noise maps in low resolution environments, they
         have to be upscaled to the originally requested shape (i.e. usually
         the image size). This parameter controls the interpolation method to
-        use. See also :func:`~imgaug2.imgaug2.imresize_many_images` for a
+        use. See also `imresize_many_images()` for a
         description of possible values.
 
-            * If ``imgaug2.ALL``, then either ``nearest`` or ``linear`` or
-              ``area`` or ``cubic`` is picked per iteration (all same
-              probability).
-            * If ``str``, then that value will always be used as the method
-              (must be ``nearest`` or ``linear`` or ``area`` or ``cubic``).
-            * If ``list`` of ``str``, then a random value will be picked from
-              that list per call.
-            * If :class:`StochasticParameter`, then a random value will be
+            * If `StochasticParameter`, then a random value will be
               sampled from that parameter per call.
 
     Examples

@@ -14,7 +14,6 @@ from imgaug2.compat.markers import legacy
 from .base import Numberish, ParamInput, StochasticParameter
 from .handles import handle_continuous_param, handle_discrete_param
 
-
 @legacy
 class Deterministic(StochasticParameter):
     """Parameter that is a constant value.
@@ -71,7 +70,6 @@ class Deterministic(StochasticParameter):
             return f"Deterministic(float {self.value:.8f})"
         return f"Deterministic({str(self.value)})"
 
-
 # TODO replace two-value parameters used in tests with this
 @legacy(version="0.4.0")
 class DeterministicList(StochasticParameter):
@@ -82,7 +80,6 @@ class DeterministicList(StochasticParameter):
     provided list. If the list contains less than ``A*B*C`` elements, it
     will (by default) be tiled until it is long enough (i.e. the sampling
     will start again at the first element, if necessary multiple times).
-
 
     Parameters
     ----------
@@ -139,7 +136,6 @@ class DeterministicList(StochasticParameter):
             return "DeterministicList([{}])".format(", ".join(values))
         return f"DeterministicList({str(self.values.tolist())})"
 
-
 @legacy
 class Choice(StochasticParameter):
     """Parameter that samples value from a list of allowed values.
@@ -195,7 +191,7 @@ class Choice(StochasticParameter):
     @property
     @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
-        """See :func:`StochasticParameter.prefetchable`."""
+        """See `prefetchable()`."""
         return self.replace
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
@@ -258,7 +254,6 @@ class Choice(StochasticParameter):
     def __str__(self) -> str:
         return f"Choice(a={str(self.a)}, replace={str(self.replace)}, p={str(self.p)})"
 
-
 @legacy
 class Binomial(StochasticParameter):
     """Binomial distribution.
@@ -269,17 +264,11 @@ class Binomial(StochasticParameter):
         Probability of the binomial distribution. Expected to be in the
         interval ``[0.0, 1.0]``.
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, the value will be
-              sampled from the continuous interval ``[a, b)`` once per call.
-            * If a ``list`` of ``number``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
-        "per call" denotes a call of :func:`Binomial.draw_sample` or
-        :func:`Binomial.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     Examples
     --------
@@ -299,7 +288,7 @@ class Binomial(StochasticParameter):
     @property
     @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
-        """See :func:`StochasticParameter.prefetchable`."""
+        """See `prefetchable()`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
@@ -315,7 +304,6 @@ class Binomial(StochasticParameter):
     def __str__(self) -> str:
         return f"Binomial({self.p})"
 
-
 @legacy
 class DiscreteUniform(StochasticParameter):
     """Uniform distribution over the discrete interval ``[a..b]``.
@@ -327,17 +315,11 @@ class DiscreteUniform(StochasticParameter):
         If ``a>b``, `a` and `b` will automatically be flipped.
         If ``a==b``, all generated values will be identical to `a`.
 
-            * If a single ``int``, this ``int`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``int`` s ``(a, b)``, the value will be
-              sampled from the discrete interval ``[a..b]`` once per call.
-            * If a ``list`` of ``int``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
-        "per call" denotes a call of :func:`DiscreteUniform.draw_sample` or
-        :func:`DiscreteUniform.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     b : int or imgaug2.parameters.StochasticParameter
         Upper bound of the interval. Analogous to `a`.
@@ -363,7 +345,7 @@ class DiscreteUniform(StochasticParameter):
     @property
     @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
-        """See :func:`StochasticParameter.prefetchable`."""
+        """See `prefetchable()`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
@@ -381,7 +363,6 @@ class DiscreteUniform(StochasticParameter):
     def __str__(self) -> str:
         return f"DiscreteUniform({self.a}, {self.b})"
 
-
 @legacy
 class Poisson(StochasticParameter):
     """Parameter that resembles a poisson distribution.
@@ -395,17 +376,11 @@ class Poisson(StochasticParameter):
     lam : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         Lambda parameter of the poisson distribution.
 
-            * If a single ``number``, this ``number`` will be used as a
-              constant value.
-            * If a ``tuple`` of two ``number`` s ``(a, b)``, the value will be
-              sampled from the continuous interval ``[a, b)`` once per call.
-            * If a ``list`` of ``number``, a random value will be picked from
-              the ``list`` once per call.
-            * If a :class:`StochasticParameter`, that parameter will be
+            * If a `StochasticParameter`, that parameter will be
               queried once per call.
 
-        "per call" denotes a call of :func:`Poisson.draw_sample` or
-        :func:`Poisson.draw_samples`.
+        "per call" denotes a call of `draw_sample()` or
+        `draw_samples()`.
 
     Examples
     --------
@@ -427,7 +402,7 @@ class Poisson(StochasticParameter):
     @property
     @legacy(version="0.5.0")
     def prefetchable(self) -> bool:
-        """See :func:`StochasticParameter.prefetchable`."""
+        """See `prefetchable()`."""
         return True
 
     def _draw_samples(self, size: tuple[int, ...], random_state: iarandom.RNG) -> Any:  # noqa: ANN401
