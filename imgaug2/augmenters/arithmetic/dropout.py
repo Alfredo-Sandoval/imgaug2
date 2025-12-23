@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 
@@ -10,9 +10,10 @@ import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
-from imgaug2.compat.markers import legacy
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, Images, ParamInput, RNGInput
+from imgaug2.compat.markers import legacy
+
 from ._utils import (
     CValInput,
     FillModeInput,
@@ -37,7 +38,6 @@ _CUTOUT_FILL_MODES = {
     "gaussian": ("imgaug2.augmenters.arithmetic", "_fill_rectangle_gaussian_"),
 }
 
-
 @legacy(version="0.4.0")
 def cutout(
     image: Array,
@@ -61,39 +61,34 @@ def cutout(
         in the interval ``[0.0, 1.0]`` and hence sample values from a
         gaussian within that interval, i.e. from ``N(0.5, std=0.5/3)``.
 
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.arithmetic.cutout_`.
-
-
     Parameters
     ----------
     image : ndarray
         Image to modify.
 
     x1 : number
-        See :func:`~imgaug2.augmenters.arithmetic.cutout_`.
+        See `cutout_()`.
 
     y1 : number
-        See :func:`~imgaug2.augmenters.arithmetic.cutout_`.
+        See `cutout_()`.
 
     x2 : number
-        See :func:`~imgaug2.augmenters.arithmetic.cutout_`.
+        See `cutout_()`.
 
     y2 : number
-        See :func:`~imgaug2.augmenters.arithmetic.cutout_`.
+        See `cutout_()`.
 
     fill_mode : {'constant', 'gaussian'}, optional
-        See :func:`~imgaug2.augmenters.arithmetic.cutout_`.
+        See `cutout_()`.
 
     cval : number or tuple of number, optional
-        See :func:`~imgaug2.augmenters.arithmetic.cutout_`.
+        See `cutout_()`.
 
     fill_per_channel : number or bool, optional
-        See :func:`~imgaug2.augmenters.arithmetic.cutout_`.
+        See `cutout_()`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.arithmetic.cutout_`.
+        See `cutout_()`.
 
     Returns
     -------
@@ -104,7 +99,6 @@ def cutout(
     from . import cutout_ as cutout_fn
 
     return cutout_fn(np.copy(image), x1, y1, x2, y2, fill_mode, cval, fill_per_channel, seed)
-
 
 @legacy(version="0.4.0")
 def cutout_(
@@ -128,14 +122,6 @@ def cutout_(
         Gaussian fill mode will assume that float input images contain values
         in the interval ``[0.0, 1.0]`` and hence sample values from a
         gaussian within that interval, i.e. from ``N(0.5, std=0.5/3)``.
-
-
-    **Supported dtypes**:
-
-    minimum of (
-        :func:`~imgaug2.augmenters.arithmetic._fill_rectangle_gaussian_`,
-        :func:`~imgaug2.augmenters.arithmetic._fill_rectangle_constant_`
-    )
 
     Parameters
     ----------
@@ -168,7 +154,7 @@ def cutout_(
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         A random number generator to sample random values from.
         Usually an integer seed value or an ``RNG`` instance.
-        See :class:`imgaug2.random.RNG` for details.
+        See `RNG` for details.
 
     Returns
     -------
@@ -177,6 +163,26 @@ def cutout_(
         The input image might have been modified in-place.
 
     """
+    # MLX fast-path (B1): only when input is already on device.
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(image):
+        import imgaug2.mlx as mlx
+
+        return cast(
+            Array,
+            mlx.cutout_rectangle(
+                image,
+                x1=int(x1),
+                y1=int(y1),
+                x2=int(x2),
+                y2=int(y2),
+                fill_mode=fill_mode,
+                cval=cval,
+                fill_per_channel=(fill_per_channel >= 0.5),
+            ),
+        )
+
     import importlib
 
     height, width = image.shape[0:2]
@@ -208,7 +214,6 @@ def cutout_(
         )
     return image
 
-
 @legacy(version="0.4.0")
 def _fill_rectangle_gaussian_(
     image: Array,
@@ -221,28 +226,6 @@ def _fill_rectangle_gaussian_(
     random_state: iarandom.RNG,
 ) -> Array:
     """Fill a rectangular image area with samples from a gaussian.
-
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: yes; tested
-        * ``uint32``: yes; tested
-        * ``uint64``: limited; tested (1)
-        * ``int8``: yes; tested
-        * ``int16``: yes; tested
-        * ``int32``: yes; tested
-        * ``int64``: limited; tested (1)
-        * ``float16``: yes; tested (2)
-        * ``float32``: yes; tested (2)
-        * ``float64``: yes; tested (2)
-        * ``float128``: limited; tested (1) (2)
-        * ``bool``: yes; tested
-
-        - (1) Possible loss of resolution due to gaussian values being sampled
-              as ``float64`` s.
-        - (2) Float input arrays are assumed to be in interval ``[0.0, 1.0]``
-              and all gaussian samples are within that interval too.
 
     """
     # for float we assume value range [0.0, 1.0]
@@ -281,7 +264,6 @@ def _fill_rectangle_gaussian_(
 
     return image
 
-
 @legacy(version="0.4.0")
 def _fill_rectangle_constant_(
     image: Array,
@@ -298,23 +280,6 @@ def _fill_rectangle_constant_(
     `cval` may be a single value or one per channel. If the number of items
     in `cval` does not match the number of channels in `image`, it may
     be tiled up to the number of channels.
-
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: yes; tested
-        * ``uint32``: yes; tested
-        * ``uint64``: yes; tested
-        * ``int8``: yes; tested
-        * ``int16``: yes; tested
-        * ``int32``: yes; tested
-        * ``int64``: yes; tested
-        * ``float16``: yes; tested
-        * ``float32``: yes; tested
-        * ``float64``: yes; tested
-        * ``float128``: yes; tested
-        * ``bool``: yes; tested
 
     """
     if ia.is_iterable(cval):
@@ -334,7 +299,6 @@ def _fill_rectangle_constant_(
     image[y1:y2, x1:x2, ...] = np.array(cval, dtype=image.dtype)
 
     return image
-
 
 @legacy(version="0.4.0")
 class _CutoutSamples:
@@ -360,7 +324,6 @@ class _CutoutSamples:
         self.fill_mode = fill_mode
         self.cval = cval
         self.fill_per_channel = fill_per_channel
-
 
 @legacy(version="0.4.0")
 class Cutout(meta.Augmenter):
@@ -389,28 +352,15 @@ class Cutout(meta.Augmenter):
         in the interval ``[0.0, 1.0]`` and hence sample values from a
         gaussian within that interval, i.e. from ``N(0.5, std=0.5/3)``.
 
-
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.arithmetic.cutout_`.
-
     Parameters
     ----------
     nb_iterations : int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
         How many rectangular areas to fill.
 
-            * If ``int``: Exactly that many areas will be filled on all images.
-            * If ``tuple`` ``(a, b)``: A value from the interval ``[a, b]``
-              will be sampled per image.
-            * If ``list``: A random value will be sampled from that ``list``
-              per image.
-            * If ``StochasticParameter``: That parameter will be used to
-              sample ``(B,)`` values per batch of ``B`` images.
-
     position : {'uniform', 'normal', 'center', 'left-top', 'left-center', 'left-bottom', 'center-top', 'center-center', 'center-bottom', 'right-top', 'right-center', 'right-bottom'} or tuple of float or StochasticParameter or tuple of StochasticParameter, optional
         Defines the position of each area to fill.
         Analogous to the definition in e.g.
-        :class:`~imgaug2.augmenters.size.CropToFixedSize`.
+        `CropToFixedSize`.
         Usually, ``uniform`` (anywhere in the image) or ``normal`` (anywhere
         in the image with preference around the center) are sane values.
 
@@ -418,15 +368,6 @@ class Cutout(meta.Augmenter):
         The size of the rectangle to fill as a fraction of the corresponding
         image size, i.e. with value range ``[0.0, 1.0]``. The size is sampled
         independently per image axis.
-
-            * If ``number``: Exactly that size is always used.
-            * If ``tuple`` ``(a, b)``: A value from the interval ``[a, b]``
-              will be sampled per area and axis.
-            * If ``list``: A random value will be sampled from that ``list``
-              per area and axis.
-            * If ``StochasticParameter``: That parameter will be used to
-              sample ``(N, 2)`` values per batch, where ``N`` is the total
-              number of areas to fill within the whole batch.
 
     squared : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to generate only squared areas cutout areas or allow
@@ -444,34 +385,14 @@ class Cutout(meta.Augmenter):
         Mode to use in order to fill areas. Corresponds to ``mode`` parameter
         in some other augmenters. Valid strings for the mode are:
 
-            * ``contant``: Fill each area with a single value.
+            * ``constant``: Fill each area with a single value.
             * ``gaussian``: Fill each area with gaussian noise.
 
         Valid datatypes are:
 
-            * If ``str``: Exactly that mode will alaways be used.
-            * If ``list``: A random value will be sampled from that ``list``
-              per area.
-            * If ``StochasticParameter``: That parameter will be used to
-              sample ``(N,)`` values per batch, where ``N`` is the total number
-              of areas to fill within the whole batch.
-
     cval : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         The value to use (i.e. the color) to fill areas if `fill_mode` is
-        ```constant``.
-
-            * If ``number``: Exactly that value is used for all areas
-              and channels.
-            * If ``tuple`` ``(a, b)``: A value from the interval ``[a, b]``
-              will be sampled per area (and channel if ``per_channel=True``).
-            * If ``list``: A random value will be sampled from that ``list``
-              per area (and channel if ``per_channel=True``).
-            * If ``StochasticParameter``: That parameter will be used to
-              sample ``(N, Cmax)`` values per batch, where ``N`` is the total
-              number of areas to fill within the whole batch and ``Cmax``
-              is the maximum number of channels in any image (usually ``3``).
-              If ``per_channel=False``, only the first value of the second
-              axis is used.
+        ``constant``.
 
     fill_per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to fill each area in a channelwise fashion (``True``) or
@@ -491,17 +412,16 @@ class Cutout(meta.Augmenter):
         lead to per-channel behaviour (i.e. same as ``True``).
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     deterministic : bool, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.bit_generator.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.Cutout(nb_iterations=2)
 
     Fill per image two random areas, by default with grayish pixels.
@@ -708,7 +628,7 @@ class Cutout(meta.Augmenter):
 
     @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [
             self.nb_iterations,
             self.position,
@@ -719,37 +639,16 @@ class Cutout(meta.Augmenter):
             self.fill_per_channel,
         ]
 
-
 # TODO verify that (a, b) still leads to a p being sampled per image and not
 #      per batch
 class Dropout(MultiplyElementwise):
     """
     Set a fraction of pixels in images to zero.
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.arithmetic.MultiplyElementwise`.
-
     Parameters
     ----------
     p : float or tuple of float or imgaug2.parameters.StochasticParameter, optional
         The probability of any pixel being dropped (i.e. to set it to zero).
-
-            * If a float, then that value will be used for all images. A value
-              of ``1.0`` would mean that all pixels will be dropped
-              and ``0.0`` that no pixels will be dropped. A value of ``0.05``
-              corresponds to ``5`` percent of all pixels being dropped.
-            * If a tuple ``(a, b)``, then a value ``p`` will be sampled from
-              the interval ``[a, b]`` per image and be used as the pixel's
-              dropout probability.
-            * If a list, then a value will be sampled from that list per
-              batch and used as the probability.
-            * If a ``StochasticParameter``, then this parameter will be used to
-              determine per pixel whether it should be *kept* (sampled value
-              of ``>0.5``) or shouldn't be kept (sampled value of ``<=0.5``).
-              If you instead want to provide the probability as a stochastic
-              parameter, you can usually do ``imgaug2.parameters.Binomial(1-p)``
-              to convert parameter `p` to a 0/1 representation.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -763,10 +662,10 @@ class Dropout(MultiplyElementwise):
         lead to per-channel behaviour (i.e. same as ``True``).
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -781,7 +680,6 @@ class Dropout(MultiplyElementwise):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.Dropout(0.02)
 
     Drops ``2`` percent of all pixels.
@@ -822,7 +720,6 @@ class Dropout(MultiplyElementwise):
             random_state=random_state,
             deterministic=deterministic,
         )
-
 
 @legacy(version="0.4.0")
 def _handle_dropout_probability_param(p: ParamInput, name: str) -> iap.StochasticParameter:
@@ -865,7 +762,6 @@ def _handle_dropout_probability_param(p: ParamInput, name: str) -> iap.Stochasti
 
     return p_param
 
-
 # TODO invert size_px and size_percent so that larger values denote larger
 #      areas being dropped instead of the opposite way around
 class CoarseDropout(MultiplyElementwise):
@@ -887,30 +783,11 @@ class CoarseDropout(MultiplyElementwise):
     ``CoarseDropout`` can drop multiple rectangles (with some correlation
     between the sizes of these rectangles).
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.arithmetic.MultiplyElementwise`.
-
     Parameters
     ----------
     p : float or tuple of float or imgaug2.parameters.StochasticParameter, optional
         The probability of any pixel being dropped (i.e. set to zero) in
         the lower-resolution dropout mask.
-
-            * If a float, then that value will be used for all pixels. A value
-              of ``1.0`` would mean, that all pixels will be dropped. A value
-              of ``0.0`` would lead to no pixels being dropped.
-            * If a tuple ``(a, b)``, then a value ``p`` will be sampled from
-              the interval ``[a, b]`` per image and be used as the dropout
-              probability.
-            * If a list, then a value will be sampled from that list per
-              batch and used as the probability.
-            * If a ``StochasticParameter``, then this parameter will be used to
-              determine per pixel whether it should be *kept* (sampled value
-              of ``>0.5``) or shouldn't be kept (sampled value of ``<=0.5``).
-              If you instead want to provide the probability as a stochastic
-              parameter, you can usually do ``imgaug2.parameters.Binomial(1-p)``
-              to convert parameter `p` to a 0/1 representation.
 
     size_px : None or int or tuple of int or imgaug2.parameters.StochasticParameter, optional
         The size of the lower resolution image from which to sample the dropout
@@ -919,34 +796,12 @@ class CoarseDropout(MultiplyElementwise):
         *larger* areas being dropped (as any pixel in the lower resolution
         image will correspond to a larger area at the original resolution).
 
-            * If ``None`` then `size_percent` must be set.
-            * If an integer, then that size will always be used for both height
-              and width. E.g. a value of ``3`` would lead to a ``3x3`` mask,
-              which is then upsampled to ``HxW``, where ``H`` is the image size
-              and ``W`` the image width.
-            * If a tuple ``(a, b)``, then two values ``M``, ``N`` will be
-              sampled from the discrete interval ``[a..b]``. The dropout mask
-              will then be generated at size ``MxN`` and upsampled to ``HxW``.
-            * If a ``StochasticParameter``, then this parameter will be used to
-              determine the sizes. It is expected to be discrete.
-
     size_percent : None or float or tuple of float or imgaug2.parameters.StochasticParameter, optional
         The size of the lower resolution image from which to sample the dropout
         mask *in percent* of the input image.
         Note that this means that *lower* values of this parameter lead to
         *larger* areas being dropped (as any pixel in the lower resolution
         image will correspond to a larger area at the original resolution).
-
-            * If ``None`` then `size_px` must be set.
-            * If a float, then that value will always be used as the percentage
-              of the height and width (relative to the original size). E.g. for
-              value ``p``, the mask will be sampled from ``(p*H)x(p*W)`` and
-              later upsampled to ``HxW``.
-            * If a tuple ``(a, b)``, then two values ``m``, ``n`` will be
-              sampled from the interval ``(a, b)`` and used as the size
-              fractions, i.e the mask size will be ``(m*H)x(n*W)``.
-            * If a ``StochasticParameter``, then this parameter will be used to
-              sample the percentage values. It is expected to be continuous.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -967,10 +822,10 @@ class CoarseDropout(MultiplyElementwise):
         mask, leading easily to the whole image being dropped.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -985,7 +840,6 @@ class CoarseDropout(MultiplyElementwise):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.CoarseDropout(0.02, size_percent=0.5)
 
     Drops ``2`` percent of all pixels on a lower-resolution image that has
@@ -1057,7 +911,6 @@ class CoarseDropout(MultiplyElementwise):
             deterministic=deterministic,
         )
 
-
 @legacy(version="0.4.0")
 class Dropout2d(meta.Augmenter):
     """Drop random channels from images.
@@ -1072,42 +925,10 @@ class Dropout2d(meta.Augmenter):
         It does so if and only if *all* channels of an image are dropped.
         If ``nb_keep_channels >= 1`` then that never happens.
 
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: yes; tested
-        * ``uint32``: yes; tested
-        * ``uint64``: yes; tested
-        * ``int8``: yes; tested
-        * ``int16``: yes; tested
-        * ``int32``: yes; tested
-        * ``int64``: yes; tested
-        * ``float16``: yes; tested
-        * ``float32``: yes; tested
-        * ``float64``: yes; tested
-        * ``float128``: yes; tested
-        * ``bool``: yes; tested
-
     Parameters
     ----------
     p : float or tuple of float or imgaug2.parameters.StochasticParameter, optional
         The probability of any channel to be dropped (i.e. set to zero).
-
-            * If a ``float``, then that value will be used for all channels.
-              A value of ``1.0`` would mean, that all channels will be dropped.
-              A value of ``0.0`` would lead to no channels being dropped.
-            * If a tuple ``(a, b)``, then a value ``p`` will be sampled from
-              the interval ``[a, b)`` per batch and be used as the dropout
-              probability.
-            * If a list, then a value will be sampled from that list per
-              batch and used as the probability.
-            * If a ``StochasticParameter``, then this parameter will be used to
-              determine per channel whether it should be *kept* (sampled value
-              of ``>=0.5``) or shouldn't be kept (sampled value of ``<0.5``).
-              If you instead want to provide the probability as a stochastic
-              parameter, you can usually do ``imgaug2.parameters.Binomial(1-p)``
-              to convert parameter `p` to a 0/1 representation.
 
     nb_keep_channels : int
         Minimum number of channels to keep unaltered in all images.
@@ -1116,10 +937,10 @@ class Dropout2d(meta.Augmenter):
         all channels.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -1134,14 +955,12 @@ class Dropout2d(meta.Augmenter):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.Dropout2d(p=0.5)
 
     Create a dropout augmenter that drops on average half of all image
     channels. Dropped channels will be filled with zeros. At least one
     channel is kept unaltered in each image (default setting).
 
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.Dropout2d(p=0.5, nb_keep_channels=0)
 
     Create a dropout augmenter that drops on average half of all image
@@ -1188,8 +1007,26 @@ class Dropout2d(meta.Augmenter):
         imagewise_drop_channel_ids, all_dropped_ids = self._draw_samples(batch, random_state)
 
         if batch.images is not None:
-            for image, drop_ids in zip(batch.images, imagewise_drop_channel_ids, strict=True):
-                image[:, :, drop_ids] = 0
+            from imgaug2.mlx._core import is_mlx_array
+
+            if is_mlx_array(batch.images):
+                import imgaug2.mlx.arithmetic as mlx_arith
+
+                batch.images = mlx_arith.zero_channels_batch(
+                    batch.images, imagewise_drop_channel_ids
+                )
+            else:
+                for idx, (image, drop_ids) in enumerate(
+                    zip(batch.images, imagewise_drop_channel_ids, strict=True)
+                ):
+                    if len(drop_ids) == 0:
+                        continue
+                    if is_mlx_array(image):
+                        import imgaug2.mlx.arithmetic as mlx_arith
+
+                        batch.images[idx] = mlx_arith.zero_channels(image, drop_ids)
+                    else:
+                        image[:, :, drop_ids] = 0
 
         # Skip the non-image data steps below if we won't modify non-image
         # anyways. Minor performance improvement.
@@ -1261,9 +1098,8 @@ class Dropout2d(meta.Augmenter):
 
     @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [self.p, self.nb_keep_channels]
-
 
 @legacy(version="0.4.0")
 class TotalDropout(meta.Augmenter):
@@ -1277,48 +1113,16 @@ class TotalDropout(meta.Augmenter):
         maps to zero and removes all coordinate-based data (e.g. it removes
         all bounding boxes on images that were filled with zeros).
 
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: yes; tested
-        * ``uint32``: yes; tested
-        * ``uint64``: yes; tested
-        * ``int8``: yes; tested
-        * ``int16``: yes; tested
-        * ``int32``: yes; tested
-        * ``int64``: yes; tested
-        * ``float16``: yes; tested
-        * ``float32``: yes; tested
-        * ``float64``: yes; tested
-        * ``float128``: yes; tested
-        * ``bool``: yes; tested
-
     Parameters
     ----------
     p : float or tuple of float or imgaug2.parameters.StochasticParameter, optional
         The probability of an image to be filled with zeros.
 
-            * If ``float``: The value will be used for all images.
-              A value of ``1.0`` would mean that all images will be set to zero.
-              A value of ``0.0`` would lead to no images being set to zero.
-            * If ``tuple`` ``(a, b)``: A value ``p`` will be sampled from
-              the interval ``[a, b)`` per batch and be used as the dropout
-              probability.
-            * If a list, then a value will be sampled from that list per
-              batch and used as the probability.
-            * If ``StochasticParameter``: The parameter will be used to
-              determine per image whether it should be *kept* (sampled value
-              of ``>=0.5``) or shouldn't be kept (sampled value of ``<0.5``).
-              If you instead want to provide the probability as a stochastic
-              parameter, you can usually do ``imgaug2.parameters.Binomial(1-p)``
-              to convert parameter `p` to a 0/1 representation.
-
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -1333,7 +1137,6 @@ class TotalDropout(meta.Augmenter):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.TotalDropout(1.0)
 
     Create an augmenter that sets *all* components of all images to zero.
@@ -1382,12 +1185,24 @@ class TotalDropout(meta.Augmenter):
         drop_ids = None
 
         if batch.images is not None and self._drop_images:
-            if ia.is_np_array(batch.images):
+            from imgaug2.mlx._core import is_mlx_array
+
+            if is_mlx_array(batch.images):
+                import imgaug2.mlx.arithmetic as mlx_arith
+
+                batch.images = mlx_arith.zero_images_batch(batch.images, drop_mask)
+            elif ia.is_np_array(batch.images):
                 batch.images[drop_mask, ...] = 0
             else:
                 drop_ids = self._generate_drop_ids_once(drop_mask, drop_ids)
                 for drop_idx in drop_ids:
-                    batch.images[drop_idx][...] = 0
+                    img = batch.images[drop_idx]
+                    if is_mlx_array(img):
+                        import imgaug2.mlx.arithmetic as mlx_arith
+
+                        batch.images[drop_idx] = mlx_arith.zero_image(img)
+                    else:
+                        img[...] = 0
 
         if batch.heatmaps is not None and self._drop_heatmaps:
             drop_ids = self._generate_drop_ids_once(drop_mask, drop_ids)
@@ -1428,5 +1243,5 @@ class TotalDropout(meta.Augmenter):
 
     @legacy(version="0.4.0")
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [self.p]

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 
@@ -9,37 +9,14 @@ import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
-from imgaug2.compat.markers import legacy
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, Images, ParamInput, RNGInput
-from ._utils import PerChannelInput, SizePercentInput, SizePxInput
+from imgaug2.compat.markers import legacy
 
+from ._utils import PerChannelInput, SizePercentInput, SizePxInput
 
 def replace_elementwise_(image: Array, mask: Array, replacements: Array) -> Array:
     """Replace components in an image array with new values.
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: yes; tested
-        * ``uint32``: yes; tested
-        * ``uint64``: no (1)
-        * ``int8``: yes; tested
-        * ``int16``: yes; tested
-        * ``int32``: yes; tested
-        * ``int64``: no (2)
-        * ``float16``: yes; tested
-        * ``float32``: yes; tested
-        * ``float64``: yes; tested
-        * ``float128``: no
-        * ``bool``: yes; tested
-
-        - (1) ``uint64`` is currently not supported, because
-              :func:`~imgaug2.dtypes.clip_to_dtype_value_range_()` does not
-              support it, which again is because numpy.clip() seems to not
-              support it.
-        - (2) `int64` is disallowed due to being converted to `float64`
-              by :func:`numpy.clip` since 1.17 (possibly also before?).
 
     Parameters
     ----------
@@ -51,10 +28,13 @@ def replace_elementwise_(image: Array, mask: Array, replacements: Array) -> Arra
         If ``C`` is provided, it must be ``1`` or match the ``C`` of `image`.
         May contain floats in the interval ``[0.0, 1.0]``.
 
-    replacements : iterable
-        Replacements to place in `image` at the locations defined by `mask`.
-        This 1-dimensional iterable must contain exactly as many values
-        as there are replaced components in `image`.
+    replacements : ndarray
+        Replacement values to write into `image` at the locations defined by
+        `mask`.
+
+        This is expected to be a 1D array containing exactly as many values as
+        there are replaced components in `image` (after thresholding `mask` at
+        ``>0.5`` and broadcasting a single-channel mask to all image channels).
 
     Returns
     -------
@@ -62,6 +42,14 @@ def replace_elementwise_(image: Array, mask: Array, replacements: Array) -> Arra
         Image with replaced components.
 
     """
+    # MLX fast-path (B1): only when input is already on device.
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(image):
+        import imgaug2.mlx as mlx
+
+        return cast(Array, mlx.replace_elementwise(image, mask, replacements))
+
     iadt.gate_dtypes_strs(
         {image.dtype},
         allowed="bool uint8 uint16 uint32 int8 int16 int32 float16 float32 float64",
@@ -120,14 +108,9 @@ def replace_elementwise_(image: Array, mask: Array, replacements: Array) -> Arra
         return image[..., 0]
     return image
 
-
 class ReplaceElementwise(meta.Augmenter):
     """
     Replace pixels in an image with new values.
-
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.arithmetic.replace_elementwise_`.
 
     Parameters
     ----------
@@ -139,12 +122,6 @@ class ReplaceElementwise(meta.Augmenter):
             * If this is a float, then that value will be used as the
               probability of being a ``1`` in the mask (sampled per image and
               pixel) and hence being replaced.
-            * If a tuple ``(a, b)``, then the probability will be uniformly
-              sampled per image from the interval ``[a, b]``.
-            * If a list, then a random value will be sampled from that list
-              per image and pixel.
-            * If a ``StochasticParameter``, then this parameter will be used to
-              sample a mask per image.
 
     replacement : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter
         The replacement to use at all locations that are marked as ``1`` in
@@ -152,12 +129,6 @@ class ReplaceElementwise(meta.Augmenter):
 
             * If this is a number, then that value will always be used as the
               replacement.
-            * If a tuple ``(a, b)``, then the replacement will be sampled
-              uniformly per image and pixel from the interval ``[a, b]``.
-            * If a list, then a random value will be sampled from that list
-              per image and pixel.
-            * If a ``StochasticParameter``, then this parameter will be used
-              sample replacement values per image and pixel.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -171,10 +142,10 @@ class ReplaceElementwise(meta.Augmenter):
         lead to per-channel behaviour (i.e. same as ``True``).
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -189,13 +160,11 @@ class ReplaceElementwise(meta.Augmenter):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = ReplaceElementwise(0.05, [0, 255])
 
     Replaces ``5`` percent of all pixels in each image by either ``0``
     or ``255``.
 
-    >>> import imgaug2.augmenters as iaa
     >>> aug = ReplaceElementwise(0.1, [0, 255], per_channel=0.5)
 
     For ``50%`` of all images, replace ``10%`` of all pixels with either the
@@ -205,7 +174,6 @@ class ReplaceElementwise(meta.Augmenter):
     very rare for each pixel to have all channels replaced by ``255`` or
     ``0``.
 
-    >>> import imgaug2.augmenters as iaa
     >>> import imgaug2.parameters as iap
     >>> aug = ReplaceElementwise(0.1, iap.Normal(128, 0.4*128), per_channel=0.5)
 
@@ -213,7 +181,6 @@ class ReplaceElementwise(meta.Augmenter):
     Both the replacement mask and the gaussian noise are sampled channelwise
     for ``50%`` of all images.
 
-    >>> import imgaug2.augmenters as iaa
     >>> import imgaug2.parameters as iap
     >>> aug = ReplaceElementwise(
     >>>     iap.FromLowerResolution(iap.Binomial(0.1), size_px=8),
@@ -292,32 +259,17 @@ class ReplaceElementwise(meta.Augmenter):
         return batch
 
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [self.mask, self.replacement, self.per_channel]
-
 
 class SaltAndPepper(ReplaceElementwise):
     """
     Replace pixels in images with salt/pepper noise (white/black-ish colors).
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.arithmetic.ReplaceElementwise`.
-
     Parameters
     ----------
     p : float or tuple of float or list of float or imgaug2.parameters.StochasticParameter, optional
         Probability of replacing a pixel to salt/pepper noise.
-
-            * If a float, then that value will always be used as the
-              probability.
-            * If a tuple ``(a, b)``, then a probability will be sampled
-              uniformly per image from the interval ``[a, b]``.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a ``StochasticParameter``, then a image-sized mask will be
-              sampled from that parameter per image. Any value ``>0.5`` in
-              that mask will be replaced with salt and pepper noise.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -331,10 +283,10 @@ class SaltAndPepper(ReplaceElementwise):
         lead to per-channel behaviour (i.e. same as ``True``).
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -349,12 +301,10 @@ class SaltAndPepper(ReplaceElementwise):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.SaltAndPepper(0.05)
 
     Replace ``5%`` of all pixels with salt and pepper noise.
 
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.SaltAndPepper(0.05, per_channel=True)
 
     Replace *channelwise* ``5%`` of all pixels with salt and pepper
@@ -381,7 +331,6 @@ class SaltAndPepper(ReplaceElementwise):
             deterministic=deterministic,
         )
 
-
 class ImpulseNoise(SaltAndPepper):
     """
     Add impulse noise to images.
@@ -389,30 +338,16 @@ class ImpulseNoise(SaltAndPepper):
     This is identical to ``SaltAndPepper``, except that `per_channel` is
     always set to ``True``.
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.arithmetic.SaltAndPepper`.
-
     Parameters
     ----------
     p : float or tuple of float or list of float or imgaug2.parameters.StochasticParameter, optional
         Probability of replacing a pixel to impulse noise.
 
-            * If a float, then that value will always be used as the
-              probability.
-            * If a tuple ``(a, b)``, then a probability will be sampled
-              uniformly per image from the interval ``[a, b]``.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a ``StochasticParameter``, then a image-sized mask will be
-              sampled from that parameter per image. Any value ``>0.5`` in
-              that mask will be replaced with impulse noise noise.
-
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -427,7 +362,6 @@ class ImpulseNoise(SaltAndPepper):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.ImpulseNoise(0.1)
 
     Replace ``10%`` of all pixels with impulse noise.
@@ -451,7 +385,6 @@ class ImpulseNoise(SaltAndPepper):
             deterministic=deterministic,
         )
 
-
 class CoarseSaltAndPepper(ReplaceElementwise):
     """
     Replace rectangular areas in images with white/black-ish pixel noise.
@@ -466,25 +399,10 @@ class CoarseSaltAndPepper(ReplaceElementwise):
     TODO replace dtype support with uint8 only, because replacement is
          geared towards that value range
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.arithmetic.ReplaceElementwise`.
-
     Parameters
     ----------
     p : float or tuple of float or list of float or imgaug2.parameters.StochasticParameter, optional
         Probability of changing a pixel to salt/pepper noise.
-
-            * If a float, then that value will always be used as the
-              probability.
-            * If a tuple ``(a, b)``, then a probability will be sampled
-              uniformly per image from the interval ``[a, b]``.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a ``StochasticParameter``, then a lower-resolution mask will
-              be sampled from that parameter per image. Any value ``>0.5`` in
-              that mask will denote a spatial location that is to be replaced
-              by salt and pepper noise.
 
     size_px : int or tuple of int or imgaug2.parameters.StochasticParameter, optional
         The size of the lower resolution image from which to sample the
@@ -493,34 +411,12 @@ class CoarseSaltAndPepper(ReplaceElementwise):
         *larger* areas being replaced (as any pixel in the lower resolution
         image will correspond to a larger area at the original resolution).
 
-            * If ``None`` then `size_percent` must be set.
-            * If an integer, then that size will always be used for both height
-              and width. E.g. a value of ``3`` would lead to a ``3x3`` mask,
-              which is then upsampled to ``HxW``, where ``H`` is the image size
-              and ``W`` the image width.
-            * If a tuple ``(a, b)``, then two values ``M``, ``N`` will be
-              sampled from the discrete interval ``[a..b]``. The mask
-              will then be generated at size ``MxN`` and upsampled to ``HxW``.
-            * If a ``StochasticParameter``, then this parameter will be used to
-              determine the sizes. It is expected to be discrete.
-
     size_percent : float or tuple of float or imgaug2.parameters.StochasticParameter, optional
         The size of the lower resolution image from which to sample the
         replacement mask *in percent* of the input image.
         Note that this means that *lower* values of this parameter lead to
         *larger* areas being replaced (as any pixel in the lower resolution
         image will correspond to a larger area at the original resolution).
-
-            * If ``None`` then `size_px` must be set.
-            * If a float, then that value will always be used as the percentage
-              of the height and width (relative to the original size). E.g. for
-              value ``p``, the mask will be sampled from ``(p*H)x(p*W)`` and
-              later upsampled to ``HxW``.
-            * If a tuple ``(a, b)``, then two values ``m``, ``n`` will be
-              sampled from the interval ``(a, b)`` and used as the size
-              fractions, i.e the mask size will be ``(m*H)x(n*W)``.
-            * If a ``StochasticParameter``, then this parameter will be used to
-              sample the percentage values. It is expected to be continuous.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -541,10 +437,10 @@ class CoarseSaltAndPepper(ReplaceElementwise):
         mask, leading easily to the whole image being replaced.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -559,7 +455,6 @@ class CoarseSaltAndPepper(ReplaceElementwise):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.CoarseSaltAndPepper(0.05, size_percent=(0.01, 0.1))
 
     Marks ``5%`` of all pixels in a mask to be replaced by salt/pepper
@@ -617,7 +512,6 @@ class CoarseSaltAndPepper(ReplaceElementwise):
             deterministic=deterministic,
         )
 
-
 class Salt(ReplaceElementwise):
     """
     Replace pixels in images with salt noise, i.e. white-ish pixels.
@@ -625,24 +519,10 @@ class Salt(ReplaceElementwise):
     This augmenter is similar to ``SaltAndPepper``, but adds no pepper noise to
     images.
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.arithmetic.ReplaceElementwise`.
-
     Parameters
     ----------
     p : float or tuple of float or list of float or imgaug2.parameters.StochasticParameter, optional
         Probability of replacing a pixel with salt noise.
-
-            * If a float, then that value will always be used as the
-              probability.
-            * If a tuple ``(a, b)``, then a probability will be sampled
-              uniformly per image from the interval ``[a, b]``.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a ``StochasticParameter``, then a image-sized mask will be
-              sampled from that parameter per image. Any value ``>0.5`` in
-              that mask will be replaced with salt noise.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -656,10 +536,10 @@ class Salt(ReplaceElementwise):
         lead to per-channel behaviour (i.e. same as ``True``).
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -674,7 +554,6 @@ class Salt(ReplaceElementwise):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.Salt(0.05)
 
     Replace ``5%`` of all pixels with salt noise (white-ish colors).
@@ -706,32 +585,16 @@ class Salt(ReplaceElementwise):
             deterministic=deterministic,
         )
 
-
 class CoarseSalt(ReplaceElementwise):
     """
     Replace rectangular areas in images with white-ish pixel noise.
 
     See also the similar ``CoarseSaltAndPepper``.
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.arithmetic.ReplaceElementwise`.
-
     Parameters
     ----------
     p : float or tuple of float or list of float or imgaug2.parameters.StochasticParameter, optional
         Probability of changing a pixel to salt noise.
-
-            * If a float, then that value will always be used as the
-              probability.
-            * If a tuple ``(a, b)``, then a probability will be sampled
-              uniformly per image from the interval ``[a, b]``.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a ``StochasticParameter``, then a lower-resolution mask will
-              be sampled from that parameter per image. Any value ``>0.5`` in
-              that mask will denote a spatial location that is to be replaced
-              by salt noise.
 
     size_px : int or tuple of int or imgaug2.parameters.StochasticParameter, optional
         The size of the lower resolution image from which to sample the
@@ -740,34 +603,12 @@ class CoarseSalt(ReplaceElementwise):
         *larger* areas being replaced (as any pixel in the lower resolution
         image will correspond to a larger area at the original resolution).
 
-            * If ``None`` then `size_percent` must be set.
-            * If an integer, then that size will always be used for both height
-              and width. E.g. a value of ``3`` would lead to a ``3x3`` mask,
-              which is then upsampled to ``HxW``, where ``H`` is the image size
-              and ``W`` the image width.
-            * If a tuple ``(a, b)``, then two values ``M``, ``N`` will be
-              sampled from the discrete interval ``[a..b]``. The mask
-              will then be generated at size ``MxN`` and upsampled to ``HxW``.
-            * If a ``StochasticParameter``, then this parameter will be used to
-              determine the sizes. It is expected to be discrete.
-
     size_percent : float or tuple of float or imgaug2.parameters.StochasticParameter, optional
         The size of the lower resolution image from which to sample the
         replacement mask *in percent* of the input image.
         Note that this means that *lower* values of this parameter lead to
         *larger* areas being replaced (as any pixel in the lower resolution
         image will correspond to a larger area at the original resolution).
-
-            * If ``None`` then `size_px` must be set.
-            * If a float, then that value will always be used as the percentage
-              of the height and width (relative to the original size). E.g. for
-              value ``p``, the mask will be sampled from ``(p*H)x(p*W)`` and
-              later upsampled to ``HxW``.
-            * If a tuple ``(a, b)``, then two values ``m``, ``n`` will be
-              sampled from the interval ``(a, b)`` and used as the size
-              fractions, i.e the mask size will be ``(m*H)x(n*W)``.
-            * If a ``StochasticParameter``, then this parameter will be used to
-              sample the percentage values. It is expected to be continuous.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -788,10 +629,10 @@ class CoarseSalt(ReplaceElementwise):
         mask, leading easily to the whole image being replaced.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -806,7 +647,6 @@ class CoarseSalt(ReplaceElementwise):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.CoarseSalt(0.05, size_percent=(0.01, 0.1))
 
     Mark ``5%`` of all pixels in a mask to be replaced by salt
@@ -853,7 +693,6 @@ class CoarseSalt(ReplaceElementwise):
             deterministic=deterministic,
         )
 
-
 class Pepper(ReplaceElementwise):
     """
     Replace pixels in images with pepper noise, i.e. black-ish pixels.
@@ -864,24 +703,10 @@ class Pepper(ReplaceElementwise):
     This augmenter is similar to ``Dropout``, but slower and the black pixels
     are not uniformly black.
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.arithmetic.ReplaceElementwise`.
-
     Parameters
     ----------
     p : float or tuple of float or list of float or imgaug2.parameters.StochasticParameter, optional
         Probability of replacing a pixel with pepper noise.
-
-            * If a float, then that value will always be used as the
-              probability.
-            * If a tuple ``(a, b)``, then a probability will be sampled
-              uniformly per image from the interval ``[a, b]``.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a ``StochasticParameter``, then a image-sized mask will be
-              sampled from that parameter per image. Any value ``>0.5`` in
-              that mask will be replaced with pepper noise.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -895,10 +720,10 @@ class Pepper(ReplaceElementwise):
         lead to per-channel behaviour (i.e. same as ``True``).
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -913,7 +738,6 @@ class Pepper(ReplaceElementwise):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.Pepper(0.05)
 
     Replace ``5%`` of all pixels with pepper noise (black-ish colors).
@@ -942,30 +766,14 @@ class Pepper(ReplaceElementwise):
             deterministic=deterministic,
         )
 
-
 class CoarsePepper(ReplaceElementwise):
     """
     Replace rectangular areas in images with black-ish pixel noise.
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.arithmetic.ReplaceElementwise`.
 
     Parameters
     ----------
     p : float or tuple of float or list of float or imgaug2.parameters.StochasticParameter, optional
         Probability of changing a pixel to pepper noise.
-
-            * If a float, then that value will always be used as the
-              probability.
-            * If a tuple ``(a, b)``, then a probability will be sampled
-              uniformly per image from the interval ``[a, b]``.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a ``StochasticParameter``, then a lower-resolution mask will
-              be sampled from that parameter per image. Any value ``>0.5`` in
-              that mask will denote a spatial location that is to be replaced
-              by pepper noise.
 
     size_px : int or tuple of int or imgaug2.parameters.StochasticParameter, optional
         The size of the lower resolution image from which to sample the
@@ -974,34 +782,12 @@ class CoarsePepper(ReplaceElementwise):
         *larger* areas being replaced (as any pixel in the lower resolution
         image will correspond to a larger area at the original resolution).
 
-            * If ``None`` then `size_percent` must be set.
-            * If an integer, then that size will always be used for both height
-              and width. E.g. a value of ``3`` would lead to a ``3x3`` mask,
-              which is then upsampled to ``HxW``, where ``H`` is the image size
-              and ``W`` the image width.
-            * If a tuple ``(a, b)``, then two values ``M``, ``N`` will be
-              sampled from the discrete interval ``[a..b]``. The mask
-              will then be generated at size ``MxN`` and upsampled to ``HxW``.
-            * If a ``StochasticParameter``, then this parameter will be used to
-              determine the sizes. It is expected to be discrete.
-
     size_percent : float or tuple of float or imgaug2.parameters.StochasticParameter, optional
         The size of the lower resolution image from which to sample the
         replacement mask *in percent* of the input image.
         Note that this means that *lower* values of this parameter lead to
         *larger* areas being replaced (as any pixel in the lower resolution
         image will correspond to a larger area at the original resolution).
-
-            * If ``None`` then `size_px` must be set.
-            * If a float, then that value will always be used as the percentage
-              of the height and width (relative to the original size). E.g. for
-              value ``p``, the mask will be sampled from ``(p*H)x(p*W)`` and
-              later upsampled to ``HxW``.
-            * If a tuple ``(a, b)``, then two values ``m``, ``n`` will be
-              sampled from the interval ``(a, b)`` and used as the size
-              fractions, i.e the mask size will be ``(m*H)x(n*W)``.
-            * If a ``StochasticParameter``, then this parameter will be used to
-              sample the percentage values. It is expected to be continuous.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -1022,10 +808,10 @@ class CoarsePepper(ReplaceElementwise):
         easily to the whole image being replaced.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -1040,7 +826,6 @@ class CoarsePepper(ReplaceElementwise):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.CoarsePepper(0.05, size_percent=(0.01, 0.1))
 
     Mark ``5%`` of all pixels in a mask to be replaced by pepper

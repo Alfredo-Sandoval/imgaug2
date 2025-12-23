@@ -15,30 +15,10 @@ from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
 from ._utils import PerChannelInput, ScalarInput
 
-
 def add_scalar(image: Array, value: ScalarInput) -> Array:
     """Add a scalar value (or one scalar per channel) to an image.
 
     This method ensures that ``uint8`` does not overflow during the addition.
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: limited; tested (1)
-        * ``uint32``: no
-        * ``uint64``: no
-        * ``int8``: limited; tested (1)
-        * ``int16``: limited; tested (1)
-        * ``int32``: no
-        * ``int64``: no
-        * ``float16``: limited; tested (1)
-        * ``float32``: limited; tested (1)
-        * ``float64``: no
-        * ``float128``: no
-        * ``bool``: limited; tested (1)
-
-        - (1) Non-uint8 dtypes can overflow. For floats, this can result
-              in +/-inf.
 
     Parameters
     ----------
@@ -59,30 +39,10 @@ def add_scalar(image: Array, value: ScalarInput) -> Array:
     """
     return add_scalar_(np.copy(image), value)
 
-
 def add_scalar_(image: Array, value: ScalarInput) -> Array:
     """Add in-place a scalar value (or one scalar per channel) to an image.
 
     This method ensures that ``uint8`` does not overflow during the addition.
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: limited; tested (1)
-        * ``uint32``: no
-        * ``uint64``: no
-        * ``int8``: limited; tested (1)
-        * ``int16``: limited; tested (1)
-        * ``int32``: no
-        * ``int64``: no
-        * ``float16``: limited; tested (1)
-        * ``float32``: limited; tested (1)
-        * ``float64``: no
-        * ``float128``: no
-        * ``bool``: limited; tested (1)
-
-        - (1) Non-uint8 dtypes can overflow. For floats, this can result
-              in +/-inf.
 
     Parameters
     ----------
@@ -125,7 +85,6 @@ def add_scalar_(image: Array, value: ScalarInput) -> Array:
         return _add_scalar_to_uint8_(image, value)
     return _add_scalar_to_non_uint8(image, value)
 
-
 def _add_scalar_to_uint8_(image: Array, value: ScalarInput) -> Array:
     if ia.is_single_number(value):
         is_single_value = True
@@ -156,7 +115,6 @@ def _add_scalar_to_uint8_(image: Array, value: ScalarInput) -> Array:
     image_add = cv2.add(image_mat, values_mat, dst=image_mat, dtype=cv2.CV_8U)
 
     return image_add.reshape(input_shape)
-
 
 def _add_scalar_to_non_uint8(image: Array, value: ScalarInput) -> Array:
     input_dtype = image.dtype
@@ -199,30 +157,10 @@ def _add_scalar_to_non_uint8(image: Array, value: ScalarInput) -> Array:
 
     return iadt.restore_dtypes_(image, input_dtype)
 
-
 def add_elementwise(image: Array, values: Array) -> Array:
     """Add an array of values to an image.
 
     This method ensures that ``uint8`` does not overflow during the addition.
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: limited; tested (1)
-        * ``uint32``: no
-        * ``uint64``: no
-        * ``int8``: limited; tested (1)
-        * ``int16``: limited; tested (1)
-        * ``int32``: no
-        * ``int64``: no
-        * ``float16``: limited; tested (1)
-        * ``float32``: limited; tested (1)
-        * ``float64``: no
-        * ``float128``: no
-        * ``bool``: limited; tested (1)
-
-        - (1) Non-uint8 dtypes can overflow. For floats, this can result
-              in +/-inf.
 
     Parameters
     ----------
@@ -247,6 +185,14 @@ def add_elementwise(image: Array, values: Array) -> Array:
         Image with values added to it.
 
     """
+    # MLX fast-path (B1): only when input is already on device.
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(image):
+        import imgaug2.mlx as mlx
+
+        return cast(Array, mlx.add_elementwise(image, values))
+
     iadt.gate_dtypes_strs(
         {image.dtype},
         allowed="bool uint8 uint16 int8 int16 float16 float32",
@@ -272,7 +218,6 @@ def add_elementwise(image: Array, values: Array) -> Array:
         return _add_elementwise_np_to_uint8(image, values)
     return _add_elementwise_np_to_non_uint8(image, values)
 
-
 def _add_elementwise_cv2_to_uint8(image: Array, values: Array) -> Array:
     ind, vnd = image.ndim, values.ndim
     valid_vnd = [ind] if ind == 2 else [ind - 1, ind]
@@ -290,7 +235,6 @@ def _add_elementwise_cv2_to_uint8(image: Array, values: Array) -> Array:
     if result.ndim == 2 and ind == 3:
         return result[:, :, np.newaxis]
     return result
-
 
 def _add_elementwise_np_to_uint8(image: Array, values: Array) -> Array:
     # This special uint8 block is around 60-100% faster than the
@@ -312,7 +256,6 @@ def _add_elementwise_np_to_uint8(image: Array, values: Array) -> Array:
     image_aug = np.clip(image_aug, 0, 255).astype(np.uint8)
 
     return image_aug
-
 
 def _add_elementwise_np_to_non_uint8(image: Array, values: Array) -> Array:
     # We limit here the value range of the value parameter to the
@@ -356,27 +299,14 @@ def _add_elementwise_np_to_non_uint8(image: Array, values: Array) -> Array:
         return image[..., 0]
     return image
 
-
 class Add(meta.Augmenter):
     """
     Add a value to all pixels in an image.
-
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.arithmetic.add_scalar`.
 
     Parameters
     ----------
     value : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Value to add to all pixels.
-
-            * If a number, exactly that value will always be used.
-            * If a tuple ``(a, b)``, then a value from the discrete
-              interval ``[a..b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a ``StochasticParameter``, then a value will be sampled per
-              image from that parameter.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -390,10 +320,10 @@ class Add(meta.Augmenter):
         lead to per-channel behaviour (i.e. same as ``True``).
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -408,7 +338,6 @@ class Add(meta.Augmenter):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.Add(10)
 
     Always adds a value of 10 to all channels of all pixels of all input
@@ -508,9 +437,8 @@ class Add(meta.Augmenter):
         return batch
 
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [self.value, self.per_channel]
-
 
 # TODO merge this with Add
 class AddElementwise(meta.Augmenter):
@@ -522,22 +450,10 @@ class AddElementwise(meta.Augmenter):
     and *per pixel* (and optionally per channel), i.e. intensities of
     neighbouring pixels may be increased/decreased by different amounts.
 
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.arithmetic.add_elementwise`.
-
     Parameters
     ----------
     value : int or tuple of int or list of int or imgaug2.parameters.StochasticParameter, optional
         Value to add to the pixels.
-
-            * If an int, exactly that value will always be used.
-            * If a tuple ``(a, b)``, then values from the discrete interval
-              ``[a..b]`` will be sampled per image and pixel.
-            * If a list of integers, a random value will be sampled from the
-              list per image and pixel.
-            * If a ``StochasticParameter``, then values will be sampled per
-              image and pixel from that parameter.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -551,10 +467,10 @@ class AddElementwise(meta.Augmenter):
         lead to per-channel behaviour (i.e. same as ``True``).
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -569,7 +485,6 @@ class AddElementwise(meta.Augmenter):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.AddElementwise(10)
 
     Always adds a value of 10 to all channels of all pixels of all input
@@ -638,9 +553,8 @@ class AddElementwise(meta.Augmenter):
         return batch
 
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [self.value, self.per_channel]
-
 
 # TODO rename to AddGaussianNoise?
 # TODO examples say that iaa.AdditiveGaussianNoise(scale=(0, 0.1*255)) samples
@@ -655,35 +569,15 @@ class AdditiveGaussianNoise(AddElementwise):
     different noise values to neighbouring pixels and is comparable
     to ``AddElementwise``.
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.arithmetic.AddElementwise`.
-
     Parameters
     ----------
     loc : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Mean of the normal distribution from which the noise is sampled.
 
-            * If a number, exactly that value will always be used.
-            * If a tuple ``(a, b)``, a random value from the interval
-              ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list per
-              image.
-            * If a ``StochasticParameter``, a value will be sampled from the
-              parameter per image.
-
     scale : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Standard deviation of the normal distribution that generates the noise.
         Must be ``>=0``. If ``0`` then `loc` will simply be added to all
         pixels.
-
-            * If a number, exactly that value will always be used.
-            * If a tuple ``(a, b)``, a random value from the interval
-              ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list per
-              image.
-            * If a ``StochasticParameter``, a value will be sampled from the
-              parameter per image.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -697,10 +591,10 @@ class AdditiveGaussianNoise(AddElementwise):
         lead to per-channel behaviour (i.e. same as ``True``).
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -715,7 +609,6 @@ class AdditiveGaussianNoise(AddElementwise):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.AdditiveGaussianNoise(scale=0.1*255)
 
     Adds gaussian noise from the distribution ``N(0, 0.1*255)`` to images.
@@ -768,7 +661,6 @@ class AdditiveGaussianNoise(AddElementwise):
             deterministic=deterministic,
         )
 
-
 class AdditiveLaplaceNoise(AddElementwise):
     """
     Add noise sampled from laplace distributions elementwise to images.
@@ -788,35 +680,15 @@ class AdditiveLaplaceNoise(AddElementwise):
     different noise values to neighbouring pixels and is comparable
     to ``AddElementwise``.
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.arithmetic.AddElementwise`.
-
     Parameters
     ----------
     loc : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Mean of the laplace distribution that generates the noise.
 
-            * If a number, exactly that value will always be used.
-            * If a tuple ``(a, b)``, a random value from the interval
-              ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list per
-              image.
-            * If a ``StochasticParameter``, a value will be sampled from the
-              parameter per image.
-
     scale : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Standard deviation of the laplace distribution that generates the noise.
         Must be ``>=0``. If ``0`` then only `loc` will be used.
         Recommended to be around ``255*0.05``.
-
-            * If a number, exactly that value will always be used.
-            * If a tuple ``(a, b)``, a random value from the interval
-              ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list per
-              image.
-            * If a ``StochasticParameter``, a value will be sampled from the
-              parameter per image.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -830,10 +702,10 @@ class AdditiveLaplaceNoise(AddElementwise):
         lead to per-channel behaviour (i.e. same as ``True``).
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -848,7 +720,6 @@ class AdditiveLaplaceNoise(AddElementwise):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.AdditiveLaplaceNoise(scale=0.1*255)
 
     Adds laplace noise from the distribution ``Laplace(0, 0.1*255)`` to images.
@@ -901,7 +772,6 @@ class AdditiveLaplaceNoise(AddElementwise):
             deterministic=deterministic,
         )
 
-
 class AdditivePoissonNoise(AddElementwise):
     """
     Add noise sampled from poisson distributions elementwise to images.
@@ -919,23 +789,11 @@ class AdditivePoissonNoise(AddElementwise):
     different noise values to neighbouring pixels and is comparable
     to ``AddElementwise``.
 
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.arithmetic.AddElementwise`.
-
     Parameters
     ----------
     lam : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         Lambda parameter of the poisson distribution. Must be ``>=0``.
         Recommended values are around ``0.0`` to ``10.0``.
-
-            * If a number, exactly that value will always be used.
-            * If a tuple ``(a, b)``, a random value from the interval
-              ``[a, b]`` will be sampled per image.
-            * If a list, then a random value will be sampled from that list
-              per image.
-            * If a ``StochasticParameter``, a value will be sampled from the
-              parameter per image.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -949,10 +807,10 @@ class AdditivePoissonNoise(AddElementwise):
         lead to per-channel behaviour (i.e. same as ``True``).
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -967,7 +825,6 @@ class AdditivePoissonNoise(AddElementwise):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.AdditivePoissonNoise(lam=5.0)
 
     Adds poisson noise sampled from a poisson distribution with a ``lambda``

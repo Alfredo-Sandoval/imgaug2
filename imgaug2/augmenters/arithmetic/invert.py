@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, cast
 
 import cv2
 import numpy as np
@@ -10,11 +10,11 @@ import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
-from imgaug2.compat.markers import legacy
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, Images, Number, ParamInput, RNGInput
-from ._utils import PerChannelInput
+from imgaug2.compat.markers import legacy
 
+from ._utils import PerChannelInput
 
 def invert(
     image: Array,
@@ -25,26 +25,22 @@ def invert(
 ) -> Array:
     """Invert an array.
 
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.arithmetic.invert_`.
-
     Parameters
     ----------
     image : ndarray
-        See :func:`invert_`.
+        See `invert_()`.
 
     min_value : None or number, optional
-        See :func:`invert_`.
+        See `invert_()`.
 
     max_value : None or number, optional
-        See :func:`invert_`.
+        See `invert_()`.
 
     threshold : None or number, optional
-        See :func:`invert_`.
+        See `invert_()`.
 
     invert_above_threshold : bool, optional
-        See :func:`invert_`.
+        See `invert_()`.
 
     Returns
     -------
@@ -62,7 +58,6 @@ def invert(
         invert_above_threshold=invert_above_threshold,
     )
 
-
 @legacy(version="0.4.0")
 def invert_(
     image: Array,
@@ -73,47 +68,22 @@ def invert_(
 ) -> Array:
     """Invert an array in-place.
 
+    By default (``min_value=None`` and ``max_value=None``), the value range is
+    derived from the input dtype and most numeric dtypes are supported.
 
-    **Supported dtypes**:
+    Notes
+    -----
+    When using custom ``min_value`` and/or ``max_value``, dtype support is more
+    restricted, as the implementation may need to clip values and/or increase
+    intermediate resolution.
 
-    if (min_value=None and max_value=None):
+    In particular:
 
-        * ``uint8``: yes; fully tested
-        * ``uint16``: yes; tested
-        * ``uint32``: yes; tested
-        * ``uint64``: yes; tested
-        * ``int8``: yes; tested
-        * ``int16``: yes; tested
-        * ``int32``: yes; tested
-        * ``int64``: yes; tested
-        * ``float16``: yes; tested
-        * ``float32``: yes; tested
-        * ``float64``: yes; tested
-        * ``float128``: yes; tested
-        * ``bool``: yes; tested
-
-    if (min_value!=None or max_value!=None):
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: yes; tested
-        * ``uint32``: yes; tested
-        * ``uint64``: no (1)
-        * ``int8``: yes; tested
-        * ``int16``: yes; tested
-        * ``int32``: yes; tested
-        * ``int64``: no (2)
-        * ``float16``: yes; tested
-        * ``float32``: yes; tested
-        * ``float64``: no (2)
-        * ``float128``: no (3)
-        * ``bool``: no (4)
-
-        - (1) Not allowed due to numpy's clip converting from ``uint64`` to
-              ``float64``.
-        - (2) Not allowed as int/float have to be increased in resolution
-              when using min/max values.
-        - (3) Not tested.
-        - (4) Makes no sense when using min/max values.
+    - ``bool`` is not supported with custom min/max.
+    - ``uint64`` is not supported with custom min/max due to precision loss in
+      ``numpy.clip``.
+    - 64-bit signed integers and 64-bit floats are not supported with custom
+      min/max.
 
     Parameters
     ----------
@@ -149,6 +119,23 @@ def invert_(
     """
     if image.size == 0:
         return image
+
+    # MLX fast-path (B1): only when input is already on device.
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(image):
+        import imgaug2.mlx as mlx
+
+        return cast(
+            Array,
+            mlx.invert(
+                image,
+                min_value=min_value,
+                max_value=max_value,
+                threshold=threshold,
+                invert_above_threshold=invert_above_threshold,
+            ),
+        )
 
     # when no custom min/max are chosen, all bool, uint, int and float dtypes
     # should be invertable (float tested only up to 64bit)
@@ -209,14 +196,12 @@ def invert_(
     image[mask] = arr_inv[mask]
     return image
 
-
 def _invert_bool(arr: Array, min_value: Number, max_value: Number) -> Array:
     assert min_value == 0 and max_value == 1, (
         "min_value and max_value must be 0 and 1 for bool arrays. "
         f"Got {min_value:.4f} and {max_value:.4f}."
     )
     return ~arr
-
 
 @legacy(version="0.4.0")
 def _invert_uint8_(
@@ -240,7 +225,6 @@ def _invert_uint8_(
         arr, min_value, max_value, threshold, invert_above_threshold
     )
 
-
 @legacy(version="0.5.0")
 def _invert_uint8_lut_pregenerated_(
     arr: Array,
@@ -257,7 +241,6 @@ def _invert_uint8_lut_pregenerated_(
     )
     arr = ia.apply_lut_(arr, table)
     return arr
-
 
 @legacy(version="0.5.0")
 def _invert_uint8_subtract_(arr: Array, max_value: int) -> Array:
@@ -287,14 +270,12 @@ def _invert_uint8_subtract_(arr: Array, max_value: int) -> Array:
     arr = cv2.subtract(int(max_value), arr, dst=arr)
     return arr
 
-
 @legacy(version="0.4.0")
 def _invert_uint16_or_larger_(arr: Array, min_value: int, max_value: int) -> Array:
     min_max_is_vr = min_value == 0 and max_value == np.iinfo(arr.dtype).max
     if min_max_is_vr:
         return max_value - arr
     return _invert_by_distance(np.clip(arr, min_value, max_value), min_value, max_value)
-
 
 @legacy(version="0.4.0")
 def _invert_int_(arr: Array, min_value: int, max_value: int) -> Array:
@@ -333,12 +314,10 @@ def _invert_int_(arr: Array, min_value: int, max_value: int) -> Array:
 
     return _invert_by_distance(np.clip(arr, min_value, max_value), min_value, max_value)
 
-
 def _invert_float(arr: Array, min_value: float, max_value: float) -> Array:
     if np.isclose(max_value, (-1) * min_value, rtol=0):
         return (-1) * arr
     return _invert_by_distance(np.clip(arr, min_value, max_value), min_value, max_value)
-
 
 def _invert_by_distance(arr: Array, min_value: Number, max_value: Number) -> Array:
     arr_inv = arr
@@ -354,7 +333,6 @@ def _invert_by_distance(arr: Array, min_value: Number, max_value: Number) -> Arr
     if arr.dtype.kind in ["i", "f"]:
         arr_inv = iadt.restore_dtypes_(arr_inv, arr.dtype, clip=False)
     return arr_inv
-
 
 @legacy(version="0.4.0")
 def _generate_table_for_invert_uint8(
@@ -382,7 +360,6 @@ def _generate_table_for_invert_uint8(
 
     return table_inv
 
-
 @legacy(version="0.5.0")
 class _InvertTables:
     @legacy(version="0.5.0")
@@ -406,7 +383,6 @@ class _InvertTables:
             min_value, max_value, threshold, invert_above_threshold
         )
 
-
 @legacy(version="0.5.0")
 class _InvertTablesSingleton:
     _INSTANCE = None
@@ -418,23 +394,17 @@ class _InvertTablesSingleton:
             cls._INSTANCE = _InvertTables()
         return cls._INSTANCE
 
-
 @legacy(version="0.4.0")
 def solarize(image: Array, threshold: Number | None = 128) -> Array:
     """Invert pixel values above a threshold.
 
-
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.arithmetic.solarize_`.
-
     Parameters
     ----------
     image : ndarray
-        See :func:`solarize_`.
+        See `solarize_()`.
 
     threshold : None or number, optional
-        See :func:`solarize_`.
+        See `solarize_()`.
 
     Returns
     -------
@@ -446,31 +416,22 @@ def solarize(image: Array, threshold: Number | None = 128) -> Array:
 
     return solarize_fn(np.copy(image), threshold=threshold)
 
-
 @legacy(version="0.4.0")
 def solarize_(image: Array, threshold: Number | None = 128) -> Array:
     """Invert pixel values above a threshold in-place.
 
-    This function is a wrapper around :func:`invert`.
+    This function is a wrapper around `invert_()`.
 
     This function performs the same transformation as
-    :func:`PIL.ImageOps.solarize`.
-
-
-    **Supported dtypes**:
-
-    See ``~imgaug2.augmenters.arithmetic.invert_(min_value=None and max_value=None)``.
-
+    `solarize()`.
     Parameters
     ----------
     image : ndarray
-        See :func:`invert_`.
+        See `invert_()`.
 
     threshold : None or number, optional
-        See :func:`invert_`.
+        See `invert_()`.
         Note: The default threshold is optimized for ``uint8`` images.
-
-
     Returns
     -------
     ndarray
@@ -482,7 +443,6 @@ def solarize_(image: Array, threshold: Number | None = 128) -> Array:
 
     return invert_fn(image, threshold=threshold)
 
-
 class Invert(meta.Augmenter):
     """
     Invert all values in images, e.g. turn ``5`` into ``255-5=250``.
@@ -493,22 +453,10 @@ class Invert(meta.Augmenter):
     ``v`` a value. Then the distance of ``v`` to ``m`` is ``d=abs(v-m)`` and
     the new value is given by ``v'=M-d``.
 
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.arithmetic.invert_`.
-
     Parameters
     ----------
     p : float or imgaug2.parameters.StochasticParameter, optional
         The probability of an image to be inverted.
-
-            * If a float, then that probability will be used for all images,
-              i.e. `p` percent of all images will be inverted.
-            * If a ``StochasticParameter``, then that parameter will be queried
-              per image and is expected to return values in the interval
-              ``[0.0, 1.0]``, where values ``>0.5`` mean that the image
-              is supposed to be inverted. Recommended to be some form of
-              ``imgaug2.parameters.Binomial``.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -535,15 +483,6 @@ class Invert(meta.Augmenter):
         A threshold to use in order to invert only numbers above or below
         the threshold. If ``None`` no thresholding will be used.
 
-            * If ``None``: No thresholding will be used.
-            * If ``number``: The value will be used for all images.
-            * If ``tuple`` ``(a, b)``: A value will be uniformly sampled per
-              image from the interval ``[a, b)``.
-            * If ``list``: A random value will be picked from the list per
-              image.
-            * If ``StochasticParameter``: Per batch of size ``N``, the
-              parameter will be queried once to return ``(N,)`` samples.
-
     invert_above_threshold : bool or float or imgaug2.parameters.StochasticParameter, optional
         If ``True``, only values ``>=threshold`` will be inverted.
         Otherwise, only values ``<threshold`` will be inverted.
@@ -554,10 +493,10 @@ class Invert(meta.Augmenter):
         If `threshold` is ``None`` this parameter has no effect.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -572,7 +511,6 @@ class Invert(meta.Augmenter):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.Invert(0.1)
 
     Inverts the colors in ``10`` percent of all images.
@@ -713,7 +651,7 @@ class Invert(meta.Augmenter):
         )
 
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [
             self.p,
             self.per_channel,
@@ -722,7 +660,6 @@ class Invert(meta.Augmenter):
             self.threshold,
             self.invert_above_threshold,
         ]
-
 
 @legacy(version="0.4.0")
 class _InvertSamples:
@@ -743,47 +680,41 @@ class _InvertSamples:
         self.threshold = threshold
         self.invert_above_threshold = invert_above_threshold
 
-
 @legacy(version="0.4.0")
 class Solarize(Invert):
     """Invert all pixel values above a threshold.
 
-    This is the same as :class:`Invert`, but sets a default threshold around
+    This is the same as `Invert`, but sets a default threshold around
     ``128`` (+/- 64, decided per image) and default `invert_above_threshold`
     to ``True`` (i.e. only values above the threshold will be inverted).
 
-    See :class:`Invert` for more details.
-
-
-    **Supported dtypes**:
-
-    See :class:`~imgaug2.augmenters.arithmetic.Invert`.
+    See `Invert` for more details.
 
     Parameters
     ----------
     p : float or imgaug2.parameters.StochasticParameter
-        See :class:`Invert`.
+        See `Invert`.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
-        See :class:`Invert`.
+        See `Invert`.
 
     min_value : None or number, optional
-        See :class:`Invert`.
+        See `Invert`.
 
     max_value : None or number, optional
-        See :class:`Invert`.
+        See `Invert`.
 
     threshold : None or number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
-        See :class:`Invert`.
+        See `Invert`.
 
     invert_above_threshold : bool or float or imgaug2.parameters.StochasticParameter, optional
-        See :class:`Invert`.
+        See `Invert`.
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -798,7 +729,6 @@ class Solarize(Invert):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.Solarize(0.5, threshold=(32, 128))
 
     Invert the colors in ``50`` percent of all images for pixels with a
@@ -832,8 +762,5 @@ class Solarize(Invert):
             random_state=random_state,
             deterministic=deterministic,
         )
-
-
-
 
 # TODO try adding per channel somehow

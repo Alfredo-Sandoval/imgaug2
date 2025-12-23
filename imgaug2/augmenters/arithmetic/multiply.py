@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, cast
 
 import cv2
 import numpy as np
@@ -10,57 +10,33 @@ import imgaug2.imgaug as ia
 import imgaug2.parameters as iap
 import imgaug2.random as iarandom
 from imgaug2.augmentables.batches import _BatchInAugmentation
-from imgaug2.compat.markers import legacy
 from imgaug2.augmenters import meta
 from imgaug2.augmenters._typing import Array, ParamInput, RNGInput
+from imgaug2.compat.markers import legacy
 from imgaug2.imgaug import _normalize_cv2_input_arr_
+
 from ._utils import PerChannelInput, ScalarInput
 
-
 def multiply_scalar(image: Array, multiplier: ScalarInput) -> Array:
-    """Multiply an image by a single scalar or one scalar per channel.
+    """Multiply an image by a scalar (or one scalar per channel).
 
-    This method ensures that ``uint8`` does not overflow during the
-    multiplication.
+    For ``uint8`` inputs, this uses saturating arithmetic to avoid overflow.
 
-    note::
+    Notes
+    -----
+    Tests were primarily conducted for relatively small multipliers (roughly
+    ``-10`` to ``+10``).
 
-        Tests were only conducted for rather small multipliers, around
-        ``-10.0`` to ``+10.0``.
-
-        In general, the multipliers sampled from `multiplier` must be in a
-        value range that corresponds to the input image's dtype. E.g. if the
-        input image has dtype ``uint16`` and the samples generated from
-        `multiplier` are ``float64``, this function will still force all
-        samples to be within the value range of ``float16``, as it has the
-        same number of bytes (two) as ``uint16``. This is done to make
-        overflows less likely to occur.
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: limited; tested (1)
-        * ``uint32``: no
-        * ``uint64``: no
-        * ``int8``: limited; tested (1)
-        * ``int16``: limited; tested (1)
-        * ``int32``: no
-        * ``int64``: no
-        * ``float16``: limited; tested (1)
-        * ``float32``: limited; tested (1)
-        * ``float64``: no
-        * ``float128``: no
-        * ``bool``: limited; tested (1)
-
-        - (1) Non-uint8 dtypes can overflow. For floats, this can result in
-              +/-inf.
+    For non-``uint8`` dtypes, this function tries to reduce the chance of
+    overflows by clipping/promoting intermediate arrays, but overflows can
+    still occur (for floats that may mean ``+/-inf``).
 
     Parameters
     ----------
     image : ndarray
         Image array of shape ``(H,W,[C])``.
-        If `value` contains more than one value, the shape of the image is
-        expected to be ``(H,W,C)``.
+        If `multiplier` contains more than one value, the image is expected
+        to have shape ``(H,W,C)``.
 
     multiplier : number or ndarray
         The multiplier to use. Either a single value or an array
@@ -74,54 +50,27 @@ def multiply_scalar(image: Array, multiplier: ScalarInput) -> Array:
     """
     return multiply_scalar_(np.copy(image), multiplier)
 
-
 @legacy(version="0.5.0")
 def multiply_scalar_(image: Array, multiplier: ScalarInput) -> Array:
-    """Multiply in-place an image by a single scalar or one scalar per channel.
+    """Multiply an image in-place by a scalar (or one scalar per channel).
 
-    This method ensures that ``uint8`` does not overflow during the
-    multiplication.
+    For ``uint8`` inputs, this uses saturating arithmetic to avoid overflow.
 
-    note::
+    Notes
+    -----
+    Tests were primarily conducted for relatively small multipliers (roughly
+    ``-10`` to ``+10``).
 
-        Tests were only conducted for rather small multipliers, around
-        ``-10.0`` to ``+10.0``.
-
-        In general, the multipliers sampled from `multiplier` must be in a
-        value range that corresponds to the input image's dtype. E.g. if the
-        input image has dtype ``uint16`` and the samples generated from
-        `multiplier` are ``float64``, this function will still force all
-        samples to be within the value range of ``float16``, as it has the
-        same number of bytes (two) as ``uint16``. This is done to make
-        overflows less likely to occur.
-
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: limited; tested (1)
-        * ``uint32``: no
-        * ``uint64``: no
-        * ``int8``: limited; tested (1)
-        * ``int16``: limited; tested (1)
-        * ``int32``: no
-        * ``int64``: no
-        * ``float16``: limited; tested (1)
-        * ``float32``: limited; tested (1)
-        * ``float64``: no
-        * ``float128``: no
-        * ``bool``: limited; tested (1)
-
-        - (1) Non-uint8 dtypes can overflow. For floats, this can result in
-              +/-inf.
-
+    For non-``uint8`` dtypes, this function tries to reduce the chance of
+    overflows by clipping/promoting intermediate arrays, but overflows can
+    still occur (for floats that may mean ``+/-inf``).
     Parameters
     ----------
     image : ndarray
         Image array of shape ``(H,W,[C])``.
-        If `value` contains more than one value, the shape of the image is
-        expected to be ``(H,W,C)``.
-        May be changed in-place.
+        If `multiplier` contains more than one value, the image is expected
+        to have shape ``(H,W,C)``.
+        May be modified in-place.
 
     multiplier : number or ndarray
         The multiplier to use. Either a single value or an array
@@ -159,7 +108,6 @@ def multiply_scalar_(image: Array, multiplier: ScalarInput) -> Array:
         return _multiply_scalar_to_uint8_cv2_mul_(image, multiplier)
     return _multiply_scalar_to_non_uint8(image, multiplier)
 
-
 # TODO add a c++/cython method here to compute the LUT tables
 @legacy(version="0.5.0")
 def _multiply_scalar_to_uint8_lut_(image: Array, multiplier: ScalarInput) -> Array:
@@ -195,7 +143,6 @@ def _multiply_scalar_to_uint8_lut_(image: Array, multiplier: ScalarInput) -> Arr
     value_range = np.clip(value_range, 0, 255).astype(image.dtype)
     return ia.apply_lut_(image, value_range)
 
-
 @legacy(version="0.5.0")
 def _multiply_scalar_to_uint8_cv2_mul_(image: Array, multiplier: ScalarInput) -> Array:
     # multiplier must already be an array_like
@@ -209,7 +156,6 @@ def _multiply_scalar_to_uint8_cv2_mul_(image: Array, multiplier: ScalarInput) ->
     result = cv2.multiply(image, multiplier, dtype=cv2.CV_8U, dst=image)
 
     return result
-
 
 def _multiply_scalar_to_non_uint8(image: Array, multiplier: ScalarInput) -> Array:
     # TODO estimate via image min/max values whether a resolution
@@ -259,43 +205,19 @@ def _multiply_scalar_to_non_uint8(image: Array, multiplier: ScalarInput) -> Arra
 
     return iadt.restore_dtypes_(image, input_dtype)
 
-
 def multiply_elementwise(image: Array, multipliers: Array) -> Array:
     """Multiply an image with an array of values.
 
-    This method ensures that ``uint8`` does not overflow during the addition.
+    This method ensures that ``uint8`` does not overflow during multiplication.
 
-    note::
+    Notes
+    -----
+    Tests were primarily conducted for relatively small multipliers (roughly
+    ``-10`` to ``+10``).
 
-        Tests were only conducted for rather small multipliers, around
-        ``-10.0`` to ``+10.0``.
-
-        In general, the multipliers sampled from `multipliers` must be in a
-        value range that corresponds to the input image's dtype. E.g. if the
-        input image has dtype ``uint16`` and the samples generated from
-        `multipliers` are ``float64``, this function will still force all
-        samples to be within the value range of ``float16``, as it has the
-        same number of bytes (two) as ``uint16``. This is done to make
-        overflows less likely to occur.
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: limited; tested (1)
-        * ``uint32``: no
-        * ``uint64``: no
-        * ``int8``: limited; tested (1)
-        * ``int16``: limited; tested (1)
-        * ``int32``: no
-        * ``int64``: no
-        * ``float16``: limited; tested (1)
-        * ``float32``: limited; tested (1)
-        * ``float64``: no
-        * ``float128``: no
-        * ``bool``: limited; tested (1)
-
-        - (1) Non-uint8 dtypes can overflow. For floats, this can result
-              in +/-inf.
+    For non-``uint8`` dtypes, this function tries to reduce the chance of
+    overflows by clipping/promoting intermediate arrays, but overflows can
+    still occur (for floats that may mean ``+/-inf``).
 
     Parameters
     ----------
@@ -315,46 +237,20 @@ def multiply_elementwise(image: Array, multipliers: Array) -> Array:
     """
     return multiply_elementwise_(np.copy(image), multipliers)
 
-
 @legacy(version="0.5.0")
 def multiply_elementwise_(image: Array, multipliers: Array) -> Array:
     """Multiply in-place an image with an array of values.
 
-    This method ensures that ``uint8`` does not overflow during the addition.
+    This method ensures that ``uint8`` does not overflow during multiplication.
 
-    note::
+    Notes
+    -----
+    Tests were primarily conducted for relatively small multipliers (roughly
+    ``-10`` to ``+10``).
 
-        Tests were only conducted for rather small multipliers, around
-        ``-10.0`` to ``+10.0``.
-
-        In general, the multipliers sampled from `multipliers` must be in a
-        value range that corresponds to the input image's dtype. E.g. if the
-        input image has dtype ``uint16`` and the samples generated from
-        `multipliers` are ``float64``, this function will still force all
-        samples to be within the value range of ``float16``, as it has the
-        same number of bytes (two) as ``uint16``. This is done to make
-        overflows less likely to occur.
-
-
-    **Supported dtypes**:
-
-        * ``uint8``: yes; fully tested
-        * ``uint16``: limited; tested (1)
-        * ``uint32``: no
-        * ``uint64``: no
-        * ``int8``: limited; tested (1)
-        * ``int16``: limited; tested (1)
-        * ``int32``: no
-        * ``int64``: no
-        * ``float16``: limited; tested (1)
-        * ``float32``: limited; tested (1)
-        * ``float64``: no
-        * ``float128``: no
-        * ``bool``: limited; tested (1)
-
-        - (1) Non-uint8 dtypes can overflow. For floats, this can result
-              in +/-inf.
-
+    For non-``uint8`` dtypes, this function tries to reduce the chance of
+    overflows by clipping/promoting intermediate arrays, but overflows can
+    still occur (for floats that may mean ``+/-inf``).
     Parameters
     ----------
     image : ndarray
@@ -371,6 +267,14 @@ def multiply_elementwise_(image: Array, multipliers: Array) -> Array:
         Image, multiplied by `multipliers`.
 
     """
+    # MLX fast-path (B1): only when input is already on device.
+    from imgaug2.mlx._core import is_mlx_array
+
+    if is_mlx_array(image):
+        import imgaug2.mlx as mlx
+
+        return cast(Array, mlx.multiply_elementwise(image, multipliers))
+
     iadt.gate_dtypes_strs(
         {image.dtype},
         allowed="bool uint8 uint16 int8 int16 float16 float32",
@@ -388,7 +292,6 @@ def multiply_elementwise_(image: Array, multipliers: Array) -> Array:
     if image.dtype == iadt._UINT8_DTYPE:
         return _multiply_elementwise_to_uint8_(image, multipliers)
     return _multiply_elementwise_to_non_uint8(image, multipliers)
-
 
 @legacy(version="0.5.0")
 def _multiply_elementwise_to_uint8_(image: Array, multipliers: Array) -> Array:
@@ -419,7 +322,6 @@ def _multiply_elementwise_to_uint8_(image: Array, multipliers: Array) -> Array:
     result = cv2.multiply(image, multipliers, dst=image, dtype=cv2.CV_8U)
 
     return result
-
 
 def _multiply_elementwise_to_non_uint8(image: Array, multipliers: Array) -> Array:
     input_dtype = image.dtype
@@ -464,29 +366,16 @@ def _multiply_elementwise_to_non_uint8(image: Array, multipliers: Array) -> Arra
     image = np.multiply(image, multipliers, out=image, casting="no")
     return iadt.restore_dtypes_(image, input_dtype)
 
-
 class Multiply(meta.Augmenter):
     """
     Multiply all pixels in an image with a random value sampled once per image.
 
     This augmenter can be used to make images lighter or darker.
 
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.arithmetic.multiply_scalar`.
-
     Parameters
     ----------
     mul : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         The value with which to multiply the pixel values in each image.
-
-            * If a number, then that value will always be used.
-            * If a tuple ``(a, b)``, then a value from the interval ``[a, b]``
-              will be sampled per image and used for all pixels.
-            * If a list, then a random value will be sampled from that list per
-              image.
-            * If a ``StochasticParameter``, then that parameter will be used to
-              sample a new value per image.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -500,10 +389,10 @@ class Multiply(meta.Augmenter):
         lead to per-channel behaviour (i.e. same as ``True``).
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -518,7 +407,6 @@ class Multiply(meta.Augmenter):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.Multiply(2.0)
 
     Multiplies all images by a factor of ``2``, making the images significantly
@@ -610,9 +498,8 @@ class Multiply(meta.Augmenter):
         return batch
 
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [self.mul, self.per_channel]
-
 
 # TODO merge with Multiply
 class MultiplyElementwise(meta.Augmenter):
@@ -623,22 +510,10 @@ class MultiplyElementwise(meta.Augmenter):
     image* (and optionally channel), this augmenter samples the multipliers
     to use per image and *per pixel* (and optionally per channel).
 
-    **Supported dtypes**:
-
-    See :func:`~imgaug2.augmenters.arithmetic.multiply_elementwise`.
-
     Parameters
     ----------
     mul : number or tuple of number or list of number or imgaug2.parameters.StochasticParameter, optional
         The value with which to multiply pixel values in the image.
-
-            * If a number, then that value will always be used.
-            * If a tuple ``(a, b)``, then a value from the interval ``[a, b]``
-              will be sampled per image and pixel.
-            * If a list, then a random value will be sampled from that list
-              per image and pixel.
-            * If a ``StochasticParameter``, then that parameter will be used to
-              sample a new value per image and pixel.
 
     per_channel : bool or float or imgaug2.parameters.StochasticParameter, optional
         Whether to use (imagewise) the same sample(s) for all
@@ -652,10 +527,10 @@ class MultiplyElementwise(meta.Augmenter):
         lead to per-channel behaviour (i.e. same as ``True``).
 
     seed : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     name : None or str, optional
-        See :func:`~imgaug2.augmenters.meta.Augmenter.__init__`.
+        See `__init__()`.
 
     random_state : None or int or imgaug2.random.RNG or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
         Old name for parameter `seed`.
@@ -670,11 +545,10 @@ class MultiplyElementwise(meta.Augmenter):
 
     Examples
     --------
-    >>> import imgaug2.augmenters as iaa
     >>> aug = iaa.MultiplyElementwise(2.0)
 
     Multiply all images by a factor of ``2.0``, making them significantly
-    bighter.
+    brighter.
 
     >>> aug = iaa.MultiplyElementwise((0.5, 1.5))
 
@@ -750,5 +624,5 @@ class MultiplyElementwise(meta.Augmenter):
         return batch
 
     def get_parameters(self) -> list[object]:
-        """See :func:`~imgaug2.augmenters.meta.Augmenter.get_parameters`."""
+        """See `get_parameters()`."""
         return [self.mul, self.per_channel]
